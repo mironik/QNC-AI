@@ -122,3 +122,13 @@ zatvoren, radna baza se brise. Tray otvara Ingest na novu karticu i na "Nastavi"
 ne dira. Provjereno: test radne baze (napravljena s aktivnim pomocnim projektom za 0,9 s, obrisana s
 projektom). Nije izvedeno: Ingest se sam ne postavlja na karticu (korisnik bira karticu u
 pregledniku), oznaceni kadrovi jos ne idu dalje (W3).
+
+Izvedeno 2026-11-11 (W2, drugi dio; korisnik: "bljeska kao da se nesto pokrece, ali nista se ne otvori;
+nastavi s automatskim odabirom kartice u Ingestu"): uzrok: QNC-ov `qnc-ingest.exe` u `target/release`
+je stara gradnja bez hrvatskog rjecnika i rusi se na postavci jezika `hr`. Novi program `qnc-ai-ingest`:
+QNC-ov Ingest iz istih kocki kao QNC-ov (aplikacija, raspored, ploca, form host; oznaka `v-2026-11-11`)
+plus kocka `qnc-card-autoselect` koja kroz Ingestove radnje (diskovi racunala, disk kartice po
+serijskom broju, Odaberi) sama ide na kartice price redom, kad Ingest zavrsi prethodnu. Tray mu
+predaje serijske brojeve kartica (`--card`). Za razvoj `qnc-ai-ingest.exe` se kopira uz QNC-ove
+programe (`QNC/target/release`), jer odande pokrece player i pomocne programe; paket u W8. Nije
+izvedeno: kartica ubacena dok je Ingest otvoren ne ide mu (otvara se tek iduci put).
