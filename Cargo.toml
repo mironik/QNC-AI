@@ -24,11 +24,13 @@ qnc-active-project-read = { path = "crates/qnc-active-project-read" }
 qnc-ai-catalog = { path = "crates/qnc-ai-catalog" }
 qnc-ai-engines = { path = "crates/qnc-ai-engines" }
 qnc-ai-features = { path = "crates/qnc-ai-features" }
+qnc-ai-features-view = { path = "crates/qnc-ai-features-view" }
 qnc-ai-place = { path = "crates/qnc-ai-place" }
 qnc-ai-store = { path = "crates/qnc-ai-store" }
 qnc-ai-tls = { path = "crates/qnc-ai-tls" }
 qnc-alert = { path = "crates/qnc-alert" }
 qnc-application-catalog = { path = "crates/qnc-application-catalog" }
+qnc-application-selection = { path = "crates/qnc-application-selection" }
 qnc-application-sequence = { path = "crates/qnc-application-sequence" }
 qnc-artifact-db = { path = "crates/qnc-artifact-db" }
 qnc-attached-cards = { path = "crates/qnc-attached-cards" }
@@ -53,6 +55,7 @@ qnc-clip-posters = { path = "crates/qnc-clip-posters" }
 qnc-clip-row = { path = "crates/qnc-clip-row" }
 qnc-clip-sound = { path = "crates/qnc-clip-sound" }
 qnc-clip-window = { path = "crates/qnc-clip-window" }
+qnc-confirm-dialog = { path = "crates/qnc-confirm-dialog" }
 qnc-content-artifacts = { path = "crates/qnc-content-artifacts" }
 qnc-content-read = { path = "crates/qnc-content-read" }
 qnc-content-store = { path = "crates/qnc-content-store" }
@@ -63,6 +66,7 @@ qnc-decoder-catalog = { path = "crates/qnc-decoder-catalog" }
 qnc-decoder-jobs = { path = "crates/qnc-decoder-jobs" }
 qnc-desktop-theme = { path = "crates/qnc-desktop-theme" }
 qnc-dev-diagnostics = { path = "crates/qnc-dev-diagnostics" }
+qnc-dir-browse-jobs = { path = "crates/qnc-dir-browse-jobs" }
 qnc-dir-browser = { path = "crates/qnc-dir-browser" }
 qnc-dir-browser-panel = { path = "crates/qnc-dir-browser-panel" }
 qnc-edit-edge = { path = "crates/qnc-edit-edge" }
@@ -114,11 +118,14 @@ qnc-key-preset = { path = "crates/qnc-key-preset" }
 qnc-key-row = { path = "crates/qnc-key-row" }
 qnc-keyboard-shortcut = { path = "crates/qnc-keyboard-shortcut" }
 qnc-lane-choice = { path = "crates/qnc-lane-choice" }
+qnc-language-choice = { path = "crates/qnc-language-choice" }
 qnc-level-bar = { path = "crates/qnc-level-bar" }
 qnc-level-curve = { path = "crates/qnc-level-curve" }
 qnc-level-meter = { path = "crates/qnc-level-meter" }
 qnc-libav-decode = { path = "crates/qnc-libav-decode" }
 qnc-list-focus = { path = "crates/qnc-list-focus" }
+qnc-location-field = { path = "crates/qnc-location-field" }
+qnc-location-field-view = { path = "crates/qnc-location-field-view" }
 qnc-loudness = { path = "crates/qnc-loudness" }
 qnc-media-card = { path = "crates/qnc-media-card" }
 qnc-media-decode = { path = "crates/qnc-media-decode" }
@@ -142,6 +149,7 @@ qnc-mp4-sound = { path = "crates/qnc-mp4-sound" }
 qnc-mxf-index = { path = "crates/qnc-mxf-index" }
 qnc-mxf-sound = { path = "crates/qnc-mxf-sound" }
 qnc-newsroom-sheet = { path = "crates/qnc-newsroom-sheet" }
+qnc-newsroom-sheet-db = { path = "crates/qnc-newsroom-sheet-db" }
 qnc-newsroom-sheet-model = { path = "crates/qnc-newsroom-sheet-model" }
 qnc-notice = { path = "crates/qnc-notice" }
 qnc-paint-pace = { path = "crates/qnc-paint-pace" }
@@ -170,6 +178,11 @@ qnc-program-output = { path = "crates/qnc-program-output" }
 qnc-program-playlist = { path = "crates/qnc-program-playlist" }
 qnc-program-view = { path = "crates/qnc-program-view" }
 qnc-program-waveform = { path = "crates/qnc-program-waveform" }
+qnc-project-application = { path = "crates/qnc-project-application" }
+qnc-project-blocks = { path = "crates/qnc-project-blocks" }
+qnc-project-desktop = { path = "crates/qnc-project-desktop" }
+qnc-project-jobs = { path = "crates/qnc-project-jobs" }
+qnc-project-session = { path = "crates/qnc-project-session" }
 qnc-project-store = { path = "crates/qnc-project-store" }
 qnc-read-pace = { path = "crates/qnc-read-pace" }
 qnc-record-completion = { path = "crates/qnc-record-completion" }
@@ -179,6 +192,8 @@ qnc-render-unit = { path = "crates/qnc-render-unit" }
 qnc-scanner = { path = "crates/qnc-scanner" }
 qnc-settings-form = { path = "crates/qnc-settings-form" }
 qnc-settings-path = { path = "crates/qnc-settings-path" }
+qnc-settings-rows = { path = "crates/qnc-settings-rows" }
+qnc-settings-switches = { path = "crates/qnc-settings-switches" }
 qnc-shell-footer = { path = "crates/qnc-shell-footer" }
 qnc-shot-analysis = { path = "crates/qnc-shot-analysis" }
 qnc-shot-caption = { path = "crates/qnc-shot-caption" }
@@ -213,6 +228,7 @@ qnc-source-timeline-view = { path = "crates/qnc-source-timeline-view" }
 qnc-source-volumes = { path = "crates/qnc-source-volumes" }
 qnc-status-line = { path = "crates/qnc-status-line" }
 qnc-still-locator = { path = "crates/qnc-still-locator" }
+qnc-store-jobs = { path = "crates/qnc-store-jobs" }
 qnc-story-start = { path = "crates/qnc-story-start" }
 qnc-theme-styles = { path = "crates/qnc-theme-styles" }
 qnc-timeline = { path = "crates/qnc-timeline" }

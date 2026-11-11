@@ -1,0 +1,15 @@
+[package]
+name = "qnc-project-application"
+version = "0.1.0"
+edition = "2021"
+description = "QNC Project application composition root: owns the Project store, no form and no UI"
+
+[dependencies]
+qnc-ui-text = { workspace = true }
+qnc-application-selection = { workspace = true }
+qnc-dir-browser = { workspace = true }
+qnc-dir-browse-jobs = { workspace = true }
+qnc-project-store = { workspace = true }
+qnc-project-jobs = { workspace = true }
+qnc-store-jobs = { workspace = true }
+serde_json = { workspace = true }

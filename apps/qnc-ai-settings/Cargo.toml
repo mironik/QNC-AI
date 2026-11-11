@@ -1,0 +1,12 @@
+[package]
+name = "qnc-ai-settings"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI Settings: the settings of QNC's Project form on their own (templates, advanced settings, AI, locations), opened from the tray; rarely used, apart from the wizard"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-project-desktop = { workspace = true }
+qnc-tray = { workspace = true }
+qnc-wizard-text = { workspace = true }

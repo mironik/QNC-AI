@@ -3111,6 +3111,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-features-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-engines",
+ "qnc-ai-features",
+ "qnc-desktop-theme",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-ai-place"
 version = "0.1.0"
 dependencies = [
@@ -3120,6 +3133,17 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-ai-settings"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-project-desktop",
+ "qnc-tray",
+ "qnc-wizard-text",
 ]
 
 [[package]]
@@ -3174,6 +3198,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "ureq",
+]
+
+[[package]]
+name = "qnc-application-selection"
+version = "0.1.0"
+dependencies = [
+ "qnc-application-catalog",
+ "qnc-contracts",
+ "qnc-transport-resolver",
+ "qnc-ui-text",
+ "serde_json",
 ]
 
 [[package]]
@@ -3455,6 +3490,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-confirm-dialog"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ui-kit",
+]
+
+[[package]]
 name = "qnc-content-artifacts"
 version = "0.1.0"
 dependencies = [
@@ -3591,6 +3634,14 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-dir-browse-jobs"
+version = "0.1.0"
+dependencies = [
+ "qnc-dir-browser",
+ "qnc-store-jobs",
 ]
 
 [[package]]
@@ -4254,6 +4305,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-language-choice"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-settings-form",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-level-bar"
 version = "0.1.0"
 dependencies = [
@@ -4298,6 +4359,27 @@ dependencies = [
  "eframe",
  "qnc-focus-walk",
  "qnc-key-list",
+]
+
+[[package]]
+name = "qnc-location-field"
+version = "0.1.0"
+dependencies = [
+ "qnc-dir-browse-jobs",
+ "qnc-dir-browser",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-location-field-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-dir-browser-panel",
+ "qnc-location-field",
+ "qnc-ui-kit",
+ "qnc-ui-text",
 ]
 
 [[package]]
@@ -4557,6 +4639,18 @@ dependencies = [
  "qnc-theme-styles",
  "qnc-ui-kit",
  "qnc-ui-text",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-newsroom-sheet-db"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-ui-text",
+ "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
@@ -4916,6 +5010,89 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-project-application"
+version = "0.1.0"
+dependencies = [
+ "qnc-application-selection",
+ "qnc-dir-browse-jobs",
+ "qnc-dir-browser",
+ "qnc-project-jobs",
+ "qnc-project-store",
+ "qnc-store-jobs",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-project-blocks"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-features-view",
+ "qnc-application-selection",
+ "qnc-board",
+ "qnc-confirm-dialog",
+ "qnc-contracts",
+ "qnc-desktop-theme",
+ "qnc-dir-browser",
+ "qnc-export-preset",
+ "qnc-keyboard-shortcut",
+ "qnc-language-choice",
+ "qnc-location-field",
+ "qnc-location-field-view",
+ "qnc-newsroom-sheet",
+ "qnc-project-application",
+ "qnc-project-session",
+ "qnc-settings-form",
+ "qnc-settings-path",
+ "qnc-settings-rows",
+ "qnc-settings-switches",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-project-desktop"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-project-application",
+ "qnc-project-blocks",
+ "qnc-project-session",
+]
+
+[[package]]
+name = "qnc-project-jobs"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-features",
+ "qnc-application-catalog",
+ "qnc-db-broker",
+ "qnc-newsroom-sheet-db",
+ "qnc-project-store",
+ "qnc-store-jobs",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-project-session"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-features",
+ "qnc-dir-browser",
+ "qnc-location-field",
+ "qnc-newsroom-sheet-model",
+ "qnc-project-application",
+ "qnc-settings-path",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-project-store"
 version = "0.1.0"
 dependencies = [
@@ -5027,6 +5204,28 @@ dependencies = [
 name = "qnc-settings-path"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-settings-rows"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde",
+]
+
+[[package]]
+name = "qnc-settings-switches"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-settings-path",
+ "qnc-ui-kit",
+ "serde",
  "serde_json",
 ]
 
@@ -5474,6 +5673,10 @@ dependencies = [
  "qnc-ui-text",
  "qnc-work-settings",
 ]
+
+[[package]]
+name = "qnc-store-jobs"
+version = "0.1.0"
 
 [[package]]
 name = "qnc-story-start"

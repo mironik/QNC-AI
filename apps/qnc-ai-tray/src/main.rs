@@ -18,6 +18,7 @@ use qnc_wizard_text::{fill, text};
 const STATUS: u32 = 1;
 const GO_ON: u32 = 2;
 const QUIT: u32 = 3;
+const SETTINGS: u32 = 4;
 /// "Eject" of the n-th card of the story is `EJECT + n`.
 const EJECT: u32 = 100;
 /// How often the disks are looked at.
@@ -43,6 +44,8 @@ fn menu(status: Option<&Status>) -> Vec<MenuItem> {
         }));
         items.push(MenuItem { id: GO_ON, text: fill("tray.continue", &[("step", &status.name)]), enabled: true });
     }
+    // Settings are rarely used and apart from the wizard (user 2026-11-11).
+    items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
     items
 }
@@ -94,6 +97,7 @@ fn main() {
                     log("quit".into());
                     return;
                 }
+                TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest),
@@ -234,6 +238,21 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::pro
         Err(error) => {
             log(format!("ingest failed {}: {error}", program.display()));
             tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error.to_string())]), &text("tray.ok"));
+        }
+    }
+}
+
+/// The Settings form, beside this program (it keeps one copy itself).
+fn open_settings(tray: &Tray, root: &std::path::Path) {
+    let program = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-settings{}", std::env::consts::EXE_SUFFIX))))
+        .unwrap_or_default();
+    match std::process::Command::new(&program).current_dir(root).env("QNC_ROOT", root).spawn() {
+        Ok(_) => log("settings opened".into()),
+        Err(error) => {
+            log(format!("settings failed {}: {error}", program.display()));
+            tray.alert("settings", &text("tray.title"), &fill("tray.settings_failed", &[("error", &error.to_string())]), &text("tray.ok"));
         }
     }
 }

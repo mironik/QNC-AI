@@ -245,6 +245,17 @@ izabranim), strelice ga mijenjaju kao red Obrazac; projekt price se kreira s iza
 templateom (`take_for_story(.., template_id)`). Pokusaj otvaranja cijele Project aplikacije na
 Uvezi napusten na zahtjev korisnika (nije commitan).
 
+Izvedeno 2026-11-11 (korisnik: "iz QNC project izdvoji Postavke kao samostalni obrazac, u trayu dodaj
+link Postavke; to se veoma rijetko koristi zato treba biti odvojen od wizarda"; "nedostaju ti dropdown
+izbornici"): (1) Kopirana QNC Project forma (`qnc-project-desktop`, `qnc-project-blocks`,
+`qnc-project-session`, `qnc-project-application`, `qnc-project-jobs` i njihove kocke) ima nacin samo
+postavke (`ProjectApp::settings_only`, `qnc_project_blocks::show_settings`: desna strana preko
+cijelog prozora, bez popisa projekata i bez Novi projekt, Advanced otvoren). Novi program
+`qnc-ai-settings` (jedan primjerak) je otvara u korijenu QNC-AI-a; tray ima stavku Postavke. (2)
+Obrazac priloga bez padajucih izbornika: QNC-AI nije imao izabran obrazac pa se otvarao prvi po
+abecedi (agencija/online, bez polja s izborom); postavka racunala `data/story-sheet.json` sada bira
+`commercial` kao QNC. Provjereno: Postavke se otvaraju (prozor "QNC AI: Postavke").
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.
