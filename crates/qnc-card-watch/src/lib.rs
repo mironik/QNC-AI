@@ -6,7 +6,7 @@
 //! last look, in the memory of its process.
 
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use qnc_camera_detector::{Limits, SourceScope};
 use qnc_camera_patterns::Catalog;
@@ -22,12 +22,14 @@ pub enum Found {
     Unknown { volume: Volume },
     /// A disk that could not be looked at (a card still waking up, a read error).
     Unreadable { volume: Volume, error: String },
+    /// A disk of the last look that is not attached any more (a card taken out).
+    Gone { volume: Volume },
 }
 
 /// The disks of the last look.
 #[derive(Debug, Default)]
 pub struct CardWatch {
-    seen: Option<BTreeSet<String>>,
+    seen: Option<Vec<Volume>>,
 }
 
 impl CardWatch {
@@ -35,26 +37,34 @@ impl CardWatch {
         Self::default()
     }
 
-    /// The disks of `attached` that were not there at the last look (none at the first look).
-    pub fn new_disks(&mut self, attached: Vec<Volume>) -> Vec<Volume> {
-        let now: BTreeSet<String> = attached.iter().map(key).collect();
-        let fresh = match &self.seen {
-            None => Vec::new(),
-            Some(seen) => attached.into_iter().filter(|volume| !seen.contains(&key(volume))).collect(),
+    /// The disks of `attached` that were not there at the last look (none at the first look) and
+    /// the disks of the last look that are not attached any more.
+    pub fn changes(&mut self, attached: Vec<Volume>) -> (Vec<Volume>, Vec<Volume>) {
+        let keys = |volumes: &[Volume]| volumes.iter().map(key).collect::<BTreeSet<_>>();
+        let (fresh, gone) = match &self.seen {
+            None => (Vec::new(), Vec::new()),
+            Some(seen) => {
+                let (before, now) = (keys(seen), keys(&attached));
+                (
+                    attached.iter().filter(|volume| !before.contains(&key(volume))).cloned().collect(),
+                    seen.iter().filter(|volume| !now.contains(&key(volume))).cloned().collect(),
+                )
+            }
         };
-        self.seen = Some(now);
-        fresh
+        self.seen = Some(attached);
+        (fresh, gone)
     }
 
-    /// One look at the disks attached now.
+    /// One look at the disks attached now: what each new disk is, and the disks taken out.
     pub fn look(&mut self, catalog: &Catalog) -> Vec<Found> {
-        self.new_disks(qnc_source_volumes::mounted()).into_iter().map(|volume| what_is(catalog, volume)).collect()
+        let (fresh, gone) = self.changes(qnc_source_volumes::mounted());
+        gone.into_iter().map(|volume| Found::Gone { volume }).chain(fresh.into_iter().map(|volume| what_is(catalog, volume))).collect()
     }
 
     /// Forgets a disk, so it is looked at again on the next look (a card that could not be read yet).
     pub fn forget(&mut self, volume: &Volume) {
         if let Some(seen) = &mut self.seen {
-            seen.remove(&key(volume));
+            seen.retain(|known| key(known) != key(volume));
         }
     }
 }
@@ -96,14 +106,10 @@ pub fn card_patterns(catalog: &Catalog, root: &Path, source_uri: &str) -> Result
     Ok(report.roots.iter().filter(|root| root.has_original_candidates()).map(|root| root.pattern_id.clone()).collect::<BTreeSet<_>>().into_iter().collect())
 }
 
-/// The folder of a disk (for the wizard's `--card`).
-pub fn card_folder(volume: &Volume) -> PathBuf {
-    volume.root.clone()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn volume(letter: &str, serial: &str) -> Volume {
         Volume { root: PathBuf::from(format!("{letter}:\\")), serial_number: serial.into(), volume_name: None }
@@ -138,12 +144,20 @@ mod tests {
     #[test]
     fn only_a_disk_attached_after_the_first_look_is_new() {
         let mut watch = CardWatch::new();
-        assert!(watch.new_disks(vec![volume("C", "11111111"), volume("D", "22222222")]).is_empty(), "the first look starts nothing");
-        assert!(watch.new_disks(vec![volume("C", "11111111"), volume("D", "22222222")]).is_empty());
-        assert_eq!(watch.new_disks(vec![volume("C", "11111111"), volume("D", "22222222"), volume("G", "33333333")]), vec![volume("G", "33333333")]);
-        assert!(watch.new_disks(vec![volume("C", "11111111")]).is_empty(), "a disk taken out is no new disk");
-        assert_eq!(watch.new_disks(vec![volume("C", "11111111"), volume("G", "44444444")]), vec![volume("G", "44444444")], "another card on the same letter is new");
+        let none: Vec<Volume> = Vec::new();
+        assert_eq!(watch.changes(vec![volume("C", "11111111"), volume("D", "22222222")]), (none.clone(), none.clone()), "the first look starts nothing");
+        assert_eq!(watch.changes(vec![volume("C", "11111111"), volume("D", "22222222")]), (none.clone(), none.clone()));
+        assert_eq!(
+            watch.changes(vec![volume("C", "11111111"), volume("D", "22222222"), volume("G", "33333333")]),
+            (vec![volume("G", "33333333")], none.clone())
+        );
+        assert_eq!(
+            watch.changes(vec![volume("C", "11111111")]),
+            (none.clone(), vec![volume("D", "22222222"), volume("G", "33333333")]),
+            "disks taken out are gone, not new"
+        );
+        assert_eq!(watch.changes(vec![volume("C", "11111111"), volume("G", "44444444")]), (vec![volume("G", "44444444")], none.clone()), "another card on the same letter is new");
         watch.forget(&volume("G", "44444444"));
-        assert_eq!(watch.new_disks(vec![volume("C", "11111111"), volume("G", "44444444")]), vec![volume("G", "44444444")], "a forgotten disk is looked at again");
+        assert_eq!(watch.changes(vec![volume("C", "11111111"), volume("G", "44444444")]), (vec![volume("G", "44444444")], none), "a forgotten disk is looked at again");
     }
 }

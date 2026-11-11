@@ -47,21 +47,19 @@ pub struct Status {
     pub done_when: String,
     /// The story's project, when there is one.
     pub project: Option<String>,
-    /// The card the story starts with, when it starts with one.
-    pub card: Option<String>,
+    /// The cards the story starts with (a shoot is often on more than one), one line each.
+    pub cards: Vec<String>,
     /// Why the story cannot go on, when it cannot.
     pub problem: Option<String>,
 }
 
 impl Status {
-    /// One line for the tray: "3/11 Import: <project or card>".
+    /// One line for the tray: "3/11 Import: <project>".
     pub fn line(&self) -> String {
-        let place = self.project.clone().or_else(|| self.card.clone()).unwrap_or_default();
         let line = format!("{}/{} {}", self.step + 1, self.steps, self.name);
-        if place.is_empty() {
-            line
-        } else {
-            format!("{line}: {place}")
+        match &self.project {
+            Some(project) => format!("{line}: {project}"),
+            None => line,
         }
     }
 }
@@ -69,7 +67,7 @@ impl Status {
 pub struct Flow {
     root: PathBuf,
     steps: &'static [Step],
-    card: Option<Card>,
+    cards: Vec<Card>,
     project: Project,
     reading: Option<mpsc::Receiver<Project>>,
     read_at: Option<Instant>,
@@ -78,17 +76,26 @@ pub struct Flow {
 
 impl Flow {
     pub fn new(root: PathBuf) -> Self {
-        Self { root, steps: qnc_wizard_steps::steps(), card: None, project: Project::Reading, reading: None, read_at: None, state: WizardState::new() }
+        Self { root, steps: qnc_wizard_steps::steps(), cards: Vec::new(), project: Project::Reading, reading: None, read_at: None, state: WizardState::new() }
     }
 
-    /// A card was put in: a new story starts with it (its project is made in the step after).
-    pub fn start_with(&mut self, card: Card) {
-        self.card = Some(card);
+    /// A card was put in: a new story starts with it, or it joins the cards of the story that has
+    /// no project yet (a shoot on two cards). A card on a disk the story has replaces it.
+    pub fn add_card(&mut self, card: Card) {
+        self.cards.retain(|known| known.disk != card.disk);
+        self.cards.push(card);
     }
 
-    /// The card the story starts with, while it has no project yet.
-    pub fn card(&self) -> Option<&Card> {
-        self.card.as_ref()
+    /// A card was taken out: it leaves the story (its clips cannot be read any more).
+    pub fn remove_card(&mut self, disk: &std::path::Path) -> bool {
+        let before = self.cards.len();
+        self.cards.retain(|known| known.disk != disk);
+        self.cards.len() != before
+    }
+
+    /// The cards the story starts with, while it has no project yet.
+    pub fn cards(&self) -> &[Card] {
+        &self.cards
     }
 
     fn target(&self) -> Option<&ProjectDbTarget> {
@@ -105,7 +112,7 @@ impl Flow {
             self.reading = None;
             self.project = project;
         }
-        if self.card.is_none() && self.reading.is_none() && self.read_at.is_none_or(|at| at.elapsed() >= EVERY) {
+        if self.cards.is_empty() && self.reading.is_none() && self.read_at.is_none_or(|at| at.elapsed() >= EVERY) {
             let (send, receive) = mpsc::channel();
             let root = self.root.clone();
             std::thread::spawn(move || {
@@ -114,23 +121,24 @@ impl Flow {
             self.reading = Some(receive);
             self.read_at = Some(Instant::now());
         }
-        let target = if self.card.is_some() { None } else { self.target().cloned() };
+        let target = if self.cards.is_empty() { self.target().cloned() } else { None };
         self.state.poll(target.as_ref());
     }
 
     /// Where the story is.
     pub fn status(&self) -> Status {
-        let open = self.card.is_none() && self.target().is_some();
+        let new_story = !self.cards.is_empty();
+        let open = !new_story && self.target().is_some();
         let mut done: BTreeSet<String> = if open { self.state.done().cloned().unwrap_or_default() } else { BTreeSet::new() };
         // The card step is done once the story has a project: a story is made only from chosen shots.
         if open {
             done.insert(CARD_STEP.into());
         }
         let step = Progress::new(self.steps, &done).current();
-        let problem = match (&self.card, &self.project) {
-            (Some(_), _) | (None, Project::Reading) | (None, Project::None) => None,
-            (None, Project::Error(error)) => Some(qnc_wizard_text::fill("wizard.project_error", &[("error", error)])),
-            (None, Project::Open { .. }) => self.state.error().map(|error| qnc_wizard_text::fill("wizard.state_error", &[("error", error)])),
+        let problem = match (new_story, &self.project) {
+            (true, _) | (false, Project::Reading) | (false, Project::None) => None,
+            (false, Project::Error(error)) => Some(qnc_wizard_text::fill("wizard.project_error", &[("error", error)])),
+            (false, Project::Open { .. }) => self.state.error().map(|error| qnc_wizard_text::fill("wizard.state_error", &[("error", error)])),
         };
         Status {
             step,
@@ -138,11 +146,15 @@ impl Flow {
             code: self.steps[step].code.clone(),
             name: self.steps[step].name.clone(),
             done_when: self.steps[step].done_when.clone(),
-            project: match (&self.card, &self.project) {
-                (None, Project::Open { name, .. }) => Some(name.clone()),
+            project: match (new_story, &self.project) {
+                (false, Project::Open { name, .. }) => Some(name.clone()),
                 _ => None,
             },
-            card: self.card.as_ref().map(|card| qnc_wizard_text::fill("wizard.card", &[("disk", &card.disk.display().to_string()), ("camera", &card.cameras.join(", "))])),
+            cards: self
+                .cards
+                .iter()
+                .map(|card| qnc_wizard_text::fill("wizard.card", &[("disk", &card.disk.display().to_string()), ("camera", &card.cameras.join(", "))]))
+                .collect(),
             problem,
         }
     }
@@ -177,12 +189,25 @@ mod tests {
     #[test]
     fn a_story_put_in_with_a_card_is_at_the_card_step_and_reads_no_project() {
         let mut flow = Flow::new(PathBuf::from("no-such-root"));
-        flow.start_with(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony".into()] });
+        flow.add_card(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony FX6".into()] });
         flow.poll();
         assert!(flow.reading.is_none(), "a new story reads no project");
         let status = flow.status();
         assert_eq!((status.step, status.code.as_str()), (0, CARD_STEP));
         assert_eq!(status.project, None);
-        assert_eq!(status.line(), "1/11 Card and shots: card D:\\ (Sony)");
+        assert_eq!(status.line(), "1/11 Card and shots");
+        assert_eq!(status.cards, vec!["card D:\\ (Sony FX6)".to_string()]);
+    }
+
+    #[test]
+    fn a_second_card_joins_the_story_and_a_card_taken_out_leaves_it() {
+        let mut flow = Flow::new(PathBuf::from("no-such-root"));
+        flow.add_card(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony FX6".into()] });
+        flow.add_card(Card { disk: PathBuf::from("G:\\"), cameras: vec!["Sony FX3".into()] });
+        flow.add_card(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony FX6".into()] });
+        assert_eq!(flow.cards().len(), 2, "the same disk again is the same card");
+        assert!(flow.remove_card(std::path::Path::new("D:\\")));
+        assert!(!flow.remove_card(std::path::Path::new("E:\\")), "a disk the story has not is nothing");
+        assert_eq!(flow.status().cards, vec!["card G:\\ (Sony FX3)".to_string()]);
     }
 }

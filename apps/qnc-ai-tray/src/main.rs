@@ -29,11 +29,12 @@ fn log(line: String) {
     log_line(DiagnosticsStream::Player, format!("ai-tray {line}"));
 }
 
-/// The menu for where the story is: the status line (it only tells), Go on, Quit.
+/// The menu for where the story is: the status line and a line per card (they only tell), Go on, Quit.
 fn menu(status: Option<&Status>) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
     if let Some(status) = status {
+        items.extend(status.cards.iter().map(|card| MenuItem { id: STATUS, text: format!("    {card}"), enabled: false }));
         items.push(MenuItem { id: GO_ON, text: fill("tray.continue", &[("step", &status.name)]), enabled: true });
     }
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
@@ -70,8 +71,8 @@ fn main() {
         flow.poll();
         let status = flow.status();
         // Without a card and without a project there is no story yet: the tray waits.
-        let story = (flow.card().is_some() || status.project.is_some()).then_some(&status);
-        let line = story.map_or_else(|| text("tray.waiting"), Status::line);
+        let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
+        let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
         if shown.as_ref() != Some(&line) {
             tray.set_menu(menu(story));
             tray.set_tip(&format!("{}: {line}", text("tray.title")));
@@ -106,7 +107,7 @@ fn main() {
                         Found::Card { volume, cameras, patterns } => {
                             let disk = volume.root.display().to_string();
                             log(format!("card disk={disk} serial={} patterns={patterns:?}", volume.serial_number));
-                            flow.start_with(Card { disk: volume.root.clone(), cameras: cameras.clone() });
+                            flow.add_card(Card { disk: volume.root.clone(), cameras: cameras.clone() });
                             let next = flow.status().name;
                             tray.notify(&text("tray.title"), &fill("tray.card", &[("disk", &disk), ("camera", &cameras.join(", ")), ("step", &next)]));
                         }
@@ -124,6 +125,13 @@ fn main() {
                                 watch.forget(&volume);
                             } else {
                                 tray.notify(&text("tray.title"), &fill("tray.unreadable", &[("disk", &disk), ("error", &error)]));
+                            }
+                        }
+                        Found::Gone { volume } => {
+                            let disk = volume.root.display().to_string();
+                            log(format!("gone disk={disk} serial={}", volume.serial_number));
+                            if flow.remove_card(&volume.root) {
+                                tray.notify(&text("tray.title"), &fill("tray.card_out", &[("disk", &disk)]));
                             }
                         }
                     }
