@@ -7,6 +7,7 @@ description = "QNC-AI block: a disk attached since the last look, and whether it
 [dependencies]
 qnc-camera-detector = { workspace = true }
 qnc-camera-patterns = { workspace = true }
+qnc-camera-profiles = { workspace = true }
 qnc-source-bindings = { workspace = true }
 qnc-source-reader = { workspace = true }
 qnc-source-volumes = { workspace = true }

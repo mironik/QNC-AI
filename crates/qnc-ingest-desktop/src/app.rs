@@ -48,7 +48,12 @@ impl IngestApp {
     /// browser, the card's disk, Select); a card put in later too.
     fn follow_cards(&mut self, ctx: &egui::Context) {
         match self.attached.poll() {
-            Some(Ok(cards)) => self.cards.want(&cards),
+            Some(Ok(cards)) => {
+                let serials: Vec<String> = cards.iter().map(|card| card.serial.clone()).collect();
+                self.cards.want(&serials);
+                let cameras = cards.into_iter().filter_map(|card| card.camera.map(|camera| (card.serial.to_ascii_lowercase(), camera))).collect();
+                self.application.set_cameras(cameras);
+            }
             Some(Err(error)) => log(format!("ai-ingest no camera catalog: {error}")),
             None => {}
         }

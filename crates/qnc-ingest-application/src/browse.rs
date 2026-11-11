@@ -66,6 +66,7 @@ impl IngestApplication {
     ) -> IngestDispatchResult {
         match self.view.browser.apply(result) {
             Ok(()) => {
+                self.name_cameras();
                 self.view.message = qnc_ui_text::text("ingest.msg.pick_local_source").to_string();
                 IngestDispatchResult::accepted(None, true)
             }
@@ -73,6 +74,30 @@ impl IngestApplication {
                 self.view.message = error.clone();
                 IngestDispatchResult::rejected(error)
             }
+        }
+    }
+
+    /// QNC-AI (user 2026-11-12: "nazovi karticu po kameri", "to može biti dodatni podatak"): the
+    /// cameras of the attached cards, by volume serial, told in the background by the host.
+    pub fn set_cameras(&mut self, cameras: std::collections::BTreeMap<String, String>) {
+        if cameras != self.cameras {
+            self.cameras = cameras;
+            self.name_cameras();
+        }
+    }
+
+    /// The disks of the root list show their card's camera before their size ("Sony ILME-FX3A · 64 GB").
+    fn name_cameras(&mut self) {
+        if !self.view.browser.roots || self.view.source_kind == SourceKind::Bases {
+            return;
+        }
+        for entry in &mut self.view.browser.entries {
+            let size = entry.volume_name.rsplit(" · ").next().unwrap_or_default().to_string();
+            entry.volume_name = match self.cameras.get(&entry.serial_number.to_ascii_lowercase()) {
+                Some(camera) if size.is_empty() => camera.clone(),
+                Some(camera) => format!("{camera} · {size}"),
+                None => size,
+            };
         }
     }
 

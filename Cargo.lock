@@ -3244,6 +3244,7 @@ dependencies = [
 name = "qnc-attached-cards"
 version = "0.1.0"
 dependencies = [
+ "qnc-camera-profiles",
  "qnc-card-watch",
  "qnc-source-volumes",
 ]
@@ -3406,6 +3407,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-camera-detector",
  "qnc-camera-patterns",
+ "qnc-camera-profiles",
  "qnc-source-bindings",
  "qnc-source-reader",
  "qnc-source-volumes",

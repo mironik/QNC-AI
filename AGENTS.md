@@ -284,3 +284,14 @@ opticki) i velicina, samo citanje. Disk bez oznake zove se po vrsti ("Kartica / 
 treci stupac preglednika je velicina kao na naljepnici (decimalni GB, `size_label`; `qnc-ingest-select`
 `browser`), ne ponovljena oznaka. Rjecnik `source.kind_*` umjesto `source.volume_unnamed`. Testovi
 `qnc-source-volumes`, `qnc-source-bindings`, `qnc-ingest-select`. Uzivo nije provjereno.
+
+Izvedeno 2026-11-12 (korisnik: "nazovi karticu po kameri"; "to može biti dodatni podatak"): uz velicinu
+diska preglednik pokazuje kameru kartice ("Sony ILME-FX3A · 128 GB"); naziv i serijski ostaju.
+`qnc-card-watch` `camera_of`: indeks i prvi zapis klipa kartice (samo tekst) i profili kamera
+(`catalogs/cameras`, citani bez upisa u bazu) daju model; bez prepoznatog modela proizvodac rasporeda.
+`qnc-attached-cards` (pozadinska nit, svake 2 s) daje karticu s kamerom, kamera se cita jednom po kartici;
+`qnc-ingest-application` `set_cameras` je dopisuje u popis diskova. Izmjereno (primjer
+`qnc-card-watch/examples/cameras.rs`, samo citanje): D: Sony ILME-FX6V 2,3 s, G: Sony ILME-FX3A 1,1 s.
+Nalaz uz pitanje korisnika o nazivu i proizvodacu kartice: obje kartice nemaju oznaku volumena; sustav za
+D: (CFexpress u USB citacu) daje proizvodaca i model kartice "DAJINGYU CX256GCFA", a za G: (SD) samo
+citac "Generic- SD/MMC/MS PRO". Uzivo nije provjereno.

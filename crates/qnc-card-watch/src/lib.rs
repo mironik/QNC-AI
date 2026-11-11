@@ -100,6 +100,28 @@ pub fn what_is(catalog: &Catalog, volume: Volume) -> Found {
     }
 }
 
+/// The camera whose card is at `volume`, by the camera profiles (`profiles`): the card's index and
+/// its first clip record are read (text only) and the profile of a layout found there that
+/// recognises them names the model; without one, the manufacturer of the layout. `None` for a
+/// disk with no card of a known camera.
+pub fn camera_of(catalog: &Catalog, profiles: &[qnc_camera_profiles::Profile], volume: &Volume) -> Option<String> {
+    let source = qnc_source_reader::SourceReader::local(&volume.source_uri(), &volume.root).ok()?;
+    let report = qnc_camera_detector::detect(catalog, &source, SourceScope::CardRelative, Limits::default()).ok()?;
+    let found = report.roots.iter().find(|root| root.has_original_candidates())?;
+    let records: Vec<String> = ["index", "metadata"]
+        .iter()
+        .filter_map(|role| found.files.iter().find(|file| file.role == *role))
+        .filter_map(|file| source.read_text(&file.reference, qnc_source_reader::MAX_TEXT_BYTES).ok().map(|document| document.text))
+        .collect();
+    let texts: Vec<&str> = records.iter().map(String::as_str).collect();
+    let reader = profiles.iter().find(|profile| profile.layouts.contains(&found.pattern_id)).map(|profile| profile.reader.clone());
+    let model = reader
+        .and_then(|reader| qnc_camera_profiles::recognise(profiles, &reader, &texts))
+        .filter(|(_, recognised)| *recognised)
+        .map(|(profile, _)| format!("{} {}", profile.manufacturer, profile.model));
+    model.or_else(|| catalog.patterns.iter().find(|pattern| pattern.id == found.pattern_id).map(|pattern| pattern.manufacturer.clone()))
+}
+
 /// The patterns of the catalog whose card is at `root` with original clips on it.
 pub fn card_patterns(catalog: &Catalog, root: &Path, source_uri: &str) -> Result<Vec<String>, String> {
     let source = qnc_source_reader::SourceReader::local(source_uri, root).map_err(|error| format!("{error:?}"))?;
