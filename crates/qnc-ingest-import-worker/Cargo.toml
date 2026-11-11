@@ -1,0 +1,34 @@
+[package]
+name = "qnc-ingest-import-worker"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public module: executes the import of a claimed clip by the project settings (link, copy proxy, copy original); reads media through the media stream transport, writes the outcome through the content transport"
+
+[dependencies]
+qnc-import-fit = { workspace = true }
+qnc-worker-wake = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-active-project-read = { workspace = true }
+qnc-dir-browser = { workspace = true }
+qnc-playback-activity = { workspace = true }
+qnc-ingest-select = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-ingest-work-plan = { workspace = true }
+qnc-media-stream = { workspace = true }
+qnc-missing-posters = { workspace = true }
+qnc-source-reader = { workspace = true }
+qnc-work-settings = { workspace = true }
+qnc-media-metadata = { workspace = true }
+qnc-media-optimize = { workspace = true }
+qnc-media-probe = { workspace = true }
+qnc-ffprobe-metadata = { workspace = true }
+qnc-source-timecode = { workspace = true }
+
+[dev-dependencies]
+qnc-camera-adapter = { workspace = true }
+qnc-camera-profiles = { workspace = true }
+qnc-camera-profile-adapter = { workspace = true }
+qnc-sony-metadata = { workspace = true }
+qnc-ingest-select = { workspace = true, features = ["test-support"] }
+serde_json = { workspace = true }
+tempfile = "3"

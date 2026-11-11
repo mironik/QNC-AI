@@ -177,6 +177,26 @@ nove (kartica koja je unutra kad se tray pokrene pokrece pricu); disk koji nije 
 zapise. Provjereno uzivo: tray pokrenut s karticama D: (FX6) i G: (FX3A) procitao je 30 i 26 klipova
 i otvorio formu; drugo otvaranje nije pokrenulo drugi primjerak.
 
+Izmjena 2026-11-11 (korisnik: "zasto nisi koristio modificirani Ingest koji ima source timeline i
+monitor... ne trazim da pises ponovo nego da prilagodimo"; "sto ako su kadrovi na internom disku ili
+na mrezi"; "na nivou aplikacije imamo globalni direktorij u kojem se kreiraju ingest baze kao
+samostalne jedinice; kada korisnik kreira svoj projekt taj projekt uzima tu bazu za svoju ingest
+bazu"): zamjenjuje prethodni zapis (forma `qnc-ai-ingest`, `qnc-card-pick`, `qnc-card-read`,
+privremeni JSON; uklonjeni). QNC-ov Ingest kopiran je cijeli: program `apps/qnc-ingest`, kocke
+Ingesta, playera, monitora, source timelinea, preglednika (Racunalo/LAN/Intranet), pozadinskog
+radnika i njihove ovisnosti (ukupno 218 kocki u `crates/`), programi `tools/qnc-player-runner`,
+`tools/qnc-ingest-worker`, `tools/qnc-decoder-ffmpeg`, `tools/qnc-program-output-host`, te
+`contracts/`, `catalogs/` i `seed/` QNC-a s oznake `v-2026-11-11`. FFmpeg (LGPL, build
+`n8.1.3-17-gc389840894-20261011`) uz programe iz arhive na ovom racunalu
+(`C:\Users\miron\tools\qnc-ffmpeg-archive`), ne iz QNC-a. Nova kocka `qnc-ingest-base`: Ingest baze
+aplikacije u `data/ingest`, svaka samostalna jedinica koju napravi kopirana Project kocka
+(`qnc-project-store`): vlastita mapa i baza s radnim postavkama izabranog templatea, aktivna dok
+Ingest radi u njoj; trenutna je aktivna Ingest baza, inace se napravi nova. Tray je postavi pa
+pokrene Ingest (skrivena konzola za pomocne programe, jedan primjerak koji je tray pokrenuo).
+Provjereno uzivo: tray s karticama D: i G: napravio je Ingest bazu i otvorio Ingest nad njom. Nije
+izvedeno: Ingest se sam ne postavlja na karticu; projekt price jos ne zapisuje svoju Ingest bazu (W3);
+izrada baze traje oko 4 s na niti traya.
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

@@ -1,0 +1,17 @@
+[package]
+name = "qnc-project-store"
+version = "0.1.0"
+edition = "2021"
+description = "QNC Project owner store"
+
+[dependencies]
+qnc-ui-text = { workspace = true }
+qnc-application-catalog = { workspace = true }
+qnc-contracts = { workspace = true }
+qnc-db-contract = { workspace = true }
+qnc-transport-resolver = { workspace = true }
+qnc-workstation-identity = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

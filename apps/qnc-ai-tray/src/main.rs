@@ -67,9 +67,8 @@ fn main() {
     };
     log("started".into());
     log(format!("root {}", root.display()));
-    // A card is read on its own thread (the card may be slow); what it holds comes back here.
-    let read = std::sync::mpsc::channel::<(String, Result<qnc_card_read::CardContent, String>)>();
     let mut flow = Flow::new(root.clone());
+    let mut ingest: Option<std::process::Child> = None;
     let mut shown: Option<String> = None;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
@@ -97,7 +96,7 @@ fn main() {
                 }
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root),
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -132,22 +131,6 @@ fn main() {
                 }
             }
         }
-        while let Ok((name, content)) = read.1.try_recv() {
-            match content {
-                Ok(content) => {
-                    log(format!("card read serial={} clips={} warnings={}", content.serial, content.clips.len(), content.warnings.len()));
-                    for warning in &content.warnings {
-                        log(format!("card read warning serial={} {warning}", content.serial));
-                    }
-                    tray.notify(&text("tray.title"), &fill("tray.card_read", &[("card", &name), ("clips", &content.clips.len().to_string())]));
-                    open_ingest(&tray, &root);
-                }
-                Err(error) => {
-                    log(format!("card read failed card={name}: {error}"));
-                    tray.alert(&format!("read:{name}"), &text("tray.title"), &fill("tray.card_read_failed", &[("card", &name), ("error", &error)]), &text("tray.ok"));
-                }
-            }
-        }
         if catalog.is_none() && catalog_read.is_none_or(|at| at.elapsed() >= CATALOG_AGAIN) {
             catalog_read = Some(Instant::now());
             match qnc_card_watch::catalog(&root) {
@@ -178,12 +161,8 @@ fn main() {
                             } else {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
-                                // A card on the list: what it holds is read and kept until the story has a project.
-                                let (answer, root) = (read.0.clone(), root.clone());
-                                std::thread::spawn(move || {
-                                    let content = qnc_card_read::read(&root, &volume).and_then(|content| qnc_card_read::keep(&root, &content).map(|_| content));
-                                    let _ = answer.send((name, content));
-                                });
+                                // A card on the list: Ingest, started when it does not run (it reads the card itself).
+                                open_ingest(&tray, &root, &mut ingest);
                             }
                         }
                         Found::Unknown { volume } => {
@@ -220,15 +199,38 @@ fn main() {
     }
 }
 
-/// The import form, beside this program; it keeps one copy itself, so starting it again while it
-/// runs does nothing.
-fn open_ingest(tray: &Tray, root: &std::path::Path) {
+/// Ingest (QNC-AI's copy of QNC's, beside this program), started when the one this tray started
+/// does not run any more. Its helper programs (player, worker, decoders) are console programs:
+/// they share one hidden console, so no window flashes.
+fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>) {
+    if ingest.as_mut().is_some_and(|child| matches!(child.try_wait(), Ok(None))) {
+        return;
+    }
+    // Ingest works in the current Ingest base of the application (data/ingest).
+    match qnc_ingest_base::current(root) {
+        Ok(base) => log(format!("ingest base {} {}", base.name, base.uri)),
+        Err(error) => {
+            log(format!("ingest base failed: {error}"));
+            tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));
+            return;
+        }
+    }
     let program = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-ingest{}", std::env::consts::EXE_SUFFIX))))
+        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ingest{}", std::env::consts::EXE_SUFFIX))))
         .unwrap_or_default();
-    match std::process::Command::new(&program).current_dir(root).env("QNC_ROOT", root).spawn() {
-        Ok(_) => log(format!("ingest opened {}", program.display())),
+    let mut command = std::process::Command::new(&program);
+    command.current_dir(root).env("QNC_ROOT", root);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    match command.spawn() {
+        Ok(child) => {
+            log(format!("ingest opened {}", program.display()));
+            *ingest = Some(child);
+        }
         Err(error) => {
             log(format!("ingest failed {}: {error}", program.display()));
             tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error.to_string())]), &text("tray.ok"));

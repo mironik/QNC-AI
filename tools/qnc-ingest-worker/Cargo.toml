@@ -1,0 +1,27 @@
+[package]
+name = "qnc-ingest-worker"
+version = "0.1.0"
+edition = "2021"
+description = "QNC background application: executes the project settings for the clips selected in Ingest (started by Uvezi, runs without a window, ends when done)"
+
+[[bin]]
+name = "qnc-ingest-worker"
+path = "src/main.rs"
+
+[dependencies]
+qnc-ui-text = { workspace = true }
+qnc-missing-posters = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-active-project-read = { workspace = true }
+qnc-content-artifacts = { workspace = true }
+qnc-content-read = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-ingest-import-worker = { workspace = true }
+qnc-playback-activity = { workspace = true }
+qnc-record-completion = { workspace = true }
+qnc-ingest-select = { workspace = true }
+qnc-source-reader = { workspace = true }
+qnc-shot-analysis = { workspace = true }
+qnc-shot-content-run = { workspace = true }
+qnc-shot-caption-run = { workspace = true }
+qnc-transcribe-queue = { workspace = true }

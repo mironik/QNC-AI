@@ -1,0 +1,30 @@
+{
+  "database_id": "qnc.db.shot-content",
+  "database_owner": "project",
+  "owner_application": "qnc.module.shot-content-db",
+  "ownership_rule": "The project owns this database; no application owns it or its table. What the parts of a clip show reaches it only through the one intermediary of the project database (qnc.module.db-broker), whose table module qnc.module.shot-content-db owns it.",
+  "schema_version": "0.1.0",
+  "qnc_uri": "qnc://local/db/project_db",
+  "tables": [
+    "clip_content",
+    "shot_label_vectors"
+  ],
+  "public_read_views": [
+    "public_clip_content",
+    "public_shot_label_vectors"
+  ],
+  "write_owner": "qnc.module.shot-content-db",
+  "public_read_policy": "public_read_views",
+  "rules": {
+    "file": "Its tables are in ai.db beside the project database (docs/102 step 7, user 2026-11-11: AI is an add-on), opened through the same intermediary with the project database attached for the catalog, the settings and the leases; deleting ai.db leaves the project as it was and the AI looks at its clips again. A project database on the LAN or intranet keeps no AI file.",
+    "clip": "A row is what the usable parts of one clip show (user 2026-11-10: sorting the B-roll by content): per part of its shot analysis the clip frames [from, to), the frames its 1-3 pictures were taken at and one vector of what they show (their mean, unit length); or only why the clip was not looked at.",
+    "model": "A row names the model its vectors come from; vectors of different models are not compared, and a clip is looked at again for another model.",
+    "labels": "No labels are kept: which labels a part gets is worked out from its vector when it is read (catalogs/ai/shot-labels.json), so a newsroom's own list needs no new look at the pictures.",
+    "label_vectors": "Beside the content a row a model keeps the vectors of the list of labels it was given and its score scale and bias, so a form sorts the B-roll by content without loading the model; made again when the list says something else (user 2026-11-10).",
+    "replace": "A clip looked at again replaces its row.",
+    "version": "A row carries the content version; a row of another version is looked at again."
+  },
+  "migration_policy": "owner_application_only",
+  "created_at": "2026-11-10T00:00:00Z",
+  "updated_at": "2026-11-10T00:00:00Z"
+}

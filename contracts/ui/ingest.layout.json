@@ -1,0 +1,255 @@
+{
+  "layout_id": "qnc.ui.ingest",
+  "layout_version": "0.1.0",
+  "application_id": "qnc.ingest",
+  "mirror_policy": "literal_qnc_v4",
+  "font_policy": "single_qnc_font_system",
+  "allowed_deviation_policy": "explicit_approval_required",
+  "qnc_v4_reference": [
+    "seed/tabs/ingest/plugin.json",
+    "qnc-app/src/ingest/mod.rs",
+    "qnc-app/src/app.rs",
+    "qnc-app/src/composition.rs",
+    "qnc-app/src/qnc_ui.rs",
+    "qnc-app/src/qnc_theme.rs",
+    "qnc-app/src/qnc_location_browser.rs",
+    "qnc-app/src/qnc_source_dock.rs",
+    "qnc-app/src/qnc_media_card.rs",
+    "qnc-app/src/editorial/media_pool.rs"
+  ],
+  "audit_note": "Active qnc_v4 Ingest is editorial_shell (Story ratios) plus bottom source dock. Ingest does not own shell math. Confirm button label is Odaberi; empty grid text still says U redu.",
+  "tab_order": [
+    "source_kinds",
+    "browser",
+    "browser_buttons",
+    "pool",
+    "source_timeline",
+    "source_buttons"
+  ],
+  "focus_rows": {
+    "source_kinds": [
+      "ingest_source_kind_local",
+      "ingest_source_kind_lan",
+      "ingest_source_kind_internet"
+    ],
+    "browser_buttons": [
+      "ingest_dir_confirm",
+      "ingest_dir_cancel"
+    ],
+    "pool_tabs": [
+      "ingest_tab_all"
+    ],
+    "source_buttons": [
+      "ingest_clear_selection",
+      "ingest_select_all",
+      "ingest_import_selected"
+    ]
+  },
+  "focus_clicks": {
+    "source_kinds": [
+      "ingest_source_kind_local",
+      "ingest_source_kind_lan",
+      "ingest_source_kind_internet"
+    ],
+    "browser": [
+      "ingest_dir_roots",
+      "ingest_dir_up",
+      "ingest_dir_open",
+      "ingest_dir_cancel"
+    ],
+    "pool": [
+      "ingest_dir_confirm",
+      "ingest_preview_focus",
+      "ingest_clip_toggle"
+    ],
+    "source_timeline": [
+      "timeline_cue_frame",
+      "playlist_input_start"
+    ]
+  },
+  "board": {
+    "shell": "editorial",
+    "left_ratio": 0.365,
+    "divider_width": 5.0,
+    "left_min_width": 280.0,
+    "right_min_width": 200.0,
+    "outer_padding": 0.0,
+    "left_column_face": "theme.surface",
+    "right_column_face": "theme.bg",
+    "shell_margin_x": 8.0,
+    "block_pad": 10.0,
+    "gap": 8.0
+  },
+  "preview": {
+    "reserve_below": 190.0,
+    "min_height": 160.0,
+    "width_inset": 32.0,
+    "min_width": 240.0,
+    "aspect": "16:9",
+    "fit": "contain_centered",
+    "empty_label": "@ingest.preview.empty",
+    "empty_font_size": 14.0,
+    "face": "preview_black"
+  },
+  "pool_head": {
+    "chrome_row_height": 28.0,
+    "chrome_pad_x": 8.0,
+    "chrome_pad_y": 2.0,
+    "chrome_ctrl_height": 24.0,
+    "font_ui": 14.0,
+    "tabs_left": [
+      {
+        "label": "@pool.tab.all",
+        "action_id": "ingest_tab_all"
+      }
+    ],
+    "hidden_tabs": [
+      "@pool.tab.subclip",
+      "@pool.tab.broll",
+      "@pool.tab.segment"
+    ],
+    "tab_gap": 10.0,
+    "transport_width": 290.0,
+    "play_pause_playing": "||",
+    "hidden_transport": [
+      "B",
+      "@story.export_hires"
+    ]
+  },
+  "dir_browser": {
+    "id_salt": "ingest",
+    "sources_label": "@source.sources",
+    "kinds": [
+      "@source.computer",
+      "@source.lan",
+      "@source.internet"
+    ],
+    "kind_gap": 10.0,
+    "up_label": "@source.up",
+    "up_width": 42.0,
+    "disks_label": "@source.disks",
+    "disks_width": 58.0,
+    "nav_gap": 12.0,
+    "error_gap": 4.0,
+    "tree_footer_gap": 8.0,
+    "tree_footer_reserve": 32.0,
+    "tree_min_height": 40.0,
+    "confirm_label": "@common.select",
+    "cancel_label": "@common.cancel",
+    "footer_item_gap": 8.0,
+    "empty_lan": "@source.empty_lan",
+    "empty_internet": "@source.empty_internet",
+    "empty_local": "@source.empty_local",
+    "empty_folder": "@source.empty_folder",
+    "loading_label": "@common.loading"
+  },
+  "clip_grid": {
+    "id_salt": "ingest_media_grid",
+    "min_card_width": 160.0,
+    "card_text_height": 34.0,
+    "grid_gap": 10.0,
+    "selection_check": true,
+    "outline": "preview_focus_only",
+    "status_dots": "imported_only",
+    "empty_message": "@ingest.grid.empty",
+    "empty_new_message": "@ingest.grid.empty_new",
+    "loading_settings_message": "@ingest.grid.reading_settings",
+    "saving_label": "@common.saving",
+    "save_failed_label": "@common.write_failed",
+    "imported_marker_rgb": [
+      55,
+      210,
+      145
+    ]
+  },
+  "source_dock": {
+    "show_header": true,
+    "show_edit_actions": false,
+    "show_import_actions": true,
+    "header_timeline_gap": 4.0,
+    "inner_margin_x": 8.0,
+    "font_ui": 14.0,
+    "header_item_gap": 8.0,
+    "clip_label_fallback": "—",
+    "header_left": [
+      "clip_label",
+      "ingest_status"
+    ],
+    "actions_rtl": [
+      "@ingest.ai_mining",
+      "@ingest.copy_original",
+      {
+        "label": "@ingest.clear",
+        "action_id": "ingest_clear_selection"
+      },
+      {
+        "label": "@ingest.select_all",
+        "action_id": "ingest_select_all"
+      },
+      {
+        "label": "@ingest.import",
+        "action_id": "ingest_import_selected"
+      },
+      "@ingest.filter"
+    ],
+    "clip_filter_labels": [
+      "@ingest.filter.new",
+      "@ingest.filter.all"
+    ],
+    "clip_filter_colors": [
+      [
+        16,
+        185,
+        129
+      ],
+      [
+        37,
+        99,
+        235
+      ]
+    ],
+    "clip_filter_width": 96.0,
+    "status_idle": "@ingest.status.idle",
+    "status_pending": "@ingest.status.pending",
+    "archive_original_label": "@ingest.copy_original",
+    "edit_actions": [
+      "@common.export",
+      "B"
+    ],
+    "ai_mining_label": "@ingest.ai_mining",
+    "v4_placeholder_filmstrip_tiles": 12
+  },
+  "labels": [
+    "@app.ingest",
+    "@ingest.preview.empty",
+    "@pool.tab.all",
+    "@pool.tab.subclip",
+    "@source.sources",
+    "@source.computer",
+    "@source.lan",
+    "@source.internet",
+    "@source.up",
+    "@source.disks",
+    "@common.select",
+    "@common.cancel",
+    "@source.empty_lan",
+    "@source.empty_internet",
+    "@ingest.grid.empty",
+    "@ingest.ai_mining",
+    "@ingest.copy_original",
+    "@ingest.clear",
+    "@ingest.select_all",
+    "@ingest.import",
+    "@ingest.filter.new",
+    "@ingest.filter.all"
+  ],
+  "forbidden_changes_without_approval": [
+    "redesign",
+    "changing_qnc_v4_layout",
+    "changing_labels",
+    "changing_font_system",
+    "adding_business_logic_to_ui",
+    "adding_probe_to_ui",
+    "adding_scan_to_ui"
+  ]
+}

@@ -1,0 +1,552 @@
+{
+  "layout_id": "qnc.ui.editorial",
+  "layout_version": "0.1.0",
+  "mirror_policy": "literal_qnc_v4",
+  "font_policy": "single_qnc_font_system",
+  "allowed_deviation_policy": "explicit_approval_required",
+  "qnc_v4_reference": [
+    "qnc-app/src/composition.rs",
+    "qnc-app/src/qnc_ui.rs",
+    "qnc-app/src/qnc_media_card.rs",
+    "qnc-app/src/editorial/media_pool.rs",
+    "qnc-app/src/story.rs",
+    "qnc-app/src/media_assist.rs",
+    "seed/tabs/story/plugin.json",
+    "seed/tabs/media_assist/plugin.json"
+  ],
+  "audit_note": "Shared editorial shell. Geometry is identical to contracts/ui/ingest.layout.json (v4 qnc_ui::space); applications differ only in the components placed in the slots. See docs/87-editorial-ui-reference-audit.md.",
+  "shell": {
+    "kind": "editorial",
+    "left_ratio": 0.365,
+    "divider_width": 5.0,
+    "left_min_width": 280.0,
+    "right_min_width": 200.0,
+    "outer_padding": 0.0,
+    "left_column_face": "theme.surface",
+    "right_column_face": "theme.bg",
+    "shell_margin_x": 8.0,
+    "block_pad": 10.0,
+    "gap": 8.0
+  },
+  "preview": {
+    "reserve_below": 190.0,
+    "min_height": 160.0,
+    "width_inset": 32.0,
+    "min_width": 240.0,
+    "aspect": "16:9",
+    "fit": "contain_centered",
+    "empty_label": "@ingest.preview.empty",
+    "empty_font_size": 14.0,
+    "face": "preview_black"
+  },
+  "media_card": {
+    "min_card_width": 160.0,
+    "card_text_height": 34.0,
+    "grid_gap": 10.0,
+    "empty_message": "@story.pool.empty",
+    "broll_empty_message": "@story.pool.broll_empty",
+    "virtual_empty_message": "@story.pool.subclip_empty",
+    "transcript_empty_message": "@story.pool.transcript_empty",
+    "subsegment_empty_message": "@story.pool.subsegment_empty",
+    "voice_empty_message": "@story.pool.voice_empty",
+    "stories_empty_message": "@story.pool.stories_empty",
+    "ai_broll_empty_message": "@story.pool.ai_broll_empty",
+    "loading_message": "@story.pool.loading"
+  },
+  "pool_head": {
+    "tabs_left": [
+      {
+        "label": "@pool.tab.all",
+        "action_id": "editorial_tab_all"
+      },
+      {
+        "label": "@pool.tab.sot",
+        "action_id": "editorial_tab_virtual"
+      },
+      {
+        "label": "@pool.tab.ai_broll",
+        "action_id": "editorial_tab_ai_broll"
+      }
+    ],
+    "transport_width": 290.0
+  },
+  "cover_lengths": [
+    {
+      "below_seconds": 2.0,
+      "rgb": [
+        255,
+        140,
+        0
+      ]
+    },
+    {
+      "below_seconds": 3.0,
+      "rgb": [
+        250,
+        204,
+        21
+      ]
+    },
+    {
+      "below_seconds": 4.0,
+      "rgb": [
+        34,
+        197,
+        94
+      ]
+    },
+    {
+      "at_most_seconds": 5.0,
+      "rgb": [
+        34,
+        211,
+        238
+      ]
+    },
+    {
+      "rgb": [
+        59,
+        130,
+        246
+      ]
+    }
+  ],
+  "source_dock": {
+    "inner_margin_x": 8.0,
+    "header_timeline_gap": 4.0,
+    "header_item_gap": 8.0,
+    "clip_label_fallback": "—",
+    "timecode_labels": [
+      "@source.in",
+      "@source.out",
+      "@source.duration"
+    ]
+  },
+  "right_panel": {
+    "empty_kinds": [
+      "none"
+    ],
+    "note": "Reserved space for the functions of each group; stays empty until a group specifies it."
+  },
+  "groups": {
+    "e": {
+      "role": "media_assist_audio_ai",
+      "pool_head": {
+        "show_segment_tab": false,
+        "show_cover_tab": true,
+        "show_export_hires": false,
+        "show_quick_cover": false,
+        "tabs_left": [
+          {
+            "label": "@pool.tab.all",
+            "action_id": "editorial_tab_all"
+          },
+          {
+            "label": "@pool.tab.transcript",
+            "action_id": "editorial_tab_transcript"
+          },
+          {
+            "label": "@pool.tab.sot",
+            "action_id": "editorial_tab_virtual"
+          }
+        ]
+      },
+      "right_panel": "transcript_panel",
+      "right_panel_tabs": [
+        {
+          "label": "@ai.tab_audio",
+          "action_id": "ai_tab_audio",
+          "panel": "transcript_panel"
+        },
+        {
+          "label": "@ai.tab_video",
+          "action_id": "ai_tab_video",
+          "panel": "video_ai_panel"
+        }
+      ],
+      "tab_order": [
+        "pool_tabs",
+        "pool",
+        "source_timeline",
+        "source_buttons"
+      ],
+      "source_dock": {
+        "show": true,
+        "show_header": true,
+        "show_story_actions": true,
+        "show_ingest_actions": false,
+        "actions_rtl": [
+          "@story.broll",
+          "@story.voice_over",
+          "@story.talking_head",
+          {
+            "label": "@story.update_statement",
+            "action_id": "statement_update"
+          },
+          {
+            "label": "@story.add_statement",
+            "action_id": "save_virtual_shot"
+          }
+        ]
+      },
+      "media_card": {
+        "selection_check": true,
+        "ticks_several": true,
+        "status_dots": "pipeline"
+      },
+      "pool_actions": {
+        "tabs": [
+          "editorial_tab_all"
+        ],
+        "actions": [
+          {
+            "label": "@ma.transcribe",
+            "action_id": "transcribe_marks"
+          },
+          {
+            "label": "@ma.transcribe_repass",
+            "action_id": "transcribe_repass"
+          }
+        ]
+      }
+    },
+    "g": {
+      "role": "ma_script",
+      "pool_head": {
+        "show_segment_tab": false,
+        "show_cover_tab": true,
+        "show_export_hires": false,
+        "show_quick_cover": false,
+        "tabs_left": [
+          {
+            "label": "@pool.tab.all",
+            "action_id": "editorial_tab_all"
+          },
+          {
+            "label": "@pool.tab.sot",
+            "action_id": "editorial_tab_virtual"
+          },
+          {
+            "label": "@pool.tab.subsegment",
+            "action_id": "editorial_tab_subsegment"
+          },
+          {
+            "label": "@pool.tab.voice",
+            "action_id": "editorial_tab_voice"
+          },
+          {
+            "label": "@pool.tab.ai_broll",
+            "action_id": "editorial_tab_ai_broll"
+          }
+        ]
+      },
+      "right_panel": "script_writer_panel",
+      "media_overlay": {
+        "title": "@ma_script.media_title",
+        "panel": "transcript_search_panel",
+        "bar": "script_clip_bar"
+      },
+      "tab_order": [
+        "pool_tabs",
+        "pool",
+        "source_timeline",
+        "source_buttons"
+      ],
+      "source_dock": {
+        "show": true,
+        "show_header": true,
+        "show_story_actions": true,
+        "show_ingest_actions": false,
+        "actions_rtl": [
+          "@story.broll",
+          "@story.voice_over",
+          {
+            "label": "@script.subsegment",
+            "action_id": "script_subsegment"
+          },
+          {
+            "label": "@story.update_statement",
+            "action_id": "statement_update"
+          },
+          {
+            "label": "@story.add_statement",
+            "action_id": "save_virtual_shot"
+          }
+        ]
+      },
+      "media_card": {
+        "selection_check": true,
+        "status_dots": "pipeline"
+      }
+    },
+    "h": {
+      "role": "media_assist_audio",
+      "pool_head": {
+        "show_segment_tab": false,
+        "show_cover_tab": true,
+        "show_export_hires": false,
+        "show_quick_cover": false,
+        "tabs_left": [
+          {
+            "label": "@pool.tab.all",
+            "action_id": "editorial_tab_all"
+          },
+          {
+            "label": "@pool.tab.sot",
+            "action_id": "editorial_tab_virtual"
+          },
+          {
+            "label": "@pool.tab.subsegment",
+            "action_id": "editorial_tab_subsegment"
+          },
+          {
+            "label": "@pool.tab.voice",
+            "action_id": "editorial_tab_voice"
+          },
+          {
+            "label": "@pool.tab.ai_broll",
+            "action_id": "editorial_tab_ai_broll"
+          }
+        ]
+      },
+      "right_panel": "script_panel",
+      "tab_order": [
+        "pool_tabs",
+        "pool",
+        "source_timeline",
+        "source_buttons"
+      ],
+      "source_dock": {
+        "show": true,
+        "show_header": true,
+        "show_story_actions": true,
+        "show_ingest_actions": false,
+        "actions_rtl": [
+          "@story.broll",
+          "@story.voice_over",
+          {
+            "label": "@script.subsegment",
+            "action_id": "script_subsegment"
+          },
+          {
+            "label": "@story.update_statement",
+            "action_id": "statement_update"
+          },
+          {
+            "label": "@story.add_statement",
+            "action_id": "save_virtual_shot"
+          }
+        ]
+      },
+      "media_card": {
+        "selection_check": true,
+        "status_dots": "pipeline"
+      }
+    },
+    "k": {
+      "role": "s_story",
+      "pool_head": {
+        "show_segment_tab": true,
+        "show_cover_tab": true,
+        "show_export_hires": true,
+        "show_quick_cover": true,
+        "tabs_left": [
+          {
+            "label": "@pool.tab.all",
+            "action_id": "editorial_tab_all"
+          },
+          {
+            "label": "@pool.tab.stories",
+            "action_id": "editorial_tab_stories"
+          },
+          {
+            "label": "@pool.tab.sot",
+            "action_id": "editorial_tab_virtual"
+          },
+          {
+            "label": "@pool.tab.broll",
+            "action_id": "editorial_tab_broll"
+          },
+          {
+            "label": "@pool.tab.ai_broll",
+            "action_id": "editorial_tab_ai_broll"
+          },
+          {
+            "label": "@pool.tab.segment",
+            "action_id": "editorial_tab_segment"
+          }
+        ]
+      },
+      "right_panel": "draft_segment_panel",
+      "tab_order": [
+        "pool_tabs",
+        "pool",
+        "source_timeline",
+        "source_buttons",
+        "segments"
+      ],
+      "source_dock": {
+        "show": true,
+        "show_header": true,
+        "show_story_actions": true,
+        "show_ingest_actions": false,
+        "actions_rtl": [
+          {
+            "label": "@story.send_draft",
+            "action_id": "story_send_draft"
+          },
+          {
+            "label": "@story.sync_broll",
+            "action_id": "cover_mode_sync"
+          },
+          {
+            "label": "@pool.tab.broll",
+            "action_id": "cover_mode_covers"
+          },
+          {
+            "label": "@story.voice_over",
+            "action_id": "add_off_segment"
+          },
+          {
+            "label": "@story.talking_head",
+            "action_id": "add_ton_segment"
+          },
+          {
+            "label": "@story.update_statement",
+            "action_id": "statement_update"
+          },
+          {
+            "label": "@story.add_subclip",
+            "action_id": "save_virtual_shot"
+          }
+        ]
+      },
+      "media_card": {
+        "selection_check": false,
+        "status_dots": "pipeline"
+      }
+    },
+    "l": {
+      "role": "media_assist_video",
+      "pool_head": {
+        "show_segment_tab": false,
+        "show_cover_tab": true,
+        "show_export_hires": false,
+        "show_quick_cover": false
+      },
+      "right_panel": "none",
+      "tab_order": [
+        "pool_tabs",
+        "pool",
+        "source_timeline",
+        "source_buttons"
+      ],
+      "source_dock": {
+        "show": true,
+        "show_header": true,
+        "show_story_actions": true,
+        "show_ingest_actions": false,
+        "actions_rtl": [
+          "@story.broll",
+          "@story.voice_over",
+          "@story.talking_head",
+          {
+            "label": "@story.update_statement",
+            "action_id": "statement_update"
+          },
+          {
+            "label": "@story.add_subclip",
+            "action_id": "save_virtual_shot"
+          }
+        ]
+      },
+      "media_card": {
+        "selection_check": true,
+        "status_dots": "pipeline"
+      }
+    },
+    "o": {
+      "role": "story",
+      "pool_head": {
+        "show_segment_tab": true,
+        "show_cover_tab": true,
+        "show_export_hires": true,
+        "show_quick_cover": true,
+        "tabs_left": [
+          {
+            "label": "@pool.tab.all",
+            "action_id": "editorial_tab_all"
+          },
+          {
+            "label": "@pool.tab.sot",
+            "action_id": "editorial_tab_virtual"
+          },
+          {
+            "label": "@pool.tab.broll",
+            "action_id": "editorial_tab_broll"
+          },
+          {
+            "label": "@pool.tab.ai_broll",
+            "action_id": "editorial_tab_ai_broll"
+          },
+          {
+            "label": "@pool.tab.segment",
+            "action_id": "editorial_tab_segment"
+          }
+        ]
+      },
+      "right_panel": "segment_panel",
+      "tab_order": [
+        "pool_tabs",
+        "pool",
+        "source_timeline",
+        "source_buttons",
+        "segments"
+      ],
+      "source_dock": {
+        "show": true,
+        "show_header": true,
+        "show_story_actions": true,
+        "show_ingest_actions": false,
+        "actions_rtl": [
+          {
+            "label": "@story.sync_broll",
+            "action_id": "cover_mode_sync"
+          },
+          {
+            "label": "@pool.tab.broll",
+            "action_id": "cover_mode_covers"
+          },
+          {
+            "label": "@story.voice_over",
+            "action_id": "add_off_segment"
+          },
+          {
+            "label": "@story.talking_head",
+            "action_id": "add_ton_segment"
+          },
+          {
+            "label": "@story.update_statement",
+            "action_id": "statement_update"
+          },
+          {
+            "label": "@story.add_subclip",
+            "action_id": "save_virtual_shot"
+          }
+        ]
+      },
+      "media_card": {
+        "selection_check": false,
+        "status_dots": "pipeline"
+      }
+    }
+  },
+  "forbidden_changes_without_approval": [
+    "redesign",
+    "changing_qnc_v4_layout",
+    "changing_labels",
+    "changing_font_system",
+    "adding_business_logic_to_ui",
+    "filling_empty_right_panel_without_group_specification"
+  ]
+}

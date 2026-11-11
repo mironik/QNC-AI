@@ -1,0 +1,130 @@
+//! Stage 4: publish to the content DB.
+//!
+//! The only stage that writes, and it writes only through the public content write
+//! transport: clips in bounded batches, and the removal of clips whose absence the scan
+//! confirmed.
+
+use crate::*;
+use qnc_content_store::InventoryClip;
+
+/// Writes the published clips until the channel closes or Select is cancelled.
+pub(crate) fn publish_batches(
+    content_target: ContentTarget,
+    publications: Receiver<CatalogClip>,
+    send: &SyncSender<Event>,
+    cancel: &AtomicBool,
+) -> Result<()> {
+    let mut writer = ContentWriteTransport::start(content_target)?;
+    let mut failed = false;
+    let mut sequence = 0_u64;
+    while let Ok(first) = publications.recv() {
+        // A cancelled Select starts no new database write.
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let mut batch = vec![first];
+        while batch.len() < 16 {
+            match publications.try_recv() {
+                Ok(clip) => batch.push(clip),
+                Err(_) => break,
+            }
+        }
+        let revisions = batch
+            .iter()
+            .map(|c| (c.id().to_string(), c.snapshot.revision))
+            .collect();
+        sequence += 1;
+        let key = format!("select-batch-{sequence}");
+        let error: Option<String> = match writer.publish_batch(key.clone(), batch) {
+            Ok(()) => wait_write_completion(&mut writer, &key)
+                .and_then(expect_changed)
+                .map_err(|err| err.to_string())
+                .err(),
+            Err(err) => Some(err),
+        };
+        failed |= error.is_some();
+        send.send(Event::Saved { revisions, error })?;
+    }
+    if failed {
+        Err(qnc_ui_text::text("select.some_clips_saved_database").into())
+    } else {
+        Ok(())
+    }
+}
+
+/// Removes the clips the scan confirmed missing and reports how many went. Their
+/// timeline artifacts go first (`qnc-artifact-db`, whose tables refer to the clip);
+/// a clip the catalog keeps (queued or imported) keeps them too.
+pub(crate) fn remove_missing(
+    content_target: ContentTarget,
+    project: &qnc_db_broker::ProjectDbWriter,
+    missing: &[InventoryClip],
+    send: &SyncSender<Event>,
+) -> Result<Vec<String>> {
+    let mut removed_count = 0;
+    let mut all_removed = Vec::new();
+    let mut writer = ContentWriteTransport::start(content_target)?;
+    for chunk in missing.chunks(4096) {
+        let forget = qnc_artifact_db::Operation::ForgetClips {
+            clip_ids: chunk.iter().map(|clip| clip.clip_id.clone()).collect(),
+        };
+        let _: qnc_artifact_db::Data = project.request(qnc_artifact_db::MODULE_ID, &forget)?;
+        let key = format!("select-remove-missing-{removed_count}");
+        writer.remove_missing(key.clone(), chunk.to_vec())?;
+        let removed = match wait_write_completion(&mut writer, &key)?.data {
+            ContentWriteData::Removed(ids) => ids,
+            ContentWriteData::Changed | ContentWriteData::Claimed(_) | ContentWriteData::Leased(_) => {
+                return Err("Neispravan remove-missing odgovor.".into())
+            }
+        };
+        removed_count += removed.len();
+        all_removed.extend(removed.iter().cloned());
+        send.send(Event::Removed(removed))?;
+    }
+    Ok(all_removed)
+}
+
+/// A replaced file whose clip was imported keeps that clip (only clips not imported are
+/// removed); the user is told the file on the source is another one now.
+pub(crate) fn warn_kept_replaced(
+    replaced: &[InventoryClip],
+    removed: &[String],
+    send: &SyncSender<Event>,
+) -> Result<()> {
+    for clip in replaced.iter().filter(|clip| !removed.contains(&clip.clip_id)) {
+        let name = SourceReference::from_uri(&clip.original_uri)
+            .map(|r| r.relative_path().rsplit('/').next().unwrap_or_default().to_string())
+            .unwrap_or_else(|_| clip.clip_id.clone());
+        send.send(Event::Warning(format!(
+            "{name}: datoteka na izvoru zamijenjena je novom (novi klip). Uvezeni klip ostaje; \
+             ako je uvezen kao link, njegova datoteka vise nije ista."
+        )))?;
+    }
+    Ok(())
+}
+
+fn wait_write_completion(
+    transport: &mut ContentWriteTransport,
+    key: &str,
+) -> Result<ContentWriteResult> {
+    loop {
+        for completion in transport.poll() {
+            if completion.key == key {
+                return completion.result.map_err(Into::into);
+            }
+        }
+        if !transport.has_pending() {
+            return Err(qnc_ui_text::text("db.content_writer_returned_result").into());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
+fn expect_changed(result: ContentWriteResult) -> Result<()> {
+    match result.data {
+        ContentWriteData::Changed => Ok(()),
+        ContentWriteData::Removed(_) | ContentWriteData::Claimed(_) | ContentWriteData::Leased(_) => {
+            Err("Neispravan content write odgovor.".into())
+        }
+    }
+}

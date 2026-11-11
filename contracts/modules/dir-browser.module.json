@@ -1,0 +1,18 @@
+{
+  "module_id": "qnc.module.dir-browser",
+  "module_name": "Dir Browser",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": ["dir.list", "dir.select"],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": ["windows", "linux", "macos"],
+  "supported_cpu": ["x86_64", "aarch64"],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": ["media.scan", "ffprobe", "media.probe.full", "clip.catalog.write"],
+  "forbidden_dependencies": ["qnc.module.media-probe"],
+  "state_policy": "session_local",
+  "database_write_policy": "no_db_writes",
+  "registered_source_api": "TransportBrowserSession lists registered roots without opening them. An owner-supplied connector opens and validates only the requested SourceReader on each local/LAN/intranet navigation. No retained volume handles, background retries, confirmation buttons or application workflow. Selection returns a stable SourceReference.",
+  "specification": "docs/34-select-runtime.md"
+}

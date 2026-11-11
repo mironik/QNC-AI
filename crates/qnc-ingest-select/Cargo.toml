@@ -1,0 +1,56 @@
+[package]
+name = "qnc-ingest-select"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+test-support = ["dep:image", "dep:tempfile", "dep:qnc-sony-metadata", "dep:rusqlite"]
+
+[dependencies]
+qnc-missing-posters = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-artifact-db = { workspace = true }
+qnc-camera-adapter = { workspace = true }
+qnc-camera-detector = { workspace = true }
+qnc-camera-patterns = { workspace = true }
+qnc-contracts = { workspace = true }
+qnc-dir-browser = { workspace = true }
+qnc-image-assets = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-media-probe = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-record-probe = { workspace = true }
+qnc-decoder-catalog = { workspace = true }
+rusqlite = { workspace = true, optional = true }
+qnc-work-settings = { workspace = true }
+qnc-media-record-db = { workspace = true }
+qnc-scanner = { workspace = true }
+qnc-source-groups = { workspace = true }
+qnc-source-index-db = { workspace = true }
+qnc-source-bindings = { workspace = true }
+qnc-source-volumes = { workspace = true }
+qnc-source-reader = { workspace = true }
+qnc-transport-resolver = { workspace = true }
+qnc-media-stream = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+
+image = { version = "0.25.10", default-features = false, features = ["jpeg"], optional = true }
+tempfile = { version = "3", optional = true }
+qnc-sony-metadata = { workspace = true, optional = true }
+
+[dev-dependencies]
+qnc-import-fit = { workspace = true }
+qnc-active-project-read = { workspace = true }
+qnc-ingest-cameras = { workspace = true }
+qnc-source-reader = { workspace = true }
+rusqlite = { workspace = true }
+qnc-camera-generic-file = { workspace = true }
+qnc-camera-profiles = { workspace = true }
+qnc-camera-profile-adapter = { workspace = true }
+qnc-media-metadata = { workspace = true }
+qnc-sony-metadata = { workspace = true }
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+tempfile = "3"
+tiny_http = "0.12"

@@ -1,0 +1,24 @@
+//! Hand-over to the next application. Uvezi is finished on this form once the import is
+//! running: the application only says so, the shell decides which application follows.
+
+use super::*;
+
+pub use qnc_application_sequence::SequenceStep;
+
+impl IngestApplication {
+    /// The import has started and the shell may open the next application. Handed over
+    /// once; the copying goes on in the background while the form is not shown.
+    pub(super) fn request_navigation_after_import(&mut self) {
+        self.stop_player();
+        self.navigation_requested = true;
+    }
+
+    pub fn take_navigation_request(&mut self) -> bool {
+        std::mem::take(&mut self.navigation_requested)
+    }
+
+    /// The order of the project's applications, from its public database view.
+    pub fn navigation_sequence(&self) -> Result<Vec<SequenceStep>, String> {
+        self.project.application_sequence()
+    }
+}

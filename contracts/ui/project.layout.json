@@ -1,0 +1,739 @@
+{
+  "layout_id": "qnc.ui.project",
+  "layout_version": "0.1.0",
+  "application_id": "qnc.project",
+  "mirror_policy": "literal_qnc_v4",
+  "font_policy": "single_qnc_font_system",
+  "allowed_deviation_policy": "explicit_approval_required",
+  "qnc_v4_reference": [
+    "seed/tabs/project/plugin.json",
+    "qnc-app/src/project/mod.rs",
+    "qnc-app/src/project/screen.rs",
+    "qnc-app/src/project/empty_story_layout.rs",
+    "qnc-app/src/project/layout.rs",
+    "qnc-app/src/project/project_list.rs",
+    "qnc-app/src/project/settings.rs",
+    "qnc-app/src/project/create.rs",
+    "qnc-app/src/project/template_picker.rs",
+    "qnc-app/src/project/ai.rs",
+    "qnc-app/src/qnc_ui.rs",
+    "qnc-app/src/qnc_form.rs",
+    "qnc-app/src/qnc_theme.rs"
+  ],
+  "audit_note": "Active qnc_v4 Project board is project/empty_story_layout.rs -> qnc_ui::column_shell. qnc_ui::project_workspace is a compatibility/dead-code reference and is not the active Project path.",
+  "board": {
+    "left_ratio": 0.31,
+    "divider_width": 5.0,
+    "left_min_width": 280.0,
+    "right_min_width": 200.0,
+    "monitor_height": 1.0,
+    "head_height": 1.0,
+    "dock_height": 1.0,
+    "outer_padding": 0.0,
+    "body_face": "theme.bg"
+  },
+  "left_project_list": {
+    "panel_pad": 20.0,
+    "title": "@project.projects",
+    "title_row_height": 28.0,
+    "below_title_pad": 40.0,
+    "row_height": 60.0,
+    "row_gap": 10.0,
+    "delete_column_width": 28.0,
+    "column_gap": 8.0,
+    "confirm_button_width": 28.0,
+    "confirm_button_height": 22.0,
+    "empty_text": "@project.no_projects",
+    "ready_text": "@project.ready"
+  },
+  "right_settings_panel": {
+    "panel_pad": 20.0,
+    "title": "@project.settings",
+    "subtitle": "@project.choose_workflow_and_review",
+    "inner_pad_x": 8.0,
+    "inner_pad_y": 8.0,
+    "section_gap": 8.0,
+    "inline_label_width": 168.0,
+    "inline_button_width": 120.0,
+    "inline_column_gap": 8.0,
+    "field_min_width": 160.0,
+    "label_font_size": 12.0,
+    "group_title_font_size": 12.0,
+    "row_height": 24.0
+  },
+  "ai_switches": [
+    {
+      "path": "artifacts.filmstrip",
+      "on": "auto",
+      "off": "off",
+      "default_on": true,
+      "label": "@project.filmstrip_automatically_after_select"
+    }
+  ],
+  "pts_slots": {
+    "head": [
+      "Postavke",
+      "subtitle"
+    ],
+    "fixed_order": [
+      "TemplatePicker",
+      "ProjectCreate"
+    ],
+    "scroll_order": [
+      "AiSettings",
+      "Locations",
+      "TemplateActions",
+      "AdvancedSections",
+      "CustomTemplate"
+    ]
+  },
+  "advanced_settings": {
+    "title": "@project.advanced_settings",
+    "grid": {
+      "label_size": 12,
+      "min_cell_width": 160,
+      "gap": 8,
+      "cell_height": 52
+    },
+    "options": {
+      "input_modes": [
+        [
+          "auto",
+          "@project.auto"
+        ],
+        [
+          "manual",
+          "@project.manual"
+        ]
+      ],
+      "formats": [
+        [
+          "HD 1080p50",
+          "@project.hd_1080p50_pal"
+        ],
+        [
+          "HD 1080i50",
+          "@project.hd_1080i50_pal"
+        ],
+        [
+          "HD 1080p30",
+          "@project.hd_1080p29_97_ntsc"
+        ],
+        [
+          "HD 1080p60",
+          "@project.hd_1080p59_94_ntsc"
+        ],
+        [
+          "HD 1080i60",
+          "@project.hd_1080i59_94_ntsc"
+        ],
+        [
+          "UHD 2160p",
+          "@project.uhd_2160p"
+        ]
+      ],
+      "fps": [
+        [
+          "25",
+          "25"
+        ],
+        [
+          "50",
+          "50"
+        ],
+        [
+          "29.97",
+          "29.97"
+        ],
+        [
+          "30",
+          "30"
+        ],
+        [
+          "59.94",
+          "59.94"
+        ],
+        [
+          "60",
+          "60"
+        ]
+      ],
+      "field_order": [
+        [
+          "progressive",
+          "@project.progressive"
+        ],
+        [
+          "upper_first",
+          "@project.upper_first_i"
+        ]
+      ],
+      "color_space": [
+        [
+          "rec709",
+          "rec709"
+        ],
+        [
+          "rec2020",
+          "rec2020"
+        ]
+      ],
+      "containers": [
+        [
+          "mxf_op1a",
+          "@project.mxf_op1a"
+        ],
+        [
+          "mp4",
+          "@project.mp4"
+        ],
+        [
+          "mov",
+          "@project.mov"
+        ]
+      ],
+      "video_codecs": [
+        [
+          "mpeg2_422_50mbit",
+          "@project.mpeg_2_422_50_mbit"
+        ],
+        [
+          "h264",
+          "@project.h_264"
+        ],
+        [
+          "prores_422",
+          "@project.prores_422"
+        ],
+        [
+          "dnxhd_hq",
+          "@project.dnxhd_hq"
+        ]
+      ],
+      "ingest_profiles": [
+        [
+          "field",
+          "@project.field"
+        ],
+        [
+          "house",
+          "@project.tv_house"
+        ]
+      ],
+      "ingest_media": [
+        [
+          "link",
+          "@project.link_only"
+        ],
+        [
+          "proxy",
+          "@project.proxy"
+        ],
+        [
+          "original",
+          "@project.original"
+        ],
+        [
+          "optimized",
+          "@project.optimised_h_264_8_bit"
+        ],
+        [
+          "optimized_original",
+          "@project.optimised_original"
+        ]
+      ],
+      "playback_inputs": [
+        [
+          "proxy_if_available",
+          "@project.proxy_if_available"
+        ],
+        [
+          "original",
+          "@project.original"
+        ],
+        [
+          "proxy",
+          "@project.proxy"
+        ],
+        [
+          "optimized_if_available",
+          "@project.optimised_if_available"
+        ]
+      ],
+      "export_modes": [
+        [
+          "xml_master",
+          "@project.xml_master"
+        ],
+        [
+          "xdcam",
+          "@project.xdcam"
+        ],
+        [
+          "original",
+          "@project.original"
+        ],
+        [
+          "avid",
+          "@project.avid"
+        ]
+      ],
+      "original_policies": [
+        [
+          "link_when_available",
+          "@project.link"
+        ],
+        [
+          "copy_background",
+          "@project.copy_background"
+        ],
+        [
+          "ignore_for_fast_news",
+          "@project.ignore_fast_news"
+        ]
+      ],
+      "lufs_a1": [["-16", "-16"], ["-18", "-18"], ["-20", "-20"], ["-23", "-23 (EBU R 128)"], ["-24", "-24 (ATSC A/85)"]],
+      "lufs_a2": [["-20", "-20"], ["-23", "-23 (EBU R 128)"], ["-26", "-26"], ["-28", "-28"], ["-30", "-30"]],
+      "true_peak": [["-1", "-1 (EBU R 128)"], ["-2", "-2"], ["-3", "-3"]],
+      "loudness_tolerance": [["0.5", "0.5"], ["1", "1"]],
+      "reading_speeds": [["2", "2"], ["2.5", "2.5"], ["3", "3"], ["3.5", "3.5"]],
+      "video_bitrates": [["25", "25"], ["35", "35"], ["50", "50"]],
+      "transcription_languages": [["hr", "Croatian (hr)"], ["sr", "Serbian (sr)"], ["bs", "Bosnian (bs)"], ["sl", "Slovenian (sl)"], ["mk", "Macedonian (mk)"], ["en", "English (en)"], ["de", "German (de)"], ["it", "Italian (it)"], ["auto", "Detect (auto)"]],
+      "start_timecodes": [["10:00:00:00", "10:00:00:00"], ["01:00:00:00", "01:00:00:00"], ["00:00:00:00", "00:00:00:00"]],
+      "tail_seconds": [["0", "0"], ["1", "1"], ["2", "2"], ["3", "3"], ["5", "5"], ["10", "10"]],
+      "crossfade_frames": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "2",
+          "2"
+        ],
+        [
+          "4",
+          "4"
+        ],
+        [
+          "6",
+          "6"
+        ],
+        [
+          "8",
+          "8"
+        ]
+      ],
+      "audio_rates": [
+        [
+          "48000",
+          "48000"
+        ],
+        [
+          "44100",
+          "44100"
+        ]
+      ],
+      "audio_channels": [
+        [
+          "2",
+          "2"
+        ],
+        [
+          "4",
+          "4"
+        ],
+        [
+          "6",
+          "6"
+        ],
+        [
+          "8",
+          "8"
+        ]
+      ]
+    },
+    "sections": [
+      {
+        "title": "@project.input_source",
+        "fields": [
+          {
+            "kind": "choice",
+            "label": "@project.mode",
+            "id": "pts_input_mode",
+            "path": "input.mode",
+            "options": "input_modes",
+            "default": "auto"
+          },
+          {
+            "kind": "choice",
+            "label": "@project.ingest_profile",
+            "id": "pts_ingest_profile",
+            "path": "storage.ingest_profile",
+            "options": "ingest_profiles",
+            "default": "field"
+          },
+          {
+            "kind": "choice",
+            "label": "@project.ingest_media",
+            "id": "pts_ingest_media",
+            "path": "storage.ingest_media",
+            "options": "ingest_media",
+            "default": ""
+          },
+          {
+            "kind": "choice",
+            "label": "@project.playback_input",
+            "id": "pts_playback_input",
+            "path": "playback.input",
+            "options": "playback_inputs",
+            "default": ""
+          }
+        ],
+        "then": {
+          "when": {
+            "path": "input.mode",
+            "equals": "manual",
+            "default": "auto"
+          },
+          "fields": [
+            {
+              "kind": "choice",
+              "label": "@project.format",
+              "id": "pts_input_format",
+              "path": "input.format",
+              "options": "formats",
+              "default": ""
+            },
+            {
+              "kind": "number",
+              "label": "@project.frame_rate",
+              "id": "pts_input_fps",
+              "path": "input.fps",
+              "options": "fps"
+            },
+            {
+              "kind": "integer",
+              "label": "@project.width",
+              "id": "pts_input_width",
+              "path": "input.width"
+            },
+            {
+              "kind": "integer",
+              "label": "@project.height",
+              "id": "pts_input_height",
+              "path": "input.height"
+            },
+            {
+              "kind": "choice",
+              "label": "@project.field_order",
+              "id": "pts_input_field",
+              "path": "input.field_order",
+              "options": "field_order",
+              "default": ""
+            },
+            {
+              "kind": "choice",
+              "label": "@project.color_space",
+              "id": "pts_input_cs",
+              "path": "input.color_space",
+              "options": "color_space",
+              "default": ""
+            }
+          ]
+        }
+      },
+      {
+        "title": "@project.audio_edit",
+        "fields": [
+          {
+            "kind": "integer",
+            "label": "@project.crossfade_frames",
+            "id": "pts_audio_crossfade",
+            "path": "audio.crossfade_frames",
+            "options": "crossfade_frames"
+          },
+          {
+            "kind": "number",
+            "label": "@project.reading_words_per_second",
+            "id": "pts_reading_speed",
+            "path": "audio.reading_words_per_second",
+            "options": "reading_speeds"
+          }
+        ]
+      },
+      {
+        "title": "@project.loudness",
+        "fields": [
+          {
+            "kind": "number",
+            "label": "@project.a1_lufs",
+            "id": "pts_loudness_a1",
+            "path": "audio.loudness.a1_lufs",
+            "options": "lufs_a1"
+          },
+          {
+            "kind": "number",
+            "label": "@project.a2_lufs",
+            "id": "pts_loudness_a2",
+            "path": "audio.loudness.a2_lufs",
+            "options": "lufs_a2"
+          },
+          {
+            "kind": "number",
+            "label": "@project.true_peak",
+            "id": "pts_loudness_peak",
+            "path": "audio.loudness.true_peak_dbtp",
+            "options": "true_peak"
+          },
+          {
+            "kind": "number",
+            "label": "@project.loudness_tolerance",
+            "id": "pts_loudness_tolerance",
+            "path": "audio.loudness.tolerance_lu",
+            "options": "loudness_tolerance"
+          }
+        ]
+      },
+      {
+        "title": "@project.transcription",
+        "fields": [
+          {
+            "kind": "choice",
+            "label": "@project.transcription_language",
+            "id": "pts_ai_language",
+            "path": "ai.language",
+            "options": "transcription_languages"
+          }
+        ]
+      },
+      {
+        "title": "@project.interface",
+        "block": "ui_language",
+        "label": "@project.interface_language"
+      },
+      {
+        "title": "@project.keyboard",
+        "block": "keyboard_preset",
+        "label": "@project.key_preset"
+      },
+      {
+        "title": "@common.export",
+        "fields": [
+          {
+            "kind": "number",
+            "label": "@project.lead_in_seconds",
+            "id": "pts_export_lead_in",
+            "path": "export.lead_in_seconds",
+            "options": "tail_seconds"
+          },
+          {
+            "kind": "number",
+            "label": "@project.tail_seconds",
+            "id": "pts_export_tail",
+            "path": "export.tail_seconds",
+            "options": "tail_seconds"
+          },
+          {
+            "kind": "choice",
+            "label": "@project.start_timecode",
+            "id": "pts_export_start_tc",
+            "path": "export.start_timecode",
+            "options": "start_timecodes"
+          },
+          {
+            "kind": "integer",
+            "label": "@project.video_bitrate_mbps",
+            "id": "pts_export_bitrate",
+            "path": "export.video_bitrate_mbps",
+            "options": "video_bitrates"
+          },
+          {
+            "kind": "choice",
+            "label": "@project.mode",
+            "id": "pts_export_mode",
+            "path": "export.default_mode",
+            "options": "export_modes",
+            "default": "xml_master"
+          },
+          {
+            "kind": "choice",
+            "label": "@project.original_policy",
+            "id": "pts_orig_policy",
+            "path": "storage.original_policy",
+            "options": "original_policies",
+            "default": "link_when_available"
+          }
+        ]
+      },
+      {
+        "title": "@project.export_format",
+        "block": "export_preset",
+        "label": "@project.preset",
+        "then": {
+          "when": {
+            "path": "export.preset",
+            "equals": "manual",
+            "default": "manual"
+          },
+          "fields": [
+            {
+              "kind": "choice",
+              "label": "@project.format",
+              "id": "pts_export_format",
+              "path": "export.format",
+              "options": "formats",
+              "default": ""
+            },
+            {
+              "kind": "number",
+              "label": "@project.frame_rate",
+              "id": "pts_export_fps",
+              "path": "export.fps",
+              "options": "fps"
+            },
+            {
+              "kind": "integer",
+              "label": "@project.width",
+              "id": "pts_export_width",
+              "path": "export.width"
+            },
+            {
+              "kind": "integer",
+              "label": "@project.height",
+              "id": "pts_export_height",
+              "path": "export.height"
+            },
+            {
+              "kind": "choice",
+              "label": "@project.field_order",
+              "id": "pts_export_field",
+              "path": "export.field_order",
+              "options": "field_order",
+              "default": ""
+            },
+            {
+              "kind": "choice",
+              "label": "@project.color_space",
+              "id": "pts_export_cs",
+              "path": "export.color_space",
+              "options": "color_space",
+              "default": ""
+            },
+            {
+              "kind": "choice",
+              "label": "@project.container",
+              "id": "pts_export_container",
+              "path": "export.container",
+              "options": "containers",
+              "default": ""
+            },
+            {
+              "kind": "choice",
+              "label": "@project.video_codec",
+              "id": "pts_export_codec",
+              "path": "export.video_codec",
+              "options": "video_codecs",
+              "default": ""
+            },
+            {
+              "kind": "integer",
+              "label": "@project.audio",
+              "id": "pts_export_arate",
+              "path": "export.audio_sample_rate",
+              "options": "audio_rates"
+            },
+            {
+              "kind": "integer",
+              "label": "@project.channels",
+              "id": "pts_export_ach",
+              "path": "export.audio_channels",
+              "options": "audio_channels"
+            }
+          ],
+          "save_preset": true
+        }
+      },
+      {
+        "title": "@project.plugin_tabs_workflow",
+        "block": "applications"
+      }
+    ],
+    "keyboard_preset_order": [
+      "default",
+      "resolve",
+      "premiere",
+      "finalcut",
+      "edius",
+      "avid"
+    ],
+    "texts": {
+      "manual_preset": "@project.manual",
+      "new_preset_hint": "@project.name_new_preset",
+      "save_preset": "@project.save_template",
+      "no_selection": "@project.none",
+      "group": "@project.group_group",
+      "loading_catalog": "@project.loading_catalog"
+    }
+  },
+  "texts": {
+    "templates_empty": "@project.no_templates",
+    "delete_template_hint": "@project.delete_template",
+    "project_name_label": "@project.project_name",
+    "project_name_hint": "@project.name_new_project",
+    "new_project": "@project.new_project",
+    "create_project": "@project.create_project",
+    "story_sheet": "@sheet.title",
+    "settings_changed": "@project.settings_changed",
+    "path_hint": "@project.path",
+    "choose": "@project.choose",
+    "confirm": "@project.ok",
+    "cancel": "@common.cancel",
+    "new_template": "@project.new_template",
+    "template_base": "@project.base_base",
+    "template_name_label": "@project.template_name",
+    "template_name_hint": "@project.name_new_template",
+    "save": "@project.save",
+    "short_description_hint": "@project.short_description",
+    "projects_root_label": "@project.projects_location",
+    "export_directory_label": "@project.export_folder",
+    "sources": "@source.sources",
+    "up": "@story.ui.up",
+    "disks": "@source.disks",
+    "internet": "@source.internet",
+    "empty_lan": "@project.no_lan_sources_are_configured",
+    "empty_internet": "@project.no_internet_sources_are_configured",
+    "empty_folder": "@source.empty_folder",
+    "empty_disks": "@source.empty_local",
+    "remove_project_hint": "@project.remove_project",
+    "delete_project_question": "@project.remove_project_2",
+    "delete_template_question": "@project.remove_template"
+  },
+  "labels": [
+    "@project.project",
+    "@project.projects",
+    "@project.settings",
+    "@project.workflow",
+    "@project.project_name",
+    "@project.new_project",
+    "@project.ai",
+    "@project.projects_location",
+    "@project.export_folder",
+    "@project.new_template",
+    "@common.cancel",
+    "@project.advanced_settings",
+    "@project.new_template",
+    "@project.save_new_template",
+    "×",
+    "@project.remove_project_2",
+    "@project.yes",
+    "@project.no"
+  ],
+  "forbidden_changes_without_approval": [
+    "redesign",
+    "moving_project_list_to_right",
+    "changing_pts_slot_order",
+    "changing_labels",
+    "changing_font_system",
+    "adding_business_logic_to_ui"
+  ]
+}

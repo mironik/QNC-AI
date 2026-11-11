@@ -1,0 +1,53 @@
+{
+  "database_id": "qnc.db.story",
+  "database_owner": "project",
+  "owner_application": "qnc.module.program-db",
+  "ownership_rule": "User rules 2026-09-25/26: the project owns this database; no application (Ingest, Media Assist, Story or any other) owns it or its tables. No form writes to it, so none can own it: data made in an application reaches these tables only through the one intermediary of the project database (qnc.module.db-broker), whose table module qnc.module.program-db owns these tables (lego split of the former content store, 2026-09-26).",
+  "schema_version": "0.1.0",
+  "qnc_uri": "qnc://local/db/story/{story_instance}",
+  "tables": [
+    "story_state",
+    "story_items",
+    "story_markers",
+    "story_marker_slots",
+    "story_object_history",
+    "story_undo"
+  ],
+  "public_read_views": [
+    "public_story_state",
+    "public_story_items",
+    "public_story_parts",
+    "public_story_markers",
+    "public_story_marker_slots",
+    "public_story_covers"
+  ],
+  "write_owner": "qnc.module.program-db",
+  "public_read_policy": "public_read_views",
+  "migration_policy": "owner_application_only",
+  "created_at": "2026-09-04T00:00:00Z",
+  "updated_at": "2026-09-26T00:00:00Z",
+  "rules": {
+    "source": "QNC_v5/.cursor/rules/qnc-story-segment-timeline.mdc (the rule wins over the v5 code)",
+    "story_items": "user 2026-10-30 (\"the table can be shared, a clip-kind column says what it is\"): segments and covers are rows of one table story_items, role segment | cover; a segment (kind tonovi | offovi) lies in sort_index order and carries A1, a cover lies in the slot between two M markers (slot_id, timeline_*) and overwrites the picture and A2 there; every row has its source (clip_id, source_in_frame, source_out_frame, source_fps_*), a picture J/L (v_lead_frames, v_tail_frames) and a sound per lane (a1_*, a2_*: channel, level, off, J, L). The rules below that name story_parts mean its segment rows, story_covers its cover rows. A story of the former separate tables is removed, not converted (no migration, user 2026-10-30).",
+    "ton_into_off": "user 2026-10-30: at the join of a Ton and an Off the picture of the Ton may go into the Off (v_lead_frames / v_tail_frames); the A1 of a Ton never goes into the Off (SetJoinSound refuses it); only the A2 of the Ton goes into the Off, as an L of a Ton before an Off (a2_tail_frames) or a J of a Ton after an Off (a2_lead_frames), SetJoinA2, one undo step. A Ton's A2 is silent under the Ton itself; a cover in the Off keeps A2 where it lies (a cover overwrites A2). A new segment takes the A2 channel, level and off kept on the source timeline.",
+    "story_parts": "TON/OFF segments (kind tonovi | offovi) in sort_index order; the program is their sum; delete sets active = 0; a1_source_channel is the source channel heard on A1 (zero based, 0 = channel 1 as in v5), chosen on the Wrap segment; a1_level_db (dB, 0 as recorded, -40..+12) and a1_off (silent) are the level of A1, kept for the program, the prerender and the export (user 2026-10-16)",
+    "slot_move": "user 2026-10-10 (not in v5): MoveSlot moves both markers of a slot by the same frames, so it keeps its length, its marker pair and its cover; a neighbouring slot grows or shrinks; never up to a neighbouring marker, never the locked start or end; one UNDO step",
+    "cover_split": "user 2026-10-13 (not v5): a new marker inside a covered slot splits the cover in two: the cover keeps the part before the marker (its OUT is the marker), a second cover of the same clip and shot plays on from the marker in the slot after it; the picture does not change and each part can be changed. One edit, one UNDO step.",
+    "slot_trim": "user 2026-10-13 (not in v5): TrimSlot makes a slot longer or shorter by frames at its start or its end; the other slots keep their lengths, so the user markers from the slot's end on move by as much up to the first slot after it without a cover, which takes the difference (user 2026-10-13: an empty slot does not push the slots after it), else the last slot of the story takes it (it keeps at least one frame; the locked end stays; the last slot itself is refused, its edges move with MoveMarker). At the start the slot keeps its place and its cover starts that many frames earlier in its source (as far as the source allows). One edit, one UNDO step.",
+    "coincident_markers": "audit 2026-10-13: when excluding a segment brings two markers onto one program frame they become one (the locked one, else the first created, stays); covers of the other marker's slots go to the one that stays, a cover of the slot between them goes.",
+    "roll_edit": "user 2026-10-11 (not in v5): when the start marker of a covered slot moves and its end marker stays (MoveMarker, or the slot after a MoveSlot), the cover's source_in_frame/source_out_frame move by the same frames at the story's ratio to its source, so the first picture after the marker changes; a cover rolls as far as its source allows (its IN never goes below its first picture, it then only grows); a move is never refused for a cover, a cover running past its clip plays to its end; a slot moved whole keeps its cover as it is",
+    "lane_sound": "user 2026-10-16: a segment's A1 and a cover's A2 keep the channel, level and on/off set on the source timeline when made; SetSegmentSound / SetCoverSound change them later (one UNDO step); stories from before the level get a1/a2_level_db = 0 and a1/a2_off = 0 added on open",
+    "picture_lead": "user 2026-10-29 (a cut is the OUT of the clip before and the IN of the clip after, picture and sound each): a segment keeps v_lead_frames (its picture starts that many story frames before its sound, over the end of the segment before) and v_tail_frames (its picture goes on that many after its sound, over the start of the segment after); an Off's picture is black; bounded in the playlist by the frames its source has beyond its IN or OUT and the neighbour; SetJoinPicture writes the L of the segment before and the J of the segment after together (one UNDO step); older stories get 0 on open",
+    "join_roll": "user 2026-10-29: RollJoin moves the whole join of two segments, the OUT of the segment before and the IN of the segment after by as much (each in its own source frames); the story keeps its length; a user marker between the old and the new join is refused, a marker on the join moves with it; one UNDO step",
+    "cover_overlap": "user 2026-10-21: a cover keeps a2_lead_frames (J: its A2 starts that many story frames before its picture) and a2_tail_frames (L: its A2 goes on after its picture), 0..360000 (as long as wanted); SetCoverOverlap changes them (one UNDO step); a cover split by a marker keeps its J on the first part and its L on the second; older stories get both = 0 on open. The playlist crosses the A2 sounds over the window, a cut with neither takes audio.crossfade_frames as a J",
+    "development_records": "a story without a1_source_channel or covers without a2_source_channel are removed on open, not converted (AGENTS 3)",
+    "story_markers": "one locked program_start at frame 0 and one locked program_end at the program length; segment borders are no markers; the user places an M marker on a Wrap segment (origin_part_id + origin_local_frame, v5 create_marker_from_part_frame) and the program frame follows; the program timeline only shows markers",
+    "story_marker_slots": "recomputed after every story change, one slot between every two adjacent markers; slot_id = start_marker_id|end_marker_id",
+    "story_covers": "a cover is bound to slot_id; deleting a marker (by the user or with its segment) deletes its slots and their covers; any other change keeps the cover on the same marker pair with the new frames, else on the slot keeping its start marker (a new marker split it: trimmed); a2_source_channel is the source channel heard on A2 (zero based, 0 = channel 1); a2_level_db and a2_off are the level of A2 (user 2026-10-16)",
+    "cover_create": "v5 create_cover from source frames: one write makes a virtual shot of class b_roll (the B-roll tab, never a short) for the source IN/OUT and the cover of the slot with the slot frames; a cover already in the slot is replaced; the source is not cut to the slot; the source rate must be the story rate, twice it or half it (story_rate); A2 starts on channel 1; the new cover is selected. delete_cover keeps its B-roll shot and clears the selection when it was selected",
+    "segment_exclude": "user rule 2026-09-25: one order (sort_index) over active and excluded segments; DeleteSegment excludes (v5 delete_part: active = 0, markers inside go, later ones move left) and the segment keeps its place; IncludeSegment puts it back there (later markers move right by its length); PurgeSegment removes only an excluded segment; MoveSegment swaps with the neighbouring active segment",
+    "segment_replace": "user rule 2026-09-25: ReplaceSegment gives an active segment the marked source (clip, IN/OUT, a source rate allowed by story_rate) as its base layer and length; its kind stays; same length: nothing moves; longer: user markers after it move right, covers stay as they are (the added part is uncovered); shorter: user markers in the cut part go with their slots and covers, the ones after it move left; A1 channel back to channel 1",
+    "story_rate": "user decision 2026-10-09 (overrides the v5 single fps): story_state.story_fps_num/den is the story rate, set by the first segment and kept while active segments exist (the only segment may change it); a source of the same, twice or half the story rate joins (1080i50 XDCAM in a 50p story: every field is a story frame; 50p in a 25 story: every other frame; 25p in 50p: every frame twice); any other rate is refused with a clear message; story_parts.duration_frames is the length in story frames, in_frame/out_frame stay source frames",
+    "story_undo": "user request 2026-09-25 (UNDO button): every story edit (segment create/exclude/include/replace/purge/move, marker create/move/delete, cover create/delete) keeps the story tables as they were before in story_undo (up to 100 steps); UndoStory puts them back and keeps the undone story for RedoStory; a new edit clears redo; an edit that changes nothing and a selection change are no steps; B-roll shots a cover made stay in virtual_shots; ReadStorySelection gives undo_depth and redo_depth"
+  }
+}

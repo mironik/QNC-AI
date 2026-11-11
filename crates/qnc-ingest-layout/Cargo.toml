@@ -1,0 +1,15 @@
+[package]
+name = "qnc-ingest-layout"
+version = "0.1.0"
+edition = "2021"
+description = "QNC Ingest piece: the model of the Ingest layout contract and its places on the desktop board"
+
+[dependencies]
+qnc-ui-text = { workspace = true }
+eframe = { workspace = true }
+qnc-board = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-contracts = { workspace = true }
+qnc-keyboard-shortcut = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
