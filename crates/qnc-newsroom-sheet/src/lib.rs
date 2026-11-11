@@ -160,7 +160,11 @@ enum Place {
 
 /// The rows of the filled sheet: its choice, the project name, its fields.
 fn rows_of(overlay: &SheetOverlay) -> usize {
-    2 + overlay.sheets.current().map_or(0, |sheet| sheet.fields.len())
+    2 + fields_of(overlay) + usize::from(!overlay.templates.is_empty())
+}
+
+fn fields_of(overlay: &SheetOverlay) -> usize {
+    overlay.sheets.current().map_or(0, |sheet| sheet.fields.len())
 }
 
 /// Whether row `at` is typed in (the name, a field with no choices).
@@ -294,6 +298,37 @@ fn fill(ui: &mut egui::Ui, overlay: &mut SheetOverlay, theme: &Theme, at: Option
         let keys = qnc_settings_form::ColumnKeys { at: at.and_then(|(row, _)| row.checked_sub(2)), arrived: at.is_some_and(|(_, arrived)| arrived), arrow, focus: theme.focus };
         let answer = qnc_settings_form::field_column(ui, width, &mut overlay.values, &sheet.fields, &sheet.options, &style(theme), keys);
         typed = typed.or(answer.typed.map(|row| row + 2));
+    }
+    // QNC-AI: the last row, the project template the new project is made with.
+    if !overlay.templates.is_empty() {
+        let row = 2 + fields_of(overlay);
+        let here = at.is_some_and(|(at, _)| at == row);
+        if here {
+            if let Some(back) = arrow {
+                let mut keys = qnc_key_row::KeyRow::new((0..overlay.templates.len()).map(|index| index.to_string()));
+                keys.select(&overlay.template.to_string());
+                if let Some(index) = keys.choose(back).and_then(|index| index.parse::<usize>().ok()) {
+                    overlay.template = index;
+                }
+            }
+        }
+        ui.add_space(ROW_GAP / 2.0);
+        ui.horizontal(|ui| {
+            label(ui, theme, qnc_ui_text::text("sheet.template"));
+            let shown = overlay.templates.get(overlay.template).map_or("—".to_string(), |(_, name)| name.clone());
+            let mut picked = None;
+            let combo = egui::ComboBox::from_id_salt("qnc_story_sheet_template").selected_text(shown).width(field_w * 0.6).show_ui(ui, |ui| {
+                for (index, (_, name)) in overlay.templates.iter().enumerate() {
+                    if ui.selectable_label(index == overlay.template, name).clicked() {
+                        picked = Some(index);
+                    }
+                }
+            });
+            qnc_ui_kit::paint_focus(ui, combo.response.rect.expand(2.0), here, theme.focus);
+            if let Some(index) = picked {
+                overlay.template = index;
+            }
+        });
     }
     if !overlay.message.is_empty() {
         ui.label(RichText::new(&overlay.message).color(theme.danger));

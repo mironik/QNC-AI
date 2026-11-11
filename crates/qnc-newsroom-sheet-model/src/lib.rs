@@ -33,6 +33,10 @@ pub struct SheetOverlay {
     pub editing: Option<SheetSpec>,
     pub new_label: String,
     pub message: String,
+    /// QNC-AI: the project templates (id, name) a new project is made with, chosen in the last row
+    /// of the sheet; none: the sheet has no template row.
+    pub templates: Vec<(String, String)>,
+    pub template: usize,
 }
 
 impl SheetOverlay {
@@ -56,7 +60,19 @@ impl SheetOverlay {
         let message = errors.join("\n");
         // A new project starts with today's date (user 2026-10-28: y/m/d is easy to read).
         let name = if name_editable && name.trim().is_empty() { today() } else { name };
-        Self { sheets, name, name_editable, values, confirm_label, editing: None, new_label: String::new(), message }
+        Self { sheets, name, name_editable, values, confirm_label, editing: None, new_label: String::new(), message, templates: Vec::new(), template: 0 }
+    }
+
+    /// QNC-AI: the templates of a new project and the one chosen first.
+    pub fn with_templates(mut self, templates: Vec<(String, String)>, chosen: usize) -> Self {
+        self.template = chosen.min(templates.len().saturating_sub(1));
+        self.templates = templates;
+        self
+    }
+
+    /// The template chosen, if the sheet has templates.
+    pub fn template_id(&self) -> Option<&str> {
+        self.templates.get(self.template).map(|(id, _)| id.as_str())
     }
 
     /// The sheet filled and its values, for the owner to keep.

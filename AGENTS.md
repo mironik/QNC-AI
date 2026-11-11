@@ -237,6 +237,14 @@ kao prije. Dok je obrazac otvoren, tipke idu obrascu, ne Ingestu. Radnje `story_
 `qnc-ingest-application`. Uzivo nije provjereno. Nije izvedeno: vrijednosti obrasca jos se ne
 spremaju u bazu projekta (samo naziv).
 
+Dopuna 2026-11-11 (korisnik: "QNC-ov NEW PROJEKT otvara, ali u njega treba dodati drop down izbornik
+templatea"; "templatei se citaju iz baze"): obrazac novog projekta (kopirani `qnc-newsroom-sheet`,
+`qnc-newsroom-sheet-model`) ima zadnji red Template: padajuci izbornik templatea iz registra
+QNC-AI-a (`qnc-ingest-base` `templates`: `list_project_templates`, izabran je onaj koji baza drzi
+izabranim), strelice ga mijenjaju kao red Obrazac; projekt price se kreira s izabranim
+templateom (`take_for_story(.., template_id)`). Pokusaj otvaranja cijele Project aplikacije na
+Uvezi napusten na zahtjev korisnika (nije commitan).
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

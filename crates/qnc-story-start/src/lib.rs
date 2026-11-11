@@ -21,9 +21,12 @@ pub enum Next {
     Say(String),
 }
 
+/// The base Ingest works in (its id and the project it has) and the project templates.
+type Checked = (Option<(String, Option<String>)>, (Vec<(String, String)>, usize));
+
 enum Job {
-    /// Which base Ingest works in and the project it has.
-    Checked(Result<Option<(String, Option<String>)>, String>),
+    /// Which base Ingest works in, the project it has, and the templates a project is made with.
+    Checked(Result<Checked, String>),
     /// The story's project made (its name).
     Created(Result<String, String>),
 }
@@ -57,7 +60,14 @@ impl StoryStart {
             return;
         }
         let root = root.to_path_buf();
-        self.run(move || Job::Checked(qnc_ingest_base::active(&root).map(|base| base.map(|base| (base.id, base.project_name)))));
+        self.run(move || {
+            Job::Checked(qnc_ingest_base::active(&root).and_then(|base| {
+                let base = base.map(|base| (base.id, base.project_name));
+                // The templates only matter when the sheet opens.
+                let templates = if matches!(base, Some((_, None))) { qnc_ingest_base::templates(&root)? } else { (Vec::new(), 0) };
+                Ok((base, templates))
+            }))
+        });
     }
 
     /// The sheet's answer.
@@ -67,8 +77,9 @@ impl StoryStart {
             Answer::Confirm => {
                 let (Some(sheet), Some(base_id)) = (self.sheet.as_ref(), self.base_id.clone()) else { return };
                 let name = sheet.name.trim().to_string();
+                let template = sheet.template_id().unwrap_or_default().to_string();
                 let root: PathBuf = root.to_path_buf();
-                self.run(move || Job::Created(qnc_ingest_base::take_for_story(&root, &base_id, &name).map(|_| name)));
+                self.run(move || Job::Created(qnc_ingest_base::take_for_story(&root, &base_id, &name, &template).map(|_| name)));
             }
         }
     }
@@ -78,13 +89,14 @@ impl StoryStart {
         let job = self.job.as_ref()?.try_recv().ok()?;
         self.job = None;
         match job {
-            Job::Checked(Ok(Some((_, Some(_))))) => Some(Next::Import),
-            Job::Checked(Ok(Some((base_id, None)))) => {
+            Job::Checked(Ok((Some((_, Some(_))), _))) => Some(Next::Import),
+            Job::Checked(Ok((Some((base_id, None)), (templates, chosen)))) => {
                 self.base_id = Some(base_id);
-                self.sheet = Some(SheetOverlay::new(root, String::new(), true, Default::default(), None, confirm_label.to_string()));
+                let sheet = SheetOverlay::new(root, String::new(), true, Default::default(), None, confirm_label.to_string());
+                self.sheet = Some(sheet.with_templates(templates, chosen));
                 None
             }
-            Job::Checked(Ok(None)) => Some(Next::Say("no Ingest base is active".into())),
+            Job::Checked(Ok((None, _))) => Some(Next::Say("no Ingest base is active".into())),
             Job::Checked(Err(error)) => Some(Next::Say(error)),
             Job::Created(Ok(_name)) => {
                 (self.sheet, self.base_id) = (None, None);

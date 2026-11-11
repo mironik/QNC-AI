@@ -89,6 +89,13 @@ pub fn active_is_base(root: &Path) -> bool {
     .is_ok_and(|name| name.starts_with(NAME_PREFIX))
 }
 
+/// The project templates of `root` (id, name) and the index of the one selected.
+pub fn templates(root: &Path) -> Result<(Vec<(String, String)>, usize), String> {
+    let rows = ProjectStore::open(root)?.list_project_templates()?;
+    let chosen = rows.iter().position(|row| row.selected).unwrap_or(0);
+    Ok((rows.into_iter().map(|row| (row.template_id, row.name)).collect(), chosen))
+}
+
 /// The folder of the stories' projects of a QNC-AI root (not the bases' folder).
 pub const PROJECTS_DIR: &str = "projects";
 
@@ -102,7 +109,7 @@ pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
 /// project is made by the Project block in the projects folder, the base gets the project's name,
 /// the project the base it took (`story_ingest_base` in its own database); the base stays the one
 /// Ingest works in. Returns the project's id.
-pub fn take_for_story(root: &Path, base_id: &str, name: &str) -> Result<String, String> {
+pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str) -> Result<String, String> {
     let name = name.trim();
     if name.starts_with(NAME_PREFIX) {
         return Err(format!("a story's name cannot start with \"{NAME_PREFIX}\""));
@@ -110,7 +117,7 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str) -> Result<String, 
     let mut store = ProjectStore::open(root)?;
     let base = store.list_projects()?.into_iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
     store.set_projects_root(root.join(PROJECTS_DIR))?;
-    let made = store.create_project(name, "", None, &selection());
+    let made = store.create_project(name, template_id, None, &selection());
     // The bases' folder and the base come back whatever happened.
     let back = store.set_projects_root(folder(root)).and_then(|_| store.open_project(base_id));
     let made = made?;
@@ -278,7 +285,9 @@ mod tests {
         set_project_name(&root, &base.id, "Prilog o luci").unwrap();
         assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("Prilog o luci"), "the project that took it");
         assert!(open(&root, &base.id).unwrap().active);
-        let story = take_for_story(&root, &base.id, "2026/11/11 Luka").unwrap();
+        let (templates, chosen) = templates(&root).unwrap();
+        assert!(!templates.is_empty(), "the seed's templates");
+        let story = take_for_story(&root, &base.id, "2026/11/11 Luka", &templates[chosen].0).unwrap();
         let after = active(&root).unwrap().unwrap();
         assert_eq!((after.id.as_str(), after.project_name.as_deref()), (base.id.as_str(), Some("2026/11/11 Luka")), "the base stays Ingest's and knows its project");
         assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");

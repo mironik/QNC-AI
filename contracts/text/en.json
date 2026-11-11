@@ -633,6 +633,7 @@
     "sp.f.name": "Caption: name",
     "sp.f.role": "Caption: role",
     "sp.f.template": "Template",
+    "sheet.template": "Template",
     "sp.f.line1": "Line 1",
     "sp.f.line2": "Line 2",
     "sp.tv_package": "TV package (VO + SOT, A/V form)",
