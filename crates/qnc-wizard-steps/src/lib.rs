@@ -110,9 +110,9 @@ mod tests {
     #[test]
     fn the_steps_of_the_wizard_are_read_with_their_names() {
         let steps = steps();
-        assert_eq!(steps.len(), 10);
-        assert_eq!(steps[0].code, "new_story");
-        assert_eq!(steps[0].name, "New story");
+        assert_eq!(steps.len(), 11);
+        assert_eq!(steps[0].code, "card");
+        assert_eq!(steps[1].name, "New story");
         assert!(is_step("b_roll") && !is_step("auto_b_roll"));
     }
 
@@ -125,20 +125,20 @@ mod tests {
         assert_eq!(fresh.next(0), None);
         assert_eq!(fresh.back(0), None);
 
-        let two = Progress::new(steps, &done(&["new_story", "import"]));
+        let two = Progress::new(steps, &done(&["card", "new_story"]));
         assert_eq!(two.current(), 2);
         assert!(two.may_open(2) && !two.may_open(3));
         assert_eq!(two.next(1), Some(2));
         assert_eq!(two.back(2), Some(1));
 
-        let reopened = Progress::new(steps, &done(&["new_story", "statements"]));
+        let reopened = Progress::new(steps, &done(&["card", "import"]));
         assert_eq!(reopened.current(), 1, "a step opened again is where the user is");
         assert!(!reopened.may_open(2), "a step after a step not done stays locked");
 
         let all: Vec<&str> = steps.iter().map(|step| step.code.as_str()).collect();
         let finished = Progress::new(steps, &done(&all));
-        assert_eq!(finished.current(), 9);
-        assert_eq!(finished.next(9), None);
+        assert_eq!(finished.current(), 10);
+        assert_eq!(finished.next(10), None);
     }
 
     #[test]

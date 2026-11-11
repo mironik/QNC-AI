@@ -3,7 +3,7 @@
 //! (`contracts/wizard.layout.json`, QNC's shell colours), buttons from QNC's gui-kit. It draws
 //! the View it is given and gives back what was pressed; it keeps nothing.
 
-use eframe::egui::{self, Align, Color32, Layout, RichText, Stroke, Vec2};
+use eframe::egui::{self, Align, Layout, RichText, Stroke, Vec2};
 use qnc_desktop_theme::{ShellLayoutContract, Theme};
 use qnc_wizard_application::{Intent, View};
 use serde::Deserialize;
@@ -53,21 +53,27 @@ pub fn show(ctx: &egui::Context, look: &Look, view: &View) -> Option<Intent> {
                 ui.label(RichText::new(project).color(theme.text_muted));
             }
             ui.add_space(10.0);
+            // The steps are the progress of the story, not a menu: the wizard leads, nothing here is clicked.
             for (index, row) in view.steps.iter().enumerate() {
                 let mark = if row.done { "✔" } else { " " };
                 let colour = if row.shown {
                     theme.focus
-                } else if row.may_open {
+                } else if row.done || row.may_open {
                     theme.text
                 } else {
                     theme.text_muted
                 };
-                let fill = if row.shown { theme.surface_alt } else { Color32::TRANSPARENT };
-                let label = RichText::new(format!("{mark}  {}. {}", index + 1, row.name)).color(colour);
-                let button = qnc_ui_kit::framed_button(label, Vec2::new(ui.available_width(), measures.step_row_height), fill, None, true);
-                if ui.add_enabled(row.may_open, button).clicked() {
-                    intent = Some(Intent::Open(index));
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), measures.step_row_height), egui::Sense::hover());
+                if row.shown {
+                    ui.painter().rect_filled(rect, 0.0, theme.surface_alt);
                 }
+                ui.painter().text(
+                    rect.left_center() + Vec2::new(10.0, 0.0),
+                    egui::Align2::LEFT_CENTER,
+                    format!("{mark}  {}. {}", index + 1, row.name),
+                    egui::FontId::proportional(theme.font_ui),
+                    colour,
+                );
             }
         });
 

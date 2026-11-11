@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use qnc_wizard_application::WizardApplication;
+use qnc_wizard_application::{Card, WizardApplication};
 use qnc_wizard_board::Look;
 
 struct Wizard {
@@ -30,6 +30,7 @@ impl eframe::App for Wizard {
 fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-wizard");
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    let card = card_of(std::env::args().skip(1).collect());
     let look = Look::load().unwrap_or_else(|error| panic!("{error}"));
     let title = qnc_wizard_text::text("wizard.title");
     let options = eframe::NativeOptions {
@@ -37,5 +38,20 @@ fn main() -> eframe::Result<()> {
         viewport: eframe::egui::ViewportBuilder::default().with_title(&title).with_inner_size([1280.0, 760.0]).with_min_inner_size([960.0, 600.0]).with_maximized(true),
         ..Default::default()
     };
-    eframe::run_native(&title, options, Box::new(move |_| Ok(Box::new(Wizard { application: WizardApplication::new(root), look, styled: false }))))
+    eframe::run_native(&title, options, Box::new(move |_| Ok(Box::new(Wizard { application: WizardApplication::new(root, card), look, styled: false }))))
+}
+
+/// The card the tray program started the wizard with: `--card <disk> [--camera <name>]...`.
+fn card_of(args: Vec<String>) -> Option<Card> {
+    let mut disk = None;
+    let mut cameras = Vec::new();
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--card" => disk = args.next().map(std::path::PathBuf::from),
+            "--camera" => cameras.extend(args.next()),
+            _ => {}
+        }
+    }
+    disk.map(|disk| Card { disk, cameras })
 }

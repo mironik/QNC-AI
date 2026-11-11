@@ -1,0 +1,12 @@
+[package]
+name = "qnc-card-watch"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: a disk attached since the last look, and whether it is a card of a camera QNC knows (QNC's camera catalog); reads only"
+
+[dependencies]
+qnc-camera-detector = { workspace = true }
+qnc-camera-patterns = { workspace = true }
+qnc-source-bindings = { workspace = true }
+qnc-source-reader = { workspace = true }
+qnc-source-volumes = { workspace = true }

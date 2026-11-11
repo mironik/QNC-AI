@@ -1,7 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+    "apps/qnc-ai-tray",
     "apps/qnc-wizard",
+    "crates/qnc-card-watch",
+    "crates/qnc-tray",
     "crates/qnc-wizard-application",
     "crates/qnc-wizard-board",
     "crates/qnc-wizard-db",
@@ -18,11 +21,18 @@ version = "0.1.0"
 # [patch."https://github.com/mironik/QNC.git"]; AGENTS.md says where each came from.
 [workspace.dependencies]
 qnc-active-project-read = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-camera-detector = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-camera-patterns = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-source-bindings = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-source-reader = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-source-volumes = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-ui-text = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-desktop-theme = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-ui-kit = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-card-watch = { path = "crates/qnc-card-watch" }
+qnc-tray = { path = "crates/qnc-tray" }
 qnc-wizard-application = { path = "crates/qnc-wizard-application" }
 qnc-wizard-board = { path = "crates/qnc-wizard-board" }
 qnc-wizard-db = { path = "crates/qnc-wizard-db" }

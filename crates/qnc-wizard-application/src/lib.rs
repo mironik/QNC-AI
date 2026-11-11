@@ -13,6 +13,9 @@ use qnc_db_broker::ProjectDbTarget;
 use qnc_wizard_db::WizardState;
 use qnc_wizard_steps::{Progress, Step};
 
+/// The first step: the card and its shots (before any project).
+pub const CARD_STEP: &str = "card";
+
 /// How often the active project is read again.
 pub const EVERY: Duration = Duration::from_secs(2);
 
@@ -21,11 +24,19 @@ pub const EVERY: Duration = Duration::from_secs(2);
 pub enum Intent {
     Back,
     Next,
-    Open(usize),
     /// The shown step is done (until its own condition is made, docs/01-wizard-plan.md W2-W6).
     MarkDone,
     /// The shown step is open again.
     Reopen,
+}
+
+/// The card the wizard was started with (by the tray program): its disk and the cameras the
+/// catalog found on it. With a card the wizard starts a new story (docs/01-wizard-plan.md, step 2):
+/// it reads no project until the story is made (W3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Card {
+    pub disk: PathBuf,
+    pub cameras: Vec<String>,
 }
 
 /// The project the wizard works on, as last read.
@@ -65,6 +76,7 @@ pub struct View {
 
 pub struct WizardApplication {
     root: PathBuf,
+    card: Option<Card>,
     steps: &'static [Step],
     project: Project,
     reading: Option<mpsc::Receiver<Project>>,
@@ -75,9 +87,10 @@ pub struct WizardApplication {
 }
 
 impl WizardApplication {
-    pub fn new(root: PathBuf) -> Self {
+    pub fn new(root: PathBuf, card: Option<Card>) -> Self {
         Self {
             root,
+            card,
             steps: qnc_wizard_steps::steps(),
             project: Project::Reading,
             reading: None,
@@ -107,7 +120,7 @@ impl WizardApplication {
             }
             self.project = project;
         }
-        if self.reading.is_none() && self.read_at.is_none_or(|at| at.elapsed() >= EVERY) {
+        if self.card.is_none() && self.reading.is_none() && self.read_at.is_none_or(|at| at.elapsed() >= EVERY) {
             let (send, receive) = mpsc::channel();
             let root = self.root.clone();
             std::thread::spawn(move || {
@@ -125,15 +138,23 @@ impl WizardApplication {
     }
 
     pub fn view(&self) -> View {
-        let empty = BTreeSet::new();
-        let done = self.state_done().unwrap_or(&empty);
-        let progress = self.progress(done);
+        // The card step is done once a project is open: a story is made only from chosen shots.
+        let mut done = self.state_done().cloned().unwrap_or_default();
+        if self.target().is_some() {
+            done.insert(CARD_STEP.into());
+        }
+        let progress = self.progress(&done);
         let shown = self.shown.unwrap_or_else(|| progress.current()).min(self.steps.len() - 1);
-        let message = match &self.project {
-            Project::Reading => Some(String::new()),
-            Project::None => Some(qnc_wizard_text::text("wizard.no_project")),
-            Project::Error(error) => Some(qnc_wizard_text::fill("wizard.project_error", &[("error", error)])),
-            Project::Open { .. } => self.state.error().map(|error| qnc_wizard_text::fill("wizard.state_error", &[("error", error)])),
+        let message = match (&self.card, &self.project) {
+            (Some(card), _) => Some(format!(
+                "{}\n\n{}",
+                qnc_wizard_text::fill("wizard.card", &[("disk", &card.disk.display().to_string()), ("camera", &card.cameras.join(", "))]),
+                qnc_wizard_text::text("wizard.card_next")
+            )),
+            (None, Project::Reading) => Some(String::new()),
+            (None, Project::None) => Some(qnc_wizard_text::text("wizard.no_card")),
+            (None, Project::Error(error)) => Some(qnc_wizard_text::fill("wizard.project_error", &[("error", error)])),
+            (None, Project::Open { .. }) => self.state.error().map(|error| qnc_wizard_text::fill("wizard.state_error", &[("error", error)])),
         };
         let open = self.target().is_some() && self.state_done().is_some();
         let step = &self.steps[shown];
@@ -170,7 +191,6 @@ impl WizardApplication {
         match intent {
             Intent::Back if view.may_back => self.shown = Some(view.shown - 1),
             Intent::Next if view.may_next => self.shown = Some(view.shown + 1),
-            Intent::Open(index) if view.steps.get(index).is_some_and(|row| row.may_open) => self.shown = Some(index),
             Intent::MarkDone if view.may_mark => self.state.set(&target, &self.steps[view.shown].code, true),
             Intent::Reopen if view.may_mark => self.state.set(&target, &self.steps[view.shown].code, false),
             _ => {}
