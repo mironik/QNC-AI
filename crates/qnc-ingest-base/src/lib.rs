@@ -34,7 +34,10 @@ pub fn folder(root: &Path) -> PathBuf {
 /// one made and made active.
 pub fn current(root: &Path) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
-    store.set_projects_root(folder(root))?;
+    // The folder of the bases is set once (setting it locks it again every time).
+    if Path::new(&store.projects_root_display()) != folder(root) {
+        store.set_projects_root(folder(root))?;
+    }
     if let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) {
         return Ok(IngestBase { id: active.project_id, name: active.name, uri: active.project_uri });
     }

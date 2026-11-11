@@ -1154,10 +1154,20 @@ fn set_project_delete_lock(path: &Path, locked: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// A Windows tool run without a console window (QNC-AI 2026-11-11: run from the tray, which has no
+/// console, every icacls and attrib flashed a window).
+#[cfg(windows)]
+fn hidden_tool(name: &str) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut command = Command::new(name);
+    command.creation_flags(0x0800_0000);
+    command
+}
+
 /// Whether the explicit (not inherited) entry `entry` is in the ACL of `path`.
 #[cfg(windows)]
 fn icacls_has(path: &Path, entry: &str) -> Result<bool, String> {
-    let output = Command::new("icacls")
+    let output = hidden_tool("icacls")
         .arg(path)
         .stderr(Stdio::null())
         .output()
@@ -1170,7 +1180,7 @@ fn icacls_has(path: &Path, entry: &str) -> Result<bool, String> {
 
 #[cfg(windows)]
 fn run_icacls(path: &Path, args: &[&str]) -> Result<(), String> {
-    let status = Command::new("icacls")
+    let status = hidden_tool("icacls")
         .arg(path)
         .args(args)
         .stdout(Stdio::null())
@@ -1228,7 +1238,7 @@ fn set_project_hidden(path: &Path, hidden: bool) -> Result<(), String> {
         return Ok(());
     }
     let flag = if hidden { "+h" } else { "-h" };
-    let status = Command::new("attrib")
+    let status = hidden_tool("attrib")
         .arg(flag)
         .arg(path)
         .stdout(Stdio::null())
