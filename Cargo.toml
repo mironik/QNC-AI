@@ -1,7 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+    "apps/qnc-ai-ingest",
     "apps/qnc-ai-tray",
+    "crates/qnc-card-autoselect",
     "crates/qnc-card-eject",
     "crates/qnc-card-preview",
     "crates/qnc-card-watch",
@@ -21,17 +23,25 @@ version = "0.1.0"
 # wizard changes is taken into crates/ here and every dependency is pointed at it with
 # [patch."https://github.com/mironik/QNC.git"]; AGENTS.md says where each came from.
 [workspace.dependencies]
+qnc-action-event = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-active-project-read = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-application-catalog = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-project-store = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-board = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-camera-detector = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-camera-patterns = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-form-host = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-ingest-application = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-ingest-blocks = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-ingest-layout = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-paint-pace = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-project-store = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-source-bindings = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-source-reader = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-source-volumes = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-ui-text = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-card-autoselect = { path = "crates/qnc-card-autoselect" }
 qnc-card-eject = { path = "crates/qnc-card-eject" }
 qnc-card-preview = { path = "crates/qnc-card-preview" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
@@ -41,6 +51,7 @@ qnc-wizard-db = { path = "crates/qnc-wizard-db" }
 qnc-wizard-flow = { path = "crates/qnc-wizard-flow" }
 qnc-wizard-steps = { path = "crates/qnc-wizard-steps" }
 qnc-wizard-text = { path = "crates/qnc-wizard-text" }
+eframe = { version = "0.31", default-features = false, features = ["accesskit", "default_fonts", "wayland", "wgpu", "x11"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

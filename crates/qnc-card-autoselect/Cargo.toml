@@ -1,0 +1,8 @@
+[package]
+name = "qnc-card-autoselect"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: Ingest goes to the cards of the story by itself (opens each card in its browser and starts Select), as the user would; it decides from what Ingest shows, it draws nothing"
+
+[dependencies]
+qnc-ingest-application = { workspace = true }

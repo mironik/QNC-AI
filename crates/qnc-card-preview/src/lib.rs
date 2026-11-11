@@ -35,15 +35,19 @@ pub struct CardPreview {
     ingest: Option<Child>,
     /// Ingest opens as soon as the work place is ready.
     open_when_ready: bool,
+    /// The cards Ingest goes to, by volume serial.
+    cards: Vec<String>,
 }
 
 impl CardPreview {
     pub fn new(root: PathBuf, programs: PathBuf) -> Self {
-        Self { root, programs, making: None, workspace: None, ingest: None, open_when_ready: false }
+        Self { root, programs, making: None, workspace: None, ingest: None, open_when_ready: false, cards: Vec::new() }
     }
 
-    /// The story has a card: its work place is made (when there is none) and Ingest opens in it.
-    pub fn open(&mut self) {
+    /// The story has cards (their volume serials): its work place is made (when there is none) and
+    /// Ingest opens in it, going to those cards by itself.
+    pub fn open(&mut self, cards: Vec<String>) {
+        self.cards = cards;
         self.open_when_ready = true;
         if self.workspace.is_none() && self.making.is_none() {
             let (send, receive) = mpsc::channel();
@@ -116,8 +120,13 @@ impl CardPreview {
 
     fn start_ingest(&self) -> Result<Child, String> {
         let workspace = self.workspace.as_ref().ok_or("no work place")?;
-        let program = program(&self.programs, "qnc-ingest");
-        Command::new(&program)
+        // The wizard's Ingest (QNC's Ingest that goes to the cards by itself), beside QNC's programs it starts.
+        let program = program(&self.programs, "qnc-ai-ingest");
+        let mut command = Command::new(&program);
+        for card in &self.cards {
+            command.arg("--card").arg(card);
+        }
+        command
             .current_dir(&workspace.root)
             .env("QNC_ROOT", &workspace.root)
             .spawn()

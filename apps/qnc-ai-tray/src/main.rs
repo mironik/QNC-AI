@@ -47,6 +47,11 @@ fn menu(status: Option<&Status>) -> Vec<MenuItem> {
     items
 }
 
+/// The volume serials of the story's cards that are in.
+fn story_cards(flow: &Flow) -> Vec<String> {
+    flow.cards().iter().filter(|card| !card.out).map(|card| card.serial.clone()).collect()
+}
+
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-ai-tray");
     let _one = match OneCopy::take("QNC-AI-tray") {
@@ -99,7 +104,7 @@ fn main() {
                 }
                 // The form of the step: the card step opens Ingest in the story's work place; the
                 // forms of the steps after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP && !flow.cards().is_empty() => preview.open(),
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP && !flow.cards().is_empty() => preview.open(story_cards(&flow)),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -163,7 +168,7 @@ fn main() {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
                                 // The card step's form opens by itself: Ingest in the story's work place.
-                                preview.open();
+                                preview.open(story_cards(&flow));
                             }
                         }
                         Found::Unknown { volume } => {
