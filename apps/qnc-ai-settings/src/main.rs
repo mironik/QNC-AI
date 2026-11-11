@@ -11,7 +11,11 @@ fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-settings");
     let Ok(Some(_one)) = qnc_tray::OneCopy::take("QNC-AI-settings") else { return Ok(()) };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let app = match qnc_project_desktop::create_project_app(root) {
+    // The projects' folder shown is never the bases' folder.
+    if let Err(error) = qnc_ingest_base::keep_projects_apart(&root) {
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-settings projects folder: {error}"));
+    }
+    let app =match qnc_project_desktop::create_project_app(root) {
         Ok(app) => app.settings_only(),
         Err(error) => {
             qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-settings not started: {error}"));

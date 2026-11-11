@@ -3141,6 +3141,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
+ "qnc-ingest-base",
  "qnc-project-desktop",
  "qnc-tray",
  "qnc-wizard-text",
@@ -3931,6 +3932,8 @@ dependencies = [
  "qnc-application-catalog",
  "qnc-project-store",
  "rusqlite",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5084,6 +5087,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-ai-features",
  "qnc-dir-browser",
+ "qnc-ingest-base",
  "qnc-location-field",
  "qnc-newsroom-sheet-model",
  "qnc-project-application",

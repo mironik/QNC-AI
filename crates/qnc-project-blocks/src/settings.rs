@@ -131,6 +131,8 @@ impl Blocks<'_> {
                                         "Locations" => {
                                             self.path_row(ui, width, settings, LocationTarget::ProjectsRoot);
                                             self.path_row(ui, width, settings, LocationTarget::ExportDir);
+                                            // QNC-AI: the global folder of the Ingest bases, apart from the projects'.
+                                            self.path_row(ui, width, settings, LocationTarget::BasesRoot);
                                         }
                                         "TemplateActions" => self.template_actions(ui, width, settings),
                                         "AdvancedSections" => self.advanced(ui, width, settings),
@@ -298,9 +300,12 @@ impl Blocks<'_> {
     /// browser with Select/Cancel.
     fn path_row(&mut self, ui: &mut egui::Ui, content_w: f32, settings: &SettingsPanelMetrics, target: LocationTarget) {
         let (shell, texts) = (&self.contracts.theme, &self.contracts.project.texts);
-        let projects = target == LocationTarget::ProjectsRoot;
-        let label = if projects { &texts.projects_root_label } else { &texts.export_directory_label };
-        let field = if projects { &mut self.session.projects_root } else { &mut self.session.export_dir };
+        let bases_label = qnc_ui_text::text("project.bases_root_label").to_string();
+        let (label, field, id, height) = match target {
+            LocationTarget::ProjectsRoot => (&texts.projects_root_label, &mut self.session.projects_root, "project_root", 170.0),
+            LocationTarget::ExportDir => (&texts.export_directory_label, &mut self.session.export_dir, "export_dir", 150.0),
+            LocationTarget::BasesRoot => (&bases_label, &mut self.session.bases_root, "bases_root", 150.0),
+        };
         let (mut typed, mut pick) = (false, false);
         widgets::inline_row(ui, content_w, label, settings, shell, |ui, width| {
             typed = ui.add(egui::TextEdit::singleline(&mut field.text).desired_width(width.max(40.0)).hint_text(&texts.path_hint)).changed();
@@ -310,7 +315,6 @@ impl Blocks<'_> {
             empty_folder: &texts.empty_folder, empty_disks: &texts.empty_disks, empty_lan: &texts.empty_lan,
             empty_internet: &texts.empty_internet, confirm: &texts.confirm, cancel: &texts.cancel,
         };
-        let (id, height) = if projects { ("project_root", 170.0) } else { ("export_dir", 150.0) };
         let answer = field.open.then(|| qnc_location_field_view::show_browser(ui, field, id, height, &labels, &self.contracts.theme)).flatten();
         if typed {
             self.session.location_typed(target);

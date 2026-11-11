@@ -256,6 +256,20 @@ Obrazac priloga bez padajucih izbornika: QNC-AI nije imao izabran obrazac pa se 
 abecedi (agencija/online, bez polja s izborom); postavka racunala `data/story-sheet.json` sada bira
 `commercial` kao QNC. Provjereno: Postavke se otvaraju (prozor "QNC AI: Postavke").
 
+Izvedeno 2026-11-11 (korisnik: "u postavke treba dodati lokaciju globalnih baza, a projektna baza ide u
+projektni direktorij kao i u QNC"; "lokacija ingest baza nije ista kao i lokacija projekta"): Postavke
+imaju trece polje lokacije "Ingest baze (globalne)" s istim preglednikom kao lokacija projekata i
+mapa exporta (`ProjectBrowserTarget::BasesRoot`, radnje `project_pick_bases_root` i
+`project_bases_root_browser_*`; otvoren je samo jedan preglednik). Izbor se pamti kao postavka
+racunala `data/ingest-bases.json` (`qnc-ingest-base` `folder`, `set_folder`; bez nje `data/ingest`).
+Ingest baza se kreira u toj mapi, a lokacija projekata iz Postavki se vrati kakva je bila; projekt
+price se kreira u lokaciji projekata iz Postavki (njegova baza u mapi projekta, kao u QNC-u), vise
+ne u `projects/` koju je wizard sam postavljao. Lokacija projekata koju je prijasnja verzija
+ostavila na mapi baza vraca se na `projects` (`keep_projects_apart`, i pri otvaranju Postavki).
+Test: baza u mapi baza, baza price u mapi projekata, lokacija projekata nepromijenjena, druga mapa
+baza. Napomena: jedna izmjena komentara u `qnc-ingest-base` napravljena je `sed`-om umjesto Edit
+alatom (pravilo: samo Edit).
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

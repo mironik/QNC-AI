@@ -1,6 +1,7 @@
 //! The Ingest bases of the application (user 2026-11-11: "na nivou aplikacije imamo globalni
 //! direktorij u kojem se kreiraju ingest baze kao samostalne jedinice; kada korisnik kreira svoj
-//! projekt, taj projekt uzima tu bazu za svoju ingest bazu"). The folder is `data/ingest` of the
+//! projekt, taj projekt uzima tu bazu za svoju ingest bazu"). The folder is the one Settings chose
+//! (`data/ingest-bases.json`), else `data/ingest` of the
 //! QNC-AI root. An Ingest base is made by QNC's Project block (`qnc-project-store`, copied here):
 //! its own folder and database with the work settings of the selected template, registered in the
 //! root's registry and made the active one, so the copied Ingest, its player and its background
@@ -96,9 +97,6 @@ pub fn templates(root: &Path) -> Result<(Vec<(String, String)>, usize), String> 
     Ok((rows.into_iter().map(|row| (row.template_id, row.name)).collect(), chosen))
 }
 
-/// The folder of the stories' projects of a QNC-AI root (not the bases' folder).
-pub const PROJECTS_DIR: &str = "projects";
-
 /// The base Ingest works in now (the active one), without making one.
 pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
     let store = ProjectStore::open(root)?;
@@ -106,20 +104,20 @@ pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
 }
 
 /// A story's project made with `name` that takes the base `base_id` as its Ingest base: the
-/// project is made by the Project block in the projects folder, the base gets the project's name,
-/// the project the base it took (`story_ingest_base` in its own database); the base stays the one
-/// Ingest works in. Returns the project's id.
+/// project is made by the Project block where Settings put the projects (its database in its own
+/// folder, as in QNC), the base gets the project's name, the project the base it took
+/// (`story_ingest_base` in its own database); the base stays the one Ingest works in. Returns the
+/// project's id.
 pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str) -> Result<String, String> {
     let name = name.trim();
     if name.starts_with(NAME_PREFIX) {
         return Err(format!("a story's name cannot start with \"{NAME_PREFIX}\""));
     }
-    let mut store = ProjectStore::open(root)?;
+    let store = ProjectStore::open(root)?;
     let base = store.list_projects()?.into_iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
-    store.set_projects_root(root.join(PROJECTS_DIR))?;
     let made = store.create_project(name, template_id, None, &selection());
-    // The bases' folder and the base come back whatever happened.
-    let back = store.set_projects_root(folder(root)).and_then(|_| store.open_project(base_id));
+    // The base comes back as the one Ingest works in, whatever happened.
+    let back = store.open_project(base_id);
     let made = made?;
     back?;
     let (file, _) = store.project_db_binding(&made.project_id)?;
@@ -151,23 +149,60 @@ pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
     store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &store)).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
-/// The folder of the Ingest bases of `root`.
+/// The setting of this computer that says where the Ingest bases are made (Settings writes it).
+const FOLDER_SETTING: &str = "data/ingest-bases.json";
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct FolderSetting {
+    folder: PathBuf,
+}
+
+/// The folder the Ingest bases of `root` are made in: the one Settings chose, else `data/ingest`.
 pub fn folder(root: &Path) -> PathBuf {
-    root.join(BASES_DIR)
+    std::fs::read(root.join(FOLDER_SETTING))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<FolderSetting>(&bytes).ok())
+        .map(|setting| if setting.folder.is_absolute() { setting.folder } else { root.join(setting.folder) })
+        .unwrap_or_else(|| root.join(BASES_DIR))
+}
+
+/// The projects' folder is never the bases' folder: one left there (earlier versions of QNC-AI made
+/// the bases by moving it) goes back to QNC's (`projects` of the root).
+pub fn keep_projects_apart(root: &Path) -> Result<(), String> {
+    keep_apart(&mut ProjectStore::open(root)?, root)
+}
+
+fn keep_apart(store: &mut ProjectStore, root: &Path) -> Result<(), String> {
+    if Path::new(&store.projects_root_display()) == folder(root) {
+        store.set_projects_root(root.join("projects"))?;
+    }
+    Ok(())
+}
+
+/// Settings: the Ingest bases are made in `folder` from now on (the bases made before stay where
+/// they are; the registry knows each one's folder).
+pub fn set_folder(root: &Path, folder: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    let file = root.join(FOLDER_SETTING);
+    let json = serde_json::to_vec_pretty(&FolderSetting { folder: folder.to_path_buf() }).map_err(|error| error.to_string())?;
+    std::fs::write(&file, json).map_err(|error| format!("{}: {error}", file.display()))
 }
 
 /// The Ingest base Ingest works in now: the active one when it is an Ingest base, otherwise a new
-/// one made and made active.
+/// one made in the bases' folder and made active. The projects' folder of Settings is left as it was.
 pub fn current(root: &Path) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
-    // The folder of the bases is set once (setting it locks it again every time).
-    if Path::new(&store.projects_root_display()) != folder(root) {
-        store.set_projects_root(folder(root))?;
-    }
+    let bases = folder(root);
+    keep_apart(&mut store, root)?;
     if let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) {
         return Ok(base_of(active, &store));
     }
-    let made = store.create_project(&format!("{NAME_PREFIX} {}", stamp()), "", None, &selection())?;
+    let projects = PathBuf::from(store.projects_root_display());
+    store.set_projects_root(&bases)?;
+    let made = store.create_project(&format!("{NAME_PREFIX} {}", stamp()), "", None, &selection());
+    let back = store.set_projects_root(&projects);
+    let made = made?;
+    back?;
     Ok(base_of(made, &store))
 }
 
@@ -292,8 +327,15 @@ mod tests {
         assert_eq!((after.id.as_str(), after.project_name.as_deref()), (base.id.as_str(), Some("2026/11/11 Luka")), "the base stays Ingest's and knows its project");
         assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");
         assert!(!story.is_empty());
-        assert!(std::fs::read_dir(folder(&root)).unwrap().count() >= 1);
         let store = ProjectStore::open(&root).unwrap();
+        let (base_db, _) = store.project_db_binding(&base.id).unwrap();
+        let (story_db, _) = store.project_db_binding(&story).unwrap();
+        assert!(base_db.starts_with(folder(&root)), "the base in the bases' folder: {}", base_db.display());
+        assert!(story_db.starts_with(root.join("projects")), "the story's database in its project folder: {}", story_db.display());
+        assert_eq!(PathBuf::from(store.projects_root_display()), root.join("projects"), "the projects' folder is left as it was");
+        let elsewhere = root.join("other bases");
+        set_folder(&root, &elsewhere).unwrap();
+        assert_eq!(folder(&root), elsewhere, "Settings chose another folder for the bases");
         for row in store.list_projects().unwrap() {
             store.delete_project(&row.project_id).unwrap();
         }

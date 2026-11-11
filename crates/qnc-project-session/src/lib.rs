@@ -24,6 +24,8 @@ pub struct ProjectSession {
     /// Where new projects go and where exports go (piece `qnc-location-field`).
     pub projects_root: LocationField,
     pub export_dir: LocationField,
+    /// QNC-AI: where the Ingest bases of the application are made (not where projects go).
+    pub bases_root: LocationField,
     pub picker_open: bool,
     pub template_create_open: bool,
     pub advanced_open: bool,
@@ -134,11 +136,13 @@ impl ProjectSession {
     pub fn new(component: ProjectComponent, ready_text: String, known_actions: BTreeSet<String>) -> Self {
         // Shown once the registry answers (piece `qnc-project-jobs`).
         let ai = qnc_ai_features::Choice::load(&component.root);
+        let bases_root = qnc_dir_browser::display_private_path(&qnc_ingest_base::folder(&component.root));
         let mut session = Self {
             component,
             project_name: String::new(),
             projects_root: LocationField::new(String::new()),
             export_dir: LocationField::new("exports/projekti"),
+            bases_root: LocationField::new(bases_root),
             picker_open: false,
             template_create_open: false,
             advanced_open: false,
@@ -277,6 +281,12 @@ impl ProjectSession {
                 }
             }
             ProjectIntent::PickLocation { target } => {
+                // One browser open at a time among the three fields.
+                for field in [LocationTarget::ProjectsRoot, LocationTarget::ExportDir, LocationTarget::BasesRoot] {
+                    if field != target {
+                        self.locations_mut(field).0.open = false;
+                    }
+                }
                 let (field, other) = self.locations_mut(target);
                 let step = field.toggle(other);
                 self.location_step(target, step);
@@ -460,6 +470,7 @@ impl ProjectSession {
         match target {
             LocationTarget::ProjectsRoot => (&mut self.projects_root, &mut self.export_dir),
             LocationTarget::ExportDir => (&mut self.export_dir, &mut self.projects_root),
+            LocationTarget::BasesRoot => (&mut self.bases_root, &mut self.projects_root),
         }
     }
 
@@ -484,6 +495,17 @@ impl ProjectSession {
         if target == LocationTarget::ProjectsRoot {
             return self.component.request(Request::SetProjectsRoot { path });
         }
+        // QNC-AI: a setting of this computer, apart from the projects' folder.
+        if target == LocationTarget::BasesRoot {
+            match qnc_ingest_base::set_folder(&self.component.root, &path) {
+                Ok(()) => {
+                    self.bases_root.chosen(shown);
+                    self.status = qnc_ui_text::text("project.msg.bases_root_set").to_string();
+                }
+                Err(error) => self.status = error,
+            }
+            return;
+        }
         self.export_dir.chosen(shown);
         qnc_settings_path::set_string_path(&mut self.draft_settings, "export.directory", self.export_dir.text.clone());
         self.status = qnc_ui_text::text("project.msg.export_dir_set").to_string();
@@ -494,6 +516,10 @@ impl ProjectSession {
         let (field, _) = self.locations_mut(target);
         field.dirty = true;
         let text = field.text.clone();
+        // The bases' folder is kept when it is chosen (Choose, Select), not while it is typed.
+        if target == LocationTarget::BasesRoot {
+            return;
+        }
         let path = if target == LocationTarget::ProjectsRoot { "storage.projects_root" } else { "export.directory" };
         qnc_settings_path::set_string_path(&mut self.draft_settings, path, text);
     }
@@ -601,5 +627,10 @@ fn location_action(target: LocationTarget, what: &str) -> &'static str {
         (LocationTarget::ExportDir, "browser_open_path") => "project_export_dir_browser_open_path",
         (LocationTarget::ExportDir, "browser_confirm") => "project_export_dir_browser_confirm",
         (LocationTarget::ExportDir, _) => "project_export_dir_browser_cancel",
+        (LocationTarget::BasesRoot, "pick") => "project_pick_bases_root",
+        (LocationTarget::BasesRoot, "browser_select_source") => "project_bases_root_browser_select_source",
+        (LocationTarget::BasesRoot, "browser_open_path") => "project_bases_root_browser_open_path",
+        (LocationTarget::BasesRoot, "browser_confirm") => "project_bases_root_browser_confirm",
+        (LocationTarget::BasesRoot, _) => "project_bases_root_browser_cancel",
     }
 }

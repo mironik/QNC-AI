@@ -541,6 +541,21 @@
     "project_export_dir_browser_cancel": {
       "label": "Odustani od export direktorija"
     },
+    "project_pick_bases_root": {
+      "label": "Odaberi mapu Ingest baza"
+    },
+    "project_bases_root_browser_select_source": {
+      "label": "Izvor preglednika mape Ingest baza"
+    },
+    "project_bases_root_browser_open_path": {
+      "label": "Otvori mapu u pregledniku Ingest baza"
+    },
+    "project_bases_root_browser_confirm": {
+      "label": "Potvrdi mapu Ingest baza"
+    },
+    "project_bases_root_browser_cancel": {
+      "label": "Odustani od mape Ingest baza"
+    },
     "ingest_source_kind_local": {
       "label": "Ingest izvor Računalo"
     },
