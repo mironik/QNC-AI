@@ -163,6 +163,20 @@ prepozna karticu i javlja koliko je klipova procitano. Forma uvoza koja pokazuje
 je korak. Provjereno: gradnja bez ijedne veze na QNC (`cargo tree`), testovi wizardovih kocki,
 `qnc-card-read` (zapis i citanje JSON-a). Na stvarnoj kartici nije provjereno (nije bila spojena).
 
+Izvedeno 2026-11-11 (korisnik: "ne pokrece ingest"): forma uvoza QNC-AI-a. Kocka `qnc-card-pick`
+(bez sucelja): klipovi svih procitanih kartica iz njihovih privremenih JSON-a (cita ih ponovno svake
+sekunde), posteri sa slicica kamere (kartica samo citana, u pozadini) i oznaceni kadrovi (oznaka
+zivi dok program radi; projekt ih dobiva u W3). Program `qnc-ai-ingest` samo crta: traka (kartice,
+klipovi, oznaceno, Oznaci sve, Odznaci sve, "Dalje: novi prilog" jos iskljuceno) i mreza kartica
+kopiranom kockom `qnc-media-card`; klik na karticu je oznaka. Mjere iz
+`contracts/ui/card-pick.layout.json`, boje iz `contracts/ui/shell.layout.json`; jedan primjerak.
+Kopirane jos kocke QNC-a: `qnc-media-card`, `qnc-clip-row`, `qnc-media-thumbnail`, `qnc-ui-kit`,
+`qnc-key-list`, `qnc-pool-pointer`, `qnc-desktop-theme`, `qnc-board`. Tray otvara formu cim procita
+karticu i na "Nastavi" u koraku kartice. `qnc-card-watch`: prvi pogled uzima sve spojene diskove kao
+nove (kartica koja je unutra kad se tray pokrene pokrece pricu); disk koji nije kartica tada se samo
+zapise. Provjereno uzivo: tray pokrenut s karticama D: (FX6) i G: (FX3A) procitao je 30 i 26 klipova
+i otvorio formu; drugo otvaranje nije pokrenulo drugi primjerak.
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

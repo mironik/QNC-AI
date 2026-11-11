@@ -12,6 +12,15 @@ version = "0.1.0"
 # QNC's folder is used at run time.
 [workspace.dependencies]
 qnc-active-project-read = { path = "crates/qnc-active-project-read" }
+qnc-board = { path = "crates/qnc-board" }
+qnc-card-pick = { path = "crates/qnc-card-pick" }
+qnc-clip-row = { path = "crates/qnc-clip-row" }
+qnc-desktop-theme = { path = "crates/qnc-desktop-theme" }
+qnc-key-list = { path = "crates/qnc-key-list" }
+qnc-media-card = { path = "crates/qnc-media-card" }
+qnc-media-thumbnail = { path = "crates/qnc-media-thumbnail" }
+qnc-pool-pointer = { path = "crates/qnc-pool-pointer" }
+qnc-ui-kit = { path = "crates/qnc-ui-kit" }
 qnc-camera-adapter = { path = "crates/qnc-camera-adapter" }
 qnc-camera-detector = { path = "crates/qnc-camera-detector" }
 qnc-camera-generic-file = { path = "crates/qnc-camera-generic-file" }

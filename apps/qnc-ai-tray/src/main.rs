@@ -95,8 +95,9 @@ fn main() {
                     log("quit".into());
                     return;
                 }
-                // The form of the step: the card step is Ingest; the forms of the steps after it come
-                // with W3 on (docs/01-wizard-plan.md).
+                // The form of the step: the card step is the import form; the forms of the steps
+                // after it come with W3 on (docs/01-wizard-plan.md).
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -139,6 +140,7 @@ fn main() {
                         log(format!("card read warning serial={} {warning}", content.serial));
                     }
                     tray.notify(&text("tray.title"), &fill("tray.card_read", &[("card", &name), ("clips", &content.clips.len().to_string())]));
+                    open_ingest(&tray, &root);
                 }
                 Err(error) => {
                     log(format!("card read failed card={name}: {error}"));
@@ -158,6 +160,8 @@ fn main() {
         }
         if let Some(catalog) = &catalog {
             if looked.is_none_or(|at| at.elapsed() >= LOOK) {
+                // The first look takes the disks in as new: a card starts its story, the rest only logs.
+                let first = looked.is_none();
                 looked = Some(Instant::now());
                 for found in watch.look(catalog) {
                     match found {
@@ -185,7 +189,9 @@ fn main() {
                         Found::Unknown { volume } => {
                             let disk = volume.root.display().to_string();
                             log(format!("unknown disk={disk} serial={}", volume.serial_number));
-                            tray.notify(&text("tray.title"), &fill("tray.unknown", &[("disk", &disk)]));
+                            if !first {
+                                tray.notify(&text("tray.title"), &fill("tray.unknown", &[("disk", &disk)]));
+                            }
                         }
                         Found::Unreadable { volume, error } => {
                             let disk = volume.root.display().to_string();
@@ -211,5 +217,21 @@ fn main() {
             }
         }
         std::thread::sleep(Duration::from_millis(150));
+    }
+}
+
+/// The import form, beside this program; it keeps one copy itself, so starting it again while it
+/// runs does nothing.
+fn open_ingest(tray: &Tray, root: &std::path::Path) {
+    let program = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-ingest{}", std::env::consts::EXE_SUFFIX))))
+        .unwrap_or_default();
+    match std::process::Command::new(&program).current_dir(root).env("QNC_ROOT", root).spawn() {
+        Ok(_) => log(format!("ingest opened {}", program.display())),
+        Err(error) => {
+            log(format!("ingest failed {}: {error}", program.display()));
+            tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error.to_string())]), &text("tray.ok"));
+        }
     }
 }

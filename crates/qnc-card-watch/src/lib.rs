@@ -1,7 +1,7 @@
 //! A disk attached since the last look and what it is (docs/01-wizard-plan.md, step 1-2). The
 //! attached disks come from QNC's `qnc-source-volumes`; a new one is looked at with QNC's camera
 //! catalog (`qnc-camera-detector`, card roots from the disk's root): a card of a camera QNC
-//! knows, or not. A disk attached before the first look starts nothing. It reads only: it never
+//! knows, or not. The first look takes every attached disk as new. It reads only: it never
 //! writes to a disk, never probes, never opens a project. What it remembers is the disks of its
 //! last look, in the memory of its process.
 
@@ -37,12 +37,13 @@ impl CardWatch {
         Self::default()
     }
 
-    /// The disks of `attached` that were not there at the last look (none at the first look) and
+    /// The disks of `attached` that were not there at the last look (all at the first look: a card
+    /// in when the tray starts starts its story, user 2026-11-11) and
     /// the disks of the last look that are not attached any more.
     pub fn changes(&mut self, attached: Vec<Volume>) -> (Vec<Volume>, Vec<Volume>) {
         let keys = |volumes: &[Volume]| volumes.iter().map(key).collect::<BTreeSet<_>>();
         let (fresh, gone) = match &self.seen {
-            None => (Vec::new(), Vec::new()),
+            None => (attached.clone(), Vec::new()),
             Some(seen) => {
                 let (before, now) = (keys(seen), keys(&attached));
                 (
@@ -142,10 +143,14 @@ mod tests {
     }
 
     #[test]
-    fn only_a_disk_attached_after_the_first_look_is_new() {
+    fn the_first_look_and_then_a_disk_attached_since_the_last_look_are_new() {
         let mut watch = CardWatch::new();
         let none: Vec<Volume> = Vec::new();
-        assert_eq!(watch.changes(vec![volume("C", "11111111"), volume("D", "22222222")]), (none.clone(), none.clone()), "the first look starts nothing");
+        assert_eq!(
+            watch.changes(vec![volume("C", "11111111"), volume("D", "22222222")]),
+            (vec![volume("C", "11111111"), volume("D", "22222222")], none.clone()),
+            "the first look takes the disks in as new"
+        );
         assert_eq!(watch.changes(vec![volume("C", "11111111"), volume("D", "22222222")]), (none.clone(), none.clone()));
         assert_eq!(
             watch.changes(vec![volume("C", "11111111"), volume("D", "22222222"), volume("G", "33333333")]),
