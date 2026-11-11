@@ -59,6 +59,15 @@ impl Tray {
         let _ = (title, text);
     }
 
+    /// An error the user must see now: a window of the system on top of everything, with OK. It
+    /// does not wait for the answer.
+    pub fn alert(&self, title: &str, text: &str) {
+        #[cfg(windows)]
+        windows::alert(title, text);
+        #[cfg(not(windows))]
+        let _ = (title, text);
+    }
+
     /// A new menu.
     pub fn set_menu(&self, menu: Vec<MenuItem>) {
         #[cfg(windows)]

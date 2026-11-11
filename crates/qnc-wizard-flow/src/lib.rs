@@ -20,11 +20,26 @@ pub const CARD_STEP: &str = "card";
 /// How often the active project is read again.
 pub const EVERY: Duration = Duration::from_secs(2);
 
-/// The card a story starts with: its disk and the cameras the catalog found on it.
+/// The card a story starts with: its disk, its volume serial and label, and the cameras the catalog
+/// found on it. A card taken out without ejecting it stays in the story as `out` until it is put
+/// back (user 2026-11-11: "vratite karticu ... koristi se").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Card {
     pub disk: PathBuf,
+    pub serial: String,
+    pub label: Option<String>,
     pub cameras: Vec<String>,
+    pub out: bool,
+}
+
+impl Card {
+    /// The card's name for a person: its label and disk ("XAVC (D:\)"), the disk without a label.
+    pub fn name(&self) -> String {
+        match &self.label {
+            Some(label) if !label.trim().is_empty() => format!("{label} ({})", self.disk.display()),
+            _ => self.disk.display().to_string(),
+        }
+    }
 }
 
 /// The project the story is in, as last read.
@@ -49,6 +64,8 @@ pub struct Status {
     pub project: Option<String>,
     /// The cards the story starts with (a shoot is often on more than one), one line each.
     pub cards: Vec<String>,
+    /// Which of them are taken out (to be put back).
+    pub cards_out: Vec<bool>,
     /// Why the story cannot go on, when it cannot.
     pub problem: Option<String>,
 }
@@ -80,16 +97,31 @@ impl Flow {
     }
 
     /// A card was put in: a new story starts with it, or it joins the cards of the story that has
-    /// no project yet (a shoot on two cards). A card on a disk the story has replaces it.
-    pub fn add_card(&mut self, card: Card) {
+    /// no project yet (a shoot on two cards). A card of the story put back (the same volume serial,
+    /// whatever its letter now) is in again: `true`.
+    pub fn add_card(&mut self, card: Card) -> bool {
+        if let Some(known) = self.cards.iter_mut().find(|known| known.serial == card.serial) {
+            let back = known.out;
+            *known = Card { out: false, ..card };
+            return back;
+        }
         self.cards.retain(|known| known.disk != card.disk);
-        self.cards.push(card);
+        self.cards.push(Card { out: false, ..card });
+        false
     }
 
-    /// A card was taken out: it leaves the story (its clips cannot be read any more).
-    pub fn remove_card(&mut self, disk: &std::path::Path) -> bool {
+    /// A card of the story was taken out without ejecting it: it stays in the story as out, to be
+    /// put back. The card, when it is one of the story's and was in.
+    pub fn card_out(&mut self, serial: &str) -> Option<Card> {
+        let card = self.cards.iter_mut().find(|known| known.serial == serial && !known.out)?;
+        card.out = true;
+        Some(card.clone())
+    }
+
+    /// A card was ejected on purpose: it leaves the story.
+    pub fn remove_card(&mut self, serial: &str) -> bool {
         let before = self.cards.len();
-        self.cards.retain(|known| known.disk != disk);
+        self.cards.retain(|known| known.serial != serial);
         self.cards.len() != before
     }
 
@@ -153,8 +185,12 @@ impl Flow {
             cards: self
                 .cards
                 .iter()
-                .map(|card| qnc_wizard_text::fill("wizard.card", &[("disk", &card.disk.display().to_string()), ("camera", &card.cameras.join(", "))]))
+                .map(|card| {
+                    let code = if card.out { "wizard.card_taken_out" } else { "wizard.card" };
+                    qnc_wizard_text::fill(code, &[("card", &card.name()), ("camera", &card.cameras.join(", "))])
+                })
                 .collect(),
+            cards_out: self.cards.iter().map(|card| card.out).collect(),
             problem,
         }
     }
@@ -186,28 +222,37 @@ fn read_project(root: &std::path::Path) -> Project {
 mod tests {
     use super::*;
 
+    fn card(disk: &str, serial: &str, label: Option<&str>, camera: &str) -> Card {
+        Card { disk: PathBuf::from(disk), serial: serial.into(), label: label.map(Into::into), cameras: vec![camera.into()], out: false }
+    }
+
     #[test]
     fn a_story_put_in_with_a_card_is_at_the_card_step_and_reads_no_project() {
         let mut flow = Flow::new(PathBuf::from("no-such-root"));
-        flow.add_card(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony FX6".into()] });
+        flow.add_card(card("D:\\", "83dbcfbe", Some("XAVC"), "Sony FX6"));
         flow.poll();
         assert!(flow.reading.is_none(), "a new story reads no project");
         let status = flow.status();
         assert_eq!((status.step, status.code.as_str()), (0, CARD_STEP));
         assert_eq!(status.project, None);
         assert_eq!(status.line(), "1/11 Card and shots");
-        assert_eq!(status.cards, vec!["card D:\\ (Sony FX6)".to_string()]);
+        assert_eq!(status.cards, vec!["card XAVC (D:\\), Sony FX6".to_string()]);
     }
 
     #[test]
-    fn a_second_card_joins_the_story_and_a_card_taken_out_leaves_it() {
+    fn a_card_taken_out_stays_to_be_put_back_and_an_ejected_one_leaves() {
         let mut flow = Flow::new(PathBuf::from("no-such-root"));
-        flow.add_card(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony FX6".into()] });
-        flow.add_card(Card { disk: PathBuf::from("G:\\"), cameras: vec!["Sony FX3".into()] });
-        flow.add_card(Card { disk: PathBuf::from("D:\\"), cameras: vec!["Sony FX6".into()] });
-        assert_eq!(flow.cards().len(), 2, "the same disk again is the same card");
-        assert!(flow.remove_card(std::path::Path::new("D:\\")));
-        assert!(!flow.remove_card(std::path::Path::new("E:\\")), "a disk the story has not is nothing");
-        assert_eq!(flow.status().cards, vec!["card G:\\ (Sony FX3)".to_string()]);
+        flow.add_card(card("D:\\", "83dbcfbe", None, "Sony FX6"));
+        flow.add_card(card("G:\\", "30616164", None, "Sony FX3"));
+        assert!(!flow.add_card(card("D:\\", "83dbcfbe", None, "Sony FX6")), "the same card again is no card put back");
+        assert_eq!(flow.cards().len(), 2);
+        assert_eq!(flow.card_out("83dbcfbe").map(|card| card.name()), Some("D:\\".to_string()));
+        assert_eq!(flow.card_out("83dbcfbe"), None, "out once");
+        assert_eq!(flow.status().cards[0], "card D:\\, Sony FX6: taken out");
+        assert!(flow.add_card(card("E:\\", "83dbcfbe", None, "Sony FX6")), "put back on another letter, it is the same card");
+        assert_eq!(flow.cards()[0].disk, PathBuf::from("E:\\"));
+        assert!(flow.remove_card("30616164"));
+        assert!(!flow.remove_card("ffffffff"), "a card the story has not is nothing");
+        assert_eq!(flow.cards().len(), 1);
     }
 }

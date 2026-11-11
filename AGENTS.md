@@ -89,3 +89,12 @@ Izvedeno 2026-11-11 (korisnik: "treba dodati sigurno izbacivanje kartice"): kock
 drzi otvorenim se odbija kao "u upotrebi", nikad na silu; samo korijen diska; Windows adapter).
 Izbornik traya ima "Izbaci: <kartica>" za svaku karticu price; izbacivanje u svojoj niti, ishod kao
 obavijest. Test samo odbijanje mape koja nije korijen diska (proba uzivo: korisnik sa stvarnom karticom).
+
+Izvedeno 2026-11-11 (korisnik: "info error prozor: vratite karticu (naziv kartice), koristi se"; "to se
+mora automatski otvoriti, ili je bolje da se na sredini ekrana pojavi error info overlay"): kartica
+price izvadena bez izbacivanja ostaje u prici kao izvadena (`qnc-wizard-flow` `card_out`; kartica je
+odredena serijskim brojem diska, pa vracena na drugo slovo je ista) i odmah se otvara prozor greske u
+sredini ekrana, iznad svega: "Vratite karticu <naziv> (D:\): koristi se" (`qnc-tray` `alert`,
+sistemski prozor poruke). Vracena kartica: obavijest. Izbacena preko izbornika izlazi iz price bez
+greske; odbijeno izbacivanje ("u upotrebi") je takoder prozor greske. Naziv kartice je oznaka diska i
+slovo. Otvoreno: QNC overlay umjesto sistemskog prozora, ako ga korisnik zeli.

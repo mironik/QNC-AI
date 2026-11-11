@@ -36,7 +36,11 @@ fn menu(status: Option<&Status>) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
     if let Some(status) = status {
-        items.extend(status.cards.iter().enumerate().map(|(index, card)| MenuItem { id: EJECT + index as u32, text: fill("tray.eject", &[("card", card)]), enabled: true }));
+        // A card taken out is only a line (it cannot be ejected); a card in can be ejected.
+        items.extend(status.cards.iter().zip(&status.cards_out).enumerate().map(|(index, (card, out))| match out {
+            true => MenuItem { id: STATUS, text: format!("    {card}"), enabled: false },
+            false => MenuItem { id: EJECT + index as u32, text: fill("tray.eject", &[("card", card)]), enabled: true },
+        }));
         items.push(MenuItem { id: GO_ON, text: fill("tray.continue", &[("step", &status.name)]), enabled: true });
     }
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
@@ -70,7 +74,7 @@ fn main() {
     let mut tries: std::collections::BTreeMap<String, u32> = Default::default();
     let mut looked: Option<Instant> = None;
     // A card is ejected on its own thread (the lock may wait); its answer comes back here.
-    let ejected = std::sync::mpsc::channel::<(std::path::PathBuf, Result<(), qnc_card_eject::EjectError>)>();
+    let ejected = std::sync::mpsc::channel::<(Card, Result<(), qnc_card_eject::EjectError>)>();
     loop {
         flow.poll();
         let status = flow.status();
@@ -91,33 +95,35 @@ fn main() {
                 // The forms of the steps come with W2 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
-                    if let Some(card) = flow.cards().get((id - EJECT) as usize) {
-                        let disk = card.disk.clone();
-                        log(format!("eject disk={}", disk.display()));
+                    if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
+                        let card = card.clone();
+                        log(format!("eject disk={} serial={}", card.disk.display(), card.serial));
                         let answer = ejected.0.clone();
                         std::thread::spawn(move || {
-                            let result = qnc_card_eject::eject(&disk);
-                            let _ = answer.send((disk, result));
+                            let result = qnc_card_eject::eject(&card.disk);
+                            let _ = answer.send((card, result));
                         });
                     }
                 }
                 TrayEvent::Menu(_) => {}
             }
         }
-        while let Ok((disk, result)) = ejected.1.try_recv() {
-            let shown_disk = disk.display().to_string();
+        while let Ok((card, result)) = ejected.1.try_recv() {
+            let name = card.name();
             match result {
                 Ok(()) => {
-                    log(format!("ejected disk={shown_disk}"));
-                    tray.notify(&text("tray.title"), &fill("tray.ejected", &[("disk", &shown_disk)]));
+                    // Ejected on purpose: it leaves the story before its disk is gone, so no "put it back".
+                    flow.remove_card(&card.serial);
+                    log(format!("ejected disk={}", card.disk.display()));
+                    tray.notify(&text("tray.title"), &fill("tray.ejected", &[("card", &name)]));
                 }
                 Err(qnc_card_eject::EjectError::InUse) => {
-                    log(format!("eject refused disk={shown_disk}: in use"));
-                    tray.notify(&text("tray.title"), &fill("tray.eject_in_use", &[("disk", &shown_disk)]));
+                    log(format!("eject refused disk={}: in use", card.disk.display()));
+                    tray.alert(&text("tray.title"), &fill("tray.eject_in_use", &[("card", &name)]));
                 }
                 Err(error) => {
-                    log(format!("eject failed disk={shown_disk}: {error}"));
-                    tray.notify(&text("tray.title"), &fill("tray.eject_failed", &[("disk", &shown_disk), ("error", &error.to_string())]));
+                    log(format!("eject failed disk={}: {error}", card.disk.display()));
+                    tray.alert(&text("tray.title"), &fill("tray.eject_failed", &[("card", &name), ("error", &error.to_string())]));
                 }
             }
         }
@@ -139,9 +145,15 @@ fn main() {
                         Found::Card { volume, cameras, patterns } => {
                             let disk = volume.root.display().to_string();
                             log(format!("card disk={disk} serial={} patterns={patterns:?}", volume.serial_number));
-                            flow.add_card(Card { disk: volume.root.clone(), cameras: cameras.clone() });
-                            let next = flow.status().name;
-                            tray.notify(&text("tray.title"), &fill("tray.card", &[("disk", &disk), ("camera", &cameras.join(", ")), ("step", &next)]));
+                            let card = Card { disk: volume.root.clone(), serial: volume.serial_number.clone(), label: volume.volume_name.clone(), cameras: cameras.clone(), out: false };
+                            let name = card.name();
+                            if flow.add_card(card) {
+                                log(format!("card back disk={disk}"));
+                                tray.notify(&text("tray.title"), &fill("tray.card_back", &[("card", &name)]));
+                            } else {
+                                let next = flow.status().name;
+                                tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
+                            }
                         }
                         Found::Unknown { volume } => {
                             let disk = volume.root.display().to_string();
@@ -162,8 +174,9 @@ fn main() {
                         Found::Gone { volume } => {
                             let disk = volume.root.display().to_string();
                             log(format!("gone disk={disk} serial={}", volume.serial_number));
-                            if flow.remove_card(&volume.root) {
-                                tray.notify(&text("tray.title"), &fill("tray.card_out", &[("disk", &disk)]));
+                            // A card of the story taken out without ejecting it: the story still uses it.
+                            if let Some(card) = flow.card_out(&volume.serial_number) {
+                                tray.alert(&text("tray.title"), &fill("tray.put_back", &[("card", &card.name())]));
                             }
                         }
                     }

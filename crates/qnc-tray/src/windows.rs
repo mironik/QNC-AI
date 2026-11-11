@@ -12,7 +12,7 @@ use windows_sys::Win32::UI::Shell::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos,
-    GetMessageW, LoadIconW, PostMessageW, PostQuitMessage, RegisterClassW, SetForegroundWindow, TrackPopupMenu, TranslateMessage,
+    GetMessageW, LoadIconW, MessageBoxW, PostMessageW, MB_ICONERROR, MB_OK, MB_SETFOREGROUND, MB_TOPMOST, PostQuitMessage, RegisterClassW, SetForegroundWindow, TrackPopupMenu, TranslateMessage,
     HWND_MESSAGE, IDI_APPLICATION, MF_GRAYED, MF_STRING, MSG, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CLOSE, WM_DESTROY,
     WM_LBUTTONUP, WM_RBUTTONUP, WNDCLASSW,
 };
@@ -229,6 +229,15 @@ unsafe fn menu(window: HWND) -> Option<u32> {
     let chosen = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, at.x, at.y, 0, window, std::ptr::null());
     DestroyMenu(popup);
     (chosen > 0).then_some(chosen as u32)
+}
+
+/// An error window of the system on top of everything, on its own thread (the caller goes on).
+pub(crate) fn alert(title: &str, text: &str) {
+    let (title, text) = (wide(title), wide(text));
+    std::thread::spawn(move || {
+        // SAFETY: the texts live through the call; no owner window.
+        unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND) };
+    });
 }
 
 pub(crate) struct OneCopy(HANDLE);
