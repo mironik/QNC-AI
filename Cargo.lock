@@ -3929,6 +3929,7 @@ dependencies = [
 name = "qnc-ingest-base"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "qnc-application-catalog",
  "qnc-project-store",
  "rusqlite",

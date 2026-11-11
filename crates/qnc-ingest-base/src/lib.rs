@@ -261,24 +261,19 @@ pub fn all(root: &Path) -> Result<Vec<IngestBase>, String> {
     Ok(bases)
 }
 
+/// The time a base is made, on this computer's clock, and four random hex digits: bases made in
+/// the same second (several computers on a LAN) are told apart.
 fn stamp() -> String {
-    let seconds = SystemTime::now().duration_since(UNIX_EPOCH).map(|time| time.as_secs()).unwrap_or(0);
-    let (days, rest) = (seconds / 86_400, seconds % 86_400);
-    let (year, month, day) = civil(days as i64);
-    format!("{year:04}-{month:02}-{day:02} {:02}:{:02}:{:02} UTC", rest / 3600, rest % 3600 / 60, rest % 60)
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|time| time.subsec_nanos()).unwrap_or(0);
+    let random = (nanos ^ std::process::id().rotate_left(16)) & 0xffff;
+    format!("{} {random:04x}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
 }
 
-/// Days since 1970-01-01 to a date (Howard Hinnant's algorithm).
-fn civil(days: i64) -> (i64, u32, u32) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    (yoe + era * 400 + i64::from(month <= 2), month, day)
+impl IngestBase {
+    /// The base as it is shown: its time and number, without the word every base's name starts with.
+    pub fn label(&self) -> &str {
+        self.name.strip_prefix(NAME_PREFIX).map_or(self.name.as_str(), str::trim)
+    }
 }
 
 /// The applications of an Ingest base: Project only (it is no story).
@@ -296,9 +291,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_day_count_is_its_date() {
-        assert_eq!(civil(0), (1970, 1, 1));
-        assert_eq!(civil(20_403), (2025, 11, 11));
+    fn a_base_is_shown_by_its_time_and_number_without_the_word_ingest() {
+        let name = format!("{NAME_PREFIX} {}", stamp());
+        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false };
+        let label = base.label();
+        assert!(!label.contains(NAME_PREFIX), "{label}");
+        let (time, number) = label.rsplit_once(' ').unwrap();
+        assert_eq!(time.len(), "2026-11-11 22:21:08".len(), "{label}");
+        assert_eq!(number.len(), 4, "four random hex digits: {label}");
     }
 
     /// In a QNC-AI root made of this repo's contracts and seed (a temporary folder, never a real

@@ -50,7 +50,9 @@ pub(super) fn browser(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, them
         focused_kind: view.focus.is(qnc_focus_walk::SOURCE_KINDS).then(|| KINDS.iter().position(|kind| view.focus.chosen(kind.action_id()))).flatten(),
         focused_entry,
     };
-    let words = BrowserLabels { sources: &labels.sources_label, up: &labels.up_label, disks: &labels.disks_label, empty_folder: &labels.empty_folder, loading: &labels.loading_label };
+    // QNC-AI: on the bases tab the button that lists them again is Bases, not Disks.
+    let disks = if view.source_kind == SourceKind::Bases { kinds.get(3).copied().unwrap_or(labels.disks_label.as_str()) } else { labels.disks_label.as_str() };
+    let words = BrowserLabels { sources: &labels.sources_label, up: &labels.up_label, disks, empty_folder: &labels.empty_folder, loading: &labels.loading_label };
     let on_bar = |action_id| view.focus.is(qnc_focus_walk::BROWSER_BUTTONS) && view.focus.chosen(action_id);
     let bar = ConfirmBar {
         confirm: &labels.confirm_label,

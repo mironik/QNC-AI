@@ -55,14 +55,14 @@ impl IngestApplication {
     }
 }
 
-/// A base as an entry of the browser: its name, the project that took it, and whether Ingest works
-/// in it now.
+/// A base as an entry of the browser (user 2026-11-11): the project that took it (or none), and of
+/// the base only its time and number; the one Ingest works in now is marked.
 fn entry(base: &IngestBase) -> qnc_source_browse::BrowseLocationEntry {
     let project = base.project_name.clone().unwrap_or_else(|| qnc_ui_text::text("source.base_no_project").to_string());
     qnc_source_browse::BrowseLocationEntry {
-        name: if base.active { format!("● {}", base.name) } else { base.name.clone() },
+        name: if base.active { format!("● {project}") } else { project },
         qnc_uri: base.uri.clone(),
         serial_number: String::new(),
-        volume_name: project,
+        volume_name: base.label().to_string(),
     }
 }
