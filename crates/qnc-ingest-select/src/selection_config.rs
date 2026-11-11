@@ -276,7 +276,14 @@ impl SelectionConfig {
                         name: s.name.clone(),
                         qnc_uri: s.location.uri.clone(),
                         serial_number: s.serial_number.clone(),
-                        volume_name: s.volume_name.clone(),
+                        // QNC-AI (user 2026-11-12): beside the name and serial, the disk's size,
+                        // not its label again.
+                        volume_name: attached
+                            .iter()
+                            .find(|volume| volume.serial_number.eq_ignore_ascii_case(s.serial_number.trim()))
+                            .and_then(|volume| qnc_source_volumes::describe(&volume.root).size_bytes)
+                            .map(qnc_source_bindings::size_label)
+                            .unwrap_or_default(),
                     },
                     move || source.reader().map_err(|e| e.to_string()),
                 );

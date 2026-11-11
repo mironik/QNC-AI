@@ -273,3 +273,14 @@ alatom (pravilo: samo Edit).
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.
+
+Izvedeno 2026-11-12 (korisnik: "obriši staru bazu"; "pogledaj možeš li diskove razlikovati još po čemu,
+jer glupo je dvaput pisati isti broj"): (1) `qnc-ingest-base` `forget(root, id)` brise Ingest bazu s mapom
+(kopirano Project spremiste skida zastitu), nikad projekt price; primjer `examples/forget_base.rs`. Stara
+baza "Ingest 2026-11-11 21:21:08 UTC" obrisana (Ingest je prije toga zaustavljen; sljedeca kartica
+pravi novu bazu). (2) `qnc-source-volumes` `describe(root)`: vrsta diska (kartica/USB, disk, mrezni,
+opticki) i velicina, samo citanje. Disk bez oznake zove se po vrsti ("Kartica / USB", "Disk") umjesto
+"Disk <serijski>" (`qnc-source-bindings` `volume_label`, `kind_label`); serijski je u svom stupcu, a
+treci stupac preglednika je velicina kao na naljepnici (decimalni GB, `size_label`; `qnc-ingest-select`
+`browser`), ne ponovljena oznaka. Rjecnik `source.kind_*` umjesto `source.volume_unnamed`. Testovi
+`qnc-source-volumes`, `qnc-source-bindings`, `qnc-ingest-select`. Uzivo nije provjereno.

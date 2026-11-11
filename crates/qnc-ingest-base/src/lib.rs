@@ -149,6 +149,17 @@ pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
     store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &store)).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
+/// Deletes the Ingest base `id` with its folder (the copied Project store lifts its protection
+/// first). Only a base: a story's project is never deleted here.
+pub fn forget(root: &Path, id: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let row = store.list_projects()?.into_iter().find(|row| row.project_id == id).ok_or_else(|| format!("no Ingest base {id}"))?;
+    if !row.name.starts_with(NAME_PREFIX) {
+        return Err(format!("{} is not an Ingest base", row.name));
+    }
+    store.delete_project(id).map(|_| ())
+}
+
 /// The setting of this computer that says where the Ingest bases are made (Settings writes it).
 const FOLDER_SETTING: &str = "data/ingest-bases.json";
 

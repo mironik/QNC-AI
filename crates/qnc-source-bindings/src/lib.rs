@@ -249,11 +249,35 @@ fn with_volumes(sources: &[SourceBinding], volumes: &[qnc_source_volumes::Volume
 }
 
 /// The name of an attached disk, the same on every OS (QNC-AI 2026-11-11: no Windows drive letter
-/// in the application): its volume label, else "Disk <serial>".
+/// in the application): its volume label, else the kind of disk it is (the serial is shown beside
+/// it, user 2026-11-12: "glupo je dvaput pisati isti broj").
 pub fn volume_label(volume: &qnc_source_volumes::Volume) -> String {
     match volume.volume_name.as_deref().map(str::trim).filter(|label| !label.is_empty()) {
         Some(label) => label.to_string(),
-        None => qnc_ui_text::fill("source.volume_unnamed", &[("serial", &volume.serial_number.to_ascii_lowercase())]),
+        None => kind_label(qnc_source_volumes::describe(&volume.root).kind).to_string(),
+    }
+}
+
+/// The word for a kind of disk.
+pub fn kind_label(kind: qnc_source_volumes::DiskKind) -> &'static str {
+    use qnc_source_volumes::DiskKind;
+    qnc_ui_text::text(match kind {
+        DiskKind::Removable => "source.kind_removable",
+        DiskKind::Network => "source.kind_network",
+        DiskKind::Optical => "source.kind_optical",
+        DiskKind::Fixed | DiskKind::Other => "source.kind_disk",
+    })
+}
+
+/// The size of a disk as its maker labels it (decimal gigabytes, whole from 10 GB up).
+pub fn size_label(bytes: u64) -> String {
+    let gb = bytes as f64 / 1e9;
+    if gb >= 1000.0 {
+        format!("{:.1} TB", gb / 1000.0)
+    } else if gb >= 10.0 {
+        format!("{gb:.0} GB")
+    } else {
+        format!("{gb:.1} GB")
     }
 }
 
@@ -364,7 +388,8 @@ mod tests {
         assert_eq!(bindings.registered_sources[0].name.as_deref(), Some("FX6"), "named by its label, not its letter");
         let new = &bindings.registered_sources[1];
         assert_eq!(new.location.uri, "qnc://local/source/volume-7e80f1fb");
-        assert_eq!((new.name.as_deref(), new.serial_number.as_deref()), (Some("Disk 7e80f1fb"), Some("7e80f1fb")));
+        assert_eq!((new.name.as_deref(), new.serial_number.as_deref()), (Some("Disk"), Some("7e80f1fb")));
+        assert_eq!((size_label(63_864_569_856), size_label(512_110_190_592), size_label(7_740_000_000)), ("64 GB".into(), "512 GB".into(), "7.7 GB".into()));
         assert!(new.probe.is_some(), "the probe of the local sources");
     }
 

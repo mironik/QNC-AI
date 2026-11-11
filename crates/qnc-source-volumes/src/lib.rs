@@ -26,6 +26,52 @@ impl Volume {
     }
 }
 
+/// What kind of disk a volume is, as the system says it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiskKind {
+    /// A card in a reader, a USB stick (the system calls them removable).
+    Removable,
+    /// A disk built in or a USB disk the system calls fixed.
+    Fixed,
+    Network,
+    Optical,
+    Other,
+}
+
+/// What tells two disks apart besides their serial: their kind and size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Description {
+    pub kind: DiskKind,
+    pub size_bytes: Option<u64>,
+}
+
+/// The kind and size of the disk at `root` (read only; nothing is mounted).
+pub fn describe(root: &std::path::Path) -> Description {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::{GetDiskFreeSpaceExW, GetDriveTypeW};
+        let wide: Vec<u16> = root.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        // SAFETY: the path is a zero-terminated wide string living through the calls.
+        let kind = match unsafe { GetDriveTypeW(wide.as_ptr()) } {
+            2 => DiskKind::Removable,
+            3 => DiskKind::Fixed,
+            4 => DiskKind::Network,
+            5 => DiskKind::Optical,
+            _ => DiskKind::Other,
+        };
+        let mut total = 0u64;
+        // SAFETY: as above; the output lives through the call.
+        let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), std::ptr::null_mut(), &mut total, std::ptr::null_mut()) };
+        Description { kind, size_bytes: (ok != 0 && total > 0).then_some(total) }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = root;
+        Description { kind: DiskKind::Other, size_bytes: None }
+    }
+}
+
 /// The disks attached now.
 pub fn mounted() -> Vec<Volume> {
     #[cfg(windows)]
@@ -81,5 +127,13 @@ mod tests {
     fn the_system_disk_is_listed_with_its_serial() {
         let volumes = mounted();
         assert!(volumes.iter().any(|volume| volume.root.to_string_lossy().starts_with("C:") && volume.serial_number.len() == 8));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_system_disk_is_fixed_and_has_a_size() {
+        let description = describe(std::path::Path::new("C:\\"));
+        assert_eq!(description.kind, DiskKind::Fixed);
+        assert!(description.size_bytes.is_some_and(|bytes| bytes > 1 << 30));
     }
 }
