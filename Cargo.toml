@@ -73,6 +73,7 @@ qnc-export-choice = { path = "crates/qnc-export-choice" }
 qnc-export-preset = { path = "crates/qnc-export-preset" }
 qnc-ffmpeg-decode = { path = "crates/qnc-ffmpeg-decode" }
 qnc-ffprobe-metadata = { path = "crates/qnc-ffprobe-metadata" }
+qnc-field-spec = { path = "crates/qnc-field-spec" }
 qnc-filmstrip = { path = "crates/qnc-filmstrip" }
 qnc-filmstrip-worker = { path = "crates/qnc-filmstrip-worker" }
 qnc-fine-wave = { path = "crates/qnc-fine-wave" }
@@ -140,6 +141,8 @@ qnc-mouse-map = { path = "crates/qnc-mouse-map" }
 qnc-mp4-sound = { path = "crates/qnc-mp4-sound" }
 qnc-mxf-index = { path = "crates/qnc-mxf-index" }
 qnc-mxf-sound = { path = "crates/qnc-mxf-sound" }
+qnc-newsroom-sheet = { path = "crates/qnc-newsroom-sheet" }
+qnc-newsroom-sheet-model = { path = "crates/qnc-newsroom-sheet-model" }
 qnc-notice = { path = "crates/qnc-notice" }
 qnc-paint-pace = { path = "crates/qnc-paint-pace" }
 qnc-pixel-convert = { path = "crates/qnc-pixel-convert" }
@@ -174,6 +177,7 @@ qnc-record-format-plugin = { path = "crates/qnc-record-format-plugin" }
 qnc-record-probe = { path = "crates/qnc-record-probe" }
 qnc-render-unit = { path = "crates/qnc-render-unit" }
 qnc-scanner = { path = "crates/qnc-scanner" }
+qnc-settings-form = { path = "crates/qnc-settings-form" }
 qnc-settings-path = { path = "crates/qnc-settings-path" }
 qnc-shell-footer = { path = "crates/qnc-shell-footer" }
 qnc-shot-analysis = { path = "crates/qnc-shot-analysis" }
@@ -209,6 +213,7 @@ qnc-source-timeline-view = { path = "crates/qnc-source-timeline-view" }
 qnc-source-volumes = { path = "crates/qnc-source-volumes" }
 qnc-status-line = { path = "crates/qnc-status-line" }
 qnc-still-locator = { path = "crates/qnc-still-locator" }
+qnc-story-start = { path = "crates/qnc-story-start" }
 qnc-theme-styles = { path = "crates/qnc-theme-styles" }
 qnc-timeline = { path = "crates/qnc-timeline" }
 qnc-timeline-artifacts = { path = "crates/qnc-timeline-artifacts" }

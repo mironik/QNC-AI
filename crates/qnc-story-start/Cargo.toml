@@ -1,0 +1,9 @@
+[package]
+name = "qnc-story-start"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: Uvezi of an Ingest base without a story opens the new project's sheet; Create makes the story's project, which takes the base, then the import goes on; no GUI (the form draws the sheet it holds)"
+
+[dependencies]
+qnc-ingest-base = { workspace = true }
+qnc-newsroom-sheet-model = { workspace = true }

@@ -768,6 +768,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono"
+version = "0.4.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
+dependencies = [
+ "iana-time-zone",
+ "num-traits",
+ "windows-link",
+]
+
+[[package]]
 name = "chunked_transfer"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1800,6 +1811,30 @@ name = "httpdate"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
+
+[[package]]
+name = "iana-time-zone"
+version = "0.1.65"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e31bc9ad994ba00e440a8aa5c9ef0ec67d5cb5e5cb0cc7f8b744a35b389cc470"
+dependencies = [
+ "android_system_properties",
+ "core-foundation-sys",
+ "iana-time-zone-haiku",
+ "js-sys",
+ "log",
+ "wasm-bindgen",
+ "windows-core 0.62.2",
+]
+
+[[package]]
+name = "iana-time-zone-haiku"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "icu_collections"
@@ -3648,6 +3683,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-field-spec"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "qnc-filmstrip"
 version = "0.1.0"
 dependencies = [
@@ -3811,6 +3853,7 @@ dependencies = [
  "qnc-ingest-store",
  "qnc-ingest-work-plan",
  "qnc-media-thumbnail",
+ "qnc-newsroom-sheet-model",
  "qnc-notice",
  "qnc-playback-priority",
  "qnc-player-client",
@@ -3818,6 +3861,7 @@ dependencies = [
  "qnc-source-panel",
  "qnc-source-reader",
  "qnc-source-timeline",
+ "qnc-story-start",
  "qnc-timeline-assets",
  "qnc-timeline-model",
  "qnc-ui-text",
@@ -3911,6 +3955,7 @@ dependencies = [
  "qnc-ingest-application",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
+ "qnc-newsroom-sheet",
  "qnc-paint-pace",
 ]
 
@@ -4498,6 +4543,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-newsroom-sheet"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-dev-diagnostics",
+ "qnc-field-spec",
+ "qnc-key-row",
+ "qnc-keyboard-shortcut",
+ "qnc-newsroom-sheet-model",
+ "qnc-settings-form",
+ "qnc-theme-styles",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-newsroom-sheet-model"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "qnc-dev-diagnostics",
+ "qnc-field-spec",
+ "qnc-ui-text",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-notice"
 version = "0.1.0"
 dependencies = [
@@ -4930,6 +5008,19 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tiny_http",
+]
+
+[[package]]
+name = "qnc-settings-form"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-field-spec",
+ "qnc-key-row",
+ "qnc-settings-path",
+ "qnc-ui-kit",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5382,6 +5473,14 @@ dependencies = [
  "qnc-source-contract",
  "qnc-ui-text",
  "qnc-work-settings",
+]
+
+[[package]]
+name = "qnc-story-start"
+version = "0.1.0"
+dependencies = [
+ "qnc-ingest-base",
+ "qnc-newsroom-sheet-model",
 ]
 
 [[package]]

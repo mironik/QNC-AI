@@ -3,6 +3,9 @@ pub const INGEST_SOURCE_KIND_LAN: &str = "ingest_source_kind_lan";
 pub const INGEST_SOURCE_KIND_INTERNET: &str = "ingest_source_kind_internet";
 /// QNC-AI: the Ingest bases of the application.
 pub const INGEST_SOURCE_KIND_BASES: &str = "ingest_source_kind_bases";
+/// QNC-AI: the answers of the new project's sheet Uvezi opens (no key; its buttons and Enter).
+pub const STORY_SHEET_CONFIRM: &str = "story_sheet_confirm";
+pub const STORY_SHEET_CANCEL: &str = "story_sheet_cancel";
 pub const INGEST_DIR_UP: &str = "ingest_dir_up";
 pub const INGEST_DIR_ROOTS: &str = "ingest_dir_roots";
 pub const INGEST_DIR_OPEN: &str = "ingest_dir_open";

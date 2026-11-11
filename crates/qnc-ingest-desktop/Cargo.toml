@@ -15,4 +15,5 @@ qnc-ingest-layout = { workspace = true }
 qnc-paint-pace = { workspace = true }
 qnc-attached-cards = { workspace = true }
 qnc-card-autoselect = { workspace = true }
+qnc-newsroom-sheet = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }

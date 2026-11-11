@@ -75,6 +75,68 @@ pub fn set_project_name(root: &Path, id: &str, project_name: &str) -> Result<(),
     tx.commit().map_err(|error| error.to_string())
 }
 
+/// Whether the project Ingest works in now is an Ingest base: a read only look at the registry
+/// (`data/qnc-projects.db`, its public views), quick enough for the form's thread. No registry or
+/// no active project is no base.
+pub fn active_is_base(root: &Path) -> bool {
+    let file = root.join("data").join("qnc-projects.db");
+    let Ok(conn) = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) else { return false };
+    conn.query_row(
+        "SELECT name FROM public_projects WHERE project_id = (SELECT value FROM public_app_settings WHERE key = 'active_project_id')",
+        [],
+        |row| row.get::<_, String>(0),
+    )
+    .is_ok_and(|name| name.starts_with(NAME_PREFIX))
+}
+
+/// The folder of the stories' projects of a QNC-AI root (not the bases' folder).
+pub const PROJECTS_DIR: &str = "projects";
+
+/// The base Ingest works in now (the active one), without making one.
+pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
+    let store = ProjectStore::open(root)?;
+    Ok(store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &store)))
+}
+
+/// A story's project made with `name` that takes the base `base_id` as its Ingest base: the
+/// project is made by the Project block in the projects folder, the base gets the project's name,
+/// the project the base it took (`story_ingest_base` in its own database); the base stays the one
+/// Ingest works in. Returns the project's id.
+pub fn take_for_story(root: &Path, base_id: &str, name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if name.starts_with(NAME_PREFIX) {
+        return Err(format!("a story's name cannot start with \"{NAME_PREFIX}\""));
+    }
+    let mut store = ProjectStore::open(root)?;
+    let base = store.list_projects()?.into_iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
+    store.set_projects_root(root.join(PROJECTS_DIR))?;
+    let made = store.create_project(name, "", None, &selection());
+    // The bases' folder and the base come back whatever happened.
+    let back = store.set_projects_root(folder(root)).and_then(|_| store.open_project(base_id));
+    let made = made?;
+    back?;
+    let (file, _) = store.project_db_binding(&made.project_id)?;
+    let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS story_ingest_base (
+            one INTEGER PRIMARY KEY CHECK (one = 1),
+            base_id TEXT NOT NULL,
+            base_uri TEXT NOT NULL,
+            taken_at_utc TEXT NOT NULL
+        )",
+    )
+    .map_err(|error| error.to_string())?;
+    conn.execute(
+        "INSERT INTO story_ingest_base (one, base_id, base_uri, taken_at_utc) VALUES (1, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(one) DO UPDATE SET base_id = excluded.base_id, base_uri = excluded.base_uri, taken_at_utc = excluded.taken_at_utc",
+        [base.project_id.as_str(), base.project_uri.as_str()],
+    )
+    .map_err(|error| error.to_string())?;
+    set_project_name(root, base_id, name)?;
+    Ok(made.project_id)
+}
+
 /// Makes the base `id` the one Ingest works in.
 pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
@@ -216,6 +278,11 @@ mod tests {
         set_project_name(&root, &base.id, "Prilog o luci").unwrap();
         assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("Prilog o luci"), "the project that took it");
         assert!(open(&root, &base.id).unwrap().active);
+        let story = take_for_story(&root, &base.id, "2026/11/11 Luka").unwrap();
+        let after = active(&root).unwrap().unwrap();
+        assert_eq!((after.id.as_str(), after.project_name.as_deref()), (base.id.as_str(), Some("2026/11/11 Luka")), "the base stays Ingest's and knows its project");
+        assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");
+        assert!(!story.is_empty());
         assert!(std::fs::read_dir(folder(&root)).unwrap().count() >= 1);
         let store = ProjectStore::open(&root).unwrap();
         for row in store.list_projects().unwrap() {

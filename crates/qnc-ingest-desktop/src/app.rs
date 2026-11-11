@@ -63,7 +63,9 @@ impl IngestApp {
     }
 
     pub fn show_desktop(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, frame: &mut qnc_board::Frame<'_>) {
-        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes: &["ingest"], play_action: action_ids::PLAY_PAUSE, theme: None };
+        // While the new project's sheet is open its keys are the sheet's, none goes to Ingest.
+        let scopes: &[&str] = if self.application.story_sheet_mut().is_some() { &[] } else { &["ingest"] };
+        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes, play_action: action_ids::PLAY_PAUSE, theme: None };
         self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
         self.follow_cards(ctx);
         let theme = Theme::from_contract(&self.contracts.shell);
@@ -71,6 +73,15 @@ impl IngestApp {
         // The view is borrowed, not copied: it holds every clip and the timeline data.
         if let Some(intent) = qnc_ingest_blocks::render_desktop(ui, frame, &self.contracts, &theme, self.application.view()) {
             qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), intent);
+        }
+        // QNC-AI: the new project's sheet Uvezi opens, over the form.
+        let answer = self.application.story_sheet_mut().and_then(|sheet| qnc_newsroom_sheet::show(ctx, sheet, &theme, &self.contracts.shortcuts));
+        if let Some(answer) = answer {
+            let action = match answer {
+                qnc_newsroom_sheet::Answer::Confirm => action_ids::STORY_SHEET_CONFIRM,
+                qnc_newsroom_sheet::Answer::Cancel => action_ids::STORY_SHEET_CANCEL,
+            };
+            qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), IngestIntent::empty(action));
         }
     }
 

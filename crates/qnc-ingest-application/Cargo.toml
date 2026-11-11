@@ -22,6 +22,8 @@ qnc-ingest-project = { workspace = true }
 qnc-form-pieces = { workspace = true }
 qnc-ingest-pieces = { workspace = true }
 qnc-ingest-base = { workspace = true }
+qnc-story-start = { workspace = true }
+qnc-newsroom-sheet-model = { workspace = true }
 qnc-ingest-work-plan = { workspace = true }
 qnc-camera-adapter = { workspace = true }
 qnc-ingest-cameras = { workspace = true }

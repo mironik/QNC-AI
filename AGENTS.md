@@ -222,6 +222,21 @@ projekta, vrijeme); `qnc_ingest_base::set_project_name` je zove Project forma ka
 (W3). Provjereno: testovi `qnc-source-bindings`, `qnc-ingest-base`, `qnc-ingest-application`,
 `qnc-keyboard-shortcut`, `qnc-ingest --check-contracts`. Uzivo nije provjereno.
 
+Izvedeno 2026-11-11 (W3, prvi dio; korisnik: "nakon Selektiraj sve kada klikne UVEZI mora se otvoriti
+overlay obrazac za kreiranje projekta; kad se kreira projekt naziv projekta se dodaje u ingest
+bazu"): nova kocka `qnc-story-start` (bez sucelja): Uvezi u Ingest bazi bez projekta otvara obrazac
+novog projekta (kopirani QNC obrazac priloga: `qnc-newsroom-sheet`, `qnc-newsroom-sheet-model`,
+`qnc-settings-form`, `qnc-field-spec`); Kreiraj u pozadini napravi projekt price
+(`qnc-ingest-base` `take_for_story`: kopirana Project kocka, mapa `projects/`, ne `data/ingest`;
+projekt u svojoj bazi zapise koju je Ingest bazu uzeo, tablica `story_ingest_base`; baza dobije
+naziv projekta; Ingest ostaje u bazi), pa uvoz krene; Odustani ne uvozi nista. Baza koja vec ima
+projekt uvozi odmah; projekt koji nije Ingest baza (`active_is_base`, brzo citanje registra) uvozi
+kao prije. Dok je obrazac otvoren, tipke idu obrascu, ne Ingestu. Radnje `story_sheet_confirm`,
+`story_sheet_cancel`. Naziv price ne smije pocinjati s "Ingest". Provjereno: testovi
+`qnc-ingest-base` (projekt price uzima bazu, baza ostaje aktivna i zna naziv),
+`qnc-ingest-application`. Uzivo nije provjereno. Nije izvedeno: vrijednosti obrasca jos se ne
+spremaju u bazu projekta (samo naziv).
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

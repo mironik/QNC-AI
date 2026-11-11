@@ -13,3 +13,4 @@ mod set_ai_mining;
 mod set_archive;
 mod set_clip_filter;
 mod source_kind;
+mod story;
