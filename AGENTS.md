@@ -130,5 +130,12 @@ QNC-ov Ingest iz istih kocki kao QNC-ov (aplikacija, raspored, ploca, form host;
 plus kocka `qnc-card-autoselect` koja kroz Ingestove radnje (diskovi racunala, disk kartice po
 serijskom broju, Odaberi) sama ide na kartice price redom, kad Ingest zavrsi prethodnu. Tray mu
 predaje serijske brojeve kartica (`--card`). Za razvoj `qnc-ai-ingest.exe` se kopira uz QNC-ove
-programe (`QNC/target/release`), jer odande pokrece player i pomocne programe; paket u W8. Nije
-izvedeno: kartica ubacena dok je Ingest otvoren ne ide mu (otvara se tek iduci put).
+programe (`QNC/target/release`), jer odande pokrece player i pomocne programe; paket u W8.
+
+Popravak 2026-11-11 (korisnik: "bljeskao je 5-6 puta i onda se otvorio; dodavanje druge kartice nije
+registrirao"): (1) QNC-ovi pomocni programi (radnik, dekoderi, player) su konzolni i svaki je otvarao
+svoj prozor konzole; tray sada pokrece Ingest sa skrivenom konzolom (`CREATE_NO_WINDOW`) koju oni
+dijele. (2) Kartice price idu kroz bazu: `qnc-wizard-db` tablica `wizard_cards` (`SetCards`,
+`ReadCards`, `project_target(root)`), tray ih upisuje u pomocni projekt radne baze cim se promijene
+(`qnc-card-preview` `set_cards`), `qnc-ai-ingest` ih cita svake sekunde i ide i na karticu ubacenu
+kasnije (`qnc-card-autoselect` `want`, svaka kartica jednom). Argumenti `--card` vise nisu potrebni.

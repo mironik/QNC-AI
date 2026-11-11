@@ -2818,6 +2818,7 @@ dependencies = [
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
  "qnc-paint-pace",
+ "qnc-wizard-db",
 ]
 
 [[package]]
@@ -3008,6 +3009,7 @@ name = "qnc-card-preview"
 version = "0.1.0"
 dependencies = [
  "qnc-card-workspace",
+ "qnc-wizard-db",
 ]
 
 [[package]]
@@ -4998,6 +5000,7 @@ dependencies = [
 name = "qnc-wizard-db"
 version = "0.1.0"
 dependencies = [
+ "qnc-active-project-read",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-wizard-steps",

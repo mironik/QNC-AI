@@ -104,7 +104,7 @@ fn main() {
                 }
                 // The form of the step: the card step opens Ingest in the story's work place; the
                 // forms of the steps after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP && !flow.cards().is_empty() => preview.open(story_cards(&flow)),
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP && !flow.cards().is_empty() => preview.open(),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -168,7 +168,7 @@ fn main() {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
                                 // The card step's form opens by itself: Ingest in the story's work place.
-                                preview.open(story_cards(&flow));
+                                preview.open();
                             }
                         }
                         Found::Unknown { volume } => {
@@ -199,6 +199,8 @@ fn main() {
                 }
             }
         }
+        // The story's cards go into its work place: Ingest reads them there, also one put in later.
+        preview.set_cards(story_cards(&flow));
         for event in preview.poll(!flow.cards().is_empty()) {
             match event {
                 qnc_card_preview::Event::Opened => log(format!("ingest opened in {}", preview.workspace().map(|work| work.root.display().to_string()).unwrap_or_default())),
@@ -208,6 +210,7 @@ fn main() {
                     log(format!("work place failed: {error}"));
                     tray.alert("preview", &text("tray.title"), &fill("tray.workspace_failed", &[("error", &error)]), &text("tray.ok"));
                 }
+                qnc_card_preview::Event::CardsFailed(error) => log(format!("cards not written into the work place: {error}")),
                 qnc_card_preview::Event::IngestFailed(error) => {
                     log(format!("ingest failed: {error}"));
                     tray.alert("preview", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));

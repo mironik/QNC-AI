@@ -15,3 +15,4 @@ qnc-ingest-blocks = { workspace = true }
 qnc-ingest-layout = { workspace = true }
 qnc-paint-pace = { workspace = true }
 qnc-action-event = { workspace = true }
+qnc-wizard-db = { workspace = true }

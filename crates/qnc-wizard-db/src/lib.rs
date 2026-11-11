@@ -27,11 +27,16 @@ pub enum Operation {
     MarkDone { step: String },
     /// A step is open again (the steps after it stay as they are; the wizard's rule keeps them locked).
     Reopen { step: String },
+    /// The cards of the story, by volume serial, in their order (they replace the ones before): the
+    /// tray writes them, the wizard's Ingest reads them (the database is the only link between them).
+    SetCards { serials: Vec<String> },
+    /// The cards of the story.
+    ReadCards,
 }
 
 impl Operation {
     pub fn is_write(&self) -> bool {
-        !matches!(self, Self::Read)
+        !matches!(self, Self::Read | Self::ReadCards)
     }
 }
 
@@ -39,7 +44,32 @@ impl Operation {
 #[serde(tag = "kind", content = "data", rename_all = "snake_case")]
 pub enum Data {
     Done(BTreeSet<String>),
+    Cards(Vec<String>),
     Changed,
+}
+
+/// The project database of the QNC root `root`'s active project (the story's project, or a work
+/// place's helper project), as QNC's own blocks find it.
+pub fn project_target(root: &std::path::Path) -> Result<ProjectDbTarget> {
+    let reader = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|error| error.to_string())?;
+    let snapshot = reader.read().map_err(|error| error.to_string())?;
+    ProjectDbTarget::for_project(reader.settings_reader(), &snapshot.settings)
+}
+
+/// Writes the cards of the story into the project behind `target` (waits for the write).
+pub fn set_cards(target: &ProjectDbTarget, serials: Vec<String>) -> Result<()> {
+    let writer = ProjectDbWriter::start(target.clone(), vec![WizardModule::factory()])?;
+    writer.call(MODULE_ID, encode(&Operation::SetCards { serials })?).map(|_| ())
+}
+
+/// The cards of the story in the project behind `target` (none before the tray wrote any).
+pub fn read_cards(target: &ProjectDbTarget) -> Result<Vec<String>> {
+    let mut client = target.open(Access::ReadOnly, vec![WizardModule::factory()])?;
+    let answer = client.execute(MODULE_ID, encode(&Operation::ReadCards)?)?;
+    match serde_json::from_value(answer).map_err(|e| e.to_string())? {
+        Data::Cards(cards) => Ok(cards),
+        _ => Err(qnc_wizard_text::text("wizard.db.reply")),
+    }
 }
 
 /// Joins the wizard table to a project database.
@@ -61,7 +91,7 @@ pub fn read(target: &ProjectDbTarget) -> Result<BTreeSet<String>> {
     let answer = client.execute(MODULE_ID, encode(&Operation::Read)?)?;
     match serde_json::from_value(answer).map_err(|e| e.to_string())? {
         Data::Done(done) => Ok(done),
-        Data::Changed => Err(qnc_wizard_text::text("wizard.db.reply")),
+        _ => Err(qnc_wizard_text::text("wizard.db.reply")),
     }
 }
 

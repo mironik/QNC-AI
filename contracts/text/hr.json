@@ -46,6 +46,7 @@
     "tray.unreadable": "Disk {disk} se ne može pročitati: {error}",
     "tray.no_catalog": "Nema kataloga kamera: {error}",
     "wizard.db.bad_step": "Wizard nema takav korak.",
+    "wizard.db.bad_card": "Kartica priče imenuje se serijskim brojem diska od slova i brojki (najviše 16 kartica).",
     "wizard.db.reply": "Stanje wizarda dalo je neočekivan odgovor."
   }
 }

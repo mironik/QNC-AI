@@ -13,6 +13,35 @@ struct Ingest {
     application: IngestApplication,
     host: qnc_form_host::FormHost,
     cards: AutoSelect,
+    /// The story's cards read from the work place's database (the tray writes them there).
+    root: std::path::PathBuf,
+    reading: Option<std::sync::mpsc::Receiver<Result<Vec<String>, String>>>,
+    read_at: Option<std::time::Instant>,
+}
+
+/// How often the story's cards are read again.
+const CARDS_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
+
+impl Ingest {
+    /// The story's cards from the database, in the background; a card put in later joins.
+    fn follow_cards(&mut self) {
+        if let Some(read) = self.reading.as_ref().and_then(|reading| reading.try_recv().ok()) {
+            self.reading = None;
+            match read {
+                Ok(cards) => self.cards.want(&cards),
+                Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-ingest cards not read: {error}")),
+            }
+        }
+        if self.reading.is_none() && self.read_at.is_none_or(|at| at.elapsed() >= CARDS_EVERY) {
+            let (send, receive) = std::sync::mpsc::channel();
+            let root = self.root.clone();
+            std::thread::spawn(move || {
+                let _ = send.send(qnc_wizard_db::project_target(&root).and_then(|target| qnc_wizard_db::read_cards(&target)));
+            });
+            self.reading = Some(receive);
+            self.read_at = Some(std::time::Instant::now());
+        }
+    }
 }
 
 /// The Ingest application as the form host sees it (as in QNC's Ingest form).
@@ -36,6 +65,8 @@ impl eframe::App for Ingest {
         theme::apply(ctx, &theme);
         let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes: &["ingest"], play_action: action_ids::PLAY_PAUSE, theme: None };
         self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
+        self.follow_cards();
+        ctx.request_repaint_after(CARDS_EVERY);
         // The cards of the story, one after another, as the user would choose them.
         if let Some(intent) = self.cards.next(self.application.view()) {
             qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-ingest auto {intent:?}"));
@@ -70,7 +101,7 @@ fn main() -> eframe::Result<()> {
     }
     let contracts = IngestContracts::load().unwrap_or_else(|error| panic!("Ingest contracts: {error}"));
     let application = IngestApplication::with_store_root(&root).unwrap_or_else(|error| panic!("Ingest: {error}")).with_focus(contracts.focus_names());
-    let app = Ingest { contracts, application, host: qnc_form_host::FormHost::new(), cards: AutoSelect::new(cards) };
+    let app = Ingest { contracts, application, host: qnc_form_host::FormHost::new(), cards: AutoSelect::new(cards), root, reading: None, read_at: None };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         viewport: eframe::egui::ViewportBuilder::default().with_title("QNC AI: Ingest").with_inner_size([1280.0, 760.0]).with_min_inner_size([1100.0, 700.0]).with_maximized(true),

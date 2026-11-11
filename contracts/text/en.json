@@ -46,6 +46,7 @@
     "tray.unreadable": "Disk {disk} cannot be read: {error}",
     "tray.no_catalog": "No camera catalog: {error}",
     "wizard.db.bad_step": "The wizard has no such step.",
+    "wizard.db.bad_card": "A card of the story is named by a volume serial of letters and digits (at most 16 cards).",
     "wizard.db.reply": "The wizard's state gave an unexpected answer."
   }
 }

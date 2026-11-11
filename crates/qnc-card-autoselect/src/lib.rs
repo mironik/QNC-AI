@@ -30,6 +30,8 @@ enum Step {
 #[derive(Debug)]
 pub struct AutoSelect {
     cards: Vec<String>,
+    /// Every card it was given, so a card is gone to once.
+    known: std::collections::BTreeSet<String>,
     step: Step,
     sent: Option<Instant>,
     /// A card skipped and why, for the caller to show.
@@ -39,7 +41,18 @@ pub struct AutoSelect {
 impl AutoSelect {
     /// Goes to the cards of these volume serials, in this order.
     pub fn new(cards: Vec<String>) -> Self {
-        Self { cards, step: Step::Disks, sent: None, skipped: Vec::new() }
+        let mut select = Self { cards: Vec::new(), known: Default::default(), step: Step::Disks, sent: None, skipped: Vec::new() };
+        select.want(&cards);
+        select
+    }
+
+    /// The cards of the story as they are now: a card it has not had yet is gone to after the others.
+    pub fn want(&mut self, cards: &[String]) {
+        for card in cards {
+            if self.known.insert(card.clone()) {
+                self.cards.push(card.clone());
+            }
+        }
     }
 
     /// Whether it has cards still to go to.
@@ -109,9 +122,29 @@ impl AutoSelect {
         }
     }
 
+    #[cfg(test)]
+    fn queued(&self) -> &[String] {
+        &self.cards
+    }
+
     fn done_with_card(&mut self) {
         self.cards.remove(0);
         self.step = Step::Disks;
         self.sent = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_card_put_in_later_is_gone_to_after_the_others_and_each_card_once() {
+        let mut select = AutoSelect::new(vec!["83dbcfbe".into()]);
+        select.want(&["83dbcfbe".into(), "30616164".into()]);
+        assert_eq!(select.queued(), ["83dbcfbe".to_string(), "30616164".to_string()]);
+        select.done_with_card();
+        select.want(&["83dbcfbe".into(), "30616164".into()]);
+        assert_eq!(select.queued(), ["30616164".to_string()], "a card done is not gone to again");
     }
 }
