@@ -204,10 +204,11 @@ pub fn with_attached(bindings: &mut TransportBindings, volumes: &[qnc_source_vol
         match known {
             Some(index) => {
                 let source = &mut bindings.registered_sources[index];
+                // An attached disk is named by itself, never by its letter.
+                source.name = Some(volume_label(volume));
                 if source.location.file.as_ref().is_some_and(|file| file != &volume.root) && source.location.endpoint.is_none() {
                     let uri = source.location.uri.clone();
                     source.location.file = Some(volume.root.clone());
-                    source.name = Some(volume_label(volume));
                     for binding in bindings.sources.iter_mut().filter(|binding| binding.uri == uri) {
                         binding.file = Some(volume.root.clone());
                     }
@@ -247,9 +248,13 @@ fn with_volumes(sources: &[SourceBinding], volumes: &[qnc_source_volumes::Volume
     all
 }
 
-/// `E:` as the source's name.
-fn volume_label(volume: &qnc_source_volumes::Volume) -> String {
-    volume.root.to_string_lossy().trim_end_matches(['\\', '/']).to_string()
+/// The name of an attached disk, the same on every OS (QNC-AI 2026-11-11: no Windows drive letter
+/// in the application): its volume label, else "Disk <serial>".
+pub fn volume_label(volume: &qnc_source_volumes::Volume) -> String {
+    match volume.volume_name.as_deref().map(str::trim).filter(|label| !label.is_empty()) {
+        Some(label) => label.to_string(),
+        None => qnc_ui_text::fill("source.volume_unnamed", &[("serial", &volume.serial_number.to_ascii_lowercase())]),
+    }
 }
 
 fn binding(location: ConfigLocation, base: &Path) -> Result<SourceBinding, String> {
@@ -352,13 +357,14 @@ mod tests {
             {"location":{"uri":"qnc://local/source/volume-de666c9f","file":"G:/"},"name":"G:","serial_number":"de666c9f",
              "probe":{"kind":"local","executable":"C:/ffprobe.exe","probe_size_bytes":8,"analyze_duration_us":1}}]}"#;
         let mut bindings = parse(config, Path::new(BASE)).unwrap();
-        let volume = |root: &str, serial: &str| qnc_source_volumes::Volume { root: PathBuf::from(root), serial_number: serial.into(), volume_name: None };
-        with_attached(&mut bindings, &[volume("F:\\", "DE666C9F"), volume("E:\\", "7e80f1fb")]);
+        let volume = |root: &str, serial: &str, label: Option<&str>| qnc_source_volumes::Volume { root: PathBuf::from(root), serial_number: serial.into(), volume_name: label.map(Into::into) };
+        with_attached(&mut bindings, &[volume("F:\\", "DE666C9F", Some("FX6")), volume("E:\\", "7e80f1fb", None)]);
         assert_eq!(bindings.sources.len(), 2, "nothing removed, the new disk added");
         assert_eq!(bindings.sources[0].file.as_deref(), Some(Path::new("F:\\")), "the card moved to F:");
+        assert_eq!(bindings.registered_sources[0].name.as_deref(), Some("FX6"), "named by its label, not its letter");
         let new = &bindings.registered_sources[1];
         assert_eq!(new.location.uri, "qnc://local/source/volume-7e80f1fb");
-        assert_eq!((new.name.as_deref(), new.serial_number.as_deref()), (Some("E:"), Some("7e80f1fb")));
+        assert_eq!((new.name.as_deref(), new.serial_number.as_deref()), (Some("Disk 7e80f1fb"), Some("7e80f1fb")));
         assert!(new.probe.is_some(), "the probe of the local sources");
     }
 

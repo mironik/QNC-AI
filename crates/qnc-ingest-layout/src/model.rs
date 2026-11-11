@@ -92,6 +92,8 @@ pub struct IngestDirBrowser {
     pub cancel_label: String,
     pub empty_lan: String,
     pub empty_internet: String,
+    /// QNC-AI: the bases tab without a base.
+    pub empty_bases: String,
     pub empty_local: String,
     pub empty_folder: String,
     pub loading_label: String,

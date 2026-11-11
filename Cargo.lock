@@ -3799,6 +3799,7 @@ dependencies = [
  "qnc-dir-browser",
  "qnc-focus-walk",
  "qnc-form-pieces",
+ "qnc-ingest-base",
  "qnc-ingest-cameras",
  "qnc-ingest-catalog",
  "qnc-ingest-import-run",
@@ -3834,6 +3835,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-application-catalog",
  "qnc-project-store",
+ "rusqlite",
 ]
 
 [[package]]

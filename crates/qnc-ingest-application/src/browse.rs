@@ -9,6 +9,13 @@ impl IngestApplication {
         if self.playback_guard_active() {
             return self.playback_guard_rejected();
         }
+        // QNC-AI: the bases tab: Disks and Up list the bases again, an entry opens its base.
+        if kind == SourceKind::Bases {
+            return match target {
+                Some(Some(uri)) => self.open_base(&uri),
+                _ => self.browse_bases(),
+            };
+        }
         if !self.browse.is_connected() {
             return IngestDispatchResult::rejected(qnc_ui_text::text("ingest.msg.source_not_connected"));
         }

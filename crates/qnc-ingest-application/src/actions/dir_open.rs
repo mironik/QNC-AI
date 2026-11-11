@@ -6,6 +6,9 @@ impl IngestApplication {
         let IngestPayload::LocationUri(uri) = payload else {
             return IngestDispatchResult::rejected(qnc_ui_text::text("ingest.msg.missing_location_uri"));
         };
+        if self.view.source_kind == SourceKind::Bases {
+            return self.open_base(&uri);
+        }
         if self.browse.is_connected() {
             self.capture_selected_source_metadata(&uri);
             return self.browse_registered(self.view.source_kind, Some(Some(uri)));

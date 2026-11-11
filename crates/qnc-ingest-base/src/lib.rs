@@ -23,6 +23,63 @@ pub struct IngestBase {
     pub id: String,
     pub name: String,
     pub uri: String,
+    /// The project that took this base as its Ingest base (written by the Project form).
+    pub project_name: Option<String>,
+    /// The base Ingest works in now.
+    pub active: bool,
+}
+
+/// The table of a base's own database that says which project took it (one row).
+const PROJECT_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_project (
+    one INTEGER PRIMARY KEY CHECK (one = 1),
+    project_name TEXT NOT NULL,
+    written_at_utc TEXT NOT NULL
+)";
+
+fn base_of(row: qnc_project_store::ProjectRow, store: &ProjectStore) -> IngestBase {
+    let project_name = project_name_in(store, &row.project_id).ok().flatten();
+    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active }
+}
+
+fn project_name_in(store: &ProjectStore, id: &str) -> Result<Option<String>, String> {
+    let (file, _) = store.project_db_binding(id)?;
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    let has: bool = conn
+        .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_project')", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if !has {
+        return Ok(None);
+    }
+    match conn.query_row("SELECT project_name FROM ingest_base_project WHERE one = 1", [], |row| row.get(0)) {
+        Ok(name) => Ok(Some(name)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Writes the name of the project that took the base `id` (the Project form calls it when a story's
+/// project takes this base); a later project name replaces the earlier.
+pub fn set_project_name(root: &Path, id: &str, project_name: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let (file, _) = store.project_db_binding(id)?;
+    let mut conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(|error| error.to_string())?;
+    tx.execute_batch(PROJECT_TABLE).map_err(|error| error.to_string())?;
+    tx.execute(
+        "INSERT INTO ingest_base_project (one, project_name, written_at_utc) VALUES (1, ?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(one) DO UPDATE SET project_name = excluded.project_name, written_at_utc = excluded.written_at_utc",
+        [project_name.trim()],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.commit().map_err(|error| error.to_string())
+}
+
+/// Makes the base `id` the one Ingest works in.
+pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
+    let store = ProjectStore::open(root)?;
+    store.open_project(id)?;
+    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &store)).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
 /// The folder of the Ingest bases of `root`.
@@ -39,20 +96,65 @@ pub fn current(root: &Path) -> Result<IngestBase, String> {
         store.set_projects_root(folder(root))?;
     }
     if let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) {
-        return Ok(IngestBase { id: active.project_id, name: active.name, uri: active.project_uri });
+        return Ok(base_of(active, &store));
     }
     let made = store.create_project(&format!("{NAME_PREFIX} {}", stamp()), "", None, &selection())?;
-    Ok(IngestBase { id: made.project_id, name: made.name, uri: made.project_uri })
+    Ok(base_of(made, &store))
 }
 
-/// The Ingest bases of `root`.
+/// What came of a list or an open done in the background.
+#[derive(Debug)]
+pub enum BaseNews {
+    Listed(Result<Vec<IngestBase>, String>),
+    Opened(Result<IngestBase, String>),
+}
+
+/// The bases listed and opened off the form's thread (the registry and the project databases are
+/// read there), one step at a time.
+#[derive(Debug, Default)]
+pub struct BaseBrowse {
+    running: Option<std::sync::mpsc::Receiver<BaseNews>>,
+}
+
+impl BaseBrowse {
+    fn run(&mut self, work: impl FnOnce() -> BaseNews + Send + 'static) {
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = send.send(work());
+        });
+        self.running = Some(receive);
+    }
+
+    /// Lists the bases of `root`.
+    pub fn list(&mut self, root: &Path) {
+        let root = root.to_path_buf();
+        self.run(move || BaseNews::Listed(all(&root)));
+    }
+
+    /// Makes the base `id` of `root` the one Ingest works in.
+    pub fn open(&mut self, root: &Path, id: &str) {
+        let (root, id) = (root.to_path_buf(), id.to_string());
+        self.run(move || BaseNews::Opened(open(&root, &id)));
+    }
+
+    pub fn busy(&self) -> bool {
+        self.running.is_some()
+    }
+
+    /// The step finished since the last call.
+    pub fn poll(&mut self) -> Option<BaseNews> {
+        let news = self.running.as_ref()?.try_recv().ok()?;
+        self.running = None;
+        Some(news)
+    }
+}
+
+/// The Ingest bases of `root`, newest first.
 pub fn all(root: &Path) -> Result<Vec<IngestBase>, String> {
-    Ok(ProjectStore::open(root)?
-        .list_projects()?
-        .into_iter()
-        .filter(|row| row.name.starts_with(NAME_PREFIX))
-        .map(|row| IngestBase { id: row.project_id, name: row.name, uri: row.project_uri })
-        .collect())
+    let store = ProjectStore::open(root)?;
+    let mut bases: Vec<_> = store.list_projects()?.into_iter().filter(|row| row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &store)).collect();
+    bases.sort_by(|a, b| b.name.cmp(&a.name));
+    Ok(bases)
 }
 
 fn stamp() -> String {
@@ -110,6 +212,10 @@ mod tests {
         let base = current(&root).unwrap();
         assert!(base.name.starts_with(NAME_PREFIX));
         assert_eq!(current(&root).unwrap(), base, "the active base stays the current one");
+        assert_eq!(base.project_name, None);
+        set_project_name(&root, &base.id, "Prilog o luci").unwrap();
+        assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("Prilog o luci"), "the project that took it");
+        assert!(open(&root, &base.id).unwrap().active);
         assert!(std::fs::read_dir(folder(&root)).unwrap().count() >= 1);
         let store = ProjectStore::open(&root).unwrap();
         for row in store.list_projects().unwrap() {

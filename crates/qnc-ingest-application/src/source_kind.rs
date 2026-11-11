@@ -6,6 +6,8 @@ pub enum SourceKind {
     Local,
     Lan,
     Internet,
+    /// QNC-AI: the Ingest bases of the application (data/ingest), not a source of media.
+    Bases,
 }
 
 impl SourceKind {
@@ -14,6 +16,7 @@ impl SourceKind {
             Self::Local => qnc_ui_text::text("source.computer"),
             Self::Lan => "LAN",
             Self::Internet => "Internet",
+            Self::Bases => qnc_ui_text::text("source.bases"),
         }
     }
 
@@ -22,6 +25,7 @@ impl SourceKind {
             Self::Local => action_ids::INGEST_SOURCE_KIND_LOCAL,
             Self::Lan => action_ids::INGEST_SOURCE_KIND_LAN,
             Self::Internet => action_ids::INGEST_SOURCE_KIND_INTERNET,
+            Self::Bases => action_ids::INGEST_SOURCE_KIND_BASES,
         }
     }
 }
@@ -31,5 +35,6 @@ pub(crate) fn source_kind_id(kind: SourceKind) -> &'static str {
         SourceKind::Local => "local",
         SourceKind::Lan => "lan",
         SourceKind::Internet => "internet",
+        SourceKind::Bases => "bases",
     }
 }

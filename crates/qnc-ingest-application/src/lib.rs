@@ -74,6 +74,9 @@ pub struct IngestApplication {
     walk: qnc_focus_walk::FocusWalk,
     /// The pieces of the form (way B: a new possibility is a new piece, `qnc-ingest-pieces`).
     pieces: qnc_ingest_pieces::IngestPieces,
+    /// QNC-AI: the Ingest bases of the application in the browser, and the base of each entry.
+    bases: qnc_ingest_base::BaseBrowse,
+    base_ids: std::collections::BTreeMap<String, String>,
 }
 
 impl IngestApplication {

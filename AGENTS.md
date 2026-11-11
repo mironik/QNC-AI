@@ -207,6 +207,21 @@ prethodne zavrsi; svaka kartica jednom). Bljeskanje: kopirana Project kocka pokr
 G: (FX3A) Ingest se otvorio, sam otvorio disk kartice i pokrenuo Odaberi; Ingest baza je dobila
 zapise, pozadinski radnik je radio.
 
+Izmjena 2026-11-11 (korisnik: "u ingestu se cijelo vrijeme provlaci greska, koristimo windows
+oznacavanje diskova, a aplikacija mora biti multi OS neutralna"; "globalni direktorij ingest baza
+dodati kao direktni izbornik"; "u ingest bazu dodati naziv projekta, to ce dopisati projekt forma"):
+(1) `qnc-source-bindings` `volume_label`: spojeni disk se imenuje svojom oznakom (volume label),
+bez nje "Disk <serijski>" (rjecnik `source.volume_unnamed`), nikad slovom; i registrirani izvor
+dobiva taj naziv kad je spojen. Put mape u pregledniku vec koristi naziv izvora. (2) Izbornik Baze
+uz Racunalo/LAN/Intranet (`SourceKind::Bases`, radnja `ingest_source_kind_bases`, Alt+4 u QNC
+presetu, ugovor rasporeda `kinds`, `empty_bases`, fokus): popis Ingest baza iz `data/ingest` (aktivna
+s oznakom, uz svaku projekt koji ju je uzeo ili "bez projekta"); klik ili Odaberi je otvara kao bazu
+u kojoj Ingest radi (`qnc-ingest-base` `BaseBrowse`: popis i otvaranje izvan niti sucelja; Ingest
+zatim ucita bazu kao projekt). (3) Ingest baza ima tablicu `ingest_base_project` (jedan red: naziv
+projekta, vrijeme); `qnc_ingest_base::set_project_name` je zove Project forma kad projekt uzme bazu
+(W3). Provjereno: testovi `qnc-source-bindings`, `qnc-ingest-base`, `qnc-ingest-application`,
+`qnc-keyboard-shortcut`, `qnc-ingest --check-contracts`. Uzivo nije provjereno.
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

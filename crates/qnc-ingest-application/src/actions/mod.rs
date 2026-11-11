@@ -1,5 +1,6 @@
 //! One file per action of the form. `dispatch` only says which action runs.
 
+mod bases;
 mod dir_cancel;
 mod dir_confirm;
 mod dir_open;

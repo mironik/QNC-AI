@@ -33,6 +33,7 @@ impl IngestApplication {
             action_ids::INGEST_SOURCE_KIND_LOCAL => self.on_source_kind(SourceKind::Local),
             action_ids::INGEST_SOURCE_KIND_LAN => self.on_source_kind(SourceKind::Lan),
             action_ids::INGEST_SOURCE_KIND_INTERNET => self.on_source_kind(SourceKind::Internet),
+            action_ids::INGEST_SOURCE_KIND_BASES => self.browse_bases(),
             action_ids::INGEST_DIR_ROOTS => self.on_dir_roots(),
             action_ids::INGEST_DIR_UP => self.on_dir_up(),
             action_ids::INGEST_DIR_OPEN => self.on_dir_open(intent.payload),
@@ -60,6 +61,7 @@ impl IngestApplication {
                 | action_ids::INGEST_SOURCE_KIND_LOCAL
                 | action_ids::INGEST_SOURCE_KIND_LAN
                 | action_ids::INGEST_SOURCE_KIND_INTERNET
+                | action_ids::INGEST_SOURCE_KIND_BASES
                 | action_ids::INGEST_DIR_ROOTS
                 | action_ids::INGEST_DIR_UP
                 | action_ids::INGEST_DIR_OPEN
@@ -69,6 +71,7 @@ impl IngestApplication {
         let busy = self.import.is_busy()
             || self.view.command_busy
             || self.view.browser.busy
+            || self.bases.busy()
             || (self.pending_source.is_some() && action_id != action_ids::INGEST_DIR_CANCEL);
         (source_action && busy)
             .then(|| IngestDispatchResult::rejected(qnc_ui_text::text("ingest.msg.source_busy")))

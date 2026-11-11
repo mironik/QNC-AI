@@ -3,6 +3,13 @@ use crate::*;
 impl IngestApplication {
     /// The user confirmed the source: read the project settings, then Select.
     pub(crate) fn on_dir_confirm(&mut self, payload: IngestPayload) -> IngestDispatchResult {
+        // QNC-AI: on the bases tab Select opens the base.
+        if self.view.source_kind == SourceKind::Bases {
+            return match payload {
+                IngestPayload::LocationUri(uri) => self.open_base(&uri),
+                _ => IngestDispatchResult::rejected(qnc_ui_text::text("ingest.msg.missing_location_uri")),
+            };
+        }
         // From a key there is no payload: the folder the browser shows.
         let uri = match payload {
             IngestPayload::LocationUri(uri) => uri,
