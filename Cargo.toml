@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "apps/qnc-ai-tray",
+    "crates/qnc-card-eject",
     "crates/qnc-card-watch",
     "crates/qnc-tray",
     "crates/qnc-wizard-db",
@@ -27,6 +28,7 @@ qnc-source-volumes = { git = "https://github.com/mironik/QNC.git", tag = "v-2026
 qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-ui-text = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-card-eject = { path = "crates/qnc-card-eject" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
 qnc-tray = { path = "crates/qnc-tray" }
 qnc-wizard-db = { path = "crates/qnc-wizard-db" }

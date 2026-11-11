@@ -18,6 +18,8 @@ use qnc_wizard_text::{fill, text};
 const STATUS: u32 = 1;
 const GO_ON: u32 = 2;
 const QUIT: u32 = 3;
+/// "Eject" of the n-th card of the story is `EJECT + n`.
+const EJECT: u32 = 100;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
 /// How often a missing camera catalog is read again.
@@ -29,12 +31,12 @@ fn log(line: String) {
     log_line(DiagnosticsStream::Player, format!("ai-tray {line}"));
 }
 
-/// The menu for where the story is: the status line and a line per card (they only tell), Go on, Quit.
+/// The menu for where the story is: the status line (it only tells), "Eject" for each card, Go on, Quit.
 fn menu(status: Option<&Status>) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
     if let Some(status) = status {
-        items.extend(status.cards.iter().map(|card| MenuItem { id: STATUS, text: format!("    {card}"), enabled: false }));
+        items.extend(status.cards.iter().enumerate().map(|(index, card)| MenuItem { id: EJECT + index as u32, text: fill("tray.eject", &[("card", card)]), enabled: true }));
         items.push(MenuItem { id: GO_ON, text: fill("tray.continue", &[("step", &status.name)]), enabled: true });
     }
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
@@ -67,6 +69,8 @@ fn main() {
     let mut watch = CardWatch::new();
     let mut tries: std::collections::BTreeMap<String, u32> = Default::default();
     let mut looked: Option<Instant> = None;
+    // A card is ejected on its own thread (the lock may wait); its answer comes back here.
+    let ejected = std::sync::mpsc::channel::<(std::path::PathBuf, Result<(), qnc_card_eject::EjectError>)>();
     loop {
         flow.poll();
         let status = flow.status();
@@ -86,7 +90,35 @@ fn main() {
                 }
                 // The forms of the steps come with W2 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
+                TrayEvent::Menu(id) if id >= EJECT => {
+                    if let Some(card) = flow.cards().get((id - EJECT) as usize) {
+                        let disk = card.disk.clone();
+                        log(format!("eject disk={}", disk.display()));
+                        let answer = ejected.0.clone();
+                        std::thread::spawn(move || {
+                            let result = qnc_card_eject::eject(&disk);
+                            let _ = answer.send((disk, result));
+                        });
+                    }
+                }
                 TrayEvent::Menu(_) => {}
+            }
+        }
+        while let Ok((disk, result)) = ejected.1.try_recv() {
+            let shown_disk = disk.display().to_string();
+            match result {
+                Ok(()) => {
+                    log(format!("ejected disk={shown_disk}"));
+                    tray.notify(&text("tray.title"), &fill("tray.ejected", &[("disk", &shown_disk)]));
+                }
+                Err(qnc_card_eject::EjectError::InUse) => {
+                    log(format!("eject refused disk={shown_disk}: in use"));
+                    tray.notify(&text("tray.title"), &fill("tray.eject_in_use", &[("disk", &shown_disk)]));
+                }
+                Err(error) => {
+                    log(format!("eject failed disk={shown_disk}: {error}"));
+                    tray.notify(&text("tray.title"), &fill("tray.eject_failed", &[("disk", &shown_disk), ("error", &error.to_string())]));
+                }
             }
         }
         if catalog.is_none() && catalog_read.is_none_or(|at| at.elapsed() >= CATALOG_AGAIN) {
