@@ -1,20 +1,22 @@
 # QNC-AI - zakon repoa
 
 QNC-AI je samostalna aplikacija: AI wizard koji novinara vodi od kartice do exporta
-(`docs/01-wizard-plan.md`). Gradi se na kockama QNC-a (`C:\Users\miron\Projects\QNC`,
-`https://github.com/mironik/QNC`).
+(`docs/01-wizard-plan.md`). Kod kocki koje vec postoje u QNC-u kopira se ovamo za samostalni rad.
 
 ## 1. Odnos prema QNC-u
 
-- Kocke QNC-a koriste se kao git ovisnost zakljucana na oznaku QNC-a (`Cargo.toml`,
-  `[workspace.dependencies]`). Oznaka se mijenja svjesno, jednim commitom, uz zapis ovdje.
-- Kocku koju wizard treba promijeniti QNC-AI preuzima k sebi (`crates/`, isti naziv) i mijenja
-  je tamo; `[patch."https://github.com/mironik/QNC.git"]` u `Cargo.toml` usmjerava sve ovisnosti
-  na nju. Svako preuzimanje zapisuje se u odjeljku 4: sto, s koje oznake, zasto.
+- QNC i QNC-AI nemaju nikakve veze (korisnik 2026-11-11). QNC-AI ne dohvaca nista iz QNC-a
+  (nema git ovisnosti) i u radu ne koristi nista iz mape QNC-a: svoj korijen (ova mapa), svoja
+  `data/` (postavke racunala, baze, privremeni JSON kartica), svoji `catalogs/` i `contracts/`.
+- Kocka QNC-a koja treba wizardu kopira se u `crates/` (isti naziv, kod s oznake QNC-a) i od tada
+  je kocka QNC-AI-a; mijenja se ovdje. Svako kopiranje zapisuje se u odjeljku 4: sto, s koje
+  oznake, zasto.
 - Zamrzavanja iz `AGENTS.md` QNC-a ne vrijede za QNC-AI. Nacela vrijede:
-  - baza projekta je jedina istina; stanje wizarda je u bazi projekta, ne u memoriji prozora;
+  - baza je jedina istina i ona je u QNC-AI-u; dok prica nema projekt, ono sto je procitano s
+    kartice je privremeni JSON u `data/cards/`;
   - forma je samo raspored; sve sto radi je u kockama s jednom odgovornoscu;
-  - svaki natpis ima sifru u rjecniku (`contracts/text`), engleski je osnovni jezik;
+  - svaki natpis ima sifru u rjecniku: wizardov u `contracts/wizard-text`, kopiranih kocki u
+    `contracts/text`; engleski je osnovni jezik;
   - testovi, mjerenja i probe nikad ne pisu u stvarni projekt, kartica je samo za citanje;
   - samo Rust, bez Pythona.
 - Projekt koji wizard napravi je obican QNC projekt: QNC ga moze otvoriti.
@@ -139,3 +141,28 @@ dijele. (2) Kartice price idu kroz bazu: `qnc-wizard-db` tablica `wizard_cards` 
 `ReadCards`, `project_target(root)`), tray ih upisuje u pomocni projekt radne baze cim se promijene
 (`qnc-card-preview` `set_cards`), `qnc-ai-ingest` ih cita svake sekunde i ide i na karticu ubacenu
 kasnije (`qnc-card-autoselect` `want`, svaka kartica jednom). Argumenti `--card` vise nisu potrebni.
+
+Izmjena 2026-11-11 (korisnik: "mislim da treba pojednostaviti"; "iingest ima svoju stalnu bazu, svi
+drugi citaju iz nje"; "baza je u QNC-AI"; "nemaju nikakve veze QNC i QNC-AI"; "moze biti i privremeni
+json dok se ne kreira projekt"; "QNC-AI je samostalan, on samo kopira kod kocki koje postoje za
+samostalni rad"): zamjenjuje tri prethodna zapisa (radna baza, `qnc-ai-ingest`, kartice kroz bazu).
+Uklonjeni: `qnc-card-workspace`, `qnc-card-preview`, `qnc-ingest-launch`, `qnc-card-autoselect`,
+`apps/qnc-ai-ingest` i tablica kartica u `qnc-wizard-db` (git povijest ih cuva). QNC-AI nema git
+ovisnost na QNC: 35 kocki QNC-a kopirano je u `crates/` s oznake `v-2026-11-11` (one koje citanje
+kartice treba i njihove ovisnosti: `qnc-scanner`, `qnc-ingest-cameras`, `qnc-camera-*`,
+`qnc-sony-metadata`, `qnc-source-*`, `qnc-media-metadata`, `qnc-ui-text`, `qnc-dev-diagnostics`,
+`qnc-db-broker`, `qnc-active-project-read`, `qnc-work-settings` i ostale koje one povlace;
+`cargo tree` ih pokazuje). Uz njih kopirani su katalog kamera (`catalogs/camera-patterns`, revizija
+2026.10.22.1), profili kamera (`catalogs/cameras`), katalog formata zapisa i rjecnici QNC kocki
+(`contracts/text`); wizardov rjecnik je presao u `contracts/wizard-text`. Korijen u radu je mapa
+QNC-AI-a (`data/ingest-transport.json` ovog racunala imenuje katalog kamera; `data/` nije u gitu).
+Nova kocka `qnc-card-read`: kartica s popisa cita se samo za citanje (indeks kamere i zapisi svakog
+klipa kroz kopirane kocke kamera, bez probea) u privremeni JSON `data/cards/<serijski>.json` (klip:
+naziv, original, proxyji, slicica kamere, trajanje; upozorenja). Tray je pokrece u pozadini cim
+prepozna karticu i javlja koliko je klipova procitano. Forma uvoza koja pokazuje te klipove sljedeci
+je korak. Provjereno: gradnja bez ijedne veze na QNC (`cargo tree`), testovi wizardovih kocki,
+`qnc-card-read` (zapis i citanje JSON-a). Na stvarnoj kartici nije provjereno (nije bila spojena).
+
+Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
+preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
+koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

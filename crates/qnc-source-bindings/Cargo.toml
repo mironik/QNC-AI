@@ -1,0 +1,14 @@
+[package]
+name = "qnc-source-bindings"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public module: read-only source bindings (QNC source URI to a local root or a network authority) from the host transport configuration"
+
+[dependencies]
+qnc-ui-text = { workspace = true }
+qnc-contracts = { workspace = true }
+qnc-transport-resolver = { workspace = true }
+qnc-source-volumes = { workspace = true }
+qnc-source-reader = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

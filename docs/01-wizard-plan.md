@@ -41,10 +41,12 @@ Kartica ubacena dok je prilog otvoren: wizard pita "dodaj u ovaj prilog" ili "no
 
 ## 2. Arhitektura
 
-- Kocke QNC-a kao git ovisnost zakljucana na oznaku QNC-a; kocka koju treba promijeniti preuzima se
-  u `crates/` ovog repoa (`[patch]`), uz zapis u `AGENTS.md`.
-- Stanje wizarda je u bazi projekta (`qnc-wizard-db`, tablica `wizard_steps`); wizard nastavlja gdje
-  je stao. Prije projekta (pregled kartice) nista se ne zapisuje.
+- QNC-AI je samostalan: kod kocki QNC-a koje treba kopiran je u `crates/` ovog repoa (zapis u
+  `AGENTS.md`); u radu ne koristi nista iz QNC-a (svoja `data/`, `catalogs/`, `contracts/`).
+- Kod je odvojen od GUI-ja: kocke bez sucelja rade, forma samo crta i salje radnje.
+- Stanje wizarda je u bazi projekta QNC-AI-a (`qnc-wizard-db`, tablica `wizard_steps`); wizard
+  nastavlja gdje je stao. Prije projekta ono sto je procitano s kartice je privremeni JSON
+  (`qnc-card-read`, `data/cards/<serijski>.json`).
 - Tray: neutralna kocka `qnc-tray` (ikona, izbornik, obavijest) s adapterom po OS-u; prvi je Windows.
 - Prepoznavanje kartice: kocka `qnc-card-watch` (novi disk, katalog kamera), bez stanja izvan memorije
   procesa i bez pisanja.
@@ -60,8 +62,9 @@ Kartica ubacena dok je prilog otvoren: wizard pita "dodaj u ovaj prilog" ili "no
 `qnc-ai-tray` (jedan primjerak, prepoznavanje kartice, obavijest, priča u izborniku ikone). Prozor
 wizarda iz W0 izbacen.
 
-**W2. Pregled kartice i izbor kadrova**: modificirana Ingest forma nad karticom bez projekta; tray je
-otvara kad kartica stigne i na "Nastavi".
+**W2. Pregled kartice i izbor kadrova**: tray kad prepozna karticu procita njezin sadrzaj u
+privremeni JSON (gotovo, `qnc-card-read`); modificirana Ingest forma pokazuje te klipove i bira
+kadrove; tray je otvara kad kartica stigne i na "Nastavi".
 
 **W3. Projekt i uvoz**: obrazac priloga preko forme, Kreiraj pokrece Select izabranih i Uvezi.
 

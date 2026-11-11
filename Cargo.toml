@@ -1,57 +1,61 @@
 [workspace]
 resolver = "2"
-members = [
-    "apps/qnc-ai-ingest",
-    "apps/qnc-ai-tray",
-    "crates/qnc-card-autoselect",
-    "crates/qnc-card-eject",
-    "crates/qnc-card-preview",
-    "crates/qnc-card-watch",
-    "crates/qnc-card-workspace",
-    "crates/qnc-tray",
-    "crates/qnc-wizard-db",
-    "crates/qnc-wizard-flow",
-    "crates/qnc-wizard-steps",
-    "crates/qnc-wizard-text",
-]
+members = ["apps/*", "crates/*"]
 
 [workspace.package]
 edition = "2021"
 version = "0.1.0"
 
-# QNC's blocks, locked to a tag of QNC (docs/01-wizard-plan.md, section 3). A block the
-# wizard changes is taken into crates/ here and every dependency is pointed at it with
-# [patch."https://github.com/mironik/QNC.git"]; AGENTS.md says where each came from.
+# QNC-AI stands on its own (user 2026-11-11: "QNC-AI je samostalan, on samo kopira kod kocki koje
+# postoje za samostalni rad"): the QNC blocks it works with are copies in crates/ (taken from QNC
+# at the tag v-2026-11-11, AGENTS.md lists them); nothing is fetched from QNC and nothing of
+# QNC's folder is used at run time.
 [workspace.dependencies]
-qnc-action-event = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-active-project-read = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-application-catalog = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-board = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-camera-detector = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-camera-patterns = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-form-host = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-ingest-application = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-ingest-blocks = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-ingest-layout = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-paint-pace = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-project-store = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-source-bindings = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-source-reader = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-source-volumes = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-ui-text = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-card-autoselect = { path = "crates/qnc-card-autoselect" }
+qnc-active-project-read = { path = "crates/qnc-active-project-read" }
+qnc-camera-adapter = { path = "crates/qnc-camera-adapter" }
+qnc-camera-detector = { path = "crates/qnc-camera-detector" }
+qnc-camera-generic-file = { path = "crates/qnc-camera-generic-file" }
+qnc-camera-patterns = { path = "crates/qnc-camera-patterns" }
+qnc-camera-profile-adapter = { path = "crates/qnc-camera-profile-adapter" }
+qnc-camera-profiles = { path = "crates/qnc-camera-profiles" }
 qnc-card-eject = { path = "crates/qnc-card-eject" }
-qnc-card-preview = { path = "crates/qnc-card-preview" }
+qnc-card-read = { path = "crates/qnc-card-read" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
-qnc-card-workspace = { path = "crates/qnc-card-workspace" }
+qnc-content-read = { path = "crates/qnc-content-read" }
+qnc-contracts = { path = "crates/qnc-contracts" }
+qnc-db-broker = { path = "crates/qnc-db-broker" }
+qnc-dev-diagnostics = { path = "crates/qnc-dev-diagnostics" }
+qnc-filmstrip = { path = "crates/qnc-filmstrip" }
+qnc-frame-timebase = { path = "crates/qnc-frame-timebase" }
+qnc-gain = { path = "crates/qnc-gain" }
+qnc-image-assets = { path = "crates/qnc-image-assets" }
+qnc-ingest-cameras = { path = "crates/qnc-ingest-cameras" }
+qnc-json-transport = { path = "crates/qnc-json-transport" }
+qnc-loudness = { path = "crates/qnc-loudness" }
+qnc-media-metadata = { path = "crates/qnc-media-metadata" }
+qnc-media-records = { path = "crates/qnc-media-records" }
+qnc-plugin-process = { path = "crates/qnc-plugin-process" }
+qnc-record-format-plugin = { path = "crates/qnc-record-format-plugin" }
+qnc-scanner = { path = "crates/qnc-scanner" }
+qnc-sony-metadata = { path = "crates/qnc-sony-metadata" }
+qnc-source-bindings = { path = "crates/qnc-source-bindings" }
+qnc-source-contract = { path = "crates/qnc-source-contract" }
+qnc-source-groups = { path = "crates/qnc-source-groups" }
+qnc-source-index-contract = { path = "crates/qnc-source-index-contract" }
+qnc-source-reader = { path = "crates/qnc-source-reader" }
+qnc-source-volumes = { path = "crates/qnc-source-volumes" }
+qnc-transport-resolver = { path = "crates/qnc-transport-resolver" }
 qnc-tray = { path = "crates/qnc-tray" }
+qnc-ui-text = { path = "crates/qnc-ui-text" }
+qnc-wave = { path = "crates/qnc-wave" }
 qnc-wizard-db = { path = "crates/qnc-wizard-db" }
 qnc-wizard-flow = { path = "crates/qnc-wizard-flow" }
 qnc-wizard-steps = { path = "crates/qnc-wizard-steps" }
 qnc-wizard-text = { path = "crates/qnc-wizard-text" }
+qnc-work-settings = { path = "crates/qnc-work-settings" }
+qnc-write-lease = { path = "crates/qnc-write-lease" }
 eframe = { version = "0.31", default-features = false, features = ["accesskit", "default_fonts", "wayland", "wgpu", "x11"] }
+memmap2 = "0.9"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

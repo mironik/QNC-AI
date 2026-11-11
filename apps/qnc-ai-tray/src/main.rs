@@ -47,11 +47,6 @@ fn menu(status: Option<&Status>) -> Vec<MenuItem> {
     items
 }
 
-/// The volume serials of the story's cards that are in.
-fn story_cards(flow: &Flow) -> Vec<String> {
-    flow.cards().iter().filter(|card| !card.out).map(|card| card.serial.clone()).collect()
-}
-
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-ai-tray");
     let _one = match OneCopy::take("QNC-AI-tray") {
@@ -71,11 +66,9 @@ fn main() {
         }
     };
     log("started".into());
-    // Work places left by a tray that stopped are cleaned first.
-    for left in qnc_card_workspace::clean(&qnc_card_workspace::base()) {
-        log(format!("work place not cleaned: {left}"));
-    }
-    let mut preview = qnc_card_preview::CardPreview::new(root.clone(), qnc_card_preview::programs_folder());
+    log(format!("root {}", root.display()));
+    // A card is read on its own thread (the card may be slow); what it holds comes back here.
+    let read = std::sync::mpsc::channel::<(String, Result<qnc_card_read::CardContent, String>)>();
     let mut flow = Flow::new(root.clone());
     let mut shown: Option<String> = None;
     let mut catalog = None;
@@ -102,9 +95,8 @@ fn main() {
                     log("quit".into());
                     return;
                 }
-                // The form of the step: the card step opens Ingest in the story's work place; the
-                // forms of the steps after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP && !flow.cards().is_empty() => preview.open(),
+                // The form of the step: the card step is Ingest; the forms of the steps after it come
+                // with W3 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -139,6 +131,21 @@ fn main() {
                 }
             }
         }
+        while let Ok((name, content)) = read.1.try_recv() {
+            match content {
+                Ok(content) => {
+                    log(format!("card read serial={} clips={} warnings={}", content.serial, content.clips.len(), content.warnings.len()));
+                    for warning in &content.warnings {
+                        log(format!("card read warning serial={} {warning}", content.serial));
+                    }
+                    tray.notify(&text("tray.title"), &fill("tray.card_read", &[("card", &name), ("clips", &content.clips.len().to_string())]));
+                }
+                Err(error) => {
+                    log(format!("card read failed card={name}: {error}"));
+                    tray.alert(&format!("read:{name}"), &text("tray.title"), &fill("tray.card_read_failed", &[("card", &name), ("error", &error)]), &text("tray.ok"));
+                }
+            }
+        }
         if catalog.is_none() && catalog_read.is_none_or(|at| at.elapsed() >= CATALOG_AGAIN) {
             catalog_read = Some(Instant::now());
             match qnc_card_watch::catalog(&root) {
@@ -167,8 +174,12 @@ fn main() {
                             } else {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
-                                // The card step's form opens by itself: Ingest in the story's work place.
-                                preview.open();
+                                // A card on the list: what it holds is read and kept until the story has a project.
+                                let (answer, root) = (read.0.clone(), root.clone());
+                                std::thread::spawn(move || {
+                                    let content = qnc_card_read::read(&root, &volume).and_then(|content| qnc_card_read::keep(&root, &content).map(|_| content));
+                                    let _ = answer.send((name, content));
+                                });
                             }
                         }
                         Found::Unknown { volume } => {
@@ -196,24 +207,6 @@ fn main() {
                             }
                         }
                     }
-                }
-            }
-        }
-        // The story's cards go into its work place: Ingest reads them there, also one put in later.
-        preview.set_cards(story_cards(&flow));
-        for event in preview.poll(!flow.cards().is_empty()) {
-            match event {
-                qnc_card_preview::Event::Opened => log(format!("ingest opened in {}", preview.workspace().map(|work| work.root.display().to_string()).unwrap_or_default())),
-                qnc_card_preview::Event::Removed => log("work place removed".into()),
-                qnc_card_preview::Event::RemoveFailed(error) => log(format!("work place not removed yet: {error}")),
-                qnc_card_preview::Event::WorkspaceFailed(error) => {
-                    log(format!("work place failed: {error}"));
-                    tray.alert("preview", &text("tray.title"), &fill("tray.workspace_failed", &[("error", &error)]), &text("tray.ok"));
-                }
-                qnc_card_preview::Event::CardsFailed(error) => log(format!("cards not written into the work place: {error}")),
-                qnc_card_preview::Event::IngestFailed(error) => {
-                    log(format!("ingest failed: {error}"));
-                    tray.alert("preview", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));
                 }
             }
         }

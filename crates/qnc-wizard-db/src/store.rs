@@ -3,15 +3,12 @@
 use crate::*;
 use rusqlite::{params, Connection};
 
-/// The tables this module owns; it writes no other.
-const OWNED: [&str; 2] = ["wizard_steps", "wizard_cards"];
-/// At most this many cards in a story.
-const MAX_CARDS: usize = 16;
+/// The table this module owns; it writes no other.
+const OWNED: [&str; 1] = ["wizard_steps"];
 
 pub(crate) struct Store {
     conn: Connection,
     schema_ready: bool,
-    cards_ready: bool,
 }
 
 impl Store {
@@ -23,47 +20,23 @@ impl Store {
                     step TEXT PRIMARY KEY,
                     done_at_utc TEXT NOT NULL
                 );
-                CREATE VIEW IF NOT EXISTS public_wizard_steps AS SELECT step, done_at_utc FROM wizard_steps;
-                CREATE TABLE IF NOT EXISTS wizard_cards (
-                    position INTEGER PRIMARY KEY,
-                    serial TEXT NOT NULL
-                );
-                CREATE VIEW IF NOT EXISTS public_wizard_cards AS SELECT position, serial FROM wizard_cards;",
+                CREATE VIEW IF NOT EXISTS public_wizard_steps AS SELECT step, done_at_utc FROM wizard_steps;",
             )
             .map_err(err)?;
             tx.commit().map_err(err)?;
         }
-        let view = |name: &str| -> Result<bool> {
-            conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='view' AND name=?1)", params![name], |r| r.get(0)).map_err(err)
-        };
-        let (schema_ready, cards_ready) = (view("public_wizard_steps")?, view("public_wizard_cards")?);
+        let schema_ready = conn
+            .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='view' AND name='public_wizard_steps')", [], |r| r.get(0))
+            .map_err(err)?;
         if access == Access::ReadOnly {
             conn.pragma_update(None, "query_only", true).map_err(err)?;
         }
         qnc_db_broker::write_only_own_tables(&conn, access, &OWNED);
-        Ok(Self { conn, schema_ready, cards_ready })
+        Ok(Self { conn, schema_ready })
     }
 
     pub(crate) fn execute(&mut self, operation: &Operation) -> Result<Data> {
         match operation {
-            Operation::ReadCards if !self.cards_ready => Ok(Data::Cards(Vec::new())),
-            Operation::ReadCards => {
-                let mut statement = self.conn.prepare("SELECT serial FROM public_wizard_cards ORDER BY position").map_err(err)?;
-                let rows = statement.query_map([], |row| row.get::<_, String>(0)).map_err(err)?;
-                Ok(Data::Cards(rows.collect::<rusqlite::Result<_>>().map_err(err)?))
-            }
-            Operation::SetCards { serials } => {
-                if serials.len() > MAX_CARDS || serials.iter().any(|serial| serial.is_empty() || serial.len() > 64 || !serial.chars().all(|c| c.is_ascii_alphanumeric())) {
-                    return Err(qnc_wizard_text::text("wizard.db.bad_card"));
-                }
-                let tx = qnc_db_broker::begin_write(&mut self.conn).map_err(err)?;
-                tx.execute("DELETE FROM wizard_cards", []).map_err(err)?;
-                for (position, serial) in serials.iter().enumerate() {
-                    tx.execute("INSERT INTO wizard_cards (position, serial) VALUES (?1, ?2)", params![position as i64, serial]).map_err(err)?;
-                }
-                tx.commit().map_err(err)?;
-                Ok(Data::Changed)
-            }
             Operation::Read if !self.schema_ready => Ok(Data::Done(BTreeSet::new())),
             Operation::Read => {
                 let mut statement = self.conn.prepare("SELECT step FROM public_wizard_steps").map_err(err)?;

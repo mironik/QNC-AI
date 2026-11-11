@@ -1,9 +1,0 @@
-[package]
-name = "qnc-card-preview"
-version.workspace = true
-edition.workspace = true
-description = "QNC-AI block: the card step of a story: its temporary work place made in the background and QNC's Ingest opened in it"
-
-[dependencies]
-qnc-card-workspace = { workspace = true }
-qnc-wizard-db = { workspace = true }

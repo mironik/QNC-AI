@@ -52,17 +52,6 @@ fn a_step_done_is_in_the_database_and_another_window_reads_it() {
 }
 
 #[test]
-fn the_cards_of_the_story_are_written_and_read_in_their_order() {
-    let (_dir, target) = project();
-    assert!(read_cards(&target).unwrap().is_empty(), "no cards before the tray wrote any");
-    set_cards(&target, vec!["83dbcfbe".into(), "30616164".into()]).unwrap();
-    assert_eq!(read_cards(&target).unwrap(), vec!["83dbcfbe".to_string(), "30616164".to_string()]);
-    set_cards(&target, vec!["30616164".into()]).unwrap();
-    assert_eq!(read_cards(&target).unwrap(), vec!["30616164".to_string()], "the cards replace the ones before");
-    assert!(set_cards(&target, vec!["D:\\".into()]).is_err(), "a serial is letters and digits only");
-}
-
-#[test]
 fn a_step_the_wizard_has_not_is_refused() {
     let (_dir, target) = project();
     let writer = ProjectDbWriter::start(target.clone(), vec![WizardModule::factory()]).unwrap();

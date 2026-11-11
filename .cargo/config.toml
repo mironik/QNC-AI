@@ -1,3 +1,0 @@
-# QNC's blocks come from its GitHub repo; git does the fetch, with this computer's credentials.
-[net]
-git-fetch-with-cli = true

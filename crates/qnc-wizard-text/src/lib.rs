@@ -1,5 +1,6 @@
 //! The words of the QNC AI wizard. Every text has a code (as in QNC); the dictionaries are the
-//! wizard's own (`contracts/text`), the language is the one this computer chose for QNC
+//! wizard's own (`contracts/wizard-text`; `contracts/text` holds the dictionaries of the copied
+//! QNC blocks), the language is the one this computer chose for QNC-AI
 //! (`ui-language.json` beside its settings), English without it. A language the wizard has no
 //! dictionary for falls to English; a code a dictionary does not have is an error in the tests
 //! and shows as its code, never a made-up text.
@@ -14,7 +15,7 @@ pub const BASE_LANGUAGE: &str = "en";
 
 /// The dictionaries of the wizard.
 pub const DICTIONARIES: &[(&str, &str)] =
-    &[("en", include_str!("../../../contracts/text/en.json")), ("hr", include_str!("../../../contracts/text/hr.json"))];
+    &[("en", include_str!("../../../contracts/wizard-text/en.json")), ("hr", include_str!("../../../contracts/wizard-text/hr.json"))];
 
 #[derive(Deserialize)]
 struct Dictionary {

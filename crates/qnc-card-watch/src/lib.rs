@@ -115,13 +115,13 @@ mod tests {
         Volume { root: PathBuf::from(format!("{letter}:\\")), serial_number: serial.into(), volume_name: None }
     }
 
-    /// A folder laid out as a Sony card is a card by the catalog of the QNC root beside this repo
-    /// (skipped where there is none); an empty folder is not.
+    /// A folder laid out as a Sony card is a card by the camera catalog of this QNC-AI root
+    /// (skipped where this computer has no setting naming it); an empty folder is not.
     #[test]
     fn a_sony_card_layout_is_a_card_and_an_empty_folder_is_not() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../QNC");
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let Ok(catalog) = catalog(&root) else {
-            eprintln!("no QNC root beside QNC-AI: skipped");
+            eprintln!("no camera catalog setting in this QNC-AI root: skipped");
             return;
         };
         let card = tempfile_dir("card");

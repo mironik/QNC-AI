@@ -5,7 +5,6 @@ edition.workspace = true
 description = "QNC-AI block: which steps of the wizard are done, a table of the project database written only through QNC's intermediary"
 
 [dependencies]
-qnc-active-project-read = { workspace = true }
 qnc-db-broker = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-wizard-steps = { workspace = true }
