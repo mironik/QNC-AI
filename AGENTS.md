@@ -310,3 +310,8 @@ QNC-a (oznaka v-2026-11-11): `apps/qnc-media-assist-audio-ai` i 71 kocka koja je
 Iz Ingesta uklonjeni obrazac, `story_sheet_*` radnje i ovisnosti `qnc-story-start`,
 `qnc-newsroom-sheet(-model)`. Testovi `qnc-ingest-application` (31), `qnc-ai-open`, `qnc-story-start`.
 Uzivo nije provjereno.
+
+Popravak 2026-11-12 (korisnik: "sad je s ingesta preskočilo na AI Media assist"): aktivna baza vec je
+imala projekt (napravljen ranije starim obrascem), pa je "Novi projekt" otisao ravno u AI Media Assist.
+`qnc-ingest-base` `current`: baza koju je projekt preuzeo ne sluzi sljedecem Ingestu, tray pravi novu.
+Test prosiren; primjer `examples/list_bases.rs` (samo citanje).
