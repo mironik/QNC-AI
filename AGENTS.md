@@ -197,6 +197,16 @@ Provjereno uzivo: tray s karticama D: i G: napravio je Ingest bazu i otvorio Ing
 izvedeno: Ingest se sam ne postavlja na karticu; projekt price jos ne zapisuje svoju Ingest bazu (W3);
 izrada baze traje oko 4 s na niti traya.
 
+Izvedeno 2026-11-11 (korisnik: "ingest cim se ucita skenira karticu, ne ceka korisnika; ako se ubaci
+nova kartica i ona se skenira"): kopirani Ingest (`qnc-ingest-desktop` `IngestApp`) sam ide na svaku
+spojenu karticu poznate kamere. Nova kocka `qnc-attached-cards` (u pozadini svake 2 s: spojeni
+diskovi koji su kartice po katalogu kamera, samo citanje); vracena kocka `qnc-card-autoselect`
+(kroz Ingestove radnje: diskovi racunala, disk kartice, Odaberi; sljedeca kartica kad Select
+prethodne zavrsi; svaka kartica jednom). Bljeskanje: kopirana Project kocka pokrece `icacls` i
+`attrib` bez prozora konzole, mapa Ingest baza zakljucava se jednom. Provjereno uzivo: s karticom
+G: (FX3A) Ingest se otvorio, sam otvorio disk kartice i pokrenuo Odaberi; Ingest baza je dobila
+zapise, pozadinski radnik je radio.
+
 Pravilo 2026-11-11 (korisnik: "kod mora biti odvojen od GUI kako bi se GUI mogao naknadno mijenjati
 preko GUI tools"): sve sto radi je u kockama bez sucelja (bez egui/eframe); forma samo crta prikaz
 koji joj kocka da i salje radnje natrag. Kocka koja crta ne cita bazu, karticu ni datoteke.

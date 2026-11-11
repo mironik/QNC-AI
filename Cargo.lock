@@ -3170,6 +3170,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-attached-cards"
+version = "0.1.0"
+dependencies = [
+ "qnc-card-watch",
+ "qnc-source-volumes",
+]
+
+[[package]]
 name = "qnc-audio-output"
 version = "0.1.0"
 dependencies = [
@@ -3305,6 +3313,13 @@ dependencies = [
  "serde_json",
  "tempfile",
  "xml-rs",
+]
+
+[[package]]
+name = "qnc-card-autoselect"
+version = "0.1.0"
+dependencies = [
+ "qnc-ingest-application",
 ]
 
 [[package]]
@@ -3886,7 +3901,10 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-action-event",
+ "qnc-attached-cards",
  "qnc-board",
+ "qnc-card-autoselect",
+ "qnc-dev-diagnostics",
  "qnc-form-host",
  "qnc-ingest-application",
  "qnc-ingest-blocks",

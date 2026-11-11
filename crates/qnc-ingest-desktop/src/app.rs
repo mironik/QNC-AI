@@ -12,6 +12,13 @@ pub struct IngestApp {
     contracts: IngestContracts,
     application: IngestApplication,
     host: qnc_form_host::FormHost,
+    /// QNC-AI: Ingest goes to every card attached by itself, without waiting for the user.
+    cards: qnc_card_autoselect::AutoSelect,
+    attached: qnc_attached_cards::AttachedCards,
+}
+
+fn log(line: String) {
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
 }
 
 /// The Ingest application as the form host sees it.
@@ -33,12 +40,32 @@ impl IngestApp {
     pub fn new(root: PathBuf) -> Result<Self, String> {
         let contracts = IngestContracts::load()?;
         let application = IngestApplication::with_store_root(&root)?.with_focus(contracts.focus_names());
-        Ok(Self { contracts, application, host: qnc_form_host::FormHost::new() })
+        let attached = qnc_attached_cards::AttachedCards::start(&root);
+        Ok(Self { contracts, application, host: qnc_form_host::FormHost::new(), cards: qnc_card_autoselect::AutoSelect::new(Vec::new()), attached })
+    }
+
+    /// QNC-AI: the cards attached now are gone to one after another, as the user would (Ingest's
+    /// browser, the card's disk, Select); a card put in later too.
+    fn follow_cards(&mut self, ctx: &egui::Context) {
+        match self.attached.poll() {
+            Some(Ok(cards)) => self.cards.want(&cards),
+            Some(Err(error)) => log(format!("ai-ingest no camera catalog: {error}")),
+            None => {}
+        }
+        if let Some(intent) = self.cards.next(self.application.view()) {
+            log(format!("ai-ingest auto {intent:?}"));
+            qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), intent);
+        }
+        for (serial, reason) in self.cards.take_skipped() {
+            log(format!("ai-ingest card skipped serial={serial}: {reason}"));
+        }
+        ctx.request_repaint_after(std::time::Duration::from_millis(if self.cards.busy() { 200 } else { 1000 }));
     }
 
     pub fn show_desktop(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, frame: &mut qnc_board::Frame<'_>) {
         let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes: &["ingest"], play_action: action_ids::PLAY_PAUSE, theme: None };
         self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
+        self.follow_cards(ctx);
         let theme = Theme::from_contract(&self.contracts.shell);
         theme::apply(ctx, &theme);
         // The view is borrowed, not copied: it holds every clip and the timeline data.

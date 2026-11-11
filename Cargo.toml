@@ -31,6 +31,7 @@ qnc-alert = { path = "crates/qnc-alert" }
 qnc-application-catalog = { path = "crates/qnc-application-catalog" }
 qnc-application-sequence = { path = "crates/qnc-application-sequence" }
 qnc-artifact-db = { path = "crates/qnc-artifact-db" }
+qnc-attached-cards = { path = "crates/qnc-attached-cards" }
 qnc-audio-output = { path = "crates/qnc-audio-output" }
 qnc-background-jobs = { path = "crates/qnc-background-jobs" }
 qnc-board = { path = "crates/qnc-board" }
@@ -42,6 +43,7 @@ qnc-camera-generic-file = { path = "crates/qnc-camera-generic-file" }
 qnc-camera-patterns = { path = "crates/qnc-camera-patterns" }
 qnc-camera-profile-adapter = { path = "crates/qnc-camera-profile-adapter" }
 qnc-camera-profiles = { path = "crates/qnc-camera-profiles" }
+qnc-card-autoselect = { path = "crates/qnc-card-autoselect" }
 qnc-card-eject = { path = "crates/qnc-card-eject" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
 qnc-channel-picker = { path = "crates/qnc-channel-picker" }
