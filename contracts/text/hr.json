@@ -39,6 +39,8 @@
     "tray.ejected": "Karticu {card} možete izvaditi.",
     "tray.eject_in_use": "Kartica {card} se koristi (player, uvoz) i nije izbačena.\n\nZatvorite ono što je koristi i pokušajte ponovno.",
     "tray.eject_failed": "Kartica {card} nije izbačena: {error}",
+    "tray.workspace_failed": "Pregled kartice se ne može pripremiti: {error}",
+    "tray.ingest_failed": "Uvoz se nije otvorio: {error}",
     "tray.no_form": "Korak „{step}“ još nema formu (dolazi u W2).",
     "tray.unknown": "Disk {disk} nije kartica kamere koju QNC zna.",
     "tray.unreadable": "Disk {disk} se ne može pročitati: {error}",

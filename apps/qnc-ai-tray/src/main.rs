@@ -66,6 +66,11 @@ fn main() {
         }
     };
     log("started".into());
+    // Work places left by a tray that stopped are cleaned first.
+    for left in qnc_card_workspace::clean(&qnc_card_workspace::base()) {
+        log(format!("work place not cleaned: {left}"));
+    }
+    let mut preview = qnc_card_preview::CardPreview::new(root.clone(), qnc_card_preview::programs_folder());
     let mut flow = Flow::new(root.clone());
     let mut shown: Option<String> = None;
     let mut catalog = None;
@@ -92,7 +97,9 @@ fn main() {
                     log("quit".into());
                     return;
                 }
-                // The forms of the steps come with W2 on (docs/01-wizard-plan.md).
+                // The form of the step: the card step opens Ingest in the story's work place; the
+                // forms of the steps after it come with W3 on (docs/01-wizard-plan.md).
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP && !flow.cards().is_empty() => preview.open(),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -155,6 +162,8 @@ fn main() {
                             } else {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
+                                // The card step's form opens by itself: Ingest in the story's work place.
+                                preview.open();
                             }
                         }
                         Found::Unknown { volume } => {
@@ -182,6 +191,21 @@ fn main() {
                             }
                         }
                     }
+                }
+            }
+        }
+        for event in preview.poll(!flow.cards().is_empty()) {
+            match event {
+                qnc_card_preview::Event::Opened => log(format!("ingest opened in {}", preview.workspace().map(|work| work.root.display().to_string()).unwrap_or_default())),
+                qnc_card_preview::Event::Removed => log("work place removed".into()),
+                qnc_card_preview::Event::RemoveFailed(error) => log(format!("work place not removed yet: {error}")),
+                qnc_card_preview::Event::WorkspaceFailed(error) => {
+                    log(format!("work place failed: {error}"));
+                    tray.alert("preview", &text("tray.title"), &fill("tray.workspace_failed", &[("error", &error)]), &text("tray.ok"));
+                }
+                qnc_card_preview::Event::IngestFailed(error) => {
+                    log(format!("ingest failed: {error}"));
+                    tray.alert("preview", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));
                 }
             }
         }

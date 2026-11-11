@@ -6,6 +6,8 @@ description = "QNC AI wizard: no window of its own; it waits in the system tray,
 
 [dependencies]
 qnc-card-eject = { workspace = true }
+qnc-card-preview = { workspace = true }
+qnc-card-workspace = { workspace = true }
 qnc-card-watch = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-tray = { workspace = true }

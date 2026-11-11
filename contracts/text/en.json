@@ -39,6 +39,8 @@
     "tray.ejected": "Card {card} can be taken out.",
     "tray.eject_in_use": "Card {card} is in use (player, import) and was not ejected.\n\nClose what uses it and try again.",
     "tray.eject_failed": "Card {card} was not ejected: {error}",
+    "tray.workspace_failed": "The card cannot be prepared for a look: {error}",
+    "tray.ingest_failed": "The import did not open: {error}",
     "tray.no_form": "The step '{step}' has no form yet (it comes in W2).",
     "tray.unknown": "Disk {disk} is no card of a camera QNC knows.",
     "tray.unreadable": "Disk {disk} cannot be read: {error}",

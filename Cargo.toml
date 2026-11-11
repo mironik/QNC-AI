@@ -3,7 +3,9 @@ resolver = "2"
 members = [
     "apps/qnc-ai-tray",
     "crates/qnc-card-eject",
+    "crates/qnc-card-preview",
     "crates/qnc-card-watch",
+    "crates/qnc-card-workspace",
     "crates/qnc-tray",
     "crates/qnc-wizard-db",
     "crates/qnc-wizard-flow",
@@ -20,6 +22,8 @@ version = "0.1.0"
 # [patch."https://github.com/mironik/QNC.git"]; AGENTS.md says where each came from.
 [workspace.dependencies]
 qnc-active-project-read = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-application-catalog = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
+qnc-project-store = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-camera-detector = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-camera-patterns = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-source-bindings = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
@@ -29,7 +33,9 @@ qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-1
 qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-ui-text = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-card-eject = { path = "crates/qnc-card-eject" }
+qnc-card-preview = { path = "crates/qnc-card-preview" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
+qnc-card-workspace = { path = "crates/qnc-card-workspace" }
 qnc-tray = { path = "crates/qnc-tray" }
 qnc-wizard-db = { path = "crates/qnc-wizard-db" }
 qnc-wizard-flow = { path = "crates/qnc-wizard-flow" }
