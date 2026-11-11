@@ -12,7 +12,7 @@ use windows_sys::Win32::Graphics::Gdi::{
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetSystemMetrics, GetWindowLongPtrW, LoadCursorW,
-    PostQuitMessage, RegisterClassW, SetWindowLongPtrW, ShowWindow, TranslateMessage, GWLP_USERDATA, IDC_ARROW, MSG, SM_CXSCREEN,
+    PostMessageW, PostQuitMessage, RegisterClassW, WM_CLOSE, SetWindowLongPtrW, ShowWindow, TranslateMessage, GWLP_USERDATA, IDC_ARROW, MSG, SM_CXSCREEN,
     SM_CYSCREEN, SW_SHOWNOACTIVATE, WM_DESTROY, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WNDCLASSW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
@@ -49,13 +49,35 @@ fn button() -> RECT {
     RECT { left: WIDTH - MARGIN - BUTTON_W, top: HEIGHT - MARGIN - BUTTON_H, right: WIDTH - MARGIN, bottom: HEIGHT - MARGIN }
 }
 
-/// Shows the overlay on its own thread (the caller goes on); OK closes it.
-pub(crate) fn show(title: &str, text: &str, ok: &str) {
+/// The overlays shown now, by the key their caller gave (one per key).
+static SHOWN: std::sync::Mutex<Vec<(String, isize)>> = std::sync::Mutex::new(Vec::new());
+
+/// Shows the overlay of `key` on its own thread (the caller goes on); OK closes it, and so does
+/// `close(key)`. An overlay of the same key shown before is closed first.
+pub(crate) fn show(key: &str, title: &str, text: &str, ok: &str) {
+    close(key);
     let alert = Alert { title: wide(title), text: wide(text), ok: wide(ok), hover: false };
-    std::thread::spawn(move || run(alert));
+    let key = key.to_string();
+    std::thread::spawn(move || run(key, alert));
 }
 
-fn run(alert: Alert) {
+/// Closes the overlay of `key`, when one is shown (what it asked for is done).
+pub(crate) fn close(key: &str) {
+    let windows: Vec<isize> = match SHOWN.lock() {
+        Ok(mut shown) => {
+            let (gone, kept): (Vec<_>, Vec<_>) = shown.drain(..).partition(|(known, _)| known == key);
+            *shown = kept;
+            gone.into_iter().map(|(_, window)| window).collect()
+        }
+        Err(_) => Vec::new(),
+    };
+    for window in windows {
+        // SAFETY: posting to a window of this process; a window already gone makes the call fail, nothing else.
+        unsafe { PostMessageW(window as HWND, WM_CLOSE, 0, 0) };
+    }
+}
+
+fn run(key: String, alert: Alert) {
     let class: Vec<u16> = "QncAiAlert".encode_utf16().chain(std::iter::once(0)).collect();
     // SAFETY: Win32 calls on this thread with buffers that live through each call; the window's
     // state is a box owned by the window and freed when it is destroyed.
@@ -86,6 +108,9 @@ fn run(alert: Alert) {
             return;
         }
         SetWindowLongPtrW(window, GWLP_USERDATA, Box::into_raw(Box::new(alert)) as isize);
+        if let Ok(mut shown) = SHOWN.lock() {
+            shown.push((key, window as isize));
+        }
         ShowWindow(window, SW_SHOWNOACTIVATE);
         let mut message: MSG = std::mem::zeroed();
         while GetMessageW(&mut message, std::ptr::null_mut(), 0, 0) > 0 {
@@ -162,6 +187,9 @@ unsafe extern "system" fn procedure(window: HWND, message: u32, wparam: WPARAM, 
             0
         }
         WM_DESTROY => {
+            if let Ok(mut shown) = SHOWN.lock() {
+                shown.retain(|(_, known)| *known != window as isize);
+            }
             let alert = GetWindowLongPtrW(window, GWLP_USERDATA) as *mut Alert;
             if !alert.is_null() {
                 SetWindowLongPtrW(window, GWLP_USERDATA, 0);

@@ -232,8 +232,12 @@ unsafe fn menu(window: HWND) -> Option<u32> {
 }
 
 /// The error overlay in the middle of the screen (`alert.rs`).
-pub(crate) fn alert(title: &str, text: &str, ok: &str) {
-    crate::alert::show(title, text, ok);
+pub(crate) fn alert(key: &str, title: &str, text: &str, ok: &str) {
+    crate::alert::show(key, title, text, ok);
+}
+
+pub(crate) fn close_alert(key: &str) {
+    crate::alert::close(key);
 }
 
 pub(crate) struct OneCopy(HANDLE);

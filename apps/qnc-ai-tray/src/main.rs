@@ -119,11 +119,11 @@ fn main() {
                 }
                 Err(qnc_card_eject::EjectError::InUse) => {
                     log(format!("eject refused disk={}: in use", card.disk.display()));
-                    tray.alert(&text("tray.title"), &fill("tray.eject_in_use", &[("card", &name)]), &text("tray.ok"));
+                    tray.alert(&format!("eject:{}", card.serial), &text("tray.title"), &fill("tray.eject_in_use", &[("card", &name)]), &text("tray.ok"));
                 }
                 Err(error) => {
                     log(format!("eject failed disk={}: {error}", card.disk.display()));
-                    tray.alert(&text("tray.title"), &fill("tray.eject_failed", &[("card", &name), ("error", &error.to_string())]), &text("tray.ok"));
+                    tray.alert(&format!("eject:{}", card.serial), &text("tray.title"), &fill("tray.eject_failed", &[("card", &name), ("error", &error.to_string())]), &text("tray.ok"));
                 }
             }
         }
@@ -147,6 +147,8 @@ fn main() {
                             log(format!("card disk={disk} serial={} patterns={patterns:?}", volume.serial_number));
                             let card = Card { disk: volume.root.clone(), serial: volume.serial_number.clone(), label: volume.volume_name.clone(), cameras: cameras.clone(), out: false };
                             let name = card.name();
+                            // The card is in: its "put the card back" is done, whatever happened before.
+                            tray.close_alert(&format!("put-back:{}", volume.serial_number));
                             if flow.add_card(card) {
                                 log(format!("card back disk={disk}"));
                                 tray.notify(&text("tray.title"), &fill("tray.card_back", &[("card", &name)]));
@@ -176,7 +178,7 @@ fn main() {
                             log(format!("gone disk={disk} serial={}", volume.serial_number));
                             // A card of the story taken out without ejecting it: the story still uses it.
                             if let Some(card) = flow.card_out(&volume.serial_number) {
-                                tray.alert(&text("tray.title"), &fill("tray.put_back", &[("card", &card.name())]), &text("tray.ok"));
+                                tray.alert(&format!("put-back:{}", card.serial), &text("tray.title"), &fill("tray.put_back", &[("card", &card.name())]), &text("tray.ok"));
                             }
                         }
                     }

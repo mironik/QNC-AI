@@ -104,3 +104,8 @@ poruke iz programa u trayu Windows ne smije dovesti naprijed. Zamijenjen vlastit
 (`qnc-tray` `alert.rs`): prozor u sredini ekrana, iznad svih prozora, prikazan bez aktiviranja (zato se
 pokaze odmah), u bojama QNC ljuske s crvenom trakom i tipkom "U redu". Provjereno snimkom zaslona
 (primjer `qnc-tray/examples/alert.rs`).
+
+Popravak 2026-11-11 (korisnik: "kartica se sama ne zatvara kad sam vratio karticu"): prozor greske ima
+kljuc (`qnc-tray` `alert(key, ...)`, `close_alert(key)`; isti kljuc zamijeni stari prozor); "vratite
+karticu" ima kljuc serijskog broja kartice i zatvara se sam kad je ta kartica opet unutra. Provjereno
+primjerom: prozor nestane cim stigne `close_alert`.

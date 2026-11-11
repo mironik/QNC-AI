@@ -62,12 +62,22 @@ impl Tray {
     }
 
     /// An error the user must see now: an overlay in the middle of the screen, above every window,
-    /// with a button (`ok` is its text) that closes it. It does not wait for the answer.
-    pub fn alert(&self, title: &str, text: &str, ok: &str) {
+    /// with a button (`ok` is its text) that closes it. It does not wait for the answer. `key` names
+    /// it: another alert of the same key replaces it, and `close_alert(key)` closes it when what it
+    /// asked for is done (the card was put back).
+    pub fn alert(&self, key: &str, title: &str, text: &str, ok: &str) {
         #[cfg(windows)]
-        windows::alert(title, text, ok);
+        windows::alert(key, title, text, ok);
         #[cfg(not(windows))]
-        let _ = (title, text, ok);
+        let _ = (key, title, text, ok);
+    }
+
+    /// Closes the alert of `key`, when one is shown.
+    pub fn close_alert(&self, key: &str) {
+        #[cfg(windows)]
+        windows::close_alert(key);
+        #[cfg(not(windows))]
+        let _ = key;
     }
 
     /// A new menu.
