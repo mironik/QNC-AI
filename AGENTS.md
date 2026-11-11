@@ -315,3 +315,13 @@ Popravak 2026-11-12 (korisnik: "sad je s ingesta preskočilo na AI Media assist"
 imala projekt (napravljen ranije starim obrascem), pa je "Novi projekt" otisao ravno u AI Media Assist.
 `qnc-ingest-base` `current`: baza koju je projekt preuzeo ne sluzi sljedecem Ingestu, tray pravi novu.
 Test prosiren; primjer `examples/list_bases.rs` (samo citanje).
+
+Izvedeno 2026-11-12 (korisnik: "treba onda u obrascu Novi projekt dodati Option dugme Aktivni projekt ili
+novi projekt; ako projekt postoji onda korisnik može nastaviti dalje ili kreirati novi projekt"): kad je
+prije postojao projekt price, prozor "Novi projekt" prvo pita (`qnc-choice-box`): "Nastavi: <projekt>",
+"Novi projekt", "Odustani". Nastavi pridruzuje bazu tog Ingesta postojecem projektu i otvara AI Media
+Assist; Novi projekt otvara obrazac. `qnc-ingest-base`: `last_story` (projekt koji je preuzeo najnoviju
+drugu bazu), `continue_story`; projekt price pamti sve svoje baze u `story_ingest_bases` (vise redova,
+umjesto jednoredne `story_ingest_base`, koja ostaje neiskoristena u starim projektima). `qnc-story-start`
+`offer`, `go_on`, `new_story`. Tekstovi `new_project.*` (en, hr). Testovi `qnc-ingest-base`. Uzivo nije
+provjereno.

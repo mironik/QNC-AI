@@ -7,6 +7,7 @@ description = "QNC-AI New project: QNC's new project sheet in a window of its ow
 [dependencies]
 eframe = { workspace = true }
 qnc-ai-open = { workspace = true }
+qnc-choice-box = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-layout = { workspace = true }
 qnc-newsroom-sheet = { workspace = true }

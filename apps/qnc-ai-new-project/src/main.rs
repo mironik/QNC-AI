@@ -10,6 +10,11 @@
 use eframe::egui;
 use qnc_story_start::{Next, StoryStart};
 
+/// The answers of the choice before the sheet (this window's own; no key).
+const GO_ON: &str = "new_project_go_on";
+const NEW: &str = "new_project_new";
+const CANCEL: &str = "new_project_cancel";
+
 fn log(line: String) {
     qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
 }
@@ -52,6 +57,26 @@ impl eframe::App for NewProject {
                 ui.label(&self.message);
             }
         });
+        // A story was worked on before: go on with it or make a new one (user 2026-11-12).
+        if let Some(name) = self.story.offer().map(str::to_string) {
+            let text = qnc_wizard_text::text;
+            let choice = qnc_choice_box::Choice {
+                title: text("new_project.offer_title").to_string(),
+                message: qnc_wizard_text::fill("new_project.offer_message", &[("name", &name)]),
+                options: vec![
+                    qnc_choice_box::ChoiceOption::new(GO_ON, qnc_wizard_text::fill("new_project.go_on", &[("name", &name)]), true),
+                    qnc_choice_box::ChoiceOption::new(NEW, text("new_project.new"), false),
+                    qnc_choice_box::ChoiceOption::new(CANCEL, text("new_project.cancel"), false),
+                ],
+                ..Default::default()
+            };
+            match qnc_choice_box::show(ctx, &theme, &choice).as_deref() {
+                Some(GO_ON) => self.story.go_on(&self.root),
+                Some(NEW) => self.story.new_story(&self.root),
+                Some(_) => self.done = true,
+                None => {}
+            }
+        }
         if let Some(answer) = self.story.sheet_mut().and_then(|sheet| qnc_newsroom_sheet::show(ctx, sheet, &theme, &self.contracts.shortcuts)) {
             let cancel = answer == qnc_newsroom_sheet::Answer::Cancel;
             self.story.answer(&self.root, answer);

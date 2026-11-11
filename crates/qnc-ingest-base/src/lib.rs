@@ -120,26 +120,54 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str)
     let back = store.open_project(base_id);
     let made = made?;
     back?;
-    let (file, _) = store.project_db_binding(&made.project_id)?;
+    write_story_base(&store, &made.project_id, &base)?;
+    set_project_name(root, base_id, name)?;
+    Ok(made.project_id)
+}
+
+/// The story `story_id` takes the base `base` (a story may take several: every card Ingest brought
+/// for it), in `story_ingest_bases` of its own database.
+fn write_story_base(store: &ProjectStore, story_id: &str, base: &qnc_project_store::ProjectRow) -> Result<(), String> {
+    let (file, _) = store.project_db_binding(story_id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS story_ingest_base (
-            one INTEGER PRIMARY KEY CHECK (one = 1),
-            base_id TEXT NOT NULL,
+        "CREATE TABLE IF NOT EXISTS story_ingest_bases (
+            base_id TEXT PRIMARY KEY,
             base_uri TEXT NOT NULL,
             taken_at_utc TEXT NOT NULL
         )",
     )
     .map_err(|error| error.to_string())?;
     conn.execute(
-        "INSERT INTO story_ingest_base (one, base_id, base_uri, taken_at_utc) VALUES (1, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-         ON CONFLICT(one) DO UPDATE SET base_id = excluded.base_id, base_uri = excluded.base_uri, taken_at_utc = excluded.taken_at_utc",
+        "INSERT INTO story_ingest_bases (base_id, base_uri, taken_at_utc) VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(base_id) DO NOTHING",
         [base.project_id.as_str(), base.project_uri.as_str()],
     )
     .map_err(|error| error.to_string())?;
-    set_project_name(root, base_id, name)?;
-    Ok(made.project_id)
+    Ok(())
+}
+
+/// The story worked on last: the project that took the newest base taken, other than `but` (its
+/// id and name). User 2026-11-12: "ako projekt postoji onda korisnik može nastaviti dalje ili
+/// kreirati novi projekt".
+pub fn last_story(root: &Path, but: &str) -> Result<Option<(String, String)>, String> {
+    let store = ProjectStore::open(root)?;
+    let rows = store.list_projects()?;
+    let Some(name) = all(root)?.into_iter().filter(|base| base.id != but).find_map(|base| base.project_name) else { return Ok(None) };
+    Ok(rows.into_iter().find(|row| row.name == name && !row.name.starts_with(NAME_PREFIX)).map(|row| (row.project_id, row.name)))
+}
+
+/// The base `base_id` goes on the story `story_id` (the user chose the project that exists): the
+/// base gets the story's name, the story the base; the base stays the one Ingest works in.
+pub fn continue_story(root: &Path, base_id: &str, story_id: &str) -> Result<String, String> {
+    let store = ProjectStore::open(root)?;
+    let rows = store.list_projects()?;
+    let base = rows.iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
+    let story = rows.iter().find(|row| row.project_id == story_id).ok_or_else(|| format!("no project {story_id}"))?;
+    write_story_base(&store, story_id, base)?;
+    set_project_name(root, base_id, &story.name)?;
+    Ok(story.name.clone())
 }
 
 /// Makes the base `id` the one Ingest works in.
@@ -347,6 +375,9 @@ mod tests {
         let next = current(&root).unwrap();
         assert_ne!(next.id, base.id, "a base a story took is not the next Ingest's");
         assert_eq!(next.project_name, None);
+        assert_eq!(last_story(&root, &next.id).unwrap(), Some((story.clone(), "2026/11/11 Luka".to_string())), "the story worked on last");
+        assert_eq!(continue_story(&root, &next.id, &story).unwrap(), "2026/11/11 Luka");
+        assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/11 Luka"), "the next card goes on the same story");
         let store = ProjectStore::open(&root).unwrap();
         let (base_db, _) = store.project_db_binding(&base.id).unwrap();
         let (story_db, _) = store.project_db_binding(&story).unwrap();
