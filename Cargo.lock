@@ -3067,6 +3067,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 
 [[package]]
+name = "qnc-action-bar-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-theme-styles",
+ "qnc-ui-kit",
+]
+
+[[package]]
 name = "qnc-action-event"
 version = "0.1.0"
 
@@ -3077,6 +3087,33 @@ dependencies = [
  "qnc-content-read",
  "qnc-work-settings",
  "rusqlite",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-ai-broll"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ai-features",
+ "qnc-broll-suggest",
+ "qnc-clip-row",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-image-assets",
+ "qnc-notice",
+ "qnc-pool-tabs",
+ "qnc-script-db",
+ "qnc-shot-captions",
+ "qnc-shot-content",
+ "qnc-shot-content-db",
+ "qnc-shot-examples",
+ "qnc-shot-labels",
+ "qnc-shot-vocabulary",
+ "qnc-source-preview",
+ "qnc-transcript-db",
+ "qnc-ui-text",
+ "qnc-work-settings",
  "tempfile",
 ]
 
@@ -3122,6 +3159,25 @@ dependencies = [
  "qnc-ui-text",
  "serde_json",
 ]
+
+[[package]]
+name = "qnc-ai-new-project"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-open",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-layout",
+ "qnc-newsroom-sheet",
+ "qnc-story-start",
+ "qnc-tray",
+ "qnc-ui-text",
+ "qnc-wizard-text",
+]
+
+[[package]]
+name = "qnc-ai-open"
+version = "0.1.0"
 
 [[package]]
 name = "qnc-ai-place"
@@ -3313,6 +3369,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-broll-suggest"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-plugin-process",
+ "qnc-program-view",
+ "qnc-program-waveform",
+ "qnc-script-db",
+ "qnc-shot-content",
+ "qnc-text-translate",
+ "qnc-transcript-db",
+ "qnc-voice-take",
+]
+
+[[package]]
 name = "qnc-camera-adapter"
 version = "0.1.0"
 dependencies = [
@@ -3462,6 +3535,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-clip-shots"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-clip-follow",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-shot-captions",
+ "qnc-shot-content-db",
+ "qnc-shot-db",
+ "qnc-source-preview",
+]
+
+[[package]]
 name = "qnc-clip-sound"
 version = "0.1.0"
 dependencies = [
@@ -3473,6 +3560,14 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-clip-transcripts"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-transcript-db",
 ]
 
 [[package]]
@@ -3670,6 +3765,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-edit-cut"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-edit-edge"
 version = "0.1.0"
 
@@ -3696,12 +3795,135 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-editorial-application"
+version = "0.1.0"
+dependencies = [
+ "qnc-action-event",
+ "qnc-active-project-read",
+ "qnc-clip-posters",
+ "qnc-clip-row",
+ "qnc-content-artifacts",
+ "qnc-content-read",
+ "qnc-content-store",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-image-assets",
+ "qnc-media-thumbnail",
+ "qnc-notice",
+ "qnc-panel-focus",
+ "qnc-pending-marks",
+ "qnc-pool-tabs",
+ "qnc-program-segments",
+ "qnc-short-save",
+ "qnc-shot-stills",
+ "qnc-source-bindings",
+ "qnc-source-preview",
+ "qnc-source-timeline",
+ "qnc-status-line",
+ "qnc-timeline-assets",
+ "qnc-trim-stills",
+ "qnc-ui-text",
+ "qnc-virtual-short-cards",
+ "qnc-virtual-shots",
+ "qnc-work-settings",
+ "qnc-wrap-session",
+]
+
+[[package]]
+name = "qnc-editorial-blocks"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-bar-panel",
+ "qnc-action-event",
+ "qnc-board",
+ "qnc-clip-row",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-application",
+ "qnc-editorial-layout",
+ "qnc-media-card",
+ "qnc-media-overlay",
+ "qnc-media-pool-panel",
+ "qnc-monitor-panel",
+ "qnc-panel-focus",
+ "qnc-pool-tabs-panel",
+ "qnc-right-panel",
+ "qnc-segment-panel",
+ "qnc-source-timeline",
+ "qnc-source-timeline-view",
+ "qnc-subsegment-panel",
+ "qnc-theme-styles",
+ "qnc-timeline",
+ "qnc-transcript",
+ "qnc-transport-panel",
+ "qnc-ui-kit",
+]
+
+[[package]]
+name = "qnc-editorial-desktop"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-board",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-application",
+ "qnc-editorial-blocks",
+ "qnc-editorial-layout",
+ "qnc-form-host",
+ "qnc-keyboard-shortcut",
+ "qnc-paint-pace",
+ "qnc-status-line",
+ "qnc-timeline",
+]
+
+[[package]]
+name = "qnc-editorial-layout"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-bar-panel",
+ "qnc-board",
+ "qnc-contracts",
+ "qnc-desktop-theme",
+ "qnc-keyboard-shortcut",
+ "qnc-media-card",
+ "qnc-media-pool-panel",
+ "qnc-pool-tabs",
+ "qnc-segment-panel",
+ "qnc-ui-text",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-export-box"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-export-choice",
+ "qnc-media-pool-head",
+ "qnc-theme-styles",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-export-choice"
 version = "0.1.0"
 dependencies = [
  "qnc-export-preset",
  "qnc-ui-text",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-export-launch"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-plugin-process",
 ]
 
 [[package]]
@@ -3822,6 +4044,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-frame-interp"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-frame-timebase"
 version = "0.1.0"
 dependencies = [
@@ -3907,7 +4133,6 @@ dependencies = [
  "qnc-ingest-store",
  "qnc-ingest-work-plan",
  "qnc-media-thumbnail",
- "qnc-newsroom-sheet-model",
  "qnc-notice",
  "qnc-playback-priority",
  "qnc-player-client",
@@ -3915,7 +4140,6 @@ dependencies = [
  "qnc-source-panel",
  "qnc-source-reader",
  "qnc-source-timeline",
- "qnc-story-start",
  "qnc-timeline-assets",
  "qnc-timeline-model",
  "qnc-ui-text",
@@ -4004,6 +4228,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-action-event",
+ "qnc-ai-open",
  "qnc-attached-cards",
  "qnc-board",
  "qnc-card-autoselect",
@@ -4012,7 +4237,6 @@ dependencies = [
  "qnc-ingest-application",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
- "qnc-newsroom-sheet",
  "qnc-paint-pace",
 ]
 
@@ -4303,6 +4527,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-keyframe-jump"
+version = "0.1.0"
+dependencies = [
+ "qnc-keyframe-nav",
+ "qnc-program-segments",
+ "qnc-source-mark-focus",
+ "qnc-source-panel",
+ "qnc-source-preview",
+ "qnc-timeline-model",
+]
+
+[[package]]
+name = "qnc-keyframe-nav"
+version = "0.1.0"
+dependencies = [
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-media-metadata",
+ "qnc-still-locator",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-lane-choice"
 version = "0.1.0"
 dependencies = [
@@ -4318,6 +4565,44 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-settings-form",
  "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-letter-align"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-place",
+ "qnc-plugin-process",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-letter-db"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-letter-times"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ai-features",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-letter-align",
+ "qnc-letter-db",
+ "qnc-plugin-process",
+ "qnc-sound-range",
+ "qnc-still-locator",
+ "qnc-transcribe-jobs",
 ]
 
 [[package]]
@@ -4397,6 +4682,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-match-frame"
+version = "0.1.0"
+
+[[package]]
+name = "qnc-media-assist-audio-ai"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-desktop",
+]
+
+[[package]]
 name = "qnc-media-card"
 version = "0.1.0"
 dependencies = [
@@ -4448,6 +4746,15 @@ version = "0.1.0"
 dependencies = [
  "qnc-decoder-catalog",
  "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-media-overlay"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-desktop-theme",
 ]
 
 [[package]]
@@ -4690,6 +4997,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-panel-focus"
+version = "0.1.0"
+dependencies = [
+ "qnc-action-event",
+ "qnc-ai-broll",
+ "qnc-ai-features",
+ "qnc-clip-row",
+ "qnc-clip-shots",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-edit-step",
+ "qnc-edit-verbs",
+ "qnc-focus-walk",
+ "qnc-ingest-layout",
+ "qnc-key-list",
+ "qnc-keyframe-jump",
+ "qnc-mouse-map",
+ "qnc-playhead-moves",
+ "qnc-pool-tabs",
+ "qnc-program-segments",
+ "qnc-script",
+ "qnc-segments-keys",
+ "qnc-side-pieces",
+ "qnc-skeleton-versions",
+ "qnc-snap",
+ "qnc-source-mark-focus",
+ "qnc-source-panel",
+ "qnc-source-preview",
+ "qnc-source-timeline",
+ "qnc-sync-session",
+ "qnc-timeline-model",
+ "qnc-transcript",
+ "qnc-wrap-session",
+]
+
+[[package]]
+name = "qnc-part-sound"
+version = "0.1.0"
+dependencies = [
+ "qnc-lane-choice",
+]
+
+[[package]]
+name = "qnc-pending-marks"
+version = "0.1.0"
+dependencies = [
+ "qnc-timeline-model",
+]
+
+[[package]]
 name = "qnc-pixel-convert"
 version = "0.1.0"
 dependencies = [
@@ -4833,6 +5190,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-playhead-moves"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-shuttle",
+ "qnc-source-preview",
+ "qnc-trim-play",
+]
+
+[[package]]
 name = "qnc-plugin-process"
 version = "0.1.0"
 dependencies = [
@@ -4855,6 +5222,13 @@ name = "qnc-pool-pointer"
 version = "0.1.0"
 dependencies = [
  "eframe",
+]
+
+[[package]]
+name = "qnc-pool-tabs"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-row",
 ]
 
 [[package]]
@@ -4886,6 +5260,17 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-prerender-launch"
+version = "0.1.0"
+dependencies = [
+ "qnc-content-store",
+ "qnc-dev-diagnostics",
+ "qnc-playback-activity",
+ "qnc-plugin-process",
+ "qnc-ui-text",
 ]
 
 [[package]]
@@ -4985,6 +5370,40 @@ dependencies = [
  "qnc-gain",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-program-segments"
+version = "0.1.0"
+dependencies = [
+ "qnc-content-store",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-edit-cut",
+ "qnc-edit-step",
+ "qnc-export-choice",
+ "qnc-export-launch",
+ "qnc-image-assets",
+ "qnc-lane-choice",
+ "qnc-level-curve",
+ "qnc-notice",
+ "qnc-part-sound",
+ "qnc-prerender-launch",
+ "qnc-program-commands",
+ "qnc-program-db",
+ "qnc-program-filmstrip",
+ "qnc-program-loudness",
+ "qnc-program-view",
+ "qnc-program-waveform",
+ "qnc-sound-assist",
+ "qnc-source-channels",
+ "qnc-sync-cover",
+ "qnc-timeline-model",
+ "qnc-ui-text",
+ "qnc-virtual-shots",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -5116,6 +5535,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-read-check"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-read-pace"
 version = "0.1.0"
 
@@ -5178,6 +5601,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-right-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-ai-features",
+ "qnc-clip-shots",
+ "qnc-desktop-theme",
+ "qnc-editorial-layout",
+ "qnc-pool-tabs-panel",
+ "qnc-program-view",
+ "qnc-script",
+ "qnc-script-panel",
+ "qnc-script-writer-panel",
+ "qnc-segment-panel",
+ "qnc-shot-panel",
+ "qnc-side-pieces",
+ "qnc-source-timecode",
+ "qnc-transcript",
+ "qnc-transcript-panel",
+]
+
+[[package]]
 name = "qnc-scanner"
 version = "0.1.0"
 dependencies = [
@@ -5192,6 +5638,199 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tiny_http",
+]
+
+[[package]]
+name = "qnc-script"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-features",
+ "qnc-clip-row",
+ "qnc-clip-sound",
+ "qnc-clip-transcripts",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-edit-words",
+ "qnc-export-launch",
+ "qnc-letter-db",
+ "qnc-letter-times",
+ "qnc-newsroom-sheet-db",
+ "qnc-notice",
+ "qnc-program-db",
+ "qnc-program-input",
+ "qnc-read-check",
+ "qnc-script-db",
+ "qnc-script-draft",
+ "qnc-script-export",
+ "qnc-script-files",
+ "qnc-script-profile",
+ "qnc-session-readings",
+ "qnc-skeleton-db",
+ "qnc-smooth-joins",
+ "qnc-source-preview",
+ "qnc-source-timecode",
+ "qnc-status-line",
+ "qnc-subsegment-edit",
+ "qnc-take-heard",
+ "qnc-timeline-model",
+ "qnc-transcript",
+ "qnc-transcript-db",
+ "qnc-ui-text",
+ "qnc-voice-catalog",
+ "qnc-voice-record",
+ "qnc-voice-take",
+ "qnc-worker-wake",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-script-db"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-db-broker",
+ "qnc-field-spec",
+ "qnc-newsroom-sheet-db",
+ "qnc-script-profile",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-script-draft"
+version = "0.1.0"
+dependencies = [
+ "qnc-frame-interp",
+ "qnc-program-input",
+ "qnc-read-check",
+ "qnc-script-db",
+ "qnc-script-profile",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-script-export"
+version = "0.1.0"
+dependencies = [
+ "qnc-script-profile",
+]
+
+[[package]]
+name = "qnc-script-files"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-newsroom-sheet-db",
+ "qnc-script-export",
+ "qnc-still-locator",
+ "qnc-ui-text",
+ "qnc-work-settings",
+]
+
+[[package]]
+name = "qnc-script-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-desktop-theme",
+ "qnc-keyboard-shortcut",
+ "qnc-script",
+ "qnc-script-db",
+ "qnc-settings-form",
+ "qnc-text-source-editor",
+ "qnc-transcript",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-script-profile"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-field-spec",
+ "qnc-ui-text",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-script-writer-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-desktop-theme",
+ "qnc-media-overlay",
+ "qnc-script",
+ "qnc-script-panel",
+ "qnc-text-source-editor",
+ "qnc-transcript-panel",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-segment-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-alert",
+ "qnc-desktop-theme",
+ "qnc-dev-diagnostics",
+ "qnc-export-box",
+ "qnc-export-choice",
+ "qnc-program-filmstrip",
+ "qnc-program-view",
+ "qnc-program-waveform",
+ "qnc-theme-styles",
+ "qnc-timeline",
+ "qnc-trim-overlay",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde",
+]
+
+[[package]]
+name = "qnc-segments-keys"
+version = "0.1.0"
+dependencies = [
+ "qnc-edit-step",
+ "qnc-edit-words",
+ "qnc-lane-choice",
+ "qnc-match-frame",
+ "qnc-program-segments",
+ "qnc-source-preview",
+ "qnc-source-timeline",
+ "qnc-wrap-session",
+]
+
+[[package]]
+name = "qnc-session-readings"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-read-check",
+ "qnc-script-db",
+ "qnc-sound-range",
+ "qnc-source-timecode",
+ "qnc-still-locator",
+ "qnc-take-heard",
+ "qnc-transcribe-jobs",
+ "qnc-transcribe-run",
+ "qnc-ui-text",
+ "qnc-voice-catalog",
+ "qnc-voice-record",
+ "qnc-voice-take",
 ]
 
 [[package]]
@@ -5245,6 +5884,19 @@ dependencies = [
  "qnc-status-line",
  "qnc-ui-kit",
  "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-short-save"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-row",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-notice",
+ "qnc-ui-text",
+ "qnc-virtual-short-cards",
+ "qnc-virtual-shots",
 ]
 
 [[package]]
@@ -5372,12 +6024,55 @@ name = "qnc-shot-detect"
 version = "0.1.0"
 
 [[package]]
+name = "qnc-shot-examples"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-place",
+ "qnc-ai-store",
+ "qnc-shot-captions",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-shot-labels"
 version = "0.1.0"
 dependencies = [
  "qnc-ui-text",
  "serde",
  "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-shot-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-clip-shots",
+ "qnc-desktop-theme",
+ "qnc-program-view",
+ "qnc-segment-panel",
+ "qnc-source-timecode",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-shot-stills"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-source-preview",
+ "qnc-still-locator",
+ "qnc-ui-text",
+ "qnc-virtual-short-stills",
+ "qnc-virtual-shots",
+ "qnc-work-settings",
  "tempfile",
 ]
 
@@ -5392,6 +6087,73 @@ dependencies = [
  "rusqlite",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-shuttle"
+version = "0.1.0"
+
+[[package]]
+name = "qnc-side-pieces"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-broll",
+ "qnc-ai-features",
+ "qnc-clip-row",
+ "qnc-clip-shots",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-notice",
+ "qnc-script",
+ "qnc-skeleton-versions",
+ "qnc-source-preview",
+ "qnc-source-timecode",
+ "qnc-timeline-model",
+ "qnc-transcript",
+]
+
+[[package]]
+name = "qnc-skeleton-db"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-skeleton-versions"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-row",
+ "qnc-skeleton-db",
+ "qnc-source-preview",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-smooth-joins"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ai-features",
+ "qnc-db-broker",
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-frame-interp",
+ "qnc-media-metadata",
+ "qnc-plugin-process",
+ "qnc-script-db",
+ "qnc-script-draft",
+ "qnc-still-locator",
+ "qnc-transcribe-jobs",
+ "qnc-ui-text",
+ "qnc-voice-catalog",
+ "qnc-voice-clip",
+ "qnc-voice-take",
 ]
 
 [[package]]
@@ -5694,6 +6456,102 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-subsegment-edit"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-edit-cut",
+ "qnc-edit-edge",
+ "qnc-edit-step",
+ "qnc-edit-verbs",
+ "qnc-edit-words",
+ "qnc-lane-choice",
+ "qnc-level-curve",
+ "qnc-program-db",
+ "qnc-program-filmstrip",
+ "qnc-program-loudness",
+ "qnc-program-view",
+ "qnc-program-waveform",
+ "qnc-script-db",
+ "qnc-script-draft",
+ "qnc-sound-assist",
+ "qnc-source-preview",
+ "qnc-source-timecode",
+ "qnc-timeline-model",
+ "qnc-trim-stills",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-subsegment-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-mouse-map",
+ "qnc-program-view",
+ "qnc-script",
+ "qnc-segment-panel",
+ "qnc-timeline",
+ "qnc-trim-overlay",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-sync-cover"
+version = "0.1.0"
+dependencies = [
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-sync-session"
+version = "0.1.0"
+dependencies = [
+ "qnc-edit-step",
+ "qnc-program-segments",
+ "qnc-source-preview",
+ "qnc-wrap-session",
+]
+
+[[package]]
+name = "qnc-take-heard"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-features",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-script-db",
+ "qnc-still-locator",
+ "qnc-transcribe-jobs",
+ "qnc-transcribe-run",
+ "qnc-ui-text",
+ "qnc-voice-record",
+ "qnc-voice-take",
+]
+
+[[package]]
+name = "qnc-text-source-editor"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-ui-kit",
+]
+
+[[package]]
+name = "qnc-text-translate"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ai-place",
+ "qnc-plugin-process",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-theme-styles"
 version = "0.1.0"
 dependencies = [
@@ -5761,6 +6619,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-title-card"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "epaint_default_fonts",
+ "image",
+]
+
+[[package]]
 name = "qnc-touch-gestures"
 version = "0.1.0"
 dependencies = [
@@ -5825,6 +6692,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-transcript"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-features",
+ "qnc-clip-row",
+ "qnc-clip-transcripts",
+ "qnc-db-broker",
+ "qnc-source-preview",
+ "qnc-source-timecode",
+ "qnc-timeline-model",
+ "qnc-transcribe-queue",
+ "qnc-transcript-db",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-transcript-db"
 version = "0.1.0"
 dependencies = [
@@ -5835,6 +6718,20 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-transcript-panel"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-desktop-theme",
+ "qnc-keyboard-shortcut",
+ "qnc-source-timecode",
+ "qnc-transcript",
+ "qnc-ui-kit",
+ "qnc-ui-text",
 ]
 
 [[package]]
@@ -5881,6 +6778,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-trim-play"
+version = "0.1.0"
+
+[[package]]
+name = "qnc-trim-stills"
+version = "0.1.0"
+dependencies = [
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-fine-wave",
+ "qnc-image-assets",
+ "qnc-media-decode",
+ "qnc-media-metadata",
+ "qnc-media-stream",
+ "qnc-program-view",
+ "qnc-source-preview",
+ "qnc-still-locator",
+ "qnc-ui-text",
+ "qnc-zoom-words",
+]
+
+[[package]]
 name = "qnc-ui-kit"
 version = "0.1.0"
 dependencies = [
@@ -5911,6 +6830,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-virtual-short-cards"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-row",
+ "qnc-image-assets",
+ "qnc-virtual-shots",
+]
+
+[[package]]
+name = "qnc-virtual-short-stills"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "qnc-source-preview",
+ "qnc-ui-text",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-virtual-shots"
 version = "0.1.0"
 dependencies = [
@@ -5925,6 +6863,59 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-voice-catalog"
+version = "0.1.0"
+dependencies = [
+ "qnc-content-store",
+ "qnc-media-metadata",
+ "qnc-media-record-db",
+ "qnc-media-records",
+ "qnc-source-index-db",
+ "qnc-ui-text",
+ "qnc-voice-clip",
+ "qnc-work-settings",
+ "rusqlite",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-voice-clip"
+version = "0.1.0"
+dependencies = [
+ "qnc-decoder-catalog",
+ "qnc-frame-timebase",
+ "qnc-media-metadata",
+ "qnc-title-card",
+ "qnc-ui-text",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-voice-record"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "cpal",
+ "qnc-ui-text",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-voice-take"
+version = "0.1.0"
+dependencies = [
+ "qnc-media-metadata",
+ "qnc-script-db",
+ "qnc-source-contract",
+ "qnc-still-locator",
+ "qnc-ui-text",
+ "qnc-voice-clip",
+ "qnc-voice-record",
+ "qnc-work-settings",
 ]
 
 [[package]]
@@ -6025,6 +7016,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-word-align"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-work-settings"
 version = "0.1.0"
 dependencies = [
@@ -6065,12 +7060,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-wrap-session"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-write-lease"
 version = "0.1.0"
 dependencies = [
  "qnc-ui-text",
  "rusqlite",
  "serde",
+]
+
+[[package]]
+name = "qnc-zoom-words"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-features",
+ "qnc-clip-transcripts",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-letter-db",
+ "qnc-letter-times",
+ "qnc-program-view",
+ "qnc-script-db",
+ "qnc-still-locator",
+ "qnc-transcribe-run",
+ "qnc-transcript-db",
+ "qnc-voice-take",
+ "qnc-word-align",
 ]
 
 [[package]]

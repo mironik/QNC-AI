@@ -1,0 +1,7 @@
+[package]
+name = "qnc-ai-open"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: opens the next program of the wizard (beside the one running, in the same QNC-AI root); draws nothing"
+
+[dependencies]

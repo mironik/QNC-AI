@@ -1,0 +1,381 @@
+//! The pieces of the right panel of an editorial board (audit 2026-10-28: the focus of every
+//! form held the transcript, the shots and the script, so a form without those panels read the
+//! database for them and wrote a script profile into its project). A form makes only the
+//! pieces of the panels its layout has: the transcript (AI Media Assist), the shots of the
+//! Video AI tab, the script (Media Assist Audio, which also puts in the statements of the
+//! transcript). Their views are shared snapshots, renewed only when a poll changed them.
+
+use std::sync::Arc;
+
+use qnc_ai_broll::{AiBroll, AiBrollView};
+use qnc_clip_row::ClipRow;
+use qnc_clip_shots::{ClipShots, ShotsView};
+use qnc_script::{Script, ScriptView};
+use qnc_skeleton_versions::{SkeletonVersions, VersionsView};
+use qnc_source_preview::SourcePreview;
+use qnc_source_timecode::SourceTimecode;
+use qnc_timeline_model::TimelineProjection;
+use qnc_transcript::{ClipTranscripts, Transcript, TranscriptView};
+
+pub const MODULE_ID: &str = "qnc.module.side-pieces";
+
+/// The kinds of right panels (a group's layout contract names them).
+pub const SEGMENT_PANEL: &str = "segment_panel";
+/// The segment panel of the S-Story (user 2026-10-31: "like the Story, without the lead-in"):
+/// the same panel, its story the open version (a copy of the Story of its own).
+pub const DRAFT_SEGMENT_PANEL: &str = "draft_segment_panel";
+pub const TRANSCRIPT_PANEL: &str = "transcript_panel";
+/// The transcript to read and search, without the statements (MA Script media overlay).
+pub const TRANSCRIPT_SEARCH_PANEL: &str = "transcript_search_panel";
+/// The Video AI panel: the shots of the clip on the preview.
+pub const VIDEO_AI_PANEL: &str = "video_ai_panel";
+/// The script of the story (Media Assist Audio, user 2026-10-28).
+pub const SCRIPT_PANEL: &str = "script_panel";
+/// Writing the story over the whole form (MA Script, user 2026-11-01): the same script.
+pub const SCRIPT_WRITER_PANEL: &str = "script_writer_panel";
+/// The bar in the media window of the story writer (user 2026-11-02): the marked IN-OUT goes into
+/// the story from where it is marked. It shows the script of the writer panel.
+pub const SCRIPT_CLIP_BAR: &str = "script_clip_bar";
+/// Not a panel: the form has the pool tab AI B-roll (user 2026-11-10), its piece is made.
+pub const AI_BROLL_TAB: &str = "ai_broll_tab";
+
+/// What the right panel pieces show; empty for a piece the form does not have.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SideViews {
+    pub transcript: Arc<TranscriptView>,
+    pub shots: Arc<ShotsView>,
+    pub script: Arc<ScriptView>,
+    pub versions: Arc<VersionsView>,
+    pub ai_broll: Arc<AiBrollView>,
+    /// What the project's AI features allow (docs/102 step 3).
+    pub ai: Arc<qnc_ai_features::Gate>,
+}
+
+/// The pieces of the panels a form has.
+#[derive(Debug, Default)]
+pub struct SidePieces {
+    /// The one reader of the transcripts the pieces show (the transcript panel's clip, the
+    /// script's statements): read from the database, given to both.
+    transcripts: ClipTranscripts,
+    transcript: Option<Transcript>,
+    shots: Option<ClipShots>,
+    script: Option<Script>,
+    versions: Option<SkeletonVersions>,
+    ai_broll: Option<AiBroll>,
+    views: SideViews,
+    /// The form's segment panel shows a version of the S-Story.
+    draft_story: bool,
+    /// The B-roll the script asked for, being worked out: its ask, OFFs and when it was asked;
+    /// and how many were asked (each its own key).
+    plan: Option<(qnc_ai_broll::Ask, Vec<qnc_ai_broll::PlanBlock>, std::time::Instant)>,
+    plans: u64,
+    /// The messages of the script and the transcript at the last look.
+    said: [String; 2],
+    /// The project the AI gate is of, and the list of AI features of this QNC (read once).
+    gate_of: Option<String>,
+    features: Option<Result<qnc_ai_features::Features, String>>,
+}
+
+impl SidePieces {
+    /// The pieces of the right panel kinds `kinds` (the panel and its tabs); the script puts in
+    /// the transcript's statements, so it brings the transcript with it.
+    pub fn for_panels<'a>(kinds: impl IntoIterator<Item = &'a str>) -> Self {
+        let kinds: Vec<&str> = kinds.into_iter().collect();
+        let has = |kind: &str| kinds.contains(&kind);
+        Self {
+            transcripts: ClipTranscripts::new(),
+            transcript: (has(TRANSCRIPT_PANEL) || has(TRANSCRIPT_SEARCH_PANEL) || has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL)).then(Transcript::new),
+            shots: has(VIDEO_AI_PANEL).then(ClipShots::default),
+            script: (has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL)).then(Script::new),
+            versions: has(DRAFT_SEGMENT_PANEL).then(SkeletonVersions::new),
+            ai_broll: has(AI_BROLL_TAB).then(AiBroll::new),
+            views: SideViews::default(),
+            draft_story: has(DRAFT_SEGMENT_PANEL),
+            said: Default::default(),
+            plan: None,
+            plans: 0,
+            gate_of: None,
+            features: None,
+        }
+    }
+
+    /// The story of the form's segment panel in the project database `target`: the Story, or
+    /// the open S-Story version when the form's panel is the S-Story's.
+    pub fn story_of(&self, target: qnc_db_broker::ProjectDbTarget) -> qnc_db_broker::ProjectDbTarget {
+        match self.draft_story() {
+            Some(version) => target.draft_story(version),
+            None => target,
+        }
+    }
+
+    /// The S-Story version the form shows; `None` for a form of the Story or none.
+    pub fn draft_story(&self) -> Option<u32> {
+        self.draft_story.then(|| self.versions.as_ref().map_or(1, SkeletonVersions::open_number))
+    }
+
+    pub fn views(&self) -> &SideViews {
+        &self.views
+    }
+
+    /// AI of the SubSegment open in place of the source timeline (user 2026-11-07); `None`
+    /// while none is open (the AI of the story then).
+    pub fn subsegment_assist(&self) -> Option<bool> {
+        self.script.as_ref()?.subsegment_assist()
+    }
+
+    /// Polls the pieces; a view is renewed only when its piece changed it.
+    pub fn poll(&mut self, preview: &mut SourcePreview, timeline: &TimelineProjection, clips: &mut [ClipRow]) {
+        self.follow_ai(preview);
+        // The transcripts the pieces show, read once for all of them.
+        if self.transcript.is_some() || self.script.is_some() {
+            // No clip on the preview: the form was left or opened again; what a repass wrote is
+            // read now (user 2026-11-08: the truth is in the database, shown then).
+            if preview.view().clip_id.is_none() {
+                self.transcripts.let_go();
+            }
+            let shown = self.transcript.as_ref().and(preview.view().clip_id.clone());
+            let statements = self.script.as_ref().map(Script::transcript_clips).unwrap_or_default();
+            self.transcripts.poll(preview.project_target(), shown.into_iter().chain(statements));
+        }
+        // The pool's ticks are the transcript's.
+        if let Some(transcript) = &mut self.transcript {
+            if transcript.poll(preview, timeline, clips, &mut self.transcripts) {
+                self.views.transcript = Arc::new(transcript.view().clone());
+            }
+        }
+        if let Some(shots) = &mut self.shots {
+            if shots.poll(preview) {
+                self.views.shots = Arc::new(shots.view().clone());
+            }
+        }
+        if let Some(script) = &mut self.script {
+            if script.poll(preview, timeline, clips, &self.transcripts) {
+                self.views.script = Arc::new(script.view().clone());
+            }
+            play_pieces(script, preview);
+        }
+        if let Some(versions) = &mut self.versions {
+            if versions.poll(preview) {
+                self.views.versions = Arc::new(versions.view().clone());
+            }
+        }
+        if let Some(ai_broll) = &mut self.ai_broll {
+            if ai_broll.poll(preview) {
+                self.views.ai_broll = Arc::new(ai_broll.view().clone());
+            }
+        }
+        self.plan_broll(clips);
+        self.warn_of_refusals();
+    }
+
+    /// The B-roll the script asked for (user 2026-11-11: "a button starts the suggestion"):
+    /// every OFF of the story with the shots the reporter wants, asked through the AI B-roll's
+    /// suggestion (its words and terms made vectors as a slot's, translated); once its vectors
+    /// came, the plan over the shots of the pool is the script's proposal.
+    fn plan_broll(&mut self, clips: &[ClipRow]) {
+        let Some(script) = &mut self.script else { return };
+        if script.take_broll_ask() {
+            let blocks: Vec<qnc_ai_broll::PlanBlock> = script
+                .view()
+                .broll_offs()
+                .into_iter()
+                .map(|(block_id, seconds, slots, note)| qnc_ai_broll::PlanBlock { block_id, seconds, slots, wanted: qnc_ai_broll::wanted_of(&note) })
+                .collect();
+            self.plans += 1;
+            match (blocks.is_empty(), &self.ai_broll) {
+                (true, _) => script.propose(None, "script.broll_no_offs"),
+                (_, None) => script.propose(None, "script.broll_no_ai"),
+                (_, Some(ai_broll)) if !ai_broll.suggests() => script.propose(None, "script.broll_off_in_project"),
+                _ => match qnc_ai_broll::plan_ask(format!("plan:{}", self.plans), &blocks) {
+                    Some(ask) => self.plan = Some((ask, blocks, std::time::Instant::now())),
+                    None => script.propose(None, "script.broll_no_offs"),
+                },
+            }
+            self.views.script = Arc::new(script.view().clone());
+        }
+        let (Some((ask, blocks, since)), Some(ai_broll)) = (&self.plan, &self.ai_broll) else { return };
+        let ready = ai_broll.view().suggestion.as_ref().filter(|suggestion| suggestion.key == ask.key);
+        if let Some(suggestion) = ready {
+            let covers = ai_broll.view().plan_covers(clips, suggestion, blocks);
+            script.propose(Some(covers), "script.broll_none");
+        } else if since.elapsed() > std::time::Duration::from_secs(2) && !ai_broll.busy() {
+            // The worker answered nothing for it (no words, no program): said, not waited on.
+            script.propose(None, "script.broll_failed");
+        } else {
+            return;
+        }
+        self.plan = None;
+        self.views.script = Arc::new(script.view().clone());
+    }
+
+    /// A message newly saying that a command could not be done is raised as a warning.
+    fn warn_of_refusals(&mut self) {
+        let script = self.script.as_ref().map_or("", |script| script.view().message.as_str());
+        let transcript = self.transcript.as_ref().map_or("", |transcript| transcript.view().message.as_str());
+        for (said, now) in self.said.iter_mut().zip([script, transcript]) {
+            if said != now {
+                if qnc_notice::is_refusal(now) {
+                    qnc_notice::raise(now);
+                }
+                *said = now.to_string();
+            }
+        }
+    }
+
+    /// The pieces' own actions; `None` for any other.
+    pub fn act(&mut self, action_id: &str, value: Option<i64>, target: Option<&str>, preview: &mut SourcePreview, timeline: &TimelineProjection, timecode: Option<&SourceTimecode>) -> Option<bool> {
+        if let Some(transcript) = &mut self.transcript {
+            if let Some(done) = transcript.act(action_id, value, target, preview, timeline, timecode) {
+                // A statement sent to the repass (user 2026-11-08): it is transcribed again in the
+                // background and written to the database only; this form keeps what it shows.
+                if action_id == qnc_transcript::REPASS && done {
+                    if let Some(clip) = preview.view().clip_id.clone() {
+                        self.transcripts.hold(&clip);
+                    }
+                }
+                // What the action changed (the search) is seen at once.
+                self.views.transcript = Arc::new(transcript.view().clone());
+                return Some(done);
+            }
+        }
+        if let Some(script) = &mut self.script {
+            let empty = TranscriptView::default();
+            let transcript = self.transcript.as_ref().map_or(&empty, Transcript::view);
+            script.set_value(value);
+            if let Some(done) = script.act(action_id, target, (preview, timeline, timecode, transcript)) {
+                play_pieces(script, preview);
+                // What the action changed is seen at once (the next poll compares from here).
+                self.views.script = Arc::new(script.view().clone());
+                return Some(done);
+            }
+        }
+        if let Some(versions) = &mut self.versions {
+            if let Some(done) = versions.act(action_id, target) {
+                self.views.versions = Arc::new(versions.view().clone());
+                return Some(done);
+            }
+        }
+        if let Some(ai_broll) = &mut self.ai_broll {
+            if let Some(done) = ai_broll.act(action_id, target) {
+                self.views.ai_broll = Arc::new(ai_broll.view().clone());
+                return Some(done);
+            }
+        }
+        if let Some(shots) = &mut self.shots {
+            // A click on a shot puts the playhead on its start (user 2026-10-27).
+            if action_id == qnc_clip_shots::CUE_SHOT {
+                let frame = target.and_then(|frame| frame.parse::<u64>().ok());
+                return Some(frame.is_some_and(|frame| preview.cue(frame)));
+            }
+            // A click on a usable part opens it with its IN/OUT, for Add SubClip.
+            if action_id == qnc_clip_shots::OPEN_PART {
+                return Some(shots.open_part(target));
+            }
+        }
+        None
+    }
+
+    /// The S-Story version newly opened (its number), once: the story machinery turns to it.
+    pub fn take_version_switch(&mut self) -> Option<u32> {
+        self.versions.as_mut().and_then(SkeletonVersions::take_switch)
+    }
+
+    /// A clip and IN/OUT a chosen statement, usable part or script block opens (once).
+    /// The take of a voice record to hear (its clip and channel), once.
+    pub fn take_voice_request(&mut self) -> Option<(String, u16, bool, u64)> {
+        self.script.as_mut().and_then(Script::take_voice_request)
+    }
+
+    pub fn take_source_request(&mut self) -> Option<(String, u64, u64)> {
+        let transcript = self.transcript.as_mut().and_then(Transcript::take_source_request);
+        let shots = || self.shots.as_mut().and_then(ClipShots::take_source_request);
+        transcript
+            .or_else(shots)
+            .or_else(|| self.script.as_mut().and_then(Script::take_source_request))
+            .or_else(|| self.ai_broll.as_mut().and_then(AiBroll::take_source_request))
+    }
+
+    /// Whether a read or write of a piece runs (the form repaints soon).
+    /// The slot chosen in the story orders the AI B-roll by the words A1 says there (user
+    /// 2026-11-10); the ask is made only where the form has that tab.
+    pub fn follow_slot(&mut self, ask: impl FnOnce() -> Option<qnc_ai_broll::Ask>, preview: &SourcePreview) {
+        if let Some(ai_broll) = &mut self.ai_broll {
+            // The B-roll the script asked for, while it is worked out; else the story's slot.
+            let asked = match &self.plan {
+                Some((ask, ..)) => Some(ask.clone()),
+                None => ask(),
+            };
+            if ai_broll.follow_slot(asked, preview) {
+                self.views.ai_broll = Arc::new(ai_broll.view().clone());
+            }
+        }
+    }
+
+    pub fn busy(&self) -> bool {
+        self.transcripts.busy() || self.transcript.as_ref().is_some_and(Transcript::busy) || self.script.as_ref().is_some_and(Script::busy) || self.versions.as_ref().is_some_and(SkeletonVersions::busy) || self.ai_broll.as_ref().is_some_and(AiBroll::busy) || self.plan.is_some()
+    }
+
+    /// Whether a transcription of this process runs in the background.
+    pub fn working(&self) -> bool {
+        self.transcript.as_ref().is_some_and(Transcript::working)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_form_gets_only_the_pieces_of_its_panels() {
+        let story = SidePieces::for_panels([SEGMENT_PANEL]);
+        assert!(story.transcript.is_none() && story.shots.is_none() && story.script.is_none());
+        let ai = SidePieces::for_panels([TRANSCRIPT_PANEL, VIDEO_AI_PANEL]);
+        assert!(ai.transcript.is_some() && ai.shots.is_some() && ai.script.is_none());
+        let audio = SidePieces::for_panels([SCRIPT_PANEL]);
+        assert!(audio.transcript.is_some() && audio.shots.is_none() && audio.script.is_some() && audio.versions.is_none());
+        assert_eq!(audio.draft_story(), None);
+        let script = SidePieces::for_panels([SCRIPT_WRITER_PANEL]);
+        assert!(script.transcript.is_some() && script.script.is_some() && script.versions.is_none());
+        let s_story = SidePieces::for_panels([DRAFT_SEGMENT_PANEL]);
+        assert!(s_story.versions.is_some() && s_story.script.is_none());
+        assert_eq!(s_story.draft_story(), Some(1), "version 1 until the list of versions is read");
+    }
+}
+
+/// The parts of the SubSegment the script opened, to the one player (user 2026-10-29: its
+/// program plays in the same Broadcast Player as the story).
+fn play_pieces(script: &mut Script, preview: &mut SourcePreview) {
+    if let Some((pieces, frame)) = script.take_pieces_request() {
+        preview.show_pieces(&pieces, frame);
+    }
+}
+
+impl SidePieces {
+    /// The AI gate of the project on the preview: what its AI template turned on when it was
+    /// made (user 2026-11-11: not changed in a running project), read again for another project.
+    fn follow_ai(&mut self, preview: &SourcePreview) {
+        let key = preview.project_target().map(|target| target.uri().to_string());
+        if key == self.gate_of {
+            return;
+        }
+        self.gate_of.clone_from(&key);
+        let features = self.features.get_or_insert_with(|| {
+            let root = qnc_dev_diagnostics::resolve_qnc_root().ok_or_else(|| "no QNC root".to_string())?;
+            qnc_ai_features::Features::load(&root)
+        });
+        let gate = match (features, preview.project_settings()) {
+            (Ok(features), Some((_, settings))) => qnc_ai_features::Gate::new(features, |code| settings.ai_feature(code).unwrap_or(false)),
+            (Err(error), Some(_)) => {
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-gate {error}"));
+                qnc_ai_features::Gate::default()
+            }
+            _ => qnc_ai_features::Gate::default(),
+        };
+        if let Some(script) = &mut self.script {
+            if script.set_ai(&gate) {
+                self.views.script = Arc::new(script.view().clone());
+            }
+        }
+        self.views.ai = Arc::new(gate);
+    }
+}

@@ -295,3 +295,18 @@ diska preglednik pokazuje kameru kartice ("Sony ILME-FX3A · 128 GB"); naziv i s
 Nalaz uz pitanje korisnika o nazivu i proizvodacu kartice: obje kartice nemaju oznaku volumena; sustav za
 D: (CFexpress u USB citacu) daje proizvodaca i model kartice "DAJINGYU CX256GCFA", a za G: (SD) samo
 citac "Generic- SD/MMC/MS PRO". Uzivo nije provjereno.
+
+Izvedeno 2026-11-12 (korisnik: "kad na ingestu (ako ima selektiranih kadrova) korisnik klikne UVEZI,
+ingest se zatvara, a Novi Projekt se otvara; kad se popunjena forma Novi Projekt zatvori, otvara se AI
+Media Assist"): zamjenjuje obrazac preko Ingesta od 2026-11-11. Uvezi odmah upise odabir i probudi
+pozadinski uvoz (radnik radi bez Ingesta); kad je odabir predan radniku, Ingest otvara program
+`qnc-ai-new-project` i zatvara se. Taj program (`apps/qnc-ai-new-project`) crta QNC-ov obrazac novog
+projekta (`qnc-newsroom-sheet`, s izborom templatea) u svom prozoru preko kocke `qnc-story-start`;
+Kreiraj pravi projekt price koji uzima bazu i otvara AI Media Assist, Odustani zatvara prozor; baza koja
+vec ima projekt (ili aktivni projekt koji nije baza) odmah otvara AI Media Assist. Pokretanje sljedeceg
+programa je nova kocka `qnc-ai-open` (forma ne pokrece procese, test Ingesta). AI Media Assist kopiran iz
+QNC-a (oznaka v-2026-11-11): `apps/qnc-media-assist-audio-ai` i 71 kocka koja je falila
+(`qnc-editorial-*`, `qnc-panel-focus`, `qnc-script*`, `qnc-transcript*`...); `--check-contracts` prolazi.
+Iz Ingesta uklonjeni obrazac, `story_sheet_*` radnje i ovisnosti `qnc-story-start`,
+`qnc-newsroom-sheet(-model)`. Testovi `qnc-ingest-application` (31), `qnc-ai-open`, `qnc-story-start`.
+Uzivo nije provjereno.

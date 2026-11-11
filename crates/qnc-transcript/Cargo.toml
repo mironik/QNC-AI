@@ -1,0 +1,17 @@
+[package]
+name = "qnc-transcript"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: the transcripts of a project's clips - ticked clips (or the shown clip's IN/OUT) queued in the project database with Fast or Quality and run in the background, the kept transcripts of the shown clip read from it, a click on a word takes the playhead there; it knows no form"
+
+[dependencies]
+qnc-ai-features = { workspace = true }
+qnc-clip-row = { workspace = true }
+qnc-clip-transcripts = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-source-preview = { workspace = true }
+qnc-source-timecode = { workspace = true }
+qnc-timeline-model = { workspace = true }
+qnc-transcribe-queue = { workspace = true }
+qnc-transcript-db = { workspace = true }
+qnc-ui-text = { workspace = true }

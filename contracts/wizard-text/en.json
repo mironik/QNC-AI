@@ -33,6 +33,7 @@
     "tray.quit": "Quit",
     "tray.settings": "Settings",
     "settings.title": "QNC AI: Settings",
+    "new_project.title": "QNC AI: New project",
     "tray.settings_failed": "Settings did not open: {error}",
     "tray.ok": "OK",
     "tray.card": "Card {card}: {camera}. Next: {step}.",

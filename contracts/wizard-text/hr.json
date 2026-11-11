@@ -33,6 +33,7 @@
     "tray.quit": "Izlaz",
     "tray.settings": "Postavke",
     "settings.title": "QNC AI: Postavke",
+    "new_project.title": "QNC AI: Novi projekt",
     "tray.settings_failed": "Postavke se nisu otvorile: {error}",
     "tray.ok": "U redu",
     "tray.card": "Kartica {card}: {camera}. Sljedeće: {step}.",

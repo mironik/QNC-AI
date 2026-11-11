@@ -1,0 +1,20 @@
+[package]
+name = "qnc-side-pieces"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public module: the pieces of the right panel of an editorial board (transcript, Video AI shots, script), made only for the panels the form's layout has; their polls, actions and views"
+
+[dependencies]
+qnc-clip-row = { workspace = true }
+qnc-ai-broll = { workspace = true }
+qnc-ai-features = { workspace = true }
+qnc-clip-shots = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-notice.workspace = true
+qnc-script = { workspace = true }
+qnc-skeleton-versions = { workspace = true }
+qnc-source-preview = { workspace = true }
+qnc-source-timecode = { workspace = true }
+qnc-timeline-model = { workspace = true }
+qnc-transcript = { workspace = true }

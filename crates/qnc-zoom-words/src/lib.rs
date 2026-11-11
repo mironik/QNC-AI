@@ -1,0 +1,352 @@
+//! The words around the cut of the trim zoom (user 2026-10-26: "a second or two before and
+//! after the IN/OUT cut, so the start or end of a statement is easy to find"). For every piece
+//! of sound A1 plays in the zoom's window, the words its clip said there are taken from the
+//! transcripts kept in the project database; a part no transcript covers is transcribed once,
+//! five seconds on each side of it, off the form thread, kept in the database and read again
+//! from there. The database is the truth; what is held here is only what was read.
+
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+};
+
+use qnc_program_view::{ZoomSound, ZoomWord};
+use qnc_still_locator::StillLocator;
+use qnc_transcript_db::ClipTranscript;
+
+pub const MODULE_ID: &str = "qnc.module.zoom-words";
+/// Seconds transcribed on each side of the part the zoom shows.
+const AROUND_SECONDS: u64 = 5;
+
+type Read = Result<Vec<qnc_letter_db::WordLetters>, String>;
+
+/// A piece of the zoom's A1: clip frames `[first, last)` it plays in the window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Need {
+    clip_id: String,
+    /// The channel of its clip A1 plays (a voice record has one take per channel).
+    channel: u16,
+    first: u64,
+    last: u64,
+    /// The piece on the zoom's axis and in its clip: `(program_start, program_end, source_in, source_out)`.
+    piece: (u64, u64, u64, u64),
+}
+
+struct Job {
+    need: Need,
+    done: mpsc::Receiver<Result<(), String>>,
+    cancel: Arc<AtomicBool>,
+}
+
+#[derive(Default)]
+pub struct ZoomWords {
+    project_id: Option<String>,
+    /// The transcripts of the clips in the window, from the one reader of transcripts
+    /// (`qnc-clip-transcripts`: the database, read again every second).
+    transcripts: qnc_clip_transcripts::ClipTranscripts,
+    /// When a transcription of this zoom was kept: no part is transcribed again until the
+    /// transcripts were read after it.
+    kept_at: Option<std::time::Instant>,
+    /// The letters of the words of those clips, as read (user 2026-11-05: letters in the zoom).
+    letters: HashMap<String, Vec<qnc_letter_db::WordLetters>>,
+    /// Lays the letters of the words the zoom shows without them.
+    letter_times: qnc_letter_times::LetterTimes,
+    reading: Option<(String, mpsc::Receiver<Read>)>,
+    job: Option<Job>,
+    /// Clips whose transcription failed: not asked again in this run (each arrow step moves
+    /// the window, so a failed clip would be asked at every step).
+    failed: HashSet<String>,
+    /// The voice records of the project (user 2026-11-08: no text in the zoom over an OFF): their
+    /// words are the ones heard in each take, not a transcript of the clip's speech channel.
+    voices: Vec<qnc_script_db::Voice>,
+    voices_at: Option<std::time::Instant>,
+    reading_voices: Option<mpsc::Receiver<Vec<qnc_script_db::Voice>>>,
+}
+
+/// How often the voice records are read again.
+const VOICES_EVERY: std::time::Duration = std::time::Duration::from_secs(3);
+
+impl ZoomWords {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Whether a read or a transcription runs (the form repaints soon).
+    pub fn loading(&self) -> bool {
+        self.reading.is_some() || self.job.is_some() || self.transcripts.busy()
+    }
+
+    /// Puts the words A1 says in the window of `sound` on it.
+    /// `fine`: A1's peaks are its whole read sound (not silence still being read), so the
+    /// words' edges are moved to it (user 2026-10-26) and voice no word covers is marked.
+    pub fn fill(&mut self, locator: &StillLocator, sound: &mut ZoomSound, fine: bool) {
+        if self.project_id.as_deref() != Some(locator.project_id()) {
+            self.stop();
+            *self = Self { project_id: Some(locator.project_id().to_string()), ..Self::default() };
+        }
+        self.take_finished();
+        self.follow_voices(locator);
+        // A voice clip's words are its takes' (`voice_words`); nothing to transcribe or lay.
+        let fps = locator.settings().video_picture().map_or(0.0, |(_, _, fps)| fps);
+        let (voice, needs): (Vec<Need>, Vec<Need>) = needs(sound).into_iter().partition(|need| need.clip_id.starts_with("voice-"));
+        let target = locator.clone();
+        self.transcripts.poll_from(locator.project_id(), move || qnc_db_broker::ProjectDbTarget::for_project(target.reader(), target.settings()).map_err(|error| error), needs.iter().map(|need| need.clip_id.clone()));
+        let settled = self.kept_at.is_none_or(|at| self.transcripts.read_since(at));
+        for need in &needs {
+            if !self.letters.contains_key(&need.clip_id) {
+                self.read(locator, &need.clip_id);
+            }
+            if let Some(kept) = self.transcripts.of(&need.clip_id) {
+                if settled && !covered(kept, need) {
+                    self.transcribe(locator, need);
+                }
+            }
+        }
+        sound.words = needs.iter().flat_map(|need| self.words_of(sound, need)).chain(voice.iter().flat_map(|need| self.voice_words(sound, need, fps))).collect();
+        sound.words.sort_by_key(|word| word.from);
+        sound.words.dedup_by(|a, b| a.from == b.from && a.text == b.text);
+        sound.unheard.clear();
+        if fine && !sound.words.is_empty() {
+            let spans: Vec<qnc_word_align::Span> = sound.words.iter().map(|w| qnc_word_align::Span { from: w.from, to: w.to }).collect();
+            let aligned = qnc_word_align::align(sound.from, sound.to, &sound.peaks[0], &spans);
+            // A word with its letters laid keeps their times: they are finer than the peaks.
+            for (word, span) in sound.words.iter_mut().zip(aligned.words).filter(|(word, _)| word.letters.is_empty()) {
+                (word.from, word.to) = (span.from, span.to);
+            }
+            sound.unheard = aligned.unheard.into_iter().map(|span| (span.from, span.to)).collect();
+        }
+        // The words in the window without letters get them in the background (user
+        // 2026-11-05: letters in the zoom too); read again once kept.
+        let missing: Vec<qnc_letter_times::Need> = needs.iter().filter_map(|need| self.missing_letters(need)).collect();
+        if self.letter_times.poll(locator, &missing, true) {
+            for need in &needs {
+                self.letters.remove(&need.clip_id);
+            }
+        }
+    }
+
+    /// The voice records, read off the form thread and again in rhythm (the database is the truth).
+    fn follow_voices(&mut self, locator: &StillLocator) {
+        if let Some(read) = &self.reading_voices {
+            match read.try_recv() {
+                Ok(voices) => {
+                    self.voices = voices;
+                    self.reading_voices = None;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.reading_voices = None,
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        if self.reading_voices.is_some() || self.voices_at.is_some_and(|at| at.elapsed() < VOICES_EVERY) {
+            return;
+        }
+        self.voices_at = Some(std::time::Instant::now());
+        let (send, done) = mpsc::channel();
+        let locator = locator.clone();
+        let spawned = std::thread::Builder::new().name("qnc-zoom-voices".into()).spawn(move || {
+            let read = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings()).and_then(|target| qnc_script_db::read_voices(&target));
+            match read {
+                Ok(voices) => _ = send.send(voices),
+                Err(error) => log(&format!("zoom-words voices: {error}")),
+            }
+        });
+        if spawned.is_ok() {
+            self.reading_voices = Some(done);
+        }
+    }
+
+    /// The words heard in the take `need` plays, on the zoom's axis.
+    fn voice_words(&self, sound: &ZoomSound, need: &Need, fps: f64) -> Vec<ZoomWord> {
+        // Every reading is its own clip (user 2026-11-09).
+        let heard = self.voices.iter().flat_map(|voice| voice.takes.iter().map(move |take| (voice, take))).find(|(voice, take)| qnc_voice_take::clip_id(&qnc_script_db::take_name(&voice.name, take.take)) == need.clip_id).and_then(|(_, take)| take.heard.as_ref());
+        let (program_start, program_end, source_in, source_out) = need.piece;
+        let axis = |frame: u64| to_axis(program_start, program_end, source_in, source_out, frame).clamp(sound.from, sound.to);
+        heard
+            .into_iter()
+            .flatten()
+            .map(|word| ((word.start * fps).round().max(0.0) as u64, ((word.end * fps).round().max(0.0) as u64), word.text.clone()))
+            .filter(|(from, to, _)| *from < need.last && need.first < (*to).max(from + 1))
+            .map(|(from, to, text)| ZoomWord { from: axis(from), to: axis(to.max(from + 1)), text, letters: Vec::new() })
+            .collect()
+    }
+
+    /// The words of `need`'s part without letters, in its clip's frames.
+    fn missing_letters(&self, need: &Need) -> Option<qnc_letter_times::Need> {
+        let kept = self.transcripts.of(&need.clip_id)?;
+        let letters = self.letters.get(&need.clip_id).map_or(&[][..], Vec::as_slice);
+        let words: Vec<qnc_letter_times::Word> = kept
+            .iter()
+            .flat_map(|t| t.lines.iter().flat_map(|line| line.words.iter()))
+            .filter(|word| word.from < need.last && need.first < word.to.max(word.from + 1) && !word.text.trim().is_empty())
+            .filter(|word| qnc_letter_db::letters_of(letters, word.from, &word.text).is_none())
+            .map(|word| qnc_letter_times::Word { from: word.from, to: word.to.max(word.from + 1), text: word.text.trim().to_string() })
+            .collect();
+        (!words.is_empty()).then(|| qnc_letter_times::Need::few(need.clip_id.clone(), words))
+    }
+
+    /// Stops a running transcription (the zoom closed or another project).
+    pub fn stop(&mut self) {
+        if let Some(job) = self.job.take() {
+            job.cancel.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn take_finished(&mut self) {
+        if let Some((clip, done)) = &self.reading {
+            match done.try_recv() {
+                Ok(read) => {
+                    if let Err(error) = &read {
+                        log(&format!("zoom-words read {clip}: {error}"));
+                    }
+                    self.letters.insert(clip.clone(), read.unwrap_or_default());
+                    self.reading = None;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.reading = None,
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        if let Some(job) = &self.job {
+            match job.done.try_recv() {
+                Ok(result) => {
+                    if let Err(error) = &result {
+                        log(&format!("zoom-words transcribe {} {}..{}: {error}", job.need.clip_id, job.need.first, job.need.last));
+                        self.failed.insert(job.need.clip_id.clone());
+                    }
+                    // What was kept is read again from the database.
+                    self.transcripts.read_now();
+                    self.kept_at = Some(std::time::Instant::now());
+                    self.job = None;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.job = None,
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
+        }
+    }
+
+    fn read(&mut self, locator: &StillLocator, clip_id: &str) {
+        if self.reading.is_some() {
+            return;
+        }
+        let (send, done) = mpsc::channel();
+        let (locator, clip) = (locator.clone(), clip_id.to_string());
+        let spawned = std::thread::Builder::new().name("qnc-zoom-words-read".into()).spawn(move || {
+            let read = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings())
+                .map_err(|error| error)
+                .map(|target| qnc_letter_db::read_clip(&target, &clip).unwrap_or_default());
+            let _ = send.send(read);
+        });
+        if spawned.is_ok() {
+            self.reading = Some((clip_id.to_string(), done));
+        }
+    }
+
+    fn transcribe(&mut self, locator: &StillLocator, need: &Need) {
+        if self.job.is_some() || self.failed.contains(&need.clip_id) || !locator.settings().ai_feature(qnc_ai_features::TRANSCRIPTION).unwrap_or(false) {
+            return;
+        }
+        let (send, done) = mpsc::channel();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let (locator, wanted, stop) = (locator.clone(), need.clone(), cancel.clone());
+        let spawned = std::thread::Builder::new().name("qnc-zoom-words".into()).spawn(move || {
+            let made = locator.locate_sound(&wanted.clip_id).and_then(|place| {
+                let around = AROUND_SECONDS * u64::from(place.fps.0) / u64::from(place.fps.1.max(1));
+                let ask = qnc_transcribe_run::Ask { clip_id: wanted.clip_id.clone(), from: wanted.first.saturating_sub(around), to: wanted.last + around };
+                let transcript = qnc_transcribe_run::transcribe(&locator, &ask, qnc_transcribe_run::Quality::Fast, qnc_transcribe_run::Pace::Now, &stop, &mut |_| {}, &mut |_| {})?;
+                let target = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings()).map_err(|error| error)?;
+                qnc_transcript_db::save(&target, transcript)
+            });
+            let _ = send.send(made);
+        });
+        if spawned.is_ok() {
+            self.job = Some(Job { need: need.clone(), done, cancel });
+        }
+    }
+
+    /// The words of `need`'s clip in its part, on the zoom's axis.
+    fn words_of(&self, sound: &ZoomSound, need: &Need) -> Vec<ZoomWord> {
+        let Some(kept) = self.transcripts.of(&need.clip_id) else { return Vec::new() };
+        // The one transcript covering the part, else every one that touches it.
+        let covering: Vec<&ClipTranscript> = match kept.iter().find(|t| t.from_frame <= need.first && need.last <= t.to_frame) {
+            Some(one) => vec![one],
+            None => kept.iter().filter(|t| t.from_frame < need.last && need.first < t.to_frame).collect(),
+        };
+        let (program_start, program_end, source_in, source_out) = need.piece;
+        let axis = |frame: u64| to_axis(program_start, program_end, source_in, source_out, frame).clamp(sound.from, sound.to);
+        let kept_letters = self.letters.get(&need.clip_id).map_or(&[][..], Vec::as_slice);
+        covering
+            .into_iter()
+            .flat_map(|t| t.lines.iter().flat_map(|line| line.words.iter()))
+            .filter(|word| word.from < need.last && need.first < word.to.max(word.from + 1))
+            .map(|word| {
+                // The letters laid for the word (`qnc-letter-db`), on the zoom's axis; with them
+                // the word lasts from its first letter to the end of its last.
+                let letters: Vec<(char, Option<(u64, u64)>)> = qnc_letter_db::letters_of(kept_letters, word.from, &word.text)
+                    .map(|found| found.spans().into_iter().map(|(letter, span)| (letter, span.map(|(from, to)| (axis(from), axis(to).max(axis(from) + 1))))).collect())
+                    .unwrap_or_default();
+                let spans = letters.iter().filter_map(|(_, span)| *span);
+                let (from, to) = spans.fold(None, |edge: Option<(u64, u64)>, (from, to)| Some(edge.map_or((from, to), |(a, b)| (a.min(from), b.max(to)))))
+                    .unwrap_or((axis(word.from), axis(word.to.max(word.from + 1))));
+                ZoomWord { from, to, text: word.text.clone(), letters }
+            })
+            .collect()
+    }
+}
+
+/// The clip frames each piece of A1 plays in the zoom's window.
+fn needs(sound: &ZoomSound) -> Vec<Need> {
+    sound.lanes[0]
+        .iter()
+        .filter(|at| !at.off && at.program_start < sound.to && sound.from < at.program_end && at.source_out > at.source_in)
+        .map(|at| {
+            let source = |frame: u64| to_source(at.program_start, at.program_end, at.source_in, at.source_out, frame);
+            Need {
+                clip_id: at.clip_id.clone(),
+                channel: at.channel,
+                first: source(sound.from.max(at.program_start)),
+                last: source(sound.to.min(at.program_end)),
+                piece: (at.program_start, at.program_end, at.source_in, at.source_out),
+            }
+        })
+        .filter(|need| need.last > need.first)
+        .collect()
+}
+
+fn covered(kept: &[ClipTranscript], need: &Need) -> bool {
+    kept.iter().any(|t| t.from_frame <= need.first && need.last <= t.to_frame)
+}
+
+/// A program frame of a piece as its clip frame (the piece may play the clip at another rate).
+fn to_source(program_start: u64, program_end: u64, source_in: u64, source_out: u64, frame: u64) -> u64 {
+    let span = (program_end - program_start).max(1);
+    source_in + (frame.saturating_sub(program_start)) * (source_out - source_in) / span
+}
+
+fn to_axis(program_start: u64, program_end: u64, source_in: u64, source_out: u64, frame: u64) -> u64 {
+    let span = (source_out - source_in).max(1);
+    program_start + (frame.saturating_sub(source_in)) * (program_end - program_start) / span
+}
+
+fn log(line: &str) {
+    if qnc_dev_diagnostics::player_diagnostics_enabled() {
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_piece_maps_between_program_and_clip_frames_at_its_rate() {
+        // A 25p clip in a 50p story: two program frames per clip frame.
+        assert_eq!(to_source(1000, 1200, 300, 400, 1100), 350);
+        assert_eq!(to_axis(1000, 1200, 300, 400, 350), 1100);
+        let kept = vec![ClipTranscript { clip_id: "c".into(), from_frame: 200, to_frame: 500, language: "hr".into(), engine: "e".into(), lines: Vec::new() }];
+        let need = |first, last| Need { clip_id: "c".into(), channel: 0, first, last, piece: (0, 0, 0, 0) };
+        assert!(covered(&kept, &need(300, 400)));
+        assert!(!covered(&kept, &need(450, 550)));
+    }
+}

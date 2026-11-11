@@ -1,0 +1,121 @@
+
+/// A panel of an editorial surface that takes the keyboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Panel {
+    /// The tabs of the pool head (All, SubClip, B-roll, Segment).
+    PoolTabs,
+    Pool,
+    /// v5: choosing a clip puts the keyboard on its source timeline.
+    #[default]
+    SourceTimeline,
+    /// The action buttons in the head of the source dock.
+    SourceButtons,
+    Segments,
+}
+
+impl Panel {
+    /// The name of the panel in a layout contract and in the focus walk.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::PoolTabs => qnc_focus_walk::POOL_TABS,
+            Self::Pool => qnc_focus_walk::CARDS,
+            Self::SourceTimeline => qnc_focus_walk::SOURCE_TIMELINE,
+            Self::SourceButtons => qnc_focus_walk::SOURCE_BUTTONS,
+            Self::Segments => "segments",
+        }
+    }
+
+    /// The panel a layout contract names in its `tab_order`.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "pool_tabs" => Self::PoolTabs,
+            "pool" => Self::Pool,
+            "source_timeline" => Self::SourceTimeline,
+            "source_buttons" => Self::SourceButtons,
+            "segments" => Self::Segments,
+            _ => return None,
+        })
+    }
+}
+
+/// The Tab walk of one form (user 2026-10-13: it belongs to the form, from its layout
+/// contract): its panels in order, the action ids of its pool tabs and of its source
+/// dock buttons, left to right.
+#[derive(Debug, Clone)]
+pub struct FocusLayout {
+    pub order: Vec<Panel>,
+    pub tabs: Vec<String>,
+    pub buttons: Vec<String>,
+    /// The kinds of the right panels the form has (its panel and its tabs): only their pieces
+    /// are made.
+    pub right_panels: Vec<String>,
+}
+
+impl FocusLayout {
+    pub fn new((order, tabs, buttons, right_panels): (Vec<&str>, Vec<&str>, Vec<&str>, Vec<&str>)) -> Self {
+        let owned = |names: Vec<&str>| names.into_iter().map(str::to_string).collect();
+        Self { order: order.into_iter().filter_map(Panel::from_name).collect(), tabs: owned(tabs), buttons: owned(buttons), right_panels: owned(right_panels) }
+    }
+}
+
+impl Default for FocusLayout {
+    /// The walk without a layout: pool, source timeline, segments.
+    fn default() -> Self {
+        Self { order: vec![Panel::Pool, Panel::SourceTimeline, Panel::Segments], tabs: Vec::new(), buttons: Vec::new(), right_panels: Vec::new() }
+    }
+}
+
+/// A key on the media pool: the card focus moves, or Enter opens the focused card (the
+/// public card grid applies it).
+pub use qnc_key_list::GridStep as PoolStep;
+
+/// What a form draws of the focus: the panel, on the source dock buttons the action of
+/// the one the arrows are on, and the last key on the media pool with its number (the
+/// card grid applies each number once, however often the view is read).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct FocusView {
+    pub panel: Panel,
+    pub button: Option<String>,
+    pub pool_step: Option<(PoolStep, u64)>,
+    /// The transcript of the clip on the preview.
+    pub transcript: std::sync::Arc<qnc_transcript::TranscriptView>,
+    /// The shots of the clip on the preview (Video AI).
+    pub shots: std::sync::Arc<qnc_clip_shots::ShotsView>,
+    /// The script of the story (Media Assist Audio).
+    pub script: std::sync::Arc<qnc_script::ScriptView>,
+    /// The versions of the S-Story.
+    pub versions: std::sync::Arc<qnc_skeleton_versions::VersionsView>,
+    /// The AI B-roll of the project.
+    pub ai_broll: std::sync::Arc<qnc_ai_broll::AiBrollView>,
+    /// What the project's AI features allow: an action of a feature it has off is grey.
+    pub ai: std::sync::Arc<qnc_ai_features::Gate>,
+}
+
+impl FocusView {
+    /// Whether this view decides whether `action` can be done: an action of an AI feature the
+    /// project has off (docs/102 step 3), or a Transcribe button.
+    pub fn decides(&self, action: &str) -> bool {
+        !self.ai.allows(action) || matches!(action, "transcribe_marks" | "transcribe_fast" | "transcribe_best")
+    }
+
+    /// Whether `action` it decides can be done now; `clip_chosen`: a clip is on the preview.
+    pub fn enabled(&self, action: &str, clip_chosen: bool) -> bool {
+        self.ai.allows(action) && (action != "transcribe_marks" || clip_chosen || self.transcript.ticked > 0)
+    }
+
+    /// The cards of a pool tab the right panel's pieces fill (SubSegment, Voice, Stories) and
+    /// the action a click sends with the card's id.
+    pub fn tab_cards<'a>(&'a self, tab: qnc_pool_tabs::LibraryTab, clips: &'a [qnc_clip_row::ClipRow]) -> (Vec<qnc_clip_row::TabCard<'a>>, &'static str) {
+        match tab {
+            qnc_pool_tabs::LibraryTab::Stories => (self.versions.cards(), qnc_skeleton_versions::OPEN),
+            qnc_pool_tabs::LibraryTab::AiBroll => (self.ai_broll.cards(clips), qnc_ai_broll::OPEN),
+            tab => self.script.tab_cards(tab == qnc_pool_tabs::LibraryTab::Voice, clips),
+        }
+    }
+
+    /// The catalog scope that reads the keys first: the source timeline's own while it (or
+    /// its buttons) has the keyboard (piece `qnc-source-timeline`).
+    pub fn key_scope(&self) -> Option<&'static str> {
+        matches!(self.panel, Panel::SourceTimeline | Panel::SourceButtons).then_some(qnc_source_timeline::KEY_SCOPE)
+    }
+}

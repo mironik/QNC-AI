@@ -1,0 +1,39 @@
+[package]
+name = "qnc-panel-focus"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public component: the keyboard map acts on the editorial panel in focus (pool, source timeline, segments)"
+
+[dependencies]
+qnc-db-broker = { workspace = true }
+qnc-focus-walk = { workspace = true }
+qnc-clip-row = { workspace = true }
+qnc-action-event = { workspace = true }
+qnc-source-timeline = { workspace = true }
+qnc-source-panel = { workspace = true }
+qnc-edit-step = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-key-list = { workspace = true }
+qnc-segments-keys = { workspace = true }
+qnc-sync-session = { workspace = true }
+qnc-program-segments = { workspace = true }
+qnc-source-preview = { workspace = true }
+qnc-source-mark-focus = { workspace = true }
+qnc-timeline-model = { workspace = true }
+qnc-wrap-session = { workspace = true }
+qnc-transcript = { workspace = true }
+qnc-side-pieces = { workspace = true }
+qnc-ai-broll = { workspace = true }
+qnc-ai-features = { workspace = true }
+qnc-clip-shots = { workspace = true }
+qnc-script = { workspace = true }
+qnc-skeleton-versions = { workspace = true }
+qnc-pool-tabs = { workspace = true }
+qnc-edit-verbs = { workspace = true }
+qnc-snap = { workspace = true }
+qnc-keyframe-jump = { workspace = true }
+qnc-playhead-moves = { workspace = true }
+
+[dev-dependencies]
+qnc-mouse-map = { workspace = true }
+qnc-ingest-layout = { workspace = true }

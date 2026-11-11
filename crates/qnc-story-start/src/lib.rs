@@ -96,7 +96,8 @@ impl StoryStart {
                 self.sheet = Some(sheet.with_templates(templates, chosen));
                 None
             }
-            Job::Checked(Ok((None, _))) => Some(Next::Say("no Ingest base is active".into())),
+            // The active project is no Ingest base (a story's): there is no story to start.
+            Job::Checked(Ok((None, _))) => Some(Next::Import),
             Job::Checked(Err(error)) => Some(Next::Say(error)),
             Job::Created(Ok(_name)) => {
                 (self.sheet, self.base_id) = (None, None);

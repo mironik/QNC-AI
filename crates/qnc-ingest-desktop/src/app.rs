@@ -15,6 +15,7 @@ pub struct IngestApp {
     /// QNC-AI: Ingest goes to every card attached by itself, without waiting for the user.
     cards: qnc_card_autoselect::AutoSelect,
     attached: qnc_attached_cards::AttachedCards,
+    root: PathBuf,
 }
 
 fn log(line: String) {
@@ -41,7 +42,7 @@ impl IngestApp {
         let contracts = IngestContracts::load()?;
         let application = IngestApplication::with_store_root(&root)?.with_focus(contracts.focus_names());
         let attached = qnc_attached_cards::AttachedCards::start(&root);
-        Ok(Self { contracts, application, host: qnc_form_host::FormHost::new(), cards: qnc_card_autoselect::AutoSelect::new(Vec::new()), attached })
+        Ok(Self { contracts, application, host: qnc_form_host::FormHost::new(), cards: qnc_card_autoselect::AutoSelect::new(Vec::new()), attached, root })
     }
 
     /// QNC-AI: the cards attached now are gone to one after another, as the user would (Ingest's
@@ -68,9 +69,7 @@ impl IngestApp {
     }
 
     pub fn show_desktop(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, frame: &mut qnc_board::Frame<'_>) {
-        // While the new project's sheet is open its keys are the sheet's, none goes to Ingest.
-        let scopes: &[&str] = if self.application.story_sheet_mut().is_some() { &[] } else { &["ingest"] };
-        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes, play_action: action_ids::PLAY_PAUSE, theme: None };
+        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes: &["ingest"], play_action: action_ids::PLAY_PAUSE, theme: None };
         self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
         self.follow_cards(ctx);
         let theme = Theme::from_contract(&self.contracts.shell);
@@ -79,14 +78,20 @@ impl IngestApp {
         if let Some(intent) = qnc_ingest_blocks::render_desktop(ui, frame, &self.contracts, &theme, self.application.view()) {
             qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), intent);
         }
-        // QNC-AI: the new project's sheet Uvezi opens, over the form.
-        let answer = self.application.story_sheet_mut().and_then(|sheet| qnc_newsroom_sheet::show(ctx, sheet, &theme, &self.contracts.shortcuts));
-        if let Some(answer) = answer {
-            let action = match answer {
-                qnc_newsroom_sheet::Answer::Confirm => action_ids::STORY_SHEET_CONFIRM,
-                qnc_newsroom_sheet::Answer::Cancel => action_ids::STORY_SHEET_CANCEL,
-            };
-            qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), IngestIntent::empty(action));
+    }
+
+    /// QNC-AI (user 2026-11-12): once Uvezi has handed the selection to the worker (which goes on
+    /// without Ingest), the new project's window opens and Ingest closes.
+    fn hand_over(&mut self, ctx: &egui::Context, root: &std::path::Path) {
+        if !self.application.take_navigation_request() {
+            return;
+        }
+        match qnc_ai_open::open(root, "qnc-ai-new-project") {
+            Ok(program) => {
+                log(format!("ai-ingest handed over to {}", program.display()));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            Err(error) => log(format!("ai-ingest new project not opened: {error}")),
         }
     }
 
@@ -116,5 +121,7 @@ impl eframe::App for IngestApp {
         CentralPanel::default()
             .frame(Frame::NONE.fill(theme.bg))
             .show(ctx, |ui| self.show_desktop(ctx, ui, &mut qnc_board::Frame::bare()));
+        let root = self.root.clone();
+        self.hand_over(ctx, &root);
     }
 }

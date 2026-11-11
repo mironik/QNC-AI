@@ -1,0 +1,233 @@
+//! The SubSegment panel (user 2026-10-29): a statement put together from several ranges, open in
+//! place of the source timeline. Its parts lie one after another on the one public
+//! `qnc-timeline` as the Broadcast Player plays them (a pause is a gap of black and silence); a
+//! line marks every join. Under it, for every join, its pause in frames (one frame shorter or
+//! longer) and whether its sound is cut or crossed, "we will test which is better". Passive:
+//! it paints the script's view and gives catalog actions; it never plays, reads or writes.
+
+use eframe::egui;
+use qnc_action_event::ActionEvent;
+use qnc_segment_panel::{cover_fill, CoverLengthBand};
+use qnc_script::SubsegmentView;
+use qnc_timeline::{
+    AudioLane, TimelineCoverSpan, TimelineFocusPaint, TimelineInput, TimelineLayerFlags, TimelineMarkerPart, TimelineMarkerPin,
+    TimelineMetrics, TimelinePicture, TimelineProjection, TimelineTheme, TimelineVirtualSpan,
+};
+
+pub const MODULE_ID: &str = "qnc.module.subsegment-panel";
+
+/// The SubSegment as a body a dock draws under its header in place of its timeline; `None`
+/// when no SubSegment is open.
+pub fn body<'a>(subsegment: Option<&'a SubsegmentView>, theme: TimelineTheme, lengths: &'a [CoverLengthBand]) -> Option<impl FnMut(&mut egui::Ui) -> Option<ActionEvent> + 'a> {
+    subsegment.map(move |view| move |ui: &mut egui::Ui| show(ui, view, theme, lengths))
+}
+
+/// The dock body of whatever is open in place of the source timeline: `first` (the enlarged
+/// slot of a story), else the SubSegment.
+pub fn or_body<'a>(
+    first: Option<impl FnMut(&mut egui::Ui) -> Option<ActionEvent> + 'a>,
+    subsegment: Option<&'a SubsegmentView>,
+    theme: TimelineTheme,
+    lengths: &'a [CoverLengthBand],
+) -> Option<Box<dyn FnMut(&mut egui::Ui) -> Option<ActionEvent> + 'a>> {
+    match first {
+        Some(first) => Some(Box::new(first)),
+        None => body(subsegment, theme, lengths).map(|body| Box::new(body) as Box<dyn FnMut(&mut egui::Ui) -> Option<ActionEvent> + 'a>),
+    }
+}
+
+/// Paints the SubSegment into the available rectangle.
+pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, lengths: &[CoverLengthBand]) -> Option<ActionEvent> {
+    let rect = ui.available_rect_before_wrap();
+    ui.painter().rect_filled(rect, 0.0, theme.background);
+    // No title row above the timeline (user 2026-10-29: not needed); a clip of the pool brings
+    // the source timeline back.
+    let mut answer = None;
+    let total = view.total_frames.max(1);
+    // A part enlarged (a double click on it, 70/15/15): the same timeline over its window.
+    let (from, to) = view.enlarged.filter(|(from, to)| from < to).unwrap_or((0, total));
+    let duration = to - from;
+    let mut state = TimelineProjection::new(from, duration).with_cue_enabled(true);
+    if let Some(frame) = view.playhead {
+        state = state.with_playhead(frame.clamp(from, to));
+    }
+    let peaks_at = |frame: u64| ((frame as f64 / total as f64) * view.a1.len() as f64).round() as usize;
+    let a1_peaks = &view.a1[peaks_at(from).min(view.a1.len())..peaks_at(to).min(view.a1.len())];
+    let labels: Vec<String> = view.parts.iter().map(|part| format!("{} {}", part.clip_name, part.length)).collect();
+    let ids: Vec<String> = (0..view.parts.len()).map(|index| format!("part-{index}")).collect();
+    let spans: Vec<TimelineVirtualSpan<'_>> = view
+        .parts
+        .iter()
+        .zip(&labels)
+        .zip(&ids)
+        .map(|((part, label), id)| TimelineVirtualSpan { id, label, start_frame: part.start, end_frame: part.end, has_base_video: true, selected: false })
+        .collect();
+    // Every part laid out as a cover is (user 2026-11-03): a strip over its pictures in the
+    // colour of its length, with its length, always shown; the part being trimmed or heard is
+    // the chosen one.
+    let lengths_of: Vec<String> = view
+        .parts
+        .iter()
+        .map(|part| match view.rate {
+            Some((num, den)) => qnc_program_view::duration_label(part.end - part.start, num, den),
+            None => part.length.clone(),
+        })
+        .collect();
+    let covers: Vec<TimelineCoverSpan<'_>> = view
+        .parts
+        .iter()
+        .enumerate()
+        .zip(&ids)
+        .zip(&lengths_of)
+        .map(|(((index, part), id), length)| TimelineCoverSpan {
+            id,
+            start_frame: part.start,
+            end_frame: part.end,
+            selected: view.chosen == Some(index) || view.chosen_slots.contains(&index) || view.slide == Some(index) || view.trim.is_some_and(|(at, _, _)| at == index) || view.sound == Some(index),
+            pending: false,
+            fill: cover_fill(part.end - part.start, view.rate, lengths),
+            label: Some(length.as_str()),
+            a1_off: part.a1_off,
+        })
+        .collect();
+    // A line on every edge (the IN and OUT of every part): a right click near one takes it.
+    let edge_ids: Vec<String> = (0..view.parts.len()).flat_map(|index| [format!("edge-{index}-in"), format!("edge-{index}-out")]).collect();
+    let markers: Vec<TimelineMarkerPin<'_>> = view
+        .parts
+        .iter()
+        .enumerate()
+        .flat_map(|(index, part)| [(index, false, part.start), (index, true, part.end)])
+        .zip(&edge_ids)
+        // The taken edge is the one a drag drags (the mouse rule: only what is taken moves).
+        .map(|((index, out, frame), id)| {
+            let taken = view.trim.is_some_and(|(at, trim_out, _)| (at == index && trim_out == out) || (view.roll && !out && index == at + 1));
+            // The J and L of the join before a part (user 2026-11-03), on the IN of the part
+            // after it, drawn red on A1 as at a story's cut: where the sound before ends and where
+            // the sound after starts.
+            let part = &view.parts[index];
+            // A side either way of the cut: a negative one is a hole (level 0 between the sounds).
+            let split = !out && (part.a1_lead != 0 || part.a1_tail != 0);
+            let at = |shift: i64| (frame as i64 + shift).max(0) as u64;
+            let (a1_lead, a1_tail) = if split { (Some(at(-part.a1_lead)), Some(at(part.a1_tail))) } else { (None, None) };
+            let taken_part = match view.join_sound {
+                Some((at, side)) if at == index && !out => match side {
+                    qnc_script::JoinSide::Both => TimelineMarkerPart::Sound,
+                    qnc_script::JoinSide::Lead => TimelineMarkerPart::SoundLead,
+                    qnc_script::JoinSide::Tail => TimelineMarkerPart::SoundTail,
+                },
+                _ => TimelineMarkerPart::Whole,
+            };
+            let sound_taken = taken_part != TimelineMarkerPart::Whole;
+            TimelineMarkerPin { id, frame, taken: taken || sound_taken, locked: false, part: taken_part, origin: None, sound_tail: None, sound_lead: None, join: false, a1_tail, a1_lead, sound_lane: 0 }
+        })
+        .collect();
+    // The edge being trimmed, as the trim playhead of a cover's edge.
+    let trim_label = qnc_ui_text::text("subsegment.trimming");
+    let mut trim: Vec<(u64, &str)> = view.trim.map(|(_, _, frame)| (frame, trim_label)).into_iter().collect();
+    // A part taken whole (Ctrl+S): its two edges, as a taken slot's two markers.
+    if let Some(part) = view.slide.and_then(|index| view.parts.get(index)) {
+        trim.extend([(part.start, trim_label), (part.end.saturating_sub(1), trim_label)]);
+    }
+    // The parts' level curves in the A1 band, as on a Wrap row (user 2026-11-07).
+    let level_curves = qnc_trim_overlay::timeline_level_curves(&view.level_curves, from, to, 0);
+    // The parts' filmstrip on V1, as a Wrap row shows its segments (user 2026-10-29).
+    let pictures: Vec<TimelinePicture<'_>> = view
+        .pictures
+        .iter()
+        .filter_map(|picture| {
+            Some(TimelinePicture { start_frame: picture.program_start, end_frame: picture.program_end, frame: picture.strip.frames.get(picture.frame)?, strip: &picture.strip })
+        })
+        .collect();
+    let intent = ui
+        .push_id("qnc_subsegment_timeline", |ui| {
+            qnc_timeline::show(
+                ui,
+                TimelineInput {
+                    state: &state,
+                    layers: TimelineLayerFlags::a1_v_a2().with_overlays().with_audio_bands().with_covers_shown().with_compact_video(view.video_compact),
+                    metrics: TimelineMetrics::default(),
+                    theme,
+                    expanded_audio: AudioLane::None,
+                    focus: TimelineFocusPaint::Playhead,
+                    show_lane_labels: true,
+                    shot_in_frame: from,
+                    shot_out_frame: to,
+                    draft_in_frame: from,
+                    draft_out_frame: to,
+                    draft_in_active: false,
+                    draft_out_active: false,
+                    a1_peaks,
+                    a2_peaks: &[],
+                    a3_peaks: &[],
+                    a4_peaks: &[],
+                    virtual_spans: &spans,
+                    covers: &covers,
+                    marker_slots: &[],
+                    markers: &markers,
+                    base_video_blank: false,
+                    filmstrip_background: None,
+                    video_background: None,
+                    a1_channel: view.sound_choice,
+                    a2_channel: None,
+                    wave_over_video: None,
+                    trim_playheads: &trim,
+                    a1_splits: &[],
+                    level_curves: &level_curves,
+                    pictures: &pictures,
+                    holding: view.trim.is_some() || view.sound.is_some() || view.join_sound.is_some() || view.slide.is_some() || view.level_curves.iter().any(|curve| curve.taken),
+                },
+            )
+        })
+        .inner;
+    // A drag of the taken edge (user 2026-10-29): the edge follows the pointer as a draft;
+    // letting go keeps it, as Enter.
+    let dragging = egui::Id::new("qnc_subsegment_edge_drag");
+    // A whole cut taken: a drag of either of its edges drags the cut (the OUT before it).
+    let rolled = |id: String| match view.trim.filter(|_| view.roll) {
+        Some((at, _, _)) if id == format!("edge-{}-in", at + 1) => format!("edge-{at}-out"),
+        _ => id,
+    };
+    // The mouse map of a program's row (AGENTS 0.12, docs/97 step 2): the SubSegment's timeline
+    // sends what a Wrap row sends; the script, the owner of its axis, says what it does.
+    let axis = |frame: u64| frame;
+    let dragged = match &intent {
+        qnc_timeline::TimelineIntent::DragMarker { .. } | qnc_timeline::TimelineIntent::DragCutEdge { .. } => qnc_timeline::event(&intent, ROW_PANEL, &axis),
+        _ => None,
+    }
+    .map(|event| match event.target.clone() {
+        Some(id) if event.action_id == "timeline_drag_marker" => ActionEvent { target: Some(rolled(id)), ..event },
+        _ => event,
+    });
+    let was_dragging = ui.ctx().data(|d| d.get_temp::<bool>(dragging)).unwrap_or(false);
+    ui.ctx().data_mut(|d| d.insert_temp(dragging, dragged.is_some() || (was_dragging && ui.ctx().input(|i| i.pointer.primary_down()))));
+    // Letting go of a drag keeps it, as Enter.
+    let drag_event = match dragged {
+        Some(event) => Some(event),
+        None if was_dragging && !ui.ctx().input(|i| i.pointer.primary_down()) => Some(ActionEvent::key("activate_focused_item")),
+        None => None,
+    };
+    answer = answer.or(drag_event);
+    answer = answer.or_else(|| qnc_timeline::event(&intent, ROW_PANEL, &axis).filter(|event| takes(&event.action_id)));
+    // The trim zoom of a taken edge, as a cover's: its wheel moves the edge; a click on a word
+    // moves the taken edge to it (user 2026-11-04), on the SubSegment's axis.
+    // The strips under its pictures in the colour of their length, as the timeline's (the one
+    // coloured zoom of every timeline, on the SubSegment's frame rate).
+    let zoom = view.zoom.as_deref().map(|zoom| qnc_program_view::SegmentsView { timebase: zoom.timebase.or(view.rate), ..zoom.clone() });
+    let zoomed = zoom.as_ref().and_then(|zoom| qnc_segment_panel::trim_zoom(ui.ctx(), zoom, lengths, &theme)).map(|event| match event.action_id.as_str() {
+        "transcript_cut_word" => ActionEvent { action_id: qnc_script::ZOOM_WORD.to_string(), ..event },
+        // A picture or its strip: the timeline row's action, on the row's panel (the zoom is the
+        // timeline enlarged).
+        _ if takes(&event.action_id) || event.action_id == qnc_script::SUBSEGMENT_SELECT => event.at(ROW_PANEL),
+        _ => event,
+    });
+    answer.or(zoomed)
+}
+
+/// The mouse map's panel of a program's row: the SubSegment's timeline is one (AGENTS 0.12).
+const ROW_PANEL: &str = "segments";
+
+/// Whether the SubSegment's timeline takes an action of the mouse map (the one table of what has
+/// no meaning on a timeline, contracts/input/mouse.json).
+fn takes(action: &str) -> bool {
+    qnc_mouse_map::takes("subsegment", ROW_PANEL, action)
+}

@@ -77,8 +77,6 @@ pub struct IngestApplication {
     /// QNC-AI: the Ingest bases of the application in the browser, and the base of each entry.
     bases: qnc_ingest_base::BaseBrowse,
     base_ids: std::collections::BTreeMap<String, String>,
-    /// QNC-AI: Uvezi of a base without a story opens the new project's sheet first.
-    story: qnc_story_start::StoryStart,
     /// QNC-AI: the camera of each attached card, by volume serial (shown beside the disk's size).
     cameras: std::collections::BTreeMap<String, String>,
 }
