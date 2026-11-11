@@ -32,7 +32,7 @@ QNC-AI je samostalna aplikacija: AI wizard koji novinara vodi od kartice do expo
 
 - Commit po zavrsenom koraku (testovi prolaze, zapis ovdje i u `docs/razvoj/GGGG-MM-DD.md`),
   push na GitHub na kraju bloka rada. Force push samo uz izricitu dozvolu.
-- Izolirani korijen za probu: `cargo run -p qnc-wizard-application --example iso_root -- <QNC> <novi>`
+- Izolirani korijen za probu: `cargo run -p qnc-wizard-flow --example iso_root -- <QNC> <novi>`
   (kopija registra i baze aktivnog projekta), zatim `QNC_ROOT=<novi>`.
 
 ## 4. Kocke QNC-a preuzete u QNC-AI
@@ -67,3 +67,15 @@ privremenoj mapi prepoznata stvarnim katalogom, uzivo `subst X:` na laznu kartic
 D: (FX6) pokrenule su wizard sa svojim diskom. Otvoreno: druga kartica dok je wizard otvoren otvara
 drugi wizard (pitanje "dodaj u prilog / novi prilog" je W3); ikona je zadana ikona Windowsa;
 automatsko pokretanje s prijavom (W8, uz dozvolu).
+
+Izmjena 2026-11-11 (korisnik: "ne zelim formu vizarda, vizard moze biti sastavni dio traya tako da
+nije vidljiv cijelo vrijeme i da ne treba svoju formu"; "klik na tray moze pokazati tray izbornik"):
+wizard nema prozor. Uklonjeni program `qnc-wizard`, kocke `qnc-wizard-board` i
+`qnc-wizard-application` i ugovor `contracts/wizard.layout.json`. Nova kocka `qnc-wizard-flow` (na
+kojem je koraku prica: kartica bez projekta je korak 1, s projektom koraci iz baze projekta; bez
+crtanja). `qnc-ai-tray` je wizard: kartica pokrece pricu (obavijest s iducim korakom), izbornik ikone
+(klik bilo kojom tipkom) pokazuje gdje je prica (siv redak), "Nastavi: <korak>" (otvorit ce formu
+koraka; do W2 samo obavijest) i Izlaz; opis ikone isto. `qnc-tray`: `set_menu`, siva stavka, lijevi
+klik otvara izbornik. Provjereno: testovi; uzivo tray na izoliranoj kopiji prepoznaje `subst X:` i
+karticu D: bez otvaranja prozora (log). Opazeno: citac FX6 kartice postane citljiv oko 9 s nakon
+pokretanja traya, pa ga tray vidi kao tek ubacenu karticu.

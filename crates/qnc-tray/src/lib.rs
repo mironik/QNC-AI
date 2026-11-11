@@ -11,10 +11,8 @@ mod windows;
 /// What the user did with the icon.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayEvent {
-    /// A menu item, by the id its caller gave it.
+    /// A menu item, by the id its caller gave it (a click with either button shows the menu).
     Menu(u32),
-    /// A click on the icon itself.
-    Clicked,
 }
 
 /// One item of the icon's menu.
@@ -22,6 +20,8 @@ pub enum TrayEvent {
 pub struct MenuItem {
     pub id: u32,
     pub text: String,
+    /// A line that only tells (where the story is): grey, nothing happens on it.
+    pub enabled: bool,
 }
 
 /// The icon in the tray; it goes away when this is dropped.
@@ -57,6 +57,14 @@ impl Tray {
         self.inner.notify(title, text);
         #[cfg(not(windows))]
         let _ = (title, text);
+    }
+
+    /// A new menu.
+    pub fn set_menu(&self, menu: Vec<MenuItem>) {
+        #[cfg(windows)]
+        self.inner.set_menu(menu);
+        #[cfg(not(windows))]
+        let _ = menu;
     }
 
     /// A new tooltip.

@@ -13,7 +13,7 @@ use windows_sys::Win32::UI::Shell::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos,
     GetMessageW, LoadIconW, PostMessageW, PostQuitMessage, RegisterClassW, SetForegroundWindow, TrackPopupMenu, TranslateMessage,
-    HWND_MESSAGE, IDI_APPLICATION, MF_STRING, MSG, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CLOSE, WM_DESTROY,
+    HWND_MESSAGE, IDI_APPLICATION, MF_GRAYED, MF_STRING, MSG, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CLOSE, WM_DESTROY,
     WM_LBUTTONUP, WM_RBUTTONUP, WNDCLASSW,
 };
 
@@ -92,6 +92,14 @@ impl Tray {
         self.update();
     }
 
+    pub(crate) fn set_menu(&self, menu: Vec<MenuItem>) {
+        if let Ok(mut shared) = SHARED.lock() {
+            if let Some(shared) = shared.as_mut() {
+                shared.menu = menu;
+            }
+        }
+    }
+
     pub(crate) fn set_tip(&self, tip: &str) {
         if let Ok(mut shared) = SHARED.lock() {
             if let Some(shared) = shared.as_mut() {
@@ -161,8 +169,8 @@ unsafe extern "system" fn procedure(window: HWND, message: u32, wparam: WPARAM, 
     match message {
         WM_TRAY => {
             match lparam as u32 {
-                WM_LBUTTONUP => send(TrayEvent::Clicked),
-                WM_RBUTTONUP => {
+                // A click with either button shows the menu (user 2026-11-11: "klik na tray moze pokazati tray izbornik").
+                WM_LBUTTONUP | WM_RBUTTONUP => {
                     if let Some(id) = menu(window) {
                         send(TrayEvent::Menu(id));
                     }
@@ -211,7 +219,8 @@ unsafe fn menu(window: HWND) -> Option<u32> {
     let popup = CreatePopupMenu();
     for item in &items {
         let text = wide(&item.text);
-        AppendMenuW(popup, MF_STRING, item.id as usize, text.as_ptr());
+        let flags = if item.enabled { MF_STRING } else { MF_STRING | MF_GRAYED };
+        AppendMenuW(popup, flags, item.id as usize, text.as_ptr());
     }
     let mut at = POINT { x: 0, y: 0 };
     GetCursorPos(&mut at);

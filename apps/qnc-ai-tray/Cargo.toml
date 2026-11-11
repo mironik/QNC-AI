@@ -2,10 +2,11 @@
 name = "qnc-ai-tray"
 version.workspace = true
 edition.workspace = true
-description = "QNC AI tray program: waits in the system tray; a card of a known camera starts the wizard with that card (docs/01-wizard-plan.md, step 1-2)"
+description = "QNC AI wizard: no window of its own; it waits in the system tray, a card of a known camera starts a story, and it opens the form of each step (docs/01-wizard-plan.md)"
 
 [dependencies]
 qnc-card-watch = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-tray = { workspace = true }
+qnc-wizard-flow = { workspace = true }
 qnc-wizard-text = { workspace = true }

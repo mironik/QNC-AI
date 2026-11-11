@@ -5,7 +5,11 @@ Datum: 2026-11-11. Odluke korisnika:
 - Wizard radi i na laptopu: ne trazi nista vise od QNC-a.
 - **Wizard vodi korisnika, korisnik ne bira sto ce raditi** (2026-11-11: "ne bi radio ovakvu vrstu izbornika").
   Put pocinje dogadajem: ubacena kartica. Svaki sljedeci korak otvara se sam kad je prethodni gotov;
-  korisnik potvrduje ili ide korak natrag. Koraci su samo traka napretka, ne izbornik.
+  korisnik potvrduje ili ide korak natrag.
+- **Wizard nema svoju formu** (2026-11-11: "ne zelim formu vizarda, vizard moze biti sastavni dio
+  traya"): wizard je program u trayu koji se ne vidi; otvara formu koraka (Ingest za karticu,
+  obrazac priloga, AI Media Assist, MA Script, Story) i javlja se obavijestima. Gdje je prica vidi se
+  u izborniku ikone (klik na ikonu, bilo kojom tipkom) i u njezinu opisu.
 - Pokrivalice idu po ponudi, korisnik bira; postavljaju se markerima ili Sync/B-rollom.
   Automatsko pokrivanje mozda kasnije, nije prioritet.
 - AI server nije obavezan; moze biti samostalni lokalni server na laptopu bez QNC-a.
@@ -44,18 +48,20 @@ Kartica ubacena dok je prilog otvoren: wizard pita "dodaj u ovaj prilog" ili "no
 - Tray: neutralna kocka `qnc-tray` (ikona, izbornik, obavijest) s adapterom po OS-u; prvi je Windows.
 - Prepoznavanje kartice: kocka `qnc-card-watch` (novi disk, katalog kamera), bez stanja izvan memorije
   procesa i bez pisanja.
-- Wizard je jedan program `qnc-wizard`; tray ga pokrece s karticom (`--card <mapa>`).
+- Tijek price: kocka `qnc-wizard-flow` (na kojem je koraku, bez crtanja); pita je tray program.
+  Forme koraka su forme QNC-a ili njihove izmjene ovdje; tray ih otvara, wizard ih ne crta.
 - Projekt koji wizard napravi je obican QNC projekt.
 
 ## 3. Plan izvedbe
 
 **W0** (gotovo): kostur, kocke wizarda, stanje u bazi projekta. Izbornik koraka izbacen u W1.
 
-**W1. Tray i kartica**: `qnc-tray` (Windows), `qnc-card-watch`, program `qnc-ai-tray` (jedan
-primjerak, prepoznavanje kartice, obavijest, pokretanje wizarda s karticom); wizard bez izbornika
-koraka (traka napretka), prvi ekran pokazuje karticu.
+**W1. Tray i kartica** (gotovo): `qnc-tray` (Windows), `qnc-card-watch`, `qnc-wizard-flow`, program
+`qnc-ai-tray` (jedan primjerak, prepoznavanje kartice, obavijest, priča u izborniku ikone). Prozor
+wizarda iz W0 izbacen.
 
-**W2. Pregled kartice i izbor kadrova**: modificirana Ingest forma nad karticom bez projekta.
+**W2. Pregled kartice i izbor kadrova**: modificirana Ingest forma nad karticom bez projekta; tray je
+otvara kad kartica stigne i na "Nastavi".
 
 **W3. Projekt i uvoz**: obrazac priloga preko forme, Kreiraj pokrece Select izabranih i Uvezi.
 
@@ -69,6 +75,8 @@ korisnika), instalacija na cisto racunalo, cijeli put na stvarnoj kartici.
 ## 4. Rizici
 
 - Prepoznavanje novog diska ide provjerom svake dvije sekunde, ne obavijescu sustava; kasnjenje do 2 s.
-- Kartica koja se budi sporo: katalog je pregledava tek kad je disk citljiv.
+- Kartica koja se budi sporo: katalog je pregledava tek kad je disk citljiv. Opazeno 2026-11-11:
+  citac FX6 kartice (D:) postane citljiv oko 9 s nakon pokretanja traya, pa ga tray vidi kao tek
+  ubacenu karticu.
 - Preuzete kocke se odvajaju od QNC-a: popravke treba svjesno prenositi.
 - Licenca wav2vec2: odluka korisnika.

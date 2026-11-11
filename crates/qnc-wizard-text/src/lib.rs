@@ -99,6 +99,6 @@ mod tests {
 
     #[test]
     fn a_code_is_filled() {
-        assert_eq!(fill("wizard.step_of", &[("n", "2"), ("all", "10")]), "Step 2 of 10");
+        assert_eq!(fill("tray.continue", &[("step", "Import")]), "Go on: Import");
     }
 }

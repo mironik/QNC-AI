@@ -2,12 +2,10 @@
 resolver = "2"
 members = [
     "apps/qnc-ai-tray",
-    "apps/qnc-wizard",
     "crates/qnc-card-watch",
     "crates/qnc-tray",
-    "crates/qnc-wizard-application",
-    "crates/qnc-wizard-board",
     "crates/qnc-wizard-db",
+    "crates/qnc-wizard-flow",
     "crates/qnc-wizard-steps",
     "crates/qnc-wizard-text",
 ]
@@ -29,16 +27,12 @@ qnc-source-volumes = { git = "https://github.com/mironik/QNC.git", tag = "v-2026
 qnc-db-broker = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-dev-diagnostics = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-ui-text = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-desktop-theme = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
-qnc-ui-kit = { git = "https://github.com/mironik/QNC.git", tag = "v-2026-11-11" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
 qnc-tray = { path = "crates/qnc-tray" }
-qnc-wizard-application = { path = "crates/qnc-wizard-application" }
-qnc-wizard-board = { path = "crates/qnc-wizard-board" }
 qnc-wizard-db = { path = "crates/qnc-wizard-db" }
+qnc-wizard-flow = { path = "crates/qnc-wizard-flow" }
 qnc-wizard-steps = { path = "crates/qnc-wizard-steps" }
 qnc-wizard-text = { path = "crates/qnc-wizard-text" }
-eframe = { version = "0.31", default-features = false, features = ["accesskit", "default_fonts", "wayland", "wgpu", "x11"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

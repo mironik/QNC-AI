@@ -1,8 +1,8 @@
 [package]
-name = "qnc-wizard-application"
+name = "qnc-wizard-flow"
 version.workspace = true
 edition.workspace = true
-description = "QNC-AI block: what the wizard shows and what its buttons do (the active project, the done steps, the shown step); no drawing"
+description = "QNC-AI block: where the story is on its way from the card to the export (the wizard has no window: the tray program asks this block and opens the form of the step)"
 
 [dependencies]
 qnc-active-project-read = { workspace = true }
