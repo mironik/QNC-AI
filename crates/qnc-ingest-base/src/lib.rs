@@ -199,14 +199,19 @@ pub fn set_folder(root: &Path, folder: &Path) -> Result<(), String> {
     std::fs::write(&file, json).map_err(|error| format!("{}: {error}", file.display()))
 }
 
-/// The Ingest base Ingest works in now: the active one when it is an Ingest base, otherwise a new
-/// one made in the bases' folder and made active. The projects' folder of Settings is left as it was.
+/// The Ingest base Ingest works in now: the active one when it is an Ingest base no story has taken
+/// yet, otherwise a new one made in the bases' folder and made active (user 2026-11-12: a base a
+/// story took is that story's; the next Ingest starts the next story). The projects' folder of
+/// Settings is left as it was.
 pub fn current(root: &Path) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root);
     keep_apart(&mut store, root)?;
     if let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) {
-        return Ok(base_of(active, &store));
+        let base = base_of(active, &store);
+        if base.project_name.is_none() {
+            return Ok(base);
+        }
     }
     let projects = PathBuf::from(store.projects_root_display());
     store.set_projects_root(&bases)?;
@@ -338,10 +343,15 @@ mod tests {
         assert_eq!((after.id.as_str(), after.project_name.as_deref()), (base.id.as_str(), Some("2026/11/11 Luka")), "the base stays Ingest's and knows its project");
         assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");
         assert!(!story.is_empty());
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let next = current(&root).unwrap();
+        assert_ne!(next.id, base.id, "a base a story took is not the next Ingest's");
+        assert_eq!(next.project_name, None);
         let store = ProjectStore::open(&root).unwrap();
         let (base_db, _) = store.project_db_binding(&base.id).unwrap();
         let (story_db, _) = store.project_db_binding(&story).unwrap();
         assert!(base_db.starts_with(folder(&root)), "the base in the bases' folder: {}", base_db.display());
+        assert_eq!(all(&root).unwrap().len(), 2, "the next base beside the one taken");
         assert!(story_db.starts_with(root.join("projects")), "the story's database in its project folder: {}", story_db.display());
         assert_eq!(PathBuf::from(store.projects_root_display()), root.join("projects"), "the projects' folder is left as it was");
         let elsewhere = root.join("other bases");
