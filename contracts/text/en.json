@@ -31,6 +31,7 @@
     "tray.waiting": "Waiting for a camera card",
     "tray.continue": "Go on: {step}",
     "tray.quit": "Quit",
+    "tray.ok": "OK",
     "tray.card": "Card {card}: {camera}. Next: {step}.",
     "tray.card_back": "Card {card} is back.",
     "tray.put_back": "Put card {card} back: it is in use.\n\nThe card was taken out without ejecting it, and the story still needs it. To take a card out, use \"Eject\" in the QNC AI menu.",

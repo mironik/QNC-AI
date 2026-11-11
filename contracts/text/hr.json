@@ -31,6 +31,7 @@
     "tray.waiting": "Čekam karticu kamere",
     "tray.continue": "Nastavi: {step}",
     "tray.quit": "Izlaz",
+    "tray.ok": "U redu",
     "tray.card": "Kartica {card}: {camera}. Sljedeće: {step}.",
     "tray.card_back": "Kartica {card} je vraćena.",
     "tray.put_back": "Vratite karticu {card}: koristi se.\n\nKartica je izvađena bez izbacivanja, a priča je još treba. Za izlazak kartice koristite \"Izbaci\" u izborniku QNC AI.",

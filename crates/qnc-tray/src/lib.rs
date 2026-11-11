@@ -6,6 +6,8 @@
 use std::sync::mpsc::Receiver;
 
 #[cfg(windows)]
+mod alert;
+#[cfg(windows)]
 mod windows;
 
 /// What the user did with the icon.
@@ -59,13 +61,13 @@ impl Tray {
         let _ = (title, text);
     }
 
-    /// An error the user must see now: a window of the system on top of everything, with OK. It
-    /// does not wait for the answer.
-    pub fn alert(&self, title: &str, text: &str) {
+    /// An error the user must see now: an overlay in the middle of the screen, above every window,
+    /// with a button (`ok` is its text) that closes it. It does not wait for the answer.
+    pub fn alert(&self, title: &str, text: &str, ok: &str) {
         #[cfg(windows)]
-        windows::alert(title, text);
+        windows::alert(title, text, ok);
         #[cfg(not(windows))]
-        let _ = (title, text);
+        let _ = (title, text, ok);
     }
 
     /// A new menu.

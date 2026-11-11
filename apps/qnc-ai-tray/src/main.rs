@@ -119,11 +119,11 @@ fn main() {
                 }
                 Err(qnc_card_eject::EjectError::InUse) => {
                     log(format!("eject refused disk={}: in use", card.disk.display()));
-                    tray.alert(&text("tray.title"), &fill("tray.eject_in_use", &[("card", &name)]));
+                    tray.alert(&text("tray.title"), &fill("tray.eject_in_use", &[("card", &name)]), &text("tray.ok"));
                 }
                 Err(error) => {
                     log(format!("eject failed disk={}: {error}", card.disk.display()));
-                    tray.alert(&text("tray.title"), &fill("tray.eject_failed", &[("card", &name), ("error", &error.to_string())]));
+                    tray.alert(&text("tray.title"), &fill("tray.eject_failed", &[("card", &name), ("error", &error.to_string())]), &text("tray.ok"));
                 }
             }
         }
@@ -176,7 +176,7 @@ fn main() {
                             log(format!("gone disk={disk} serial={}", volume.serial_number));
                             // A card of the story taken out without ejecting it: the story still uses it.
                             if let Some(card) = flow.card_out(&volume.serial_number) {
-                                tray.alert(&text("tray.title"), &fill("tray.put_back", &[("card", &card.name())]));
+                                tray.alert(&text("tray.title"), &fill("tray.put_back", &[("card", &card.name())]), &text("tray.ok"));
                             }
                         }
                     }
