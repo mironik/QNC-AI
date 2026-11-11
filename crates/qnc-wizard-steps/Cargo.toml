@@ -1,0 +1,10 @@
+[package]
+name = "qnc-wizard-steps"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the steps of the wizard (contracts/wizard-steps.json) and the one rule of going through them"
+
+[dependencies]
+qnc-wizard-text = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

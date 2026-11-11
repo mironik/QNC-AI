@@ -1,0 +1,15 @@
+[package]
+name = "qnc-wizard-application"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: what the wizard shows and what its buttons do (the active project, the done steps, the shown step); no drawing"
+
+[dependencies]
+qnc-active-project-read = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-wizard-db = { workspace = true }
+qnc-wizard-steps = { workspace = true }
+qnc-wizard-text = { workspace = true }
+
+[dev-dependencies]
+rusqlite = { workspace = true }

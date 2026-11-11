@@ -1,0 +1,17 @@
+[package]
+name = "qnc-wizard-db"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: which steps of the wizard are done, a table of the project database written only through QNC's intermediary"
+
+[dependencies]
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-wizard-steps = { workspace = true }
+qnc-wizard-text = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

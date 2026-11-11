@@ -1,0 +1,15 @@
+{
+  "note": "The steps of the QNC AI wizard in their order (docs/01-wizard-plan.md, section 2). A step is done only when its own condition says so; the wizard keeps which steps are done in the project database (qnc-wizard-db). The names and the conditions are codes of the wizard's dictionary.",
+  "steps": [
+    { "code": "new_story", "name": "@wizard.step.new_story", "done_when": "@wizard.done.new_story" },
+    { "code": "import", "name": "@wizard.step.import", "done_when": "@wizard.done.import" },
+    { "code": "statements", "name": "@wizard.step.statements", "done_when": "@wizard.done.statements" },
+    { "code": "writing", "name": "@wizard.step.writing", "done_when": "@wizard.done.writing" },
+    { "code": "recording", "name": "@wizard.step.recording", "done_when": "@wizard.done.recording" },
+    { "code": "off_cuts", "name": "@wizard.step.off_cuts", "done_when": "@wizard.done.off_cuts" },
+    { "code": "story", "name": "@wizard.step.story", "done_when": "@wizard.done.story" },
+    { "code": "b_roll", "name": "@wizard.step.b_roll", "done_when": "@wizard.done.b_roll" },
+    { "code": "review", "name": "@wizard.step.review", "done_when": "@wizard.done.review" },
+    { "code": "export", "name": "@wizard.step.export", "done_when": "@wizard.done.export" }
+  ]
+}

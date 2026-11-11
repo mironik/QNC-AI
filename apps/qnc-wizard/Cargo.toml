@@ -1,0 +1,13 @@
+[package]
+name = "qnc-wizard"
+version.workspace = true
+edition.workspace = true
+description = "QNC AI wizard: one program from the card to the export (docs/01-wizard-plan.md)"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-wizard-application = { workspace = true }
+qnc-wizard-board = { workspace = true }
+qnc-wizard-text = { workspace = true }

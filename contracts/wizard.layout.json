@@ -1,0 +1,29 @@
+{
+  "layout_id": "qnc-ai.ui.wizard",
+  "layout_version": "0.1.0",
+  "note": "The wizard's own layout (docs/01-wizard-plan.md). Colours and theme measures are QNC's shell ones (contracts/ui/shell.layout.json of QNC v-2026-11-11), so the wizard looks like QNC.",
+  "theme_metrics": {
+    "font_ui": 14.0,
+    "font_timecode": 13.0,
+    "chrome_row_height": 28.0,
+    "chrome_pad_x": 8,
+    "chrome_pad_y": 2,
+    "chrome_control_height": 24.0
+  },
+  "colors": {
+    "bg": [11, 15, 25],
+    "surface": [17, 24, 39],
+    "raised": [31, 41, 55],
+    "border": [55, 65, 81],
+    "text": [229, 231, 235],
+    "muted": [156, 163, 175],
+    "accent": [16, 185, 129],
+    "focus": [255, 180, 60]
+  },
+  "wizard": {
+    "steps_width": 260.0,
+    "footer_height": 52.0,
+    "step_row_height": 34.0,
+    "button_width": 140.0
+  }
+}
