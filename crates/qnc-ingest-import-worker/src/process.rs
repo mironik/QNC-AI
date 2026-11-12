@@ -188,11 +188,14 @@ pub fn run_import(root: &Path, run: &ImportRun<'_>) -> Result<ImportSummary, Str
     outcome.map(|()| summary)
 }
 
-/// How many clips are copied at once: as many as the test of the card (`qnc-read-pace`) reads
-/// fastest with, never more than the threads of this computer; one when the clip is linked or
-/// its medium cannot be tested (another computer's file, a small file).
+/// How many clips are made at once. A copy goes one clip at a time: the card is read in order at
+/// its own speed, several copies only share it (measured 2026-11-12: one 40 MB/s, two 39.4 MB/s in
+/// all) and the first clip, which the records, filmstrips, waves and AI wait for, is done later; the
+/// random-read test of the card picked 8 once. An optimized copy (an encode) takes as many as the
+/// test of the card (`qnc-read-pace`) reads fastest with, never more than the threads of this
+/// computer; one when its medium cannot be tested (another computer's file, a small file).
 fn copy_workers(opener: &ConfigMediaOpener, clip: &StoredClip, plan: &IngestWorkPlan, cancel: &AtomicBool) -> usize {
-    if !matches!(crate::action_for(clip, plan), Ok(crate::Action::Copy { .. } | crate::Action::Optimize { .. })) {
+    if !matches!(crate::action_for(clip, plan), Ok(crate::Action::Optimize { .. })) {
         return 1;
     }
     let Some(file) = crate::MediaOpener::local_path(opener, &clip.clip.snapshot.binding.original_uri) else {
