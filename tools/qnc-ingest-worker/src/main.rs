@@ -215,9 +215,13 @@ fn run_once(root: &Path) -> Result<bool, String> {
                 make_posters(root, &config, &lease, &stops);
                 // The AI looks at the posters right away (user 2026-11-10), before the waves,
                 // the filmstrips and the import.
-                trace("completion: shots of the posters".into());
-                make_shots(root, &config, &lease, &stops, true);
-                trace("completion: shots of the posters done".into());
+                // While the clips are copied the AI thread does it (live 2026-11-12: both looked
+                // at the same 30 posters at once, 27 s of work twice).
+                if !copying {
+                    trace("completion: shots of the posters".into());
+                    make_shots(root, &config, &lease, &stops, true);
+                    trace("completion: shots of the posters done".into());
+                }
             }
             // While the clips are copied, every clip copied is worked on at once, from its copy
             // (user 2026-11-12: "nema čekanja dok se kartica ingestira"): the artifacts keep
