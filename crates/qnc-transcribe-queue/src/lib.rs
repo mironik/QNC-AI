@@ -142,7 +142,8 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
         if earlier.is_some() {
             log(&format!("transcribe-queue {} goes on from {from} (kept by an earlier run)", next.clip_id));
         }
-        let stop = StopWhen { cancel, lost: lease.lost() };
+        let yielding = AtomicBool::new(false);
+        let stop = StopWhen { cancel, lost: lease.lost(), yielding: &yielding };
         let ask = Ask { clip_id: next.clip_id.clone(), from, to: next.to_frame };
         let quality = match next.quality {
             QueueQuality::Fast => Quality::Fast,
@@ -165,6 +166,15 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
                     // Every piece heard is kept at once: what is done so far, as a part.
                     if let Progress::Heard { until, .. } = progress {
                         keep_part(db, &next, until, &heard.borrow(), &language);
+                        // A shorter clip waiting goes first (live 2026-11-12: the 13.5 min clip held the
+                        // last clips of the card, and the AI shots behind them, for 146 s).
+                        let left = next.to_frame.saturating_sub(until);
+                        let shorter = qnc_transcript_db::read_queue(db).is_ok_and(|queue| {
+                            queue.iter().any(|q| q.clip_id != next.clip_id && q.state == QueueState::Waiting && q.to_frame.saturating_sub(q.from_frame) < left)
+                        });
+                        if shorter {
+                            yielding.store(true, Ordering::Relaxed);
+                        }
                     }
                     let _ = send.send(Heard::Progress { clip_id: next.clip_id.clone(), progress });
                 },
@@ -174,6 +184,12 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
             // Stopped, not failed: it waits for the next runner, which goes on from the part kept.
             let _ = qnc_transcript_db::set_queued(db, &next, QueueState::Waiting, "", 0);
             return;
+        }
+        if yielding.load(Ordering::Relaxed) {
+            // It gave way to a shorter clip: it waits and goes on later from the part kept.
+            log(&format!("transcribe-queue {} gives way to a shorter clip", next.clip_id));
+            let _ = qnc_transcript_db::set_queued(db, &next, QueueState::Waiting, "", 0);
+            continue;
         }
         // The whole request in one transcript: the part kept by an earlier run and this one.
         let made = made.map(|mut transcript| {
@@ -243,6 +259,8 @@ fn wake_worker(locator: &StillLocator) {
 struct StopWhen<'a> {
     cancel: &'a AtomicBool,
     lost: &'a AtomicBool,
+    /// A shorter clip waits: this one stops after the piece it has kept and goes on later.
+    yielding: &'a AtomicBool,
 }
 
 impl StopWhen<'_> {
@@ -252,7 +270,7 @@ impl StopWhen<'_> {
         std::thread::scope(|scope| {
             scope.spawn(|| {
                 while !done.load(Ordering::Relaxed) {
-                    if self.cancel.load(Ordering::Relaxed) || self.lost.load(Ordering::Relaxed) {
+                    if self.cancel.load(Ordering::Relaxed) || self.lost.load(Ordering::Relaxed) || self.yielding.load(Ordering::Relaxed) {
                         flag.store(true, Ordering::Relaxed);
                         return;
                     }
