@@ -5,6 +5,7 @@ edition.workspace = true
 description = "QNC AI wizard: no window of its own; it waits in the system tray, a card of a known camera starts a story, and it opens the form of each step (docs/01-wizard-plan.md)"
 
 [dependencies]
+qnc-ai-open = { workspace = true }
 qnc-card-eject = { workspace = true }
 qnc-card-watch = { workspace = true }
 qnc-camera-patterns = { workspace = true }

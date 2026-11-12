@@ -602,16 +602,44 @@ pub fn may_delete(root: &Path, id: &str) -> Result<(), Refusal> {
     if qnc_workstation_identity::is_administrator() {
         return Ok(());
     }
-    let me = qnc_workstation_identity::read_local_identity();
-    let mine = |(user, computer): &(String, String)| {
-        me.user_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(user))
-            && me.workstation_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(computer))
-    };
     match owner(root, id).map_err(Refusal::Unread)? {
-        Some(owner) if mine(&owner) => Ok(()),
+        Some(owner) if is_mine(&owner) => Ok(()),
         Some((user, computer)) => Err(Refusal::NotOwner { user, computer }),
         None => Err(Refusal::NoOwner),
     }
+}
+
+/// Whether the owner (user, computer) is the user of this program on this computer.
+fn is_mine((user, computer): &(String, String)) -> bool {
+    let me = qnc_workstation_identity::read_local_identity();
+    me.user_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(user))
+        && me.workstation_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(computer))
+}
+
+/// The stories (projects that are no base) the user of this computer made, by their ids (user
+/// 2026-11-12: a closed project the user goes on with is picked from the projects of the user).
+pub fn my_stories(root: &Path) -> Result<std::collections::BTreeSet<String>, String> {
+    let rows = ProjectStore::open(root)?.list_projects()?;
+    let mut mine = std::collections::BTreeSet::new();
+    for row in rows.into_iter().filter(|row| !row.name.starts_with(NAME_PREFIX)) {
+        if owner(root, &row.project_id)?.is_some_and(|owner| is_mine(&owner)) {
+            mine.insert(row.project_id);
+        }
+    }
+    Ok(mine)
+}
+
+/// The story `story_id` is worked on again: the newest base it took becomes the one Ingest and AI
+/// Media Assist work in (they work in the base, the story is its name); a story with no base is
+/// made active itself. Gives the story's name.
+pub fn open_story(root: &Path, story_id: &str) -> Result<String, String> {
+    let store = ProjectStore::open(root)?;
+    let story = store.list_projects()?.into_iter().find(|row| row.project_id == story_id).ok_or_else(|| format!("no project {story_id}"))?;
+    match all(root)?.into_iter().find(|base| base.project_name.as_deref() == Some(story.name.as_str())) {
+        Some(base) => open(root, &base.id).map(|_| ()),
+        None => store.open_project(story_id).map(|_| ()),
+    }?;
+    Ok(story.name)
 }
 
 /// Why this user may not delete a base.

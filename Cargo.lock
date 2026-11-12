@@ -3806,6 +3806,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-projects"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-open",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-base",
+ "qnc-project-desktop",
+ "qnc-tray",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-ai-server"
 version = "0.1.0"
 dependencies = [
@@ -3862,6 +3875,7 @@ dependencies = [
 name = "qnc-ai-tray"
 version = "0.1.0"
 dependencies = [
+ "qnc-ai-open",
  "qnc-camera-patterns",
  "qnc-card-eject",
  "qnc-card-watch",

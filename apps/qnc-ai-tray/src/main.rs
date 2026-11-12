@@ -20,6 +20,10 @@ const GO_ON: u32 = 2;
 const QUIT: u32 = 3;
 const SETTINGS: u32 = 4;
 const DELETE_BASE: u32 = 5;
+const PROJECTS: u32 = 6;
+const LAST_PROJECT: u32 = 7;
+/// How often the last project is read again for the menu.
+const LAST_AGAIN: Duration = Duration::from_secs(10);
 /// "Eject" of the n-th card of the story is `EJECT + n`.
 const EJECT: u32 = 100;
 /// How often the disks are looked at.
@@ -34,7 +38,7 @@ fn log(line: String) {
 }
 
 /// The menu for where the story is: the status line (it only tells), "Eject" for each card, Go on, Quit.
-fn menu(status: Option<&Status>) -> Vec<MenuItem> {
+fn menu(status: Option<&Status>, last: Option<&str>) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
     if let Some(status) = status {
@@ -45,6 +49,12 @@ fn menu(status: Option<&Status>) -> Vec<MenuItem> {
         }));
         items.push(MenuItem { id: GO_ON, text: fill("tray.continue", &[("step", &status.name)]), enabled: true });
     }
+    // The project worked on last, and the user's projects, to go on with one that was closed
+    // (user 2026-11-12).
+    if let Some(name) = last {
+        items.push(MenuItem { id: LAST_PROJECT, text: fill("tray.last_project", &[("name", name)]), enabled: true });
+    }
+    items.push(MenuItem { id: PROJECTS, text: text("tray.projects"), enabled: true });
     // Settings are rarely used and apart from the wizard (user 2026-11-11).
     items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
     // The Ingest base and its folder, after a question (user 2026-11-12).
@@ -64,7 +74,7 @@ fn main() {
         }
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None)) {
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -90,16 +100,30 @@ fn main() {
     let mut removing = false;
     // A card a base already has, with new clips: the question where they go (user 2026-11-12).
     let mut known: Option<(qnc_ingest_base::KnownCard, std::sync::mpsc::Receiver<qnc_tray::Answer>)> = None;
+    // A card already in a base, nothing new: "open your projects?" (user 2026-11-12).
+    let mut offer: Option<std::sync::mpsc::Receiver<bool>> = None;
+    // The project worked on last (id, name), read again now and then for the menu.
+    let mut last: Option<(String, String)> = None;
+    let mut last_read: Option<Instant> = None;
     loop {
         flow.poll();
         let status = flow.status();
+        if last_read.is_none_or(|at| at.elapsed() >= LAST_AGAIN) {
+            last_read = Some(Instant::now());
+            last = qnc_ingest_base::last_story(&root, "").unwrap_or_else(|error| {
+                log(format!("last project not read: {error}"));
+                None
+            });
+        }
         // Without a card and without a project there is no story yet: the tray waits.
         let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
         let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
-        if shown.as_ref() != Some(&line) {
-            tray.set_menu(menu(story));
+        let last_name = last.as_ref().map(|(_, name)| name.as_str());
+        let key = format!("{line}|{}", last_name.unwrap_or(""));
+        if shown.as_ref() != Some(&key) {
+            tray.set_menu(menu(story, last_name));
             tray.set_tip(&format!("{}: {line}", text("tray.title")));
-            shown = Some(line);
+            shown = Some(key);
         }
         while let Some(event) = tray.try_event() {
             match event {
@@ -108,6 +132,12 @@ fn main() {
                     return;
                 }
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
+                TrayEvent::Menu(PROJECTS) => open_projects(&tray, &root),
+                TrayEvent::Menu(LAST_PROJECT) => {
+                    if let Some((id, name)) = last.clone() {
+                        open_last(&tray, &root, &id, &name);
+                    }
+                }
                 // The active base, or, when none is active (a delete that failed closed it), the
                 // newest base (live 2026-11-12).
                 TrayEvent::Menu(DELETE_BASE) => match qnc_ingest_base::active(&root).and_then(|base| match base {
@@ -209,6 +239,14 @@ fn main() {
                 }
             }
         }
+        // Nothing new on the card: the user's projects, to go on with one of them.
+        if let Some(yes) = offer.as_ref().and_then(|answer| answer.try_recv().ok()) {
+            offer = None;
+            log(format!("card known, projects offered: {yes}"));
+            if yes {
+                open_projects(&tray, &root);
+            }
+        }
         // Where the new clips of a card a base has go: into that base, or into a new base that
         // takes only them; what the base has is never imported again.
         if let Some(answer) = known.as_ref().and_then(|(_, answer)| answer.try_recv().ok()) {
@@ -288,7 +326,9 @@ fn main() {
                                     Ok(Some(card_known)) if card_known.new.is_empty() => {
                                         log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
                                         let said = fill("tray.card_known", &[("card", &name), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
-                                        tray.info(&format!("known:{}", volume.serial_number), &text("tray.title"), &said, &text("tray.ok"), Duration::from_secs(8));
+                                        if offer.is_none() {
+                                            offer = Some(tray.confirm(&text("tray.title"), &said));
+                                        }
                                     }
                                     Ok(Some(card_known)) => {
                                         log(format!("card known disk={disk} base={} had={} new={}", card_known.base.label(), card_known.had, card_known.new.len()));
@@ -377,6 +417,30 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::pro
         Err(error) => {
             log(format!("ingest failed {}: {error}", program.display()));
             tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error.to_string())]), &text("tray.ok"));
+        }
+    }
+}
+
+/// The Projects form, beside this program (it keeps one copy itself): the user's projects.
+fn open_projects(tray: &Tray, root: &std::path::Path) {
+    match qnc_ai_open::open(root, "qnc-ai-projects") {
+        Ok(program) => log(format!("projects opened {}", program.display())),
+        Err(error) => {
+            log(format!("projects failed: {error}"));
+            tray.alert("projects", &text("tray.title"), &fill("tray.projects_failed", &[("error", &error)]), &text("tray.ok"));
+        }
+    }
+}
+
+/// The project worked on last goes on: its newest base is made the one Ingest works in and AI
+/// Media Assist opens, as after Uvezi.
+fn open_last(tray: &Tray, root: &std::path::Path, id: &str, name: &str) {
+    let opened = qnc_ingest_base::open_story(root, id).and_then(|_| qnc_ai_open::open(root, "qnc-media-assist-audio-ai"));
+    match opened {
+        Ok(program) => log(format!("last project {name} opened in {}", program.display())),
+        Err(error) => {
+            log(format!("last project {name} not opened: {error}"));
+            tray.alert("last-project", &text("tray.title"), &fill("tray.last_project_failed", &[("name", name), ("error", &error)]), &text("tray.ok"));
         }
     }
 }

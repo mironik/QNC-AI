@@ -1,0 +1,14 @@
+[package]
+name = "qnc-ai-projects"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI Projects: the project list of QNC's Project form on its own, only the stories the user made; a story opened goes on in its Ingest base and AI Media Assist opens"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-ai-open = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-ingest-base = { workspace = true }
+qnc-project-desktop = { workspace = true }
+qnc-tray = { workspace = true }
+qnc-wizard-text = { workspace = true }

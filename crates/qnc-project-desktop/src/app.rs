@@ -9,11 +9,27 @@ pub struct ProjectApp {
     session: ProjectSession,
     /// QNC-AI: only the settings (the Settings form the tray opens).
     settings_only: bool,
+    /// QNC-AI: only the project list (the Projects form); the project a row opens.
+    projects_only: bool,
+    opened: Option<String>,
 }
 
 impl ProjectApp {
     pub(crate) fn new(contracts: AppContracts, session: ProjectSession) -> Self {
-        Self { contracts, session, settings_only: false }
+        Self { contracts, session, settings_only: false, projects_only: false, opened: None }
+    }
+
+    /// QNC-AI: the project list on its own, only the projects `only`; a row opened is not opened
+    /// here but given by [`Self::take_opened`].
+    pub fn projects_only(mut self, only: std::collections::BTreeSet<String>) -> Self {
+        self.projects_only = true;
+        self.session.only = Some(only);
+        self
+    }
+
+    /// The id of the project a row of the Projects form opened.
+    pub fn take_opened(&mut self) -> Option<String> {
+        self.opened.take()
     }
 
     /// QNC-AI: the settings on their own, their advanced part open.
@@ -41,6 +57,22 @@ impl ProjectApp {
         // The registry works in the background: its replies are taken here.
         if self.session.component.applications.poll() | self.session.poll() || self.session.busy() {
             ctx.request_repaint_after(std::time::Duration::from_millis(20));
+        }
+        if self.projects_only {
+            for intent in qnc_project_blocks::show_projects(ctx, ui, &self.contracts, &mut self.session) {
+                let row = match intent {
+                    qnc_project_session::ProjectIntent::OpenProjectRow { index } => Some(index),
+                    qnc_project_session::ProjectIntent::OpenSelectedProject => self.session.selected_project,
+                    intent => {
+                        self.session.dispatch(intent);
+                        None
+                    }
+                };
+                if let Some(project) = row.and_then(|index| self.session.projects.get(index)) {
+                    self.opened = Some(project.project_id.clone());
+                }
+            }
+            return;
         }
         let intents = if self.settings_only {
             qnc_project_blocks::show_settings(ctx, ui, &self.contracts, &mut self.session)

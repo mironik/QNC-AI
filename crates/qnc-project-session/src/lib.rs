@@ -51,6 +51,8 @@ pub struct ProjectSession {
     story_kept: Option<StorySheet>,
     /// What the project list is searched by (name, date, story sheet values).
     pub project_search: String,
+    /// QNC-AI: only these projects are listed (the user's stories), when set.
+    pub only: Option<BTreeSet<String>>,
     pub status: String,
     ready_text: String,
     known_actions: BTreeSet<String>,
@@ -169,6 +171,7 @@ impl ProjectSession {
             story_project: None,
             story_kept: None,
             project_search: String::new(),
+            only: None,
             status: ready_text.clone(),
             ready_text,
             known_actions,
@@ -180,7 +183,10 @@ impl ProjectSession {
 
     /// The rows of the project list its search finds (all without a search).
     pub fn shown_projects(&self) -> Vec<usize> {
-        (0..self.projects.len()).filter(|&index| self.projects[index].matches(&self.project_search)).collect()
+        (0..self.projects.len())
+            .filter(|&index| self.only.as_ref().is_none_or(|only| only.contains(&self.projects[index].project_id)))
+            .filter(|&index| self.projects[index].matches(&self.project_search))
+            .collect()
     }
 
     pub fn footer_status(&self) -> &str {
