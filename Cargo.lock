@@ -3866,6 +3866,7 @@ dependencies = [
  "qnc-card-watch",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
+ "qnc-project-close",
  "qnc-tray",
  "qnc-wizard-flow",
  "qnc-wizard-text",

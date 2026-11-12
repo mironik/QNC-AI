@@ -86,6 +86,8 @@ fn main() {
     // A base being asked about, and the bases deleted (their label and the result).
     let mut deleting: Option<(qnc_ingest_base::IngestBase, std::sync::mpsc::Receiver<bool>)> = None;
     let deleted = std::sync::mpsc::channel::<(String, Result<(), String>)>();
+    // A base is being deleted: no card opens the ingest meanwhile.
+    let mut removing = false;
     loop {
         flow.poll();
         let status = flow.status();
@@ -139,11 +141,19 @@ fn main() {
                         let _ = child.kill();
                     }
                     ingest = None;
+                    removing = true;
                     let (root, base, send) = (root.clone(), base.clone(), deleted.0.clone());
                     std::thread::spawn(move || {
-                        // The worker stops within a second once its base is no longer active.
+                        // The base is closed as the active project first: its worker stops within
+                        // a second once its base is no longer active and lets the database go
+                        // (live 2026-11-12: "the process cannot access the file").
+                        if base.active {
+                            if let Err(error) = qnc_project_close::CloseProjectComponent::from_root(&root).close_active_project() {
+                                log(format!("base not closed {}: {error}", base.label()));
+                            }
+                        }
                         let mut result = Err(String::new());
-                        for _ in 0..15 {
+                        for _ in 0..20 {
                             result = qnc_ingest_base::forget(&root, &base.id);
                             if result.is_ok() {
                                 break;
@@ -157,6 +167,7 @@ fn main() {
             }
         }
         while let Ok((label, result)) = deleted.1.try_recv() {
+            removing = false;
             match result {
                 Ok(()) => {
                     log(format!("base deleted {label}"));
@@ -221,7 +232,10 @@ fn main() {
                             // The ingest of the card, started when it does not run: a card back
                             // is Selected again, so a clip whose import failed while it was out
                             // goes back to the queue (user 2026-11-12).
-                            open_ingest(&tray, &root, &mut ingest);
+                            // Not while a base is deleted: it would be made again at once.
+                            if !removing {
+                                open_ingest(&tray, &root, &mut ingest);
+                            }
                         }
                         Found::Unknown { volume } => {
                             let disk = volume.root.display().to_string();
