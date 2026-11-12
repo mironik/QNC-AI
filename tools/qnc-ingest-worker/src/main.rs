@@ -255,6 +255,22 @@ fn run_once(root: &Path) -> Result<bool, String> {
             }
         });
         let import = scope.spawn(|| import_while(root, &running, &closed, &run));
+        // The AI of each clip as soon as it is copied, from the copy, beside the copy and the
+        // artifacts (user 2026-11-12: "ne rade AI, šta čekaju"); what is left after the import
+        // is done once more at the end of the run.
+        if copying {
+            scope.spawn(|| {
+                while running.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
+                    make_shots(root, &config, &lease, &stops, false);
+                    for _ in 0..5 {
+                        if !running.load(std::sync::atomic::Ordering::Relaxed) {
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_secs(1));
+                    }
+                }
+            });
+        }
         // The records first: every clip can play (and editing start) before the card is read
         // for waves and filmstrips (user 2026-10-18: speed for editing comes first).
         // When the clips are copied the artifacts start at once: they take each clip once it is
@@ -478,16 +494,29 @@ fn make_shots(
     // look at the card's posters").
     only_posters: bool,
 ) {
-    let local_media = |uri: &str| {
-        let reference = qnc_source_reader::SourceReference::from_uri(uri).ok()?;
-        let source = config.sources.iter().find(|source| source.location.uri == reference.source_uri())?;
-        source.local_media_path(uri).ok().flatten()
-    };
     let result = (|| {
         let project = qnc_shot_analysis::ShotProject::active(root)?;
         let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|e| e.to_string())?;
         let snapshot = active.read().map_err(|e| e.to_string())?;
         let target = qnc_content_store::ContentTarget::for_project(active.settings_reader(), &snapshot.settings)?;
+        // When the template copies the clips the AI reads the copies, never the card (user
+        // 2026-11-12: "ostale radnje idu iz kopiranih kadrova"): a clip not copied yet waits.
+        let copying = snapshot.settings.ingest_copies();
+        let copies: std::collections::HashMap<String, PathBuf> = match active.settings_reader().local_workspace_dir(&snapshot.settings).map_err(|e| e.to_string())? {
+            Some(dir) if copying => qnc_record_completion::copies_of(&target, &dir)?.into_values().flatten().collect(),
+            _ => Default::default(),
+        };
+        let local_media = |uri: &str| {
+            if let Some(file) = copies.get(uri) {
+                return Some(file.clone());
+            }
+            if copying {
+                return None;
+            }
+            let reference = qnc_source_reader::SourceReference::from_uri(uri).ok()?;
+            let source = config.sources.iter().find(|source| source.location.uri == reference.source_uri())?;
+            source.local_media_path(uri).ok().flatten()
+        };
         let level = qnc_playback_activity::playback_level(target.clone());
         // It also waits while a transcription the user asked for runs: both read the same card
         // (live 2026-10-27: the transcription read crawled behind the shot analysis).
