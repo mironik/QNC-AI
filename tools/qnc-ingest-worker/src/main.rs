@@ -262,10 +262,11 @@ fn run_once(root: &Path) -> Result<bool, String> {
         // The AI of each clip as soon as it is copied, from the copy, beside the copy and the
         // artifacts (user 2026-11-12: "ne rade AI, šta čekaju"); what is left after the import
         // is done once more at the end of the run.
+        let mut looks = Vec::new();
         if copying {
             for look in [Look::Shots, Look::Captions] {
                 let (running, closed, config, lease, stops) = (&running, &closed, &config, &lease, &stops);
-                scope.spawn(move || {
+                looks.push(scope.spawn(move || {
                     while running.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
                         make_shots(root, config, lease, stops, look);
                         for _ in 0..5 {
@@ -275,7 +276,7 @@ fn run_once(root: &Path) -> Result<bool, String> {
                             std::thread::sleep(Duration::from_secs(1));
                         }
                     }
-                });
+                }));
             }
         }
         // The records first: every clip can play (and editing start) before the card is read
@@ -321,6 +322,11 @@ fn run_once(root: &Path) -> Result<bool, String> {
             artifacts.and_then(|()| run_artifacts(root, &lease, &closed, &std::sync::atomic::AtomicBool::new(false), &stops));
         running.store(false, std::sync::atomic::Ordering::Relaxed);
         let import = import.join().map_err(|_| qnc_ui_text::text("worker.import_crashed").to_string())?;
+        // The AI threads end their turn before the last one: two turns on the same clip at once
+        // share its temporary folder (live 2026-11-12: "Error opening input file ...000.h264").
+        for look in looks.drain(..) {
+            let _ = look.join();
+        }
         // Once more after the import: a clip imported before its record was final could not
         // get its poster at Uvezi (user 2026-10-18).
         if !closed.load(std::sync::atomic::Ordering::Relaxed) {
