@@ -428,3 +428,14 @@ koje stara baza ima, `not_taken`, i broji samo nove), Odustani ne radi nista. St
 baze neuvezeni (Select cita cijelu karticu). Test `a_card_a_base_has_is_known_and_a_base_of_its_new_clips_leaves_the_old`.
 Uzivo: kartica D: prepoznata u bazi 22:55:02 (30 klipova, nema novih), nova baza nije napravljena. Pitanje s novim
 klipovima nije provjereno uzivo.
+Izvedeno 2026-11-12 (korisnik: "trebala bi ponuditi otvaranje postojećih projekata u vlasništvu korisnika... iz stare
+QNC forme Projects preuzeti panel koji je prikazivao arhivu projekata (koji nisu obrisani)"; "u traju možemo dodati
+link na zadnji projekt"): nova forma `apps/qnc-ai-projects` (exe `qnc-ai-projects`, jedan primjerak): popis projekata
+iz kopirane Project forme (`qnc-project-blocks` `show_projects`, `qnc-project-desktop` `projects_only`, `take_opened`),
+samo price koje je napravio korisnik ovog racunala (`qnc-ingest-base` `my_stories`: vlasnik iz zapisa porijekla, bez
+Ingest baza; `qnc-project-session` `only`). Pretraga i X za brisanje kao u Projectu. Otvaranje (klik, Enter):
+`qnc-ingest-base` `open_story` vraca najnoviju Ingest bazu te price kao bazu u kojoj se radi (prica bez baze postaje
+aktivna sama), pa se otvara AI Media Assist kao nakon Uvezi, a forma se zatvara. Tray: stavke "Zadnji projekt: naziv"
+(`last_story`, cita se svakih 10 s; otvara isto) i "Projekti"; kartica vec uvezena bez novih klipova pita "Otvoriti vase
+projekte?" (Da otvara formu Projekti). Uzivo: forma se otvorila, nasla 1 projekt korisnika; otvaranje projekta i
+stavke traya nisu provjerene uzivo.
