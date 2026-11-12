@@ -269,7 +269,12 @@ pub fn current(root: &Path) -> Result<IngestBase, String> {
     }
     let projects = PathBuf::from(store.projects_root_display());
     store.set_projects_root(&bases)?;
-    let made = store.create_project(&format!("{NAME_PREFIX} {}", stamp()), "", None, &selection());
+    // A template may name its own projects' folder; a base is always in the bases' folder.
+    let mut settings = store.selected_template_settings()?.settings;
+    if let Some(storage) = settings.get_mut("storage").and_then(serde_json::Value::as_object_mut) {
+        storage.insert("projects_root".into(), serde_json::Value::String(bases.to_string_lossy().into_owned()));
+    }
+    let made = store.create_project(&format!("{NAME_PREFIX} {}", stamp()), "", Some(&settings), &selection());
     let back = store.set_projects_root(&projects);
     let made = made?;
     back?;

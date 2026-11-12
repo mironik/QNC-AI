@@ -50,14 +50,18 @@ impl eframe::App for Window {
                     ui.label(RichText::new(text("card_ingest.selecting")).color(theme.text));
                 });
             }
-            // One bar per function the worker does (user 2026-11-12).
+            // One bar per function the project's settings have on (user 2026-11-12).
             ui.add_space(10.0);
-            for (code, done) in [("card_ingest.posters", progress.posters), ("card_ingest.filmstrips", progress.filmstrips), ("card_ingest.waves", progress.waves)] {
+            for (code, done) in progress.bars() {
                 let total = progress.clips.max(1);
                 ui.horizontal(|ui| {
                     ui.add_sized([110.0, 20.0], egui::Label::new(RichText::new(text(code)).color(theme.text)));
                     ui.add(egui::ProgressBar::new(done.min(total) as f32 / total as f32).desired_width(260.0).text(format!("{done} / {}", progress.clips)));
                 });
+            }
+            if progress.failed > 0 {
+                ui.add_space(6.0);
+                ui.label(RichText::new(fill("card_ingest.failed", &[("failed", &progress.failed.to_string())])).color(theme.text));
             }
             ui.add_space(20.0);
             let button = egui::Button::new(RichText::new(text("card_ingest.start_qnc")).size(theme.font_ui + 2.0)).min_size(egui::vec2(200.0, 36.0));
@@ -88,7 +92,7 @@ fn main() -> eframe::Result<()> {
     let app = Window { root, contracts, ingest, last: None };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([520.0, 330.0]).with_resizable(false),
+        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 480.0]).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

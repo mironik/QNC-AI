@@ -165,9 +165,11 @@ fn main() {
                             } else {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
-                                // A card on the list: Ingest, started when it does not run (it reads the card itself).
-                                open_ingest(&tray, &root, &mut ingest);
                             }
+                            // The ingest of the card, started when it does not run: a card back
+                            // is Selected again, so a clip whose import failed while it was out
+                            // goes back to the queue (user 2026-11-12).
+                            open_ingest(&tray, &root, &mut ingest);
                         }
                         Found::Unknown { volume } => {
                             let disk = volume.root.display().to_string();

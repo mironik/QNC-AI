@@ -4155,12 +4155,18 @@ name = "qnc-card-ingest"
 version = "0.1.0"
 dependencies = [
  "qnc-active-project-read",
+ "qnc-ai-catalog",
  "qnc-artifact-db",
  "qnc-attached-cards",
  "qnc-card-autoselect",
  "qnc-content-read",
  "qnc-db-broker",
+ "qnc-dev-diagnostics",
  "qnc-ingest-application",
+ "qnc-shot-captions",
+ "qnc-shot-content-db",
+ "qnc-shot-db",
+ "qnc-work-settings",
 ]
 
 [[package]]

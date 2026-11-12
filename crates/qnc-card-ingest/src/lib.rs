@@ -31,20 +31,50 @@ pub enum Phase {
     Done,
 }
 
-/// How many clips of the base have each thing made (user 2026-11-12: "progres bar po funkciji").
+/// How many clips of the base have each thing made (user 2026-11-12: "progres bar po funkciji";
+/// "ako je u postavkama uključena i analize, i one se rade.. sve se treba prikazivati u infu").
+/// A function the project's settings leave off is `None` and has no bar.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Progress {
     pub clips: usize,
+    /// Imported by the project's settings (copied into the project, or linked).
+    pub imported: usize,
+    /// Whose import failed (a card taken out): they go again when the card is back.
+    pub failed: usize,
     pub posters: usize,
-    pub filmstrips: usize,
+    pub filmstrips: Option<usize>,
     /// Rough or full.
-    pub waves: usize,
+    pub waves: Option<usize>,
+    /// AI: the shots of the clip analysed.
+    pub shots: Option<usize>,
+    /// AI: what the shots show.
+    pub content: Option<usize>,
+    /// AI: a sentence about each shot.
+    pub captions: Option<usize>,
 }
 
 impl Progress {
-    /// Every clip has its poster, its filmstrip and a wave.
+    /// Every clip imported and every function the settings have on made for it.
     pub fn complete(&self) -> bool {
-        self.clips > 0 && self.posters >= self.clips && self.filmstrips >= self.clips && self.waves >= self.clips
+        self.clips > 0 && self.bars().iter().all(|(_, done)| *done >= self.clips)
+    }
+
+    /// One bar per function the project's settings have on: its text's code and how many clips
+    /// it has done.
+    pub fn bars(&self) -> Vec<(&'static str, usize)> {
+        let mut bars = vec![("card_ingest.imported", self.imported), ("card_ingest.posters", self.posters)];
+        for (code, done) in [
+            ("card_ingest.filmstrips", self.filmstrips),
+            ("card_ingest.waves", self.waves),
+            ("card_ingest.shots", self.shots),
+            ("card_ingest.content", self.content),
+            ("card_ingest.captions", self.captions),
+        ] {
+            if let Some(done) = done {
+                bars.push((code, done));
+            }
+        }
+        bars
     }
 }
 
@@ -78,11 +108,22 @@ impl CardIngest {
     pub fn start(root: &Path) -> Result<Self, String> {
         let (send, read) = channel();
         let at = root.to_path_buf();
-        std::thread::spawn(move || loop {
-            if send.send(progress(&at).unwrap_or_default()).is_err() {
-                return;
+        std::thread::spawn(move || {
+            let mut said = String::new();
+            loop {
+                let read = progress(&at).unwrap_or_else(|error| {
+                    // A base that cannot be read is said once in the log, not hidden as nothing done.
+                    if error != said {
+                        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-card-ingest progress not read: {error}"));
+                        said = error;
+                    }
+                    Progress::default()
+                });
+                if send.send(read).is_err() {
+                    return;
+                }
+                std::thread::sleep(READ);
             }
-            std::thread::sleep(READ);
         });
         Ok(Self {
             application: IngestApplication::with_store_root(root)?,
@@ -140,16 +181,48 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
     let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|error| error.to_string())?;
     let snapshot = active.read().map_err(|error| error.to_string())?;
     let content = qnc_content_read::ContentReader::for_project(active.settings_reader(), &snapshot.settings)?;
+    let settings = &snapshot.settings;
     let posters = content.clip_posters()?;
-    let mut artifacts = qnc_artifact_db::ArtifactReader::open(&qnc_db_broker::ProjectDbTarget::for_project(active.settings_reader(), &snapshot.settings)?)?;
-    let mut progress = Progress { clips: posters.len(), posters: posters.iter().filter(|(_, poster)| poster.is_some()).count(), ..Default::default() };
+    let target = qnc_db_broker::ProjectDbTarget::for_project(active.settings_reader(), settings)?;
+    let mut artifacts = qnc_artifact_db::ArtifactReader::open(&target)?;
+    let on = |kind| settings.artifact_mode(kind).map(|mode| mode != qnc_work_settings::ArtifactMode::Off).unwrap_or(true);
+    let feature = |code| settings.ai_feature(code).unwrap_or(false);
+    let mut progress = Progress {
+        clips: posters.len(),
+        posters: posters.iter().filter(|(_, poster)| poster.is_some()).count(),
+        filmstrips: on(qnc_work_settings::ArtifactKind::Filmstrip).then_some(0),
+        waves: on(qnc_work_settings::ArtifactKind::Wave).then_some(0),
+        ..Default::default()
+    };
+    for summary in content.summaries()? {
+        match summary.import_status.as_str() {
+            "imported" | "done" => progress.imported += 1,
+            "failed" => progress.failed += 1,
+            _ => {}
+        }
+    }
     for (clip, _) in &posters {
-        if artifacts.read_filmstrip(clip)?.is_some_and(|record| record.status == "ready") {
-            progress.filmstrips += 1;
+        if let Some(done) = progress.filmstrips.as_mut() {
+            *done += usize::from(artifacts.read_filmstrip(clip)?.is_some_and(|record| record.status == "ready"));
         }
-        if artifacts.read_wave(clip)?.is_some() {
-            progress.waves += 1;
+        if let Some(done) = progress.waves.as_mut() {
+            *done += usize::from(artifacts.read_wave(clip)?.is_some());
         }
+    }
+    // The analyses the project's AI has on, counted per clip (user 2026-11-12).
+    if feature("shot_analysis") {
+        progress.shots = Some(qnc_shot_db::read_analysed(&target).map_err(|error| error.to_string())?.len());
+    }
+    if feature("shot_content") {
+        let engine = qnc_ai_catalog::installed_shot_content()?;
+        let clips: std::collections::BTreeSet<_> = qnc_shot_content_db::read_all(&target, &engine.model_name()).map_err(|error| error.to_string())?.into_iter().map(|content| content.clip_id).collect();
+        progress.content = Some(clips.len());
+    }
+    if feature("shot_caption") {
+        let captioner = qnc_ai_catalog::installed_shot_captioner()?;
+        let keys = qnc_shot_captions::captioned(root, &captioner.model_name(), &snapshot.project_uri)?;
+        let clips: std::collections::BTreeSet<_> = keys.iter().filter_map(|key| key.split('|').nth(1)).collect();
+        progress.captions = Some(clips.len());
     }
     Ok(progress)
 }

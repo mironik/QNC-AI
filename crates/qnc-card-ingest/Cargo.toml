@@ -11,4 +11,10 @@ qnc-attached-cards = { workspace = true }
 qnc-card-autoselect = { workspace = true }
 qnc-content-read = { workspace = true }
 qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-work-settings = { workspace = true }
+qnc-shot-db = { workspace = true }
+qnc-shot-content-db = { workspace = true }
+qnc-shot-captions = { workspace = true }
+qnc-ai-catalog = { workspace = true }
 qnc-ingest-application = { workspace = true }
