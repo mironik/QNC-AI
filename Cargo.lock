@@ -3695,8 +3695,6 @@ version = "0.1.0"
 dependencies = [
  "qnc-content-read",
  "qnc-work-settings",
- "rusqlite",
- "tempfile",
 ]
 
 [[package]]
@@ -3766,7 +3764,6 @@ dependencies = [
  "qnc-ui-text",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -3806,7 +3803,6 @@ dependencies = [
  "qnc-plugin-process",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -3860,7 +3856,6 @@ dependencies = [
  "rcgen",
  "rustls",
  "sha2",
- "tempfile",
 ]
 
 [[package]]
@@ -3945,7 +3940,6 @@ dependencies = [
  "qnc-transport-resolver",
  "serde",
  "serde_json",
- "tempfile",
  "ureq",
 ]
 
@@ -3968,7 +3962,6 @@ dependencies = [
  "qnc-ui-text",
  "qnc-work-settings",
  "rusqlite",
- "tempfile",
 ]
 
 [[package]]
@@ -3976,7 +3969,6 @@ name = "qnc-artifact-db"
 version = "0.1.0"
 dependencies = [
  "qnc-content-read",
- "qnc-content-store",
  "qnc-db-broker",
  "qnc-filmstrip",
  "qnc-media-records",
@@ -3985,7 +3977,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -4004,7 +3995,6 @@ dependencies = [
  "cpal",
  "rtrb",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -4017,17 +4007,14 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "qnc-broadcast-engine"
 version = "0.1.0"
 dependencies = [
- "pollster",
  "qnc-audio-output",
  "qnc-broadcast-player",
- "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
  "qnc-gain",
  "qnc-gpu-raster",
@@ -4039,25 +4026,14 @@ dependencies = [
  "qnc-program-playlist",
  "qnc-render-unit",
  "qnc-video-output",
- "qnc-work-settings",
- "serde_json",
- "sha2",
- "wgpu",
- "winit",
 ]
 
 [[package]]
 name = "qnc-broadcast-player"
 version = "0.3.0"
 dependencies = [
- "pollster",
- "qnc-audio-output",
  "qnc-player-contract",
- "qnc-video-output",
  "serde",
- "serde_json",
- "wgpu",
- "winit",
 ]
 
 [[package]]
@@ -4102,15 +4078,8 @@ version = "0.1.0"
 dependencies = [
  "globset",
  "qnc-camera-patterns",
- "qnc-contracts",
- "qnc-media-metadata",
- "qnc-sony-metadata",
  "qnc-source-reader",
- "qnc-transport-resolver",
  "serde",
- "serde_json",
- "tempfile",
- "tiny_http",
 ]
 
 [[package]]
@@ -4132,7 +4101,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
  "tiny_http",
  "ureq",
  "url",
@@ -4145,10 +4113,8 @@ dependencies = [
  "qnc-camera-adapter",
  "qnc-camera-profiles",
  "qnc-media-metadata",
- "qnc-sony-metadata",
  "qnc-source-contract",
  "qnc-source-groups",
- "serde_json",
 ]
 
 [[package]]
@@ -4158,7 +4124,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
  "xml-rs",
 ]
 
@@ -4232,11 +4197,9 @@ dependencies = [
 name = "qnc-clip-posters"
 version = "0.1.0"
 dependencies = [
- "qnc-clip-row",
  "qnc-image-assets",
  "qnc-media-thumbnail",
  "qnc-source-reader",
- "tempfile",
 ]
 
 [[package]]
@@ -4274,7 +4237,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -4349,7 +4311,6 @@ dependencies = [
  "qnc-work-settings",
  "rusqlite",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -4368,7 +4329,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
  "tiny_http",
 ]
 
@@ -4396,7 +4356,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
  "tiny_http",
 ]
 
@@ -4433,7 +4392,6 @@ dependencies = [
  "qnc-plugin-process",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -4541,7 +4499,6 @@ dependencies = [
  "qnc-contracts",
  "qnc-source-reader",
  "rfd",
- "tempfile",
  "windows-sys 0.59.0",
 ]
 
@@ -4772,11 +4729,6 @@ dependencies = [
  "qnc-media-decode",
  "qnc-media-metadata",
  "qnc-media-stream",
- "qnc-player-input",
- "qnc-work-settings",
- "serde_json",
- "sha2",
- "tempfile",
 ]
 
 [[package]]
@@ -4942,11 +4894,9 @@ dependencies = [
 name = "qnc-import-fit"
 version = "0.1.0"
 dependencies = [
- "qnc-media-metadata",
  "qnc-media-records",
  "qnc-work-settings",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -5053,7 +5003,6 @@ dependencies = [
  "qnc-plugin-process",
  "qnc-record-format-plugin",
  "qnc-sony-metadata",
- "tempfile",
 ]
 
 [[package]]
@@ -5294,7 +5243,6 @@ dependencies = [
  "qnc-db-contract",
  "qnc-transport-resolver",
  "rusqlite",
- "tempfile",
 ]
 
 [[package]]
@@ -5465,7 +5413,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -5664,7 +5611,6 @@ dependencies = [
  "qnc-media-stream",
  "serde",
  "serde_json",
- "tempfile",
  "uuid",
  "windows-sys 0.59.0",
 ]
@@ -5676,7 +5622,6 @@ dependencies = [
  "qnc-contracts",
  "qnc-frame-timebase",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -5732,50 +5677,29 @@ name = "qnc-media-probe"
 version = "0.1.0"
 dependencies = [
  "qnc-contracts",
- "qnc-ffprobe-metadata",
  "qnc-json-transport",
- "qnc-media-metadata",
- "qnc-media-metadata-compose",
- "qnc-media-record-db",
  "qnc-media-records",
- "qnc-sony-metadata",
- "qnc-source-groups",
- "qnc-source-index-contract",
- "qnc-source-index-db",
- "qnc-source-reader",
  "qnc-transport-resolver",
  "serde",
  "serde_json",
- "tempfile",
  "tiny_http",
 ]
 
 [[package]]
 name = "qnc-media-readahead"
 version = "0.1.0"
-dependencies = [
- "tempfile",
-]
 
 [[package]]
 name = "qnc-media-record-db"
 version = "0.1.0"
 dependencies = [
  "qnc-db-broker",
- "qnc-db-contract",
  "qnc-json-transport",
- "qnc-media-metadata",
  "qnc-media-records",
- "qnc-sony-metadata",
- "qnc-source-groups",
- "qnc-source-index-contract",
- "qnc-source-index-db",
- "qnc-source-reader",
  "qnc-transport-resolver",
  "qnc-ui-text",
  "rusqlite",
  "serde_json",
- "tempfile",
  "tiny_http",
 ]
 
@@ -5796,15 +5720,9 @@ name = "qnc-media-stream"
 version = "0.1.0"
 dependencies = [
  "qnc-json-transport",
- "qnc-media-metadata",
- "qnc-player-input",
  "qnc-source-reader",
  "qnc-transport-resolver",
- "qnc-work-settings",
  "serde",
- "serde_json",
- "sha2",
- "tempfile",
  "tiny_http",
  "ureq",
  "url",
@@ -5818,7 +5736,6 @@ dependencies = [
  "qnc-image-assets",
  "qnc-source-reader",
  "qnc-ui-text",
- "tempfile",
 ]
 
 [[package]]
@@ -5835,7 +5752,6 @@ dependencies = [
  "qnc-source-contract",
  "qnc-ui-text",
  "qnc-work-settings",
- "tempfile",
 ]
 
 [[package]]
@@ -5884,7 +5800,6 @@ name = "qnc-mxf-sound"
 version = "0.1.0"
 dependencies = [
  "qnc-media-metadata",
- "tempfile",
 ]
 
 [[package]]
@@ -5916,7 +5831,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -6019,19 +5933,8 @@ name = "qnc-pixel-convert"
 version = "0.1.0"
 dependencies = [
  "fast_image_resize",
- "pollster",
- "qnc-decoder-catalog",
- "qnc-media-decode",
  "qnc-media-metadata",
- "qnc-media-stream",
- "qnc-player-input",
- "qnc-video-output",
- "qnc-work-settings",
  "serde",
- "serde_json",
- "sha2",
- "wgpu",
- "winit",
  "yuv",
 ]
 
@@ -6042,8 +5945,6 @@ dependencies = [
  "qnc-content-store",
  "qnc-dev-diagnostics",
  "qnc-ui-text",
- "rusqlite",
- "tempfile",
 ]
 
 [[package]]
@@ -6073,8 +5974,6 @@ dependencies = [
  "qnc-player-contract",
  "qnc-player-frame-transport",
  "qnc-player-input",
- "qnc-source-reader",
- "qnc-work-settings",
  "serde",
  "serde_json",
  "uuid",
@@ -6094,7 +5993,6 @@ version = "0.3.0"
 dependencies = [
  "qnc-frame-timebase",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -6113,19 +6011,14 @@ dependencies = [
 name = "qnc-player-input"
 version = "0.3.0"
 dependencies = [
- "qnc-content-store",
  "qnc-contracts",
  "qnc-frame-timebase",
  "qnc-media-metadata",
  "qnc-media-records",
  "qnc-program-playlist",
- "qnc-transport-resolver",
  "qnc-work-settings",
- "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
- "tiny_http",
 ]
 
 [[package]]
@@ -6195,7 +6088,6 @@ dependencies = [
 name = "qnc-pool-marks"
 version = "0.1.0"
 dependencies = [
- "qnc-clip-row",
  "qnc-form-pieces",
  "qnc-ui-text",
 ]
@@ -6266,7 +6158,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -6293,18 +6184,13 @@ name = "qnc-program-db"
 version = "0.1.0"
 dependencies = [
  "qnc-content-read",
- "qnc-content-store",
  "qnc-db-broker",
  "qnc-gain",
- "qnc-import-fit",
- "qnc-media-metadata",
  "qnc-media-records",
  "qnc-ui-text",
- "qnc-virtual-shots",
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -6351,8 +6237,6 @@ name = "qnc-program-output"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "qnc-player-contract",
- "qnc-player-frame-transport",
  "qnc-ui-text",
  "windows-sys 0.59.0",
 ]
@@ -6376,7 +6260,6 @@ dependencies = [
  "qnc-frame-timebase",
  "qnc-gain",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -6420,9 +6303,7 @@ dependencies = [
  "qnc-timeline-model",
  "qnc-ui-text",
  "qnc-virtual-shots",
- "rusqlite",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -6517,7 +6398,6 @@ dependencies = [
  "qnc-ui-text",
  "rusqlite",
  "serde",
- "tempfile",
  "tiny_http",
 ]
 
@@ -6712,15 +6592,9 @@ version = "0.1.0"
 dependencies = [
  "qnc-camera-detector",
  "qnc-camera-patterns",
- "qnc-contracts",
- "qnc-sony-metadata",
  "qnc-source-groups",
  "qnc-source-reader",
- "qnc-transport-resolver",
  "serde",
- "serde_json",
- "tempfile",
- "tiny_http",
 ]
 
 [[package]]
@@ -6771,16 +6645,13 @@ dependencies = [
 name = "qnc-script-db"
 version = "0.1.0"
 dependencies = [
- "qnc-active-project-read",
  "qnc-db-broker",
  "qnc-field-spec",
- "qnc-newsroom-sheet-db",
  "qnc-script-profile",
  "qnc-ui-text",
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -6793,7 +6664,6 @@ dependencies = [
  "qnc-script-db",
  "qnc-script-profile",
  "qnc-ui-text",
- "serde_json",
 ]
 
 [[package]]
@@ -6841,7 +6711,6 @@ dependencies = [
  "qnc-ui-text",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -7074,7 +6943,6 @@ dependencies = [
  "qnc-ai-store",
  "qnc-ui-text",
  "rusqlite",
- "tempfile",
 ]
 
 [[package]]
@@ -7097,7 +6965,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -7122,7 +6989,6 @@ dependencies = [
  "qnc-transcript-db",
  "qnc-ui-text",
  "qnc-work-settings",
- "tempfile",
 ]
 
 [[package]]
@@ -7146,7 +7012,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -7159,21 +7024,17 @@ version = "0.1.0"
 dependencies = [
  "qnc-ai-place",
  "qnc-ai-store",
- "qnc-shot-captions",
  "qnc-ui-text",
  "rusqlite",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
 name = "qnc-shot-labels"
 version = "0.1.0"
 dependencies = [
- "qnc-ui-text",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -7216,7 +7077,6 @@ dependencies = [
  "qnc-ui-text",
  "rusqlite",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -7263,7 +7123,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -7313,7 +7172,6 @@ dependencies = [
  "qnc-source-contract",
  "qnc-source-groups",
  "serde",
- "serde_json",
  "xml-rs",
 ]
 
@@ -7377,7 +7235,6 @@ dependencies = [
  "percent-encoding",
  "qnc-contracts",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -7397,10 +7254,8 @@ dependencies = [
 name = "qnc-source-groups"
 version = "0.1.0"
 dependencies = [
- "qnc-contracts",
  "qnc-source-contract",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -7418,23 +7273,14 @@ dependencies = [
 name = "qnc-source-index-db"
 version = "0.1.0"
 dependencies = [
- "qnc-camera-detector",
- "qnc-camera-patterns",
  "qnc-db-broker",
- "qnc-db-contract",
  "qnc-json-transport",
- "qnc-scanner",
- "qnc-sony-metadata",
- "qnc-source-groups",
  "qnc-source-index-contract",
- "qnc-source-reader",
  "qnc-transport-resolver",
  "qnc-ui-text",
  "rusqlite",
  "serde_json",
- "tempfile",
  "tiny_http",
- "ureq",
  "uuid",
 ]
 
@@ -7494,13 +7340,10 @@ version = "0.3.0"
 dependencies = [
  "cap-std",
  "qnc-contracts",
- "qnc-media-metadata",
- "qnc-sony-metadata",
  "qnc-source-contract",
  "qnc-transport-resolver",
  "serde",
  "serde_json",
- "tempfile",
  "tiny_http",
  "ureq",
  "url",
@@ -7749,7 +7592,6 @@ dependencies = [
  "qnc-action-event",
  "qnc-channel-picker",
  "qnc-dev-diagnostics",
- "qnc-edit-verbs",
  "qnc-filmstrip",
  "qnc-gain",
  "qnc-lane-choice",
@@ -7828,8 +7670,6 @@ version = "0.1.0"
 dependencies = [
  "qnc-ai-catalog",
  "qnc-ai-place",
- "qnc-decoder-catalog",
- "qnc-ffmpeg-decode",
  "qnc-plugin-process",
  "serde",
  "serde_json",
@@ -7915,13 +7755,11 @@ dependencies = [
 name = "qnc-transcript-db"
 version = "0.1.0"
 dependencies = [
- "qnc-active-project-read",
  "qnc-db-broker",
  "qnc-ui-text",
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -8065,11 +7903,8 @@ dependencies = [
 name = "qnc-video-output"
 version = "0.1.0"
 dependencies = [
- "pollster",
  "serde",
- "serde_json",
  "wgpu",
- "winit",
 ]
 
 [[package]]
@@ -8095,9 +7930,7 @@ dependencies = [
 name = "qnc-virtual-shots"
 version = "0.1.0"
 dependencies = [
- "qnc-active-project-read",
  "qnc-content-read",
- "qnc-content-store",
  "qnc-contracts",
  "qnc-db-broker",
  "qnc-media-records",
@@ -8105,7 +7938,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -8118,10 +7950,7 @@ dependencies = [
  "qnc-media-records",
  "qnc-source-index-db",
  "qnc-ui-text",
- "qnc-voice-clip",
  "qnc-work-settings",
- "rusqlite",
- "tempfile",
 ]
 
 [[package]]
@@ -8133,7 +7962,6 @@ dependencies = [
  "qnc-media-metadata",
  "qnc-title-card",
  "qnc-ui-text",
- "tempfile",
 ]
 
 [[package]]
@@ -8144,7 +7972,6 @@ dependencies = [
  "cpal",
  "qnc-ui-text",
  "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -8167,7 +7994,6 @@ version = "0.1.0"
 dependencies = [
  "candle-core",
  "candle-nn",
- "qnc-transcribe-jobs",
  "serde_json",
 ]
 
@@ -8199,7 +8025,6 @@ dependencies = [
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
  "qnc-dir-browser",
- "qnc-ffmpeg-decode",
  "qnc-filmstrip",
  "qnc-loudness",
  "qnc-media-decode",
@@ -8281,7 +8106,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
  "tiny_http",
  "ureq",
  "url",
@@ -8305,7 +8129,6 @@ dependencies = [
  "core-foundation 0.9.4",
  "hostname",
  "io-kit-sys 0.4.1",
- "qnc-contracts",
  "serde",
  "serde_json",
  "smbios-lib",

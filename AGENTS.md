@@ -391,3 +391,14 @@ vrijednost (`data/ingest` uklonjen, `BASES_DIR`): `qnc-ingest-base` `folder` vra
 Postavkama, pa tray ne radi ingest i javlja to; `keep_projects_apart` vise sam ne postavlja projekte u
 `projects` korijena, nego javlja da se mapa projekata mora izabrati. Test prosiren. Ostaje: Project spremiste
 (QNC-ov kod) ima svoju zadanu mapu projekata kad registar nema izbor.
+
+Izvedeno 2026-11-12 (korisnik: "kocke su shared-zajednicke... ako neka aplikacija trazi promjenu kocke, orginalna
+ostaje, a ta aplikacija u svoj direktorij ukljucuje promjenjenu kocku"; "GUI je samostalan po aplikaciji, AI je
+shared"; "1, ugovori zajednicki"): zajednicke kocke QNC-a i QNC-AI-ja su u repou `C:\Users\miron\Projects\QNC-shared`
+(247 kocki istih u oba repoa, ne GUI, s ugovorima i katalozima koje ugradjuju ili im testovi citaju). Ovaj repo ih
+uzima kao path ovisnost (`qnc-x = { path = "../QNC-shared/crates/qnc-x" }` u korijenskom `Cargo.toml`); premjestene
+kocke uklonjene iz `crates/`. Kocka koju wizard treba drukciju: kopija u `crates/` ovog repoa i ovisnost na nju,
+original ostaje u QNC-shared. Conformance kopiran iz QNC-a (vidi kocke izvan korijena). Wizard i dalje krsi pravila
+koja conformance provjerava (Ingest ovisi o Project spremistu i pricama, `qnc-ingest-base` i `qnc-wizard-db` pisu
+bazu same, nedostaju docs/07 i docs/11), od prije. Detalj u AGENTS.md QNC-a. Provjereno: `cargo check --workspace`,
+release gradnja s `libav`, testovi (pada samo `without_a_lease_and_without_its_executable_launching_says_so`, okolina).
