@@ -3477,11 +3477,12 @@ name = "qnc-card-ingest"
 version = "0.1.0"
 dependencies = [
  "qnc-active-project-read",
+ "qnc-artifact-db",
  "qnc-attached-cards",
  "qnc-card-autoselect",
- "qnc-content-store",
+ "qnc-content-read",
+ "qnc-db-broker",
  "qnc-ingest-application",
- "qnc-playback-activity",
 ]
 
 [[package]]

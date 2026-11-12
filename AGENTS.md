@@ -345,3 +345,11 @@ bazi; `story_clips`, `story_id`), zatim se otvara AI Media Assist i Ingest se za
 `qnc-ingest-base`, `qnc-ingest-application` (31). Nije izvedeno: AI Media Assist jos radi nad aktivnom
 globalnom bazom (svi njezini klipovi), a ne nad projektom s dvije baze; prozor Postavki (preklapanje).
 Uzivo nije provjereno.
+
+Dopuna 2026-11-12 (korisnik: "puni wave ne cekati, ujedno potreban je progres bar po funkciji koju
+trenutno radi"): pozadinski ingest je gotov kad svaki klip baze ima poster, filmstrip (status ready) i
+barem grubi val; puni val radnik dovrsava sam. `qnc-card-ingest` `Progress` (klipovi, posteri,
+filmstripovi, valovi) cita iz baze jednom u sekundi u svojoj niti (`qnc-content-read` `clip_posters`,
+`qnc-artifact-db`); "gotovo" tek nakon prvog pregleda kartica i Selecta svake. Prozor
+`qnc-ai-card-ingest` ima traku napretka za Postere, Filmstrip i Val (n / ukupno). Uzivo: kartica D:
+(30 klipova) Selecting pa Done, 30/30/30/30.

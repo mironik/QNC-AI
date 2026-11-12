@@ -27,7 +27,7 @@ impl eframe::App for Window {
         qnc_ingest_layout::theme::apply(ctx, &theme);
         let status: Status = self.ingest.poll();
         if self.last != Some(status.phase) {
-            log(format!("ai-card-ingest {:?} clips={} cameras={:?}", status.phase, status.clips, status.cameras));
+            log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
             self.last = Some(status.phase);
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(24.0)).show(ctx, |ui| {
@@ -41,17 +41,22 @@ impl eframe::App for Window {
             if !status.cameras.is_empty() {
                 ui.label(RichText::new(status.cameras.join(", ")).color(theme.text));
             }
-            let step = match status.phase {
-                Phase::Selecting => text("card_ingest.selecting"),
-                Phase::Making => text("card_ingest.making"),
-                _ => String::new(),
-            };
-            ui.label(RichText::new(fill("card_ingest.clips", &[("clips", &status.clips.to_string())])).color(theme.text));
-            if !step.is_empty() {
+            let progress = status.progress;
+            ui.label(RichText::new(fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(theme.text));
+            if status.phase == Phase::Selecting {
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.label(RichText::new(step).color(theme.text));
+                    ui.label(RichText::new(text("card_ingest.selecting")).color(theme.text));
+                });
+            }
+            // One bar per function the worker does (user 2026-11-12).
+            ui.add_space(10.0);
+            for (code, done) in [("card_ingest.posters", progress.posters), ("card_ingest.filmstrips", progress.filmstrips), ("card_ingest.waves", progress.waves)] {
+                let total = progress.clips.max(1);
+                ui.horizontal(|ui| {
+                    ui.add_sized([110.0, 20.0], egui::Label::new(RichText::new(text(code)).color(theme.text)));
+                    ui.add(egui::ProgressBar::new(done.min(total) as f32 / total as f32).desired_width(260.0).text(format!("{done} / {}", progress.clips)));
                 });
             }
             ui.add_space(20.0);
@@ -83,7 +88,7 @@ fn main() -> eframe::Result<()> {
     let app = Window { root, contracts, ingest, last: None };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([520.0, 260.0]).with_resizable(false),
+        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([520.0, 330.0]).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };
