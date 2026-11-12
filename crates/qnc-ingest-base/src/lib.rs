@@ -226,6 +226,8 @@ pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
 /// Deletes the Ingest base `id` with its folder (the copied Project store lifts its protection
 /// first). Only a base: a story's project is never deleted here.
 pub fn forget(root: &Path, id: &str) -> Result<(), String> {
+    // Only its owner or the administrator (the tray says why before it asks).
+    may_delete(root, id).map_err(|refusal| format!("{refusal:?}"))?;
     let store = ProjectStore::open(root)?;
     let row = store.list_projects()?.into_iter().find(|row| row.project_id == id).ok_or_else(|| format!("no Ingest base {id}"))?;
     if !row.name.starts_with(NAME_PREFIX) {
@@ -443,4 +445,51 @@ mod tests {
             }
         }
     }
+}
+
+/// Who made a base: the user and the computer of its origin (written by Project when the base was
+/// made). `None` when the base has no origin.
+pub fn owner(root: &Path, id: &str) -> Result<Option<(String, String)>, String> {
+    let file = root.join("data").join("qnc-projects.db");
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    match conn.query_row(
+        "SELECT COALESCE(user_name, ''), COALESCE(workstation_name, '') FROM public_project_origin WHERE project_id = ?1",
+        [id],
+        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+    ) {
+        Ok(owner) => Ok(Some(owner)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Whether this user may delete the base `id` (user 2026-11-12: "baza je javna i mogu je koristiti
+/// i drugi korisnici; vlasnik je onaj koji ju je kreirao, a brisati može jedino pored vlasnika
+/// administrator"): the user and computer that made it, or a program running with the
+/// administrator's rights. A base without an origin only the administrator deletes.
+pub fn may_delete(root: &Path, id: &str) -> Result<(), Refusal> {
+    if qnc_workstation_identity::is_administrator() {
+        return Ok(());
+    }
+    let me = qnc_workstation_identity::read_local_identity();
+    let mine = |(user, computer): &(String, String)| {
+        me.user_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(user))
+            && me.workstation_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(computer))
+    };
+    match owner(root, id).map_err(Refusal::Unread)? {
+        Some(owner) if mine(&owner) => Ok(()),
+        Some((user, computer)) => Err(Refusal::NotOwner { user, computer }),
+        None => Err(Refusal::NoOwner),
+    }
+}
+
+/// Why this user may not delete a base.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    /// Another user or computer made it.
+    NotOwner { user: String, computer: String },
+    /// It has no origin: only the administrator deletes it.
+    NoOwner,
+    /// Its origin could not be read.
+    Unread(String),
 }

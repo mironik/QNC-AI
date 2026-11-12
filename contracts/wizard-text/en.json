@@ -35,6 +35,8 @@
     "tray.delete_base": "Delete the Ingest base",
     "tray.delete_base_ask": "Delete the Ingest base {base}?\n\nIts clips, posters, filmstrips, waves and analyses go. The card is not touched.",
     "tray.delete_base_none": "There is no Ingest base to delete.",
+    "tray.delete_base_not_owner": "Ingest base {base} was made by {user} on {computer}.\n\nThe base is shared: only who made it, or the administrator (QNC AI run as administrator), may delete it.",
+    "tray.delete_base_no_owner": "Ingest base {base} does not say who made it.\n\nOnly the administrator (QNC AI run as administrator) may delete it.",
     "tray.base_deleted": "Ingest base {base} deleted.",
     "tray.base_delete_failed": "Ingest base {base} was not deleted: {error}",
     "settings.title": "QNC AI: Settings",

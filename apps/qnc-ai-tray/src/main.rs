@@ -107,10 +107,23 @@ fn main() {
                 }
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
                 TrayEvent::Menu(DELETE_BASE) => match qnc_ingest_base::active(&root) {
-                    Ok(Some(base)) => {
-                        let ask = fill("tray.delete_base_ask", &[("base", base.label())]);
-                        deleting = Some((base, tray.confirm(&text("tray.title"), &ask)));
-                    }
+                    Ok(Some(base)) => match qnc_ingest_base::may_delete(&root, &base.id) {
+                        Ok(()) => {
+                            let ask = fill("tray.delete_base_ask", &[("base", base.label())]);
+                            deleting = Some((base, tray.confirm(&text("tray.title"), &ask)));
+                        }
+                        // The base is public: only who made it, or the administrator, deletes it
+                        // (user 2026-11-12).
+                        Err(refusal) => {
+                            log(format!("base not deleted {}: {refusal:?}", base.label()));
+                            let why = match refusal {
+                                qnc_ingest_base::Refusal::NotOwner { user, computer } => fill("tray.delete_base_not_owner", &[("base", base.label()), ("user", &user), ("computer", &computer)]),
+                                qnc_ingest_base::Refusal::NoOwner => fill("tray.delete_base_no_owner", &[("base", base.label())]),
+                                qnc_ingest_base::Refusal::Unread(error) => fill("tray.base_delete_failed", &[("base", base.label()), ("error", &error)]),
+                            };
+                            tray.alert("delete-base", &text("tray.title"), &why, &text("tray.ok"));
+                        }
+                    },
                     Ok(None) => tray.notify(&text("tray.title"), &text("tray.delete_base_none")),
                     Err(error) => tray.notify(&text("tray.title"), &error),
                 },
