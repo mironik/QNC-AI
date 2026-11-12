@@ -353,3 +353,30 @@ filmstripovi, valovi) cita iz baze jednom u sekundi u svojoj niti (`qnc-content-
 `qnc-artifact-db`); "gotovo" tek nakon prvog pregleda kartica i Selecta svake. Prozor
 `qnc-ai-card-ingest` ima traku napretka za Postere, Filmstrip i Val (n / ukupno). Uzivo: kartica D:
 (30 klipova) Selecting pa Done, 30/30/30/30.
+
+Brisanje 2026-11-12 (korisnik: "odabrana je pogresna putanja za globalne i lokalne baze, to je u razvojnom
+direktoriju; izbrisi sve postojece kreirane globalne i lokalne baze"): sve globalne baze i projekti
+obrisani (primjer `qnc-ingest-base/examples/forget_all.rs`, kroz Project spremiste koje skida zastitu).
+
+Popravak Postavki 2026-11-12 (korisnik: "postavke nisu u funkciji"; "ne radi ni kreiranje template"):
+lokacije (projekti, Ingest baze, export) su u Postavkama prve i uvijek vidljive; upisana putanja sprema
+se na Enter ili izlazak iz polja (`ProjectIntent::CommitLocation`, `ProjectSession::commit_typed`).
+Predlozak nije isao jer QNC-AI nije imao katalog aplikacija (`data/application-catalog.json`, trazi
+aplikaciju grupe a); kopiran alat `tools/qnc-app-catalog`. AI napomene u Postavkama prelamaju se.
+Snimci zaslona iz PowerShella bez DPI svijesti bili su odrezani: prozor je stao u sirinu.
+
+Kopija cijelog QNC-a 2026-11-12 (korisnik: "mozda ti je najlakse kopirati cijeli QNC projekt u QNC-AI i na
+njemu raditi prepravke"): kopirano 52 sto je falilo (shell `qnc-app`, Project, Story, S-Story, MA Script,
+MA Audio, MA Video, desktop adapteri, AI programi i alati) s oznake v-2026-11-11; vec prepravljeno u
+QNC-AI zadrzano; `tools/diagnostics` (Python i JS) izostavljen. Katalog aplikacija ima svih osam (Project a).
+
+Zajednicki AI direktorij 2026-11-12 (korisnik: "za AI posebni direktorij koji mogu pozivati obje verzije
+aplikacija"): modeli su u `C:\Users\Public\QNC-AI-share\models`, katalog AI-ja ih imenuje `share:models/...`
+(`qnc-ai-catalog` `share_dir`, `model_path`; AI paket pod `share/`). Ista izmjena u QNC-u. AI biblioteke uz
+programe (onnxruntime, sherpa-onnx, rife, vcomp) u `target/release` su tvrde veze na QNC-ove. Debug build
+obrisan u oba projekta (korisnik: "ocisti nepotrebne kes i debug datoteke").
+
+Otvoreno (korisnik: "direktorij zajednickih kocki da ono sto je zajednicko ne bude duplicirano; jedino GUI
+verzije su drugacije"; "korisniku izbor nacina rada: kroz Wizard ili klasicni nacin"; "tray bi koristila i
+jedna i druga verzija"): predlozen jedan repozitorij (QNC-AI glavni, QNC arhiv) s jednim skupom kocki, dva
+nacina rada i zajednickim trayem; ceka odluku.
