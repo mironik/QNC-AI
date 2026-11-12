@@ -402,3 +402,8 @@ original ostaje u QNC-shared. Conformance kopiran iz QNC-a (vidi kocke izvan kor
 koja conformance provjerava (Ingest ovisi o Project spremistu i pricama, `qnc-ingest-base` i `qnc-wizard-db` pisu
 bazu same, nedostaju docs/07 i docs/11), od prije. Detalj u AGENTS.md QNC-a. Provjereno: `cargo check --workspace`,
 release gradnja s `libav`, testovi (pada samo `without_a_lease_and_without_its_executable_launching_says_so`, okolina).
+
+Izvedeno 2026-11-12 (korisnik: "tray je jedan"; "u QNC ingestu dodati izbor ulaza Baza... tretira se kao kartica"):
+klasicni QNC Ingest ima tab Baze s karticama baza koje je napravio ovaj tray; klik otvara karticu, Select je kupi u
+QNC projekt. Mapa baza je jedna postavka racunala (`data/ingest-bases.json`), koju sada cita zajednicka kocka
+`qnc-base-cards`; `qnc-ingest-base` vise nema svoju kopiju (`folder`, `set_folder` su njezini). Detalj u AGENTS.md QNC-a.
