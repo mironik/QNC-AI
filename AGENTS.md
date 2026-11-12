@@ -415,3 +415,16 @@ njezin cancel (uvoz, posteri, filmstrip i val (radnici se ponovno slazu bez obus
 opisi), obustavljena se ne pokrece; napravljeno ostaje; obustava vrijedi za tu bazu. Prozor ne ceka obustavljenu
 funkciju (`Progress::complete`). Tray ima "Obrisi Ingest bazu": pitanje Da/Ne (`qnc-tray` `confirm`), zaustavi uvoz pa
 obrise bazu i njezinu mapu (`qnc_ingest_base::forget`), kartica se ne dira. Uzivo nije provjereno.
+Izvedeno 2026-11-12 (korisnik: "nisam obrisao bazu, traj je ponovo pokreno ingest u novom projektu... to treba
+onemogućiti"; snimatelj nije obrisao karticu prije novog snimanja; "glupo je ponovo uvoziti ono što je uvezeno"):
+tray prije uvoza provjerava je li kartica vec u nekoj Ingest bazi. Originali na kartici (`qnc-card-watch`
+`card_originals`, samo citanje) usporeduju se s originalima baza (`qnc-content-read` `clip_originals_of_file` u
+QNC-shared, jedini citac kataloga); `qnc-ingest-base` `known_card`: najnovija baza koja ima barem jedan original
+kartice i sto je na kartici novo. Kartica u bazi u kojoj Ingest radi sada (koju prica nije uzela) ide kao prije.
+Inace: bez novih klipova info prozor (8 s), nista se ne uvozi i baza se ne pravi; s novima pitanje Da / Ne / Odustani
+(`qnc-tray` `ask`, `Answer`): Da dodaje nove u tu bazu (red uvoza uzima samo neuvezene), Ne pravi novu bazu samo s
+novima (`new_with_only_new`, zapis `ingest_base_only_new` u bazi; prozor uvoza nakon "oznaci sve" odznaci klipove
+koje stara baza ima, `not_taken`, i broji samo nove), Odustani ne radi nista. Stari klipovi ostaju u katalogu nove
+baze neuvezeni (Select cita cijelu karticu). Test `a_card_a_base_has_is_known_and_a_base_of_its_new_clips_leaves_the_old`.
+Uzivo: kartica D: prepoznata u bazi 22:55:02 (30 klipova, nema novih), nova baza nije napravljena. Pitanje s novim
+klipovima nije provjereno uzivo.

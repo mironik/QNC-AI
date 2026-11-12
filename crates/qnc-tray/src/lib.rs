@@ -17,6 +17,14 @@ pub enum TrayEvent {
     Menu(u32),
 }
 
+/// The answer to a question with three choices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Answer {
+    Yes,
+    No,
+    Cancel,
+}
+
 /// One item of the icon's menu.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MenuItem {
@@ -93,6 +101,22 @@ impl Tray {
             let _ = (title, text);
             let (send, answer) = std::sync::mpsc::channel();
             let _ = send.send(false);
+            answer
+        }
+    }
+
+    /// A question with Yes, No and Cancel (the text says what each does): it does not wait; the
+    /// answer comes on the channel. Another system answers Cancel at once (it has no tray yet).
+    pub fn ask(&self, title: &str, text: &str) -> Receiver<Answer> {
+        #[cfg(windows)]
+        {
+            windows::ask(title, text)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (title, text);
+            let (send, answer) = std::sync::mpsc::channel();
+            let _ = send.send(Answer::Cancel);
             answer
         }
     }

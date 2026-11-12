@@ -134,6 +134,7 @@ pub struct Status {
 }
 
 pub struct CardIngest {
+    root: PathBuf,
     application: IngestApplication,
     attached: qnc_attached_cards::AttachedCards,
     auto: qnc_card_autoselect::AutoSelect,
@@ -185,6 +186,7 @@ impl CardIngest {
             }
         });
         Ok(Self {
+            root: root.to_path_buf(),
             application: IngestApplication::with_store_root(root)?,
             attached: qnc_attached_cards::AttachedCards::start(root),
             auto: qnc_card_autoselect::AutoSelect::new(Vec::new()),
@@ -218,6 +220,17 @@ impl CardIngest {
         if self.selected && self.looked && !self.auto.busy() && !view.command_busy && !view.work_settings_loading {
             self.selected = false;
             self.application.dispatch(IngestIntent::empty(action_ids::INGEST_SELECT_ALL));
+            // A base made to take only the new clips of a card another base has: what that base
+            // has is not imported again (user 2026-11-12: "glupo je ponovo uvoziti ono što je uvezeno").
+            match qnc_ingest_base::not_taken(&self.root) {
+                Ok(not_taken) => {
+                    let ticked: Vec<String> = self.application.view().clips.iter().filter(|clip| clip.selected && not_taken.contains(&clip.clip_id)).map(|clip| clip.clip_id.clone()).collect();
+                    for clip_id in ticked {
+                        self.application.dispatch(IngestIntent::new(action_ids::INGEST_CLIP_TOGGLE, qnc_ingest_application::IngestPayload::ClipId(clip_id)));
+                    }
+                }
+                Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-card-ingest not taken not read: {error}")),
+            }
             self.application.import_into_base();
             self.making = true;
         }
@@ -241,7 +254,9 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
     let snapshot = active.read().map_err(|error| error.to_string())?;
     let content = qnc_content_read::ContentReader::for_project(active.settings_reader(), &snapshot.settings)?;
     let settings = &snapshot.settings;
-    let posters = content.clip_posters()?;
+    // A base that takes only the new clips counts only them (the rest stays in the catalog, not imported).
+    let not_taken = qnc_ingest_base::not_taken(root)?;
+    let posters: Vec<_> = content.clip_posters()?.into_iter().filter(|(clip, _)| !not_taken.contains(clip)).collect();
     let target = qnc_db_broker::ProjectDbTarget::for_project(active.settings_reader(), settings)?;
     let mut artifacts = qnc_artifact_db::ArtifactReader::open(&target)?;
     let content_target = qnc_content_store::ContentTarget::for_project(active.settings_reader(), settings)?;

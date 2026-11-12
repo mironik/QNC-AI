@@ -88,6 +88,8 @@ fn main() {
     let deleted = std::sync::mpsc::channel::<(String, Result<(), String>)>();
     // A base is being deleted: no card opens the ingest meanwhile.
     let mut removing = false;
+    // A card a base already has, with new clips: the question where they go (user 2026-11-12).
+    let mut known: Option<(qnc_ingest_base::KnownCard, std::sync::mpsc::Receiver<qnc_tray::Answer>)> = None;
     loop {
         flow.poll();
         let status = flow.status();
@@ -141,7 +143,7 @@ fn main() {
                 },
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest),
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -207,6 +209,23 @@ fn main() {
                 }
             }
         }
+        // Where the new clips of a card a base has go: into that base, or into a new base that
+        // takes only them; what the base has is never imported again.
+        if let Some(answer) = known.as_ref().and_then(|(_, answer)| answer.try_recv().ok()) {
+            let (card_known, _) = known.take().expect("asked");
+            log(format!("card known answered base={}: {answer:?}", card_known.base.label()));
+            match answer {
+                qnc_tray::Answer::Yes => {
+                    let id = card_known.base.id.clone();
+                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::open(root, &id));
+                }
+                qnc_tray::Answer::No => {
+                    let from = card_known.base.clone();
+                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_with_only_new(root, &from));
+                }
+                qnc_tray::Answer::Cancel => {}
+            }
+        }
         while let Ok((card, result)) = ejected.1.try_recv() {
             let name = card.name();
             match result {
@@ -261,8 +280,30 @@ fn main() {
                             // is Selected again, so a clip whose import failed while it was out
                             // goes back to the queue (user 2026-11-12).
                             // Not while a base is deleted: it would be made again at once.
-                            if !removing {
-                                open_ingest(&tray, &root, &mut ingest);
+                            // A card a base already has is not imported again (user 2026-11-12):
+                            // nothing new is said; new clips are asked about.
+                            if !removing && known.is_none() && !runs(&mut ingest) {
+                                match card_check(&root, catalog, &volume) {
+                                    Ok(None) => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
+                                    Ok(Some(card_known)) if card_known.new.is_empty() => {
+                                        log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
+                                        let said = fill("tray.card_known", &[("card", &name), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
+                                        tray.info(&format!("known:{}", volume.serial_number), &text("tray.title"), &said, &text("tray.ok"), Duration::from_secs(8));
+                                    }
+                                    Ok(Some(card_known)) => {
+                                        log(format!("card known disk={disk} base={} had={} new={}", card_known.base.label(), card_known.had, card_known.new.len()));
+                                        let base = card_known.base.label().to_string();
+                                        let ask = fill("tray.card_known_ask", &[("card", &name), ("base", &base), ("had", &card_known.had.to_string()), ("new", &card_known.new.len().to_string())]);
+                                        known = Some((card_known, tray.ask(&text("tray.title"), &ask)));
+                                    }
+                                    Err(error) => {
+                                        // Not known for sure: Ingest goes on as before (Select reconciles).
+                                        log(format!("card check failed disk={disk}: {error}"));
+                                        open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current);
+                                    }
+                                }
+                            } else if !removing && known.is_none() {
+                                open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current);
                             }
                         }
                         Found::Unknown { volume } => {
@@ -303,12 +344,13 @@ fn main() {
 /// program, started when the one this tray started does not run any more; its window says it runs
 /// and, when it is done, starts QNC (the Ingest form). Its helper programs (player, worker,
 /// decoders) are console programs: they share one hidden console, so no window flashes.
-fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>) {
-    if ingest.as_mut().is_some_and(|child| matches!(child.try_wait(), Ok(None))) {
+fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>) {
+    if runs(ingest) {
         return;
     }
-    // Ingest works in the current Ingest base of the application (data/ingest).
-    match qnc_ingest_base::current(root) {
+    // Ingest works in the base `base` makes active (the current one, the one a card is in, or a
+    // new one that takes only the new clips).
+    match base(root) {
         Ok(base) => log(format!("ingest base {} {}", base.name, base.uri)),
         Err(error) => {
             log(format!("ingest base failed: {error}"));
@@ -337,6 +379,23 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::pro
             tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error.to_string())]), &text("tray.ok"));
         }
     }
+}
+
+/// Whether the ingest this tray started still runs.
+fn runs(ingest: &mut Option<std::process::Child>) -> bool {
+    ingest.as_mut().is_some_and(|child| matches!(child.try_wait(), Ok(None)))
+}
+
+/// The base that already has the card at `volume` and what is new on it (user 2026-11-12: the
+/// camera operator did not erase the card before the next shoot). `None` when no base has its
+/// clips, or the base Ingest works in now has them and no story took it (a card back goes on).
+fn card_check(root: &std::path::Path, catalog: &qnc_camera_patterns::Catalog, volume: &qnc_source_volumes::Volume) -> Result<Option<qnc_ingest_base::KnownCard>, String> {
+    let card = qnc_card_watch::card_originals(catalog, volume)?;
+    let Some(known) = qnc_ingest_base::known_card(root, &volume.source_uri(), &card)? else { return Ok(None) };
+    if known.base.active && known.base.project_name.is_none() {
+        return Ok(None);
+    }
+    Ok(Some(known))
 }
 
 /// The Settings form, beside this program (it keeps one copy itself).

@@ -122,6 +122,16 @@ pub fn camera_of(catalog: &Catalog, profiles: &[qnc_camera_profiles::Profile], v
     model.or_else(|| catalog.patterns.iter().find(|pattern| pattern.id == found.pattern_id).map(|pattern| pattern.manufacturer.clone()))
 }
 
+/// The originals on the card at `volume` (QNC URIs, as Select writes them into a base), read only
+/// (user 2026-11-12: a card already in a base is compared with it; its new clips are told).
+pub fn card_originals(catalog: &Catalog, volume: &Volume) -> Result<Vec<String>, String> {
+    let source = qnc_source_reader::SourceReader::local(&volume.source_uri(), &volume.root).map_err(|error| format!("{error:?}"))?;
+    let report = qnc_camera_detector::detect(catalog, &source, SourceScope::CardRelative, Limits::default())?;
+    let originals: BTreeSet<String> =
+        report.roots.iter().flat_map(|root| root.files.iter()).filter(|file| file.role == "original_candidate").map(|file| file.reference.uri()).collect();
+    Ok(originals.into_iter().collect())
+}
+
 /// The patterns of the catalog whose card is at `root` with original clips on it.
 pub fn card_patterns(catalog: &Catalog, root: &Path, source_uri: &str) -> Result<Vec<String>, String> {
     let source = qnc_source_reader::SourceReader::local(source_uri, root).map_err(|error| format!("{error:?}"))?;

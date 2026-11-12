@@ -269,6 +269,11 @@ pub fn current(root: &Path) -> Result<IngestBase, String> {
             return Ok(base);
         }
     }
+    make(&mut store, &bases)
+}
+
+/// A new base made in the bases' folder and made active.
+fn make(store: &mut ProjectStore, bases: &Path) -> Result<IngestBase, String> {
     let projects = PathBuf::from(store.projects_root_display());
     store.set_projects_root(&bases)?;
     // A template may name its own projects' folder; a base is always in the bases' folder.
@@ -280,7 +285,86 @@ pub fn current(root: &Path) -> Result<IngestBase, String> {
     let back = store.set_projects_root(&projects);
     let made = made?;
     back?;
-    Ok(base_of(made, &store))
+    Ok(base_of(made, store))
+}
+
+/// A card inserted again that a base already has (user 2026-11-12: "treba traj testirati je li ta
+/// kartica s tim klipovima već importirana, ako je, ima li novih klipova koji nisu u bazi";
+/// "glupo je ponovo uvoziti ono što je uvezeno").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KnownCard {
+    /// The newest base with clips of this card.
+    pub base: IngestBase,
+    /// How many of the card's originals the base has.
+    pub had: usize,
+    /// The originals on the card the base has not (QNC URIs).
+    pub new: Vec<String>,
+}
+
+/// The newest base that has clips of the card `source_uri` whose originals are among those on the
+/// card now (`card`, QNC URIs), with what the card has new. `None`: no base has any of them (the
+/// card is new, or formatted and shot again). Read only.
+pub fn known_card(root: &Path, source_uri: &str, card: &[String]) -> Result<Option<KnownCard>, String> {
+    let store = ProjectStore::open(root)?;
+    for base in all(root)? {
+        let Ok((file, _)) = store.project_db_binding(&base.id) else { continue };
+        let had: std::collections::BTreeSet<String> =
+            qnc_content_read::clip_originals_of_file(&file)?.into_iter().filter(|clip| clip.source_uri == source_uri).map(|clip| clip.original_uri).collect();
+        let common = card.iter().filter(|original| had.contains(*original)).count();
+        if common == 0 {
+            continue;
+        }
+        let new = card.iter().filter(|original| !had.contains(*original)).cloned().collect();
+        return Ok(Some(KnownCard { base, had: common, new }));
+    }
+    Ok(None)
+}
+
+/// The table of a base's own database that says it takes only what base `from_base` has not (one row).
+const ONLY_NEW_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_only_new (
+    one INTEGER PRIMARY KEY CHECK (one = 1),
+    from_base TEXT NOT NULL,
+    written_at_utc TEXT NOT NULL
+)";
+
+/// A new base, made active, that takes from the cards only the clips the base `from` has not.
+pub fn new_with_only_new(root: &Path, from: &IngestBase) -> Result<IngestBase, String> {
+    let mut store = ProjectStore::open(root)?;
+    let bases = folder(root)?;
+    keep_apart(&mut store, root)?;
+    let made = make(&mut store, &bases)?;
+    let (file, _) = store.project_db_binding(&made.id)?;
+    let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    conn.execute_batch(ONLY_NEW_TABLE).map_err(|error| error.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO ingest_base_only_new (one, from_base, written_at_utc) VALUES (1, ?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+        [&from.id],
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(made)
+}
+
+/// The clips of the active base that are not taken (not imported): those whose original another
+/// base already has, when the active base was made to take only the new ones. Empty otherwise.
+pub fn not_taken(root: &Path) -> Result<std::collections::BTreeSet<String>, String> {
+    let store = ProjectStore::open(root)?;
+    let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) else {
+        return Ok(Default::default());
+    };
+    let (file, _) = store.project_db_binding(&active.project_id)?;
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    let from: Option<String> = match conn.query_row("SELECT from_base FROM ingest_base_only_new WHERE one = 1", [], |row| row.get(0)) {
+        Ok(from) => Some(from),
+        Err(rusqlite::Error::QueryReturnedNoRows | rusqlite::Error::SqliteFailure(..)) => None,
+        Err(error) => return Err(error.to_string()),
+    };
+    drop(conn);
+    let Some(from) = from else { return Ok(Default::default()) };
+    // The base it came from may be gone (deleted): then every clip is new.
+    let Ok((from_file, _)) = store.project_db_binding(&from) else { return Ok(Default::default()) };
+    let had: std::collections::BTreeSet<String> = qnc_content_read::clip_originals_of_file(&from_file)?.into_iter().map(|clip| clip.original_uri).collect();
+    Ok(qnc_content_read::clip_originals_of_file(&file)?.into_iter().filter(|clip| had.contains(&clip.original_uri)).map(|clip| clip.clip_id).collect())
 }
 
 /// What came of a list or an open done in the background.
@@ -428,6 +512,53 @@ mod tests {
         let elsewhere = root.join("other bases");
         set_folder(&root, &elsewhere).unwrap();
         assert_eq!(folder(&root).unwrap(), elsewhere, "Settings chose another folder for the bases");
+        for row in store.list_projects().unwrap() {
+            store.delete_project(&row.project_id).unwrap();
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A card a base has is known with what is new on it; a base made to take only the new clips
+    /// leaves the clips that base has (a temporary root, never a real one).
+    #[test]
+    fn a_card_a_base_has_is_known_and_a_base_of_its_new_clips_leaves_the_old() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let root = std::env::temp_dir().join(format!("qnc-ingest-base-known-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for dir in ["contracts", "seed", "catalogs"] {
+            copy(&repo.join(dir), &root.join(dir));
+        }
+        std::fs::write(root.join("AGENTS.md"), "test\n").unwrap();
+        std::fs::write(root.join("Cargo.toml"), "# test\n").unwrap();
+        std::fs::create_dir_all(root.join("data")).unwrap();
+        set_folder(&root, &root.join("bases")).unwrap();
+        let card = "qnc://local/source/volume-1";
+        let file = |name: &str| format!("{card}/file/Clip/{name}");
+        let clips = |id: &str, rows: &[(&str, &str)]| {
+            let (db, _) = ProjectStore::open(&root).unwrap().project_db_binding(id).unwrap();
+            let conn = rusqlite::Connection::open(db).unwrap();
+            conn.execute_batch(
+                "DROP VIEW IF EXISTS public_clips; CREATE TABLE test_clips (clip_id TEXT, source_uri TEXT, original_uri TEXT, clip_kind TEXT);
+                 CREATE VIEW public_clips AS SELECT clip_id, source_uri, original_uri, clip_kind FROM test_clips;",
+            )
+            .unwrap();
+            for (clip, original) in rows {
+                conn.execute("INSERT INTO test_clips VALUES (?1, ?2, ?3, 'camera')", [*clip, card, original]).unwrap();
+            }
+        };
+        let first = current(&root).unwrap();
+        clips(&first.id, &[("a", &file("A.MXF")), ("b", &file("B.MXF"))]);
+        let on_card = vec![file("A.MXF"), file("B.MXF"), file("C.MXF")];
+        let known = known_card(&root, card, &on_card).unwrap().unwrap();
+        assert_eq!((known.base.id.as_str(), known.had, known.new.clone()), (first.id.as_str(), 2, vec![file("C.MXF")]));
+        assert_eq!(known_card(&root, card, &[file("X.MXF")]).unwrap(), None, "a card shot again after formatting is new");
+        assert!(not_taken(&root).unwrap().is_empty(), "a base made as usual takes every clip");
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let only_new = new_with_only_new(&root, &first).unwrap();
+        assert!(only_new.active && only_new.id != first.id);
+        clips(&only_new.id, &[("a2", &file("A.MXF")), ("b2", &file("B.MXF")), ("c2", &file("C.MXF"))]);
+        assert_eq!(not_taken(&root).unwrap().into_iter().collect::<Vec<_>>(), vec!["a2".to_string(), "b2".to_string()], "what the first base has is not imported again");
+        let store = ProjectStore::open(&root).unwrap();
         for row in store.list_projects().unwrap() {
             store.delete_project(&row.project_id).unwrap();
         }

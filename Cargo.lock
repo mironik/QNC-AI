@@ -3862,11 +3862,13 @@ dependencies = [
 name = "qnc-ai-tray"
 version = "0.1.0"
 dependencies = [
+ "qnc-camera-patterns",
  "qnc-card-eject",
  "qnc-card-watch",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-project-close",
+ "qnc-source-volumes",
  "qnc-tray",
  "qnc-wizard-flow",
  "qnc-wizard-text",
@@ -4165,6 +4167,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-ingest-application",
+ "qnc-ingest-base",
  "qnc-shot-captions",
  "qnc-shot-content-db",
  "qnc-shot-db",
@@ -4983,6 +4986,7 @@ dependencies = [
  "chrono",
  "qnc-application-catalog",
  "qnc-base-cards",
+ "qnc-content-read",
  "qnc-project-store",
  "qnc-workstation-identity",
  "rusqlite",

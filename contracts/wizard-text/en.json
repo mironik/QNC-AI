@@ -39,6 +39,8 @@
     "tray.delete_base_no_owner": "Ingest base {base} does not say who made it.\n\nOnly the administrator (QNC AI run as administrator) may delete it.",
     "tray.base_deleted": "Ingest base {base} deleted.",
     "tray.base_delete_failed": "Ingest base {base} was not deleted: {error}",
+    "tray.card_known": "Card {card} is already imported into Ingest base {base} ({had} clips).\n\nNo new clips: nothing is imported again.",
+    "tray.card_known_ask": "Card {card} is already imported into Ingest base {base} ({had} clips), and it has {new} new clips.\n\nYes: add the new clips to base {base}.\nNo: a new Ingest base with only the new clips.\nCancel: nothing is imported.\n\nClips already imported are not imported again.",
     "settings.title": "QNC AI: Settings",
     "new_project.title": "QNC AI: New project",
     "new_project.offer_title": "Project",

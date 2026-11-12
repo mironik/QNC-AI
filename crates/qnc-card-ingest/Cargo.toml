@@ -10,6 +10,7 @@ qnc-artifact-db = { workspace = true }
 qnc-attached-cards = { workspace = true }
 qnc-card-autoselect = { workspace = true }
 qnc-content-read = { workspace = true }
+qnc-ingest-base = { workspace = true }
 qnc-db-broker = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-content-store = { workspace = true }

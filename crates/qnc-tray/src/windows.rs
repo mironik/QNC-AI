@@ -260,6 +260,24 @@ pub(crate) fn confirm(title: &str, text: &str) -> std::sync::mpsc::Receiver<bool
     answer
 }
 
+/// A question with Yes, No and Cancel (Yes chosen when Enter is pressed), above every window, on
+/// its own thread; the answer comes back on the channel.
+pub(crate) fn ask(title: &str, text: &str) -> std::sync::mpsc::Receiver<crate::Answer> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDNO, IDYES, MB_ICONQUESTION, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNOCANCEL};
+    let (send, answer) = std::sync::mpsc::channel();
+    let (title, text) = (wide(title), wide(text));
+    std::thread::spawn(move || {
+        // SAFETY: both texts are NUL-terminated UTF-16 that live until the box is closed.
+        let chosen = unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_YESNOCANCEL | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND) };
+        let _ = send.send(match chosen {
+            IDYES => crate::Answer::Yes,
+            IDNO => crate::Answer::No,
+            _ => crate::Answer::Cancel,
+        });
+    });
+    answer
+}
+
 pub(crate) struct OneCopy(HANDLE);
 
 // SAFETY: the handle is only closed, once, by its owner.
