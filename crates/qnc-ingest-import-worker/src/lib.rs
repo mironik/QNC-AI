@@ -29,7 +29,7 @@ pub use process::{ImportRun,
     launch_worker, run_import, run_service, ImportSummary, WORKER_EXECUTABLE,
 };
 
-pub use copy::{import_clip, import_clip_beating, import_poster};
+pub use copy::{copy_local_file, import_clip, import_clip_beating, import_poster};
 pub use plan::{action_for, Action, Folder};
 pub use queue::{queue_selected, ImportQueue, TransportQueue};
 pub use run::{drain, run_next, Outcome};

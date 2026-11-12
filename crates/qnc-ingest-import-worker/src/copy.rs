@@ -1,10 +1,11 @@
 use crate::*;
 use std::{fs, io::{Read, Write}, path::Path, sync::atomic::{AtomicBool, Ordering}};
 
-/// Large pieces read in order: a card behind USB reads fastest so.
-const CHUNK: usize = 4 * 1024 * 1024;
-/// Pieces read ahead while the ones before are written (the card never waits for the disk).
-const AHEAD: usize = 4;
+/// Large pieces read in order: a card behind USB reads fastest so (measured 2026-11-12 on the card
+/// reader: 4 MB 33 MB/s, 16 MB 38 MB/s, 32 MB 39 MB/s, the system copy 40 MB/s).
+const CHUNK: usize = 32 * 1024 * 1024;
+/// Pieces read ahead while the ones before are written (the card never waits for the disk): 64 MB.
+const AHEAD: usize = 2;
 /// A card that gives no data this long (a bad place of the card, a reader that hangs) fails
 /// the clip with a clear reason; the other clips go on and it is imported again when the card
 /// is back (user 2026-11-12: "zapelo je na neispravnom klipu").
@@ -27,11 +28,11 @@ pub(crate) fn copy_into(
     let local = opener.local_path(source_uri);
     let stamp_of = |path: &Path| fs::metadata(path).and_then(|meta| Ok((meta.len(), meta.modified()?))).ok();
     let before = local.as_deref().and_then(stamp_of);
-    let mut source: Box<dyn Read + Send> = match &local {
-        Some(path) => Box::new(fs::File::open(path).map_err(|e| e.to_string())?),
-        None => Box::new(opener.open(source_uri)?),
+    let source = match &local {
+        Some(path) => file_pieces(path)?,
+        None => pieces_of(Box::new(opener.open(source_uri)?)),
     };
-    let copied = copy_pieces(opener, &mut source, destination, cancel, beat);
+    let copied = copy_pieces(opener, source, destination, cancel, beat);
     if copied.is_ok() && local.as_deref().and_then(stamp_of) != before {
         return Err(qnc_ui_text::text("import.source_changed").into());
     }
@@ -40,12 +41,11 @@ pub(crate) fn copy_into(
 
 fn copy_pieces(
     opener: &dyn MediaOpener,
-    source: &mut Box<dyn Read + Send>,
+    mut source: NextPiece,
     destination: &Path,
     cancel: &AtomicBool,
     beat: &mut dyn FnMut(),
 ) -> Result<(), String> {
-    let mut source = std::mem::replace(source, Box::new(std::io::empty()));
     let mut file = fs::File::create(destination).map_err(|e| e.to_string())?;
     // The card is read on a thread of its own, ahead of the writes. A read the card never answers
     // leaves that thread behind; the copy itself ends after `STALL`.
@@ -56,11 +56,7 @@ fn copy_pieces(
         if stopped.load(Ordering::Relaxed) {
             return;
         }
-        let mut buffer = vec![0_u8; CHUNK];
-        let read = fill(&mut *source, &mut buffer).map(|n| {
-            buffer.truncate(n);
-            buffer
-        });
+        let read = source();
         let end = !matches!(&read, Ok(piece) if !piece.is_empty());
         if send.send(read).is_err() || end {
             return;
@@ -98,6 +94,62 @@ fn copy_pieces(
     }
 }
 
+/// The next piece of a medium: empty at its end.
+type NextPiece = Box<dyn FnMut() -> Result<Vec<u8>, String> + Send>;
+
+/// Pieces of a reader, in order.
+fn pieces_of(mut source: Box<dyn Read + Send>) -> NextPiece {
+    Box::new(move || {
+        let mut buffer = vec![0_u8; CHUNK];
+        let n = fill(&mut *source, &mut buffer)?;
+        buffer.truncate(n);
+        Ok(buffer)
+    })
+}
+
+/// A file of this computer read past the system cache, in order, as the system copy does
+/// (robocopy /J): measured 2026-11-12 on the card reader, 40 MB/s against 35 MB/s through the cache.
+/// Elsewhere, or when the system refuses it, the file is read as any reader.
+fn file_pieces(path: &Path) -> Result<NextPiece, String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_NO_BUFFERING: u32 = 0x2000_0000;
+        const FILE_FLAG_SEQUENTIAL_SCAN: u32 = 0x0800_0000;
+        // A read past the cache goes into memory aligned to the sector, a whole number of sectors
+        // at a time; a page is a whole number of sectors of every disk.
+        const ALIGN: usize = 4096;
+        if let Ok(mut file) = fs::OpenOptions::new().read(true).custom_flags(FILE_FLAG_NO_BUFFERING | FILE_FLAG_SEQUENTIAL_SCAN).open(path) {
+            let mut memory = vec![0_u8; CHUNK + ALIGN];
+            let mut ended = false;
+            return Ok(Box::new(move || {
+                if ended {
+                    return Ok(Vec::new());
+                }
+                let start = memory.as_ptr().align_offset(ALIGN);
+                let buffer = &mut memory[start..start + CHUNK];
+                let mut filled = 0;
+                // Only the last read of the file is shorter than asked; the one after it reads nothing.
+                while filled < CHUNK {
+                    match file.read(&mut buffer[filled..]) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            filled += n;
+                            if n % ALIGN != 0 {
+                                break;
+                            }
+                        }
+                        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+                        Err(error) => return Err(error.to_string()),
+                    }
+                }
+                ended = filled < CHUNK;
+                Ok(buffer[..filled].to_vec())
+            }));
+        }
+    }
+    Ok(pieces_of(Box::new(fs::File::open(path).map_err(|e| e.to_string())?)))
+}
 /// Reads until the buffer is full or the medium ends.
 fn fill(source: &mut dyn Read, buffer: &mut [u8]) -> Result<usize, String> {
     let mut filled = 0;
@@ -247,4 +299,19 @@ pub fn import_poster(
         None => qnc_missing_posters::poster_from_start(clip, &plan.settings, &|uri: &str| opener.local_path(uri), &output, cancel).ok()?,
     }
     Some(made)
+}
+
+/// Copies a file of this computer as an import copies a medium of a card (diagnostic: the copy
+/// speed against the system copy).
+pub fn copy_local_file(source: &Path, destination: &Path) -> Result<(), String> {
+    struct Local(std::path::PathBuf);
+    impl MediaOpener for Local {
+        fn open(&self, _: &str) -> Result<Box<dyn MediaRead>, String> {
+            Err("read from the file".into())
+        }
+        fn local_path(&self, _: &str) -> Option<std::path::PathBuf> {
+            Some(self.0.clone())
+        }
+    }
+    copy_into(&Local(source.to_path_buf()), "", destination, &AtomicBool::new(false), &mut || {})
 }
