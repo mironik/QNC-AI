@@ -39,13 +39,22 @@ impl Transcription {
 
     /// Every imported clip not in the queue yet goes in, whole, with the fast engine.
     pub(crate) fn queue_imported(&self) -> Result<usize, String> {
-        let queued: Vec<String> = qnc_transcript_db::read_queue(&self.db)?.into_iter().map(|entry| entry.clip_id).collect();
+        // A clip that failed because its record was not final yet goes in again (live 2026-11-12:
+        // queued once copied, its record still being completed: "player input: NotFinal").
+        let queued: Vec<String> = qnc_transcript_db::read_queue(&self.db)?
+            .into_iter()
+            .filter(|entry| !(entry.state == QueueState::Failed && entry.error.contains("NotFinal")))
+            .map(|entry| entry.clip_id)
+            .collect();
         let transcribed = qnc_transcript_db::read_transcribed(&self.db)?;
+        // Only a clip whose record is final can be heard (its sound is read through the player input).
+        let waiting = self.content.records_waiting()?;
         let new: Vec<Queued> = self
             .content
             .summaries()?
             .into_iter()
-            .filter(|clip| clip.imported && clip.duration_frames > 0 && !queued.contains(&clip.clip_id) && !transcribed.contains(&clip.clip_id))
+            .filter(|clip| clip.imported && clip.duration_frames > 0 && !waiting.contains(&clip.clip_id))
+            .filter(|clip| !queued.contains(&clip.clip_id) && !transcribed.contains(&clip.clip_id))
             .map(|clip| Queued {
                 clip_id: clip.clip_id,
                 from_frame: 0,
@@ -113,7 +122,8 @@ pub(crate) fn ai_takes(root: &Path, stopped: bool) -> Result<Box<dyn Fn(&str) ->
     let mut taken = HashMap::new();
     for entry in qnc_transcript_db::read_queue(&transcription.db)? {
         let take = match entry.state {
-            QueueState::Failed => true,
+            // A clip that failed only because its record was not final is heard again.
+            QueueState::Failed => stopped || !entry.error.contains("NotFinal"),
             QueueState::Done => !statement(&entry.clip_id, frames.get(&entry.clip_id).copied().unwrap_or(entry.to_frame))?,
             // The user stopped the transcription: what is not heard is not known as a statement.
             QueueState::Waiting | QueueState::Running => stopped,
