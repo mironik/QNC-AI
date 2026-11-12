@@ -171,7 +171,8 @@ fn main() {
             match result {
                 Ok(()) => {
                     log(format!("base deleted {label}"));
-                    tray.notify(&text("tray.title"), &fill("tray.base_deleted", &[("base", &label)]));
+                    // An overlay in the middle of the screen that closes itself (user 2026-11-12).
+                    tray.info("base-deleted", &text("tray.title"), &fill("tray.base_deleted", &[("base", &label)]), &text("tray.ok"), Duration::from_secs(5));
                 }
                 Err(error) => {
                     log(format!("base not deleted {label}: {error}"));

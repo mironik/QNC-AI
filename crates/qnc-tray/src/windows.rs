@@ -236,6 +236,10 @@ pub(crate) fn alert(key: &str, title: &str, text: &str, ok: &str) {
     crate::alert::show(key, title, text, ok);
 }
 
+pub(crate) fn info(key: &str, title: &str, text: &str, ok: &str, close_after: std::time::Duration) {
+    crate::alert::info(key, title, text, ok, close_after);
+}
+
 pub(crate) fn close_alert(key: &str) {
     crate::alert::close(key);
 }

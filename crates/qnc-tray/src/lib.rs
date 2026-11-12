@@ -72,6 +72,15 @@ impl Tray {
         let _ = (key, title, text, ok);
     }
 
+    /// A notice the user should see (something went well): the overlay in the middle of the
+    /// screen with a green band, that closes itself after `close_after`, or on its button.
+    pub fn info(&self, key: &str, title: &str, text: &str, ok: &str, close_after: std::time::Duration) {
+        #[cfg(windows)]
+        windows::info(key, title, text, ok, close_after);
+        #[cfg(not(windows))]
+        let _ = (key, title, text, ok, close_after);
+    }
+
     /// A question with Yes and No (No chosen when Enter is pressed): it does not wait; the answer
     /// comes on the channel. Another system answers No at once (it has no tray yet).
     pub fn confirm(&self, title: &str, text: &str) -> Receiver<bool> {

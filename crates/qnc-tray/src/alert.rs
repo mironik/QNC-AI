@@ -1,6 +1,6 @@
 //! The error overlay of the Windows adapter (user 2026-11-11: "bolje da se na sredini ekrana pojavi
 //! error info overlay"): a window of its own in the middle of the screen, above every window, in
-//! QNC's colours (the dark surface and a red band), with an OK button. It is shown without being
+//! QNC's colours (the dark surface and a red band; a notice has a green band and closes itself), with an OK button. It is shown without being
 //! activated: a program in the tray may not bring a window to the front (Windows showed its own
 //! message box minimised), but a topmost window that does not take the keyboard is shown at once.
 
@@ -12,7 +12,7 @@ use windows_sys::Win32::Graphics::Gdi::{
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetSystemMetrics, GetWindowLongPtrW, LoadCursorW,
-    PostMessageW, PostQuitMessage, RegisterClassW, WM_CLOSE, SetWindowLongPtrW, ShowWindow, TranslateMessage, GWLP_USERDATA, IDC_ARROW, MSG, SM_CXSCREEN,
+    PostMessageW, PostQuitMessage, RegisterClassW, WM_CLOSE, SetTimer, SetWindowLongPtrW, ShowWindow, WM_TIMER, TranslateMessage, GWLP_USERDATA, IDC_ARROW, MSG, SM_CXSCREEN,
     SM_CYSCREEN, SW_SHOWNOACTIVATE, WM_DESTROY, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WNDCLASSW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
@@ -33,11 +33,15 @@ const RAISED: (u8, u8, u8) = (31, 41, 55);
 const BORDER: (u8, u8, u8) = (55, 65, 81);
 const TEXT: (u8, u8, u8) = (229, 231, 235);
 const DANGER: (u8, u8, u8) = (220, 38, 38);
+/// What went well: a notice, not an error.
+const DONE: (u8, u8, u8) = (34, 197, 94);
 
 struct Alert {
     title: Vec<u16>,
     text: Vec<u16>,
     ok: Vec<u16>,
+    /// Green for a notice, red for an error.
+    band: (u8, u8, u8),
     hover: bool,
 }
 
@@ -55,10 +59,19 @@ static SHOWN: std::sync::Mutex<Vec<(String, isize)>> = std::sync::Mutex::new(Vec
 /// Shows the overlay of `key` on its own thread (the caller goes on); OK closes it, and so does
 /// `close(key)`. An overlay of the same key shown before is closed first.
 pub(crate) fn show(key: &str, title: &str, text: &str, ok: &str) {
+    shown(key, title, text, ok, DANGER, None);
+}
+
+/// A notice: the overlay with a green band that closes itself after `close_after` (or on OK).
+pub(crate) fn info(key: &str, title: &str, text: &str, ok: &str, close_after: std::time::Duration) {
+    shown(key, title, text, ok, DONE, Some(close_after));
+}
+
+fn shown(key: &str, title: &str, text: &str, ok: &str, band: (u8, u8, u8), close_after: Option<std::time::Duration>) {
     close(key);
-    let alert = Alert { title: wide(title), text: wide(text), ok: wide(ok), hover: false };
+    let alert = Alert { title: wide(title), text: wide(text), ok: wide(ok), band, hover: false };
     let key = key.to_string();
-    std::thread::spawn(move || run(key, alert));
+    std::thread::spawn(move || run(key, alert, close_after));
 }
 
 /// Closes the overlay of `key`, when one is shown (what it asked for is done).
@@ -77,7 +90,7 @@ pub(crate) fn close(key: &str) {
     }
 }
 
-fn run(key: String, alert: Alert) {
+fn run(key: String, alert: Alert, close_after: Option<std::time::Duration>) {
     let class: Vec<u16> = "QncAiAlert".encode_utf16().chain(std::iter::once(0)).collect();
     // SAFETY: Win32 calls on this thread with buffers that live through each call; the window's
     // state is a box owned by the window and freed when it is destroyed.
@@ -112,6 +125,9 @@ fn run(key: String, alert: Alert) {
             shown.push((key, window as isize));
         }
         ShowWindow(window, SW_SHOWNOACTIVATE);
+        if let Some(after) = close_after {
+            SetTimer(window, 1, after.as_millis().min(u128::from(u32::MAX)) as u32, None);
+        }
         let mut message: MSG = std::mem::zeroed();
         while GetMessageW(&mut message, std::ptr::null_mut(), 0, 0) > 0 {
             TranslateMessage(&message);
@@ -152,8 +168,8 @@ unsafe extern "system" fn procedure(window: HWND, message: u32, wparam: WPARAM, 
             if let Some(alert) = state(window) {
                 let all = RECT { left: 0, top: 0, right: WIDTH, bottom: HEIGHT };
                 fill(dc, &all, SURFACE);
-                fill(dc, &RECT { left: 0, top: 0, right: WIDTH, bottom: BAND }, DANGER);
-                let border = CreateSolidBrush(rgb(DANGER.0, DANGER.1, DANGER.2));
+                fill(dc, &RECT { left: 0, top: 0, right: WIDTH, bottom: BAND }, alert.band);
+                let border = CreateSolidBrush(rgb(alert.band.0, alert.band.1, alert.band.2));
                 FrameRect(dc, &all, border);
                 DeleteObject(border);
                 SetBkMode(dc, TRANSPARENT as i32);
@@ -178,6 +194,10 @@ unsafe extern "system" fn procedure(window: HWND, message: u32, wparam: WPARAM, 
                     InvalidateRect(window, std::ptr::null(), 0);
                 }
             }
+            0
+        }
+        WM_TIMER => {
+            DestroyWindow(window);
             0
         }
         WM_LBUTTONUP => {
