@@ -71,7 +71,9 @@ fn import_waiting(root: &Path) -> Result<bool, String> {
     Ok(reader
         .summaries()?
         .iter()
-        .any(|clip| clip.import_status == "queued"))
+        // A clip left "processing" by a worker that ended (killed, crashed) is taken again by the
+        // import (live 2026-11-12: the import never ran for it and the card was never finished).
+        .any(|clip| matches!(clip.import_status.as_str(), "queued" | "processing")))
 }
 
 /// Whether the import still has clips to copy (queued or being copied).
