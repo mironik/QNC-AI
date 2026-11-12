@@ -57,6 +57,7 @@
     "card_ingest.content": "AI sadržaj",
     "card_ingest.captions": "AI opisi",
     "card_ingest.failed": "{failed} klipova nije uvezeno (kartica je bila izvađena): vratite karticu i uvoz se nastavlja.",
+    "card_ingest.elapsed": "Vrijeme: {time}",
     "card_ingest.stopped": "Obustavljeno ({done} / {clips})",
     "card_ingest.stop_hint": "Obustavi: nije potrebno. Ono što je napravljeno ostaje.",
     "card_ingest.clips": "Klipova: {clips}",

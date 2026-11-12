@@ -19,6 +19,20 @@ struct Window {
     contracts: qnc_ingest_layout::IngestContracts,
     ingest: CardIngest,
     last: Option<Phase>,
+    /// When the work started (the card Selected), how long all of it took, and when each
+    /// function was done (user 2026-11-12: "dodaj vrijeme trajanja u prikazu"); only shown.
+    started: Option<std::time::Instant>,
+    took: Option<std::time::Duration>,
+    done_after: std::collections::HashMap<&'static str, std::time::Duration>,
+}
+
+/// m:ss, or h:mm:ss past an hour.
+fn clock(time: std::time::Duration) -> String {
+    let seconds = time.as_secs();
+    match seconds / 3600 {
+        0 => format!("{}:{:02}", seconds / 60, seconds % 60),
+        hours => format!("{hours}:{:02}:{:02}", seconds / 60 % 60, seconds % 60),
+    }
 }
 
 impl eframe::App for Window {
@@ -30,6 +44,23 @@ impl eframe::App for Window {
             log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
             self.last = Some(status.phase);
         }
+        if status.phase != Phase::Waiting && self.started.is_none() {
+            self.started = Some(std::time::Instant::now());
+        }
+        let elapsed = self.started.map(|started| started.elapsed());
+        if status.phase == Phase::Done && self.took.is_none() {
+            self.took = elapsed;
+            if let Some(took) = elapsed {
+                log(format!("ai-card-ingest done after {}", clock(took)));
+            }
+        }
+        for bar in status.progress.bars() {
+            if status.progress.clips > 0 && bar.done >= status.progress.clips {
+                if let Some(elapsed) = elapsed {
+                    self.done_after.entry(bar.function).or_insert(elapsed);
+                }
+            }
+        }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(24.0)).show(ctx, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
@@ -37,6 +68,9 @@ impl eframe::App for Window {
                 Phase::Selecting | Phase::Making => text("card_ingest.running"),
             };
             ui.label(RichText::new(title).size(theme.font_ui + 6.0).color(theme.text).strong());
+            if let Some(time) = self.took.or(elapsed) {
+                ui.label(RichText::new(fill("card_ingest.elapsed", &[("time", &clock(time))])).color(theme.text));
+            }
             ui.add_space(12.0);
             if !status.cameras.is_empty() {
                 ui.label(RichText::new(status.cameras.join(", ")).color(theme.text));
@@ -68,6 +102,11 @@ impl eframe::App for Window {
                     let x = ui.add_enabled(running, egui::Button::new("✕").min_size(egui::vec2(22.0, 20.0)));
                     if x.on_hover_text(text("card_ingest.stop_hint")).clicked() {
                         qnc_card_ingest::stop(&self.root, bar.function);
+                    }
+                    // How long the function took; while it runs, how long it runs.
+                    let time = self.done_after.get(bar.function).copied().or(if bar.stopped { None } else { elapsed });
+                    if let Some(time) = time {
+                        ui.label(RichText::new(clock(time)).color(theme.text));
                     }
                 });
             }
@@ -101,10 +140,10 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default() };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 480.0]).with_resizable(false),
+        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 510.0]).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

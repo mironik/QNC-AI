@@ -57,6 +57,7 @@
     "card_ingest.content": "AI content",
     "card_ingest.captions": "AI captions",
     "card_ingest.failed": "{failed} clips not imported (the card was out): put the card back and the import goes on.",
+    "card_ingest.elapsed": "Time: {time}",
     "card_ingest.stopped": "Stopped ({done} / {clips})",
     "card_ingest.stop_hint": "Stop this: it is not needed. What is made stays.",
     "card_ingest.clips": "Clips: {clips}",
