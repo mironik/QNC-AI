@@ -142,7 +142,7 @@ impl ProjectSession {
     pub fn new(component: ProjectComponent, ready_text: String, known_actions: BTreeSet<String>) -> Self {
         // Shown once the registry answers (piece `qnc-project-jobs`).
         let ai = qnc_ai_features::Choice::load(&component.root);
-        let bases_root = qnc_dir_browser::display_private_path(&qnc_ingest_base::folder(&component.root));
+        let bases_root = qnc_ingest_base::folder(&component.root).map(|folder| qnc_dir_browser::display_private_path(&folder)).unwrap_or_default();
         let ai_share = qnc_ai_catalog::chosen_share(&component.root).map(|folder| qnc_dir_browser::display_private_path(&folder)).unwrap_or_default();
         let mut session = Self {
             component,

@@ -385,3 +385,9 @@ Otvoreno (korisnik: "direktorij zajednickih kocki da ono sto je zajednicko ne bu
 verzije su drugacije"; "korisniku izbor nacina rada: kroz Wizard ili klasicni nacin"; "tray bi koristila i
 jedna i druga verzija"): predlozen jedan repozitorij (QNC-AI glavni, QNC arhiv) s jednim skupom kocki, dva
 nacina rada i zajednickim trayem; ceka odluku.
+
+Dopuna 2026-11-12 (isto pravilo, "direktoriji ne smiju biti hardkodirani"): mapa Ingest baza nema zadanu
+vrijednost (`data/ingest` uklonjen, `BASES_DIR`): `qnc-ingest-base` `folder` vraca gresku kad nije izabrana u
+Postavkama, pa tray ne radi ingest i javlja to; `keep_projects_apart` vise sam ne postavlja projekte u
+`projects` korijena, nego javlja da se mapa projekata mora izabrati. Test prosiren. Ostaje: Project spremiste
+(QNC-ov kod) ima svoju zadanu mapu projekata kad registar nema izbor.

@@ -13,8 +13,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use qnc_application_catalog::{SelectedApplication, SelectionSnapshot};
 use qnc_project_store::ProjectStore;
 
-/// The folder of the Ingest bases in a QNC-AI root.
-pub const BASES_DIR: &str = "data/ingest";
 /// The name every Ingest base starts with.
 pub const NAME_PREFIX: &str = "Ingest";
 
@@ -244,26 +242,28 @@ struct FolderSetting {
     folder: PathBuf,
 }
 
-/// The folder the Ingest bases of `root` are made in: the one Settings chose, else `data/ingest`.
-pub fn folder(root: &Path) -> PathBuf {
-    std::fs::read(root.join(FOLDER_SETTING))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<FolderSetting>(&bytes).ok())
-        .map(|setting| if setting.folder.is_absolute() { setting.folder } else { root.join(setting.folder) })
-        .unwrap_or_else(|| root.join(BASES_DIR))
+/// The folder the Ingest bases of `root` are made in: the one Settings chose (user 2026-11-12:
+/// "direktoriji ne smiju biti hardkodirani"). Not chosen is an error: no folder is guessed.
+pub fn folder(root: &Path) -> Result<PathBuf, String> {
+    let file = root.join(FOLDER_SETTING);
+    let bytes = std::fs::read(&file).map_err(|_| format!("the folder of the Ingest bases is not set ({} missing; choose it in Settings)", file.display()))?;
+    let setting: FolderSetting = serde_json::from_slice(&bytes).map_err(|error| format!("{}: {error}", file.display()))?;
+    Ok(if setting.folder.is_absolute() { setting.folder } else { root.join(setting.folder) })
 }
 
-/// The projects' folder is never the bases' folder: one left there (earlier versions of QNC-AI made
-/// the bases by moving it) goes back to QNC's (`projects` of the root).
+/// The projects' folder is never the bases' folder (earlier versions of QNC-AI made the bases by
+/// moving it): when they are one, the user is told to choose the projects' folder in Settings.
 pub fn keep_projects_apart(root: &Path) -> Result<(), String> {
     keep_apart(&mut ProjectStore::open(root)?, root)
 }
 
 fn keep_apart(store: &mut ProjectStore, root: &Path) -> Result<(), String> {
-    if Path::new(&store.projects_root_display()) == folder(root) {
-        store.set_projects_root(root.join("projects"))?;
+    match folder(root) {
+        Ok(bases) if Path::new(&store.projects_root_display()) == bases => {
+            Err("the folder of the projects is the folder of the Ingest bases: choose another for the projects in Settings".into())
+        }
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 /// Settings: the Ingest bases are made in `folder` from now on (the bases made before stay where
@@ -281,7 +281,7 @@ pub fn set_folder(root: &Path, folder: &Path) -> Result<(), String> {
 /// Settings is left as it was.
 pub fn current(root: &Path) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
-    let bases = folder(root);
+    let bases = folder(root)?;
     keep_apart(&mut store, root)?;
     if let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) {
         let base = base_of(active, &store);
@@ -405,6 +405,9 @@ mod tests {
         }
         std::fs::write(root.join("AGENTS.md"), "test\n").unwrap();
         std::fs::write(root.join("Cargo.toml"), "# test\n").unwrap();
+        std::fs::create_dir_all(root.join("data")).unwrap();
+        assert!(current(&root).unwrap_err().contains("not set"), "no folder of the bases is guessed");
+        set_folder(&root, &root.join("bases")).unwrap();
         let base = current(&root).unwrap();
         assert!(base.name.starts_with(NAME_PREFIX));
         assert_eq!(current(&root).unwrap(), base, "the active base stays the current one");
@@ -433,13 +436,13 @@ mod tests {
         let store = ProjectStore::open(&root).unwrap();
         let (base_db, _) = store.project_db_binding(&base.id).unwrap();
         let (story_db, _) = store.project_db_binding(&story).unwrap();
-        assert!(base_db.starts_with(folder(&root)), "the base in the bases' folder: {}", base_db.display());
+        assert!(base_db.starts_with(folder(&root).unwrap()), "the base in the bases' folder: {}", base_db.display());
         assert_eq!(all(&root).unwrap().len(), 2, "the next base beside the one taken");
         assert!(story_db.starts_with(root.join("projects")), "the story's database in its project folder: {}", story_db.display());
         assert_eq!(PathBuf::from(store.projects_root_display()), root.join("projects"), "the projects' folder is left as it was");
         let elsewhere = root.join("other bases");
         set_folder(&root, &elsewhere).unwrap();
-        assert_eq!(folder(&root), elsewhere, "Settings chose another folder for the bases");
+        assert_eq!(folder(&root).unwrap(), elsewhere, "Settings chose another folder for the bases");
         for row in store.list_projects().unwrap() {
             store.delete_project(&row.project_id).unwrap();
         }
