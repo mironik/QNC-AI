@@ -106,10 +106,16 @@ fn main() {
                     return;
                 }
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
-                TrayEvent::Menu(DELETE_BASE) => match qnc_ingest_base::active(&root) {
+                // The active base, or, when none is active (a delete that failed closed it), the
+                // newest base (live 2026-11-12).
+                TrayEvent::Menu(DELETE_BASE) => match qnc_ingest_base::active(&root).and_then(|base| match base {
+                    Some(base) => Ok(Some(base)),
+                    None => qnc_ingest_base::all(&root).map(|bases| bases.into_iter().next()),
+                }) {
                     Ok(Some(base)) => match qnc_ingest_base::may_delete(&root, &base.id) {
                         Ok(()) => {
                             let ask = fill("tray.delete_base_ask", &[("base", base.label())]);
+                            log(format!("delete base asked {}", base.label()));
                             deleting = Some((base, tray.confirm(&text("tray.title"), &ask)));
                         }
                         // The base is public: only who made it, or the administrator, deletes it
@@ -124,8 +130,14 @@ fn main() {
                             tray.alert("delete-base", &text("tray.title"), &why, &text("tray.ok"));
                         }
                     },
-                    Ok(None) => tray.notify(&text("tray.title"), &text("tray.delete_base_none")),
-                    Err(error) => tray.notify(&text("tray.title"), &error),
+                    Ok(None) => {
+                        log("delete base: there is none".into());
+                        tray.info("delete-base", &text("tray.title"), &text("tray.delete_base_none"), &text("tray.ok"), Duration::from_secs(5));
+                    }
+                    Err(error) => {
+                        log(format!("delete base: bases not read: {error}"));
+                        tray.alert("delete-base", &text("tray.title"), &error, &text("tray.ok"));
+                    }
                 },
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
@@ -149,6 +161,7 @@ fn main() {
         // let the base go), then the base and its folder are deleted on a thread of their own.
         if let Some((base, answer)) = &deleting {
             if let Ok(yes) = answer.try_recv() {
+                log(format!("delete base answered {}: {yes}", base.label()));
                 if yes {
                     if let Some(child) = ingest.as_mut() {
                         let _ = child.kill();
