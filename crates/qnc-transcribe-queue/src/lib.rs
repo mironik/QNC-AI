@@ -116,7 +116,12 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
             Err(error) => return log(&format!("transcribe-queue read: {error}")),
         };
         // A clip left running by a run that died waits again; this runner holds the lease.
-        let Some(next) = queue.into_iter().find(|q| matches!(q.state, QueueState::Waiting | QueueState::Running)) else {
+        // A clip left running goes on first; then the shortest waiting clip: a long one does not
+        // hold the short ones behind it (live 2026-11-12: a 13.5 min clip held 20 clips for 146 s,
+        // and the AI shots waited for them).
+        let running_one = queue.iter().find(|q| q.state == QueueState::Running).cloned();
+        let shortest = queue.iter().filter(|q| q.state == QueueState::Waiting).min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)).cloned();
+        let Some(next) = running_one.or(shortest) else {
             // The queue is done: the lease goes now and the background worker is woken, so the
             // shot analysis that waited for the card starts at once (user 2026-10-28).
             drop(lease);
