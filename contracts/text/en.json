@@ -1730,6 +1730,7 @@
     "project.msg.export_dir_set": "Export folder set.",
     "project.msg.bases_root_set": "Folder of the Ingest bases set.",
     "project.bases_root_label": "Ingest bases (global)",
+    "project.locations_title": "LOCATIONS",
     "project.msg.confirm_remove": "Confirm the removal of the project.",
     "project.store.root_empty": "The projects location is empty.",
     "project.store.template_name_empty": "The template name is empty.",

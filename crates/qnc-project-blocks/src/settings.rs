@@ -119,8 +119,14 @@ impl Blocks<'_> {
                                 bottom: settings.inner_pad_y as i8,
                             })
                             .show(ui, |ui| {
+                                // The content stays inside the margins (it went past the window's right edge).
+                                let width = (width - 2.0 * settings.inner_pad_x).max(40.0);
                                 ui.set_max_width(width);
                                 ui.spacing_mut().item_spacing.y = settings.section_gap;
+                                // QNC-AI Settings: the locations first, always shown.
+                                if self.settings_only {
+                                    self.locations(ui, width, settings);
+                                }
                                 self.pts_fixed(ui, width, settings);
                                 // The Advanced bar; the slots of the scroll show only while it is open.
                                 project_advanced::header(ui, width, &self.contracts.project.advanced_settings, &self.contracts.theme, &mut self.session.advanced_open);
@@ -128,12 +134,7 @@ impl Blocks<'_> {
                                 for slot in slots {
                                     match slot.as_str() {
                                         "AiSettings" => self.ai_settings(ui, width, settings),
-                                        "Locations" => {
-                                            self.path_row(ui, width, settings, LocationTarget::ProjectsRoot);
-                                            self.path_row(ui, width, settings, LocationTarget::ExportDir);
-                                            // QNC-AI: the global folder of the Ingest bases, apart from the projects'.
-                                            self.path_row(ui, width, settings, LocationTarget::BasesRoot);
-                                        }
+                                        "Locations" if !self.settings_only => self.locations(ui, width, settings),
                                         "TemplateActions" => self.template_actions(ui, width, settings),
                                         "AdvancedSections" => self.advanced(ui, width, settings),
                                         "CustomTemplate" if self.session.template_create_open => {
@@ -296,6 +297,18 @@ impl Blocks<'_> {
         });
     }
 
+    /// The location fields: projects, the global Ingest bases (QNC-AI, apart from the projects'),
+    /// export.
+    fn locations(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics) {
+        if self.settings_only {
+            let t = Theme::from_contract(&self.contracts.shell.colors);
+            ui.label(RichText::new(qnc_ui_text::text("project.locations_title")).size(settings.label_font_size).strong().color(t.muted));
+        }
+        self.path_row(ui, width, settings, LocationTarget::ProjectsRoot);
+        self.path_row(ui, width, settings, LocationTarget::BasesRoot);
+        self.path_row(ui, width, settings, LocationTarget::ExportDir);
+    }
+
     /// A location field (piece `qnc-location-field`): the path, Choose, and while open its
     /// browser with Select/Cancel.
     fn path_row(&mut self, ui: &mut egui::Ui, content_w: f32, settings: &SettingsPanelMetrics, target: LocationTarget) {
@@ -306,9 +319,12 @@ impl Blocks<'_> {
             LocationTarget::ExportDir => (&texts.export_directory_label, &mut self.session.export_dir, "export_dir", 150.0),
             LocationTarget::BasesRoot => (&bases_label, &mut self.session.bases_root, "bases_root", 150.0),
         };
-        let (mut typed, mut pick) = (false, false);
+        let (mut typed, mut pick, mut left) = (false, false, false);
         widgets::inline_row(ui, content_w, label, settings, shell, |ui, width| {
-            typed = ui.add(egui::TextEdit::singleline(&mut field.text).desired_width(width.max(40.0)).hint_text(&texts.path_hint)).changed();
+            let response = ui.add(egui::TextEdit::singleline(&mut field.text).desired_width(width.max(40.0)).hint_text(&texts.path_hint));
+            typed = response.changed();
+            // QNC-AI: a typed path is kept on Enter or when the field is left.
+            left = response.lost_focus();
         }, |ui, _| pick = widgets::primary_btn(ui, &texts.choose, true, shell).clicked());
         let labels = qnc_location_field_view::FieldLabels {
             sources: &texts.sources, up: &texts.up, disks: &texts.disks, internet: &texts.internet,
@@ -320,6 +336,7 @@ impl Blocks<'_> {
             self.session.location_typed(target);
             self.session.status = texts.settings_changed.clone();
         }
+        self.intents.extend(left.then_some(ProjectIntent::CommitLocation { target }));
         self.intents.extend(pick.then_some(ProjectIntent::PickLocation { target }));
         self.intents.extend(answer.map(|answer| ProjectIntent::AnswerLocation { target, answer }));
     }

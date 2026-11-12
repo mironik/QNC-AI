@@ -97,6 +97,10 @@ pub enum ProjectIntent {
         target: LocationTarget,
         answer: LocationAnswer,
     },
+    /// QNC-AI: the path typed into a location field is kept (Enter, or the field left).
+    CommitLocation {
+        target: LocationTarget,
+    },
 }
 
 impl ProjectIntent {
@@ -119,7 +123,7 @@ impl ProjectIntent {
             Self::RequestDeleteTemplate { .. } => "project_template_delete_request",
             Self::CancelDeleteTemplate => "project_template_delete_cancel",
             Self::ConfirmDeleteTemplate => "project_template_delete_confirm",
-            Self::PickLocation { target } => location_action(*target, "pick"),
+            Self::PickLocation { target } | Self::CommitLocation { target } => location_action(*target, "pick"),
             Self::AnswerLocation { target, answer } => location_action(*target, match answer {
                 LocationAnswer::Browser(qnc_dir_browser::BrowserAction::Kind(_)) => "browser_select_source",
                 LocationAnswer::Browser(_) => "browser_open_path",
@@ -294,6 +298,37 @@ impl ProjectSession {
             ProjectIntent::AnswerLocation { target, answer } => {
                 let step = self.locations_mut(target).0.answer(&answer);
                 self.location_step(target, step);
+            }
+            ProjectIntent::CommitLocation { target } => self.commit_typed(target),
+        }
+    }
+
+    /// QNC-AI (user 2026-11-12: "postavke nisu u funkciji"): a path typed into a location field is
+    /// kept as one chosen in its browser: the projects' folder through the registry, the bases'
+    /// folder as the setting of this computer, the export folder in the draft.
+    fn commit_typed(&mut self, target: LocationTarget) {
+        let (field, _) = self.locations_mut(target);
+        if !field.dirty {
+            return;
+        }
+        field.dirty = false;
+        let text = field.text.trim().to_string();
+        if text.is_empty() {
+            return;
+        }
+        let path = std::path::PathBuf::from(&text);
+        match target {
+            LocationTarget::ProjectsRoot => self.component.request(Request::SetProjectsRoot { path }),
+            LocationTarget::BasesRoot => match qnc_ingest_base::set_folder(&self.component.root, &path) {
+                Ok(()) => {
+                    self.bases_root.chosen(qnc_dir_browser::display_private_path(&path));
+                    self.status = qnc_ui_text::text("project.msg.bases_root_set").to_string();
+                }
+                Err(error) => self.status = error,
+            },
+            LocationTarget::ExportDir => {
+                qnc_settings_path::set_string_path(&mut self.draft_settings, "export.directory", text);
+                self.status = qnc_ui_text::text("project.msg.export_dir_set").to_string();
             }
         }
     }

@@ -230,6 +230,7 @@
     "project.msg.export_dir_set": "Mapa exporta postavljena.",
     "project.msg.bases_root_set": "Mapa Ingest baza postavljena.",
     "project.bases_root_label": "Ingest baze (globalne)",
+    "project.locations_title": "LOKACIJE",
     "project.msg.confirm_remove": "Potvrdi uklanjanje projekta.",
     "project.store.root_empty": "Lokacija projekata je prazna.",
     "project.store.template_name_empty": "Naziv templatea je prazan.",

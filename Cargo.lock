@@ -3244,6 +3244,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-app-catalog"
+version = "0.1.0"
+dependencies = [
+ "qnc-application-catalog",
+ "qnc-contracts",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-application-catalog"
 version = "0.1.0"
 dependencies = [
