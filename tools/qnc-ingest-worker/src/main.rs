@@ -180,7 +180,6 @@ fn run_once(root: &Path) -> Result<bool, String> {
           let mut stuck = stuck_records.lock().expect("stuck records");
           let mut first = first_round.swap(false, std::sync::atomic::Ordering::Relaxed);
           loop {
-            trace("completion round".into());
             let done = qnc_record_completion::complete_active_project(
                 root,
                 &make_backend,
@@ -205,7 +204,9 @@ fn run_once(root: &Path) -> Result<bool, String> {
                     qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("record-completion failed error={error}"));
                 }
             }
-            trace(format!("completion round done completed={completed}"));
+            if completed {
+                trace("completion round completed records".into());
+            }
             first = false;
             // Once more now the records are final: a clip whose record had no timing at
             // Select gets its poster from the start of the clip.

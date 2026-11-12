@@ -256,7 +256,9 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
     }
     if feature("shot_content") {
         let engine = qnc_ai_catalog::installed_shot_content()?;
-        let clips: std::collections::BTreeSet<_> = qnc_shot_content_db::read_all(&target, &engine.model_name()).map_err(|error| error.to_string())?.into_iter().map(|content| content.clip_id).collect();
+        // Only the look at the shots counts: the quick look at the card's posters right after Select
+        // is not the content of the clip (live 2026-11-12: 30/30 with 9 clips copied).
+        let clips: std::collections::BTreeSet<_> = qnc_shot_content_db::read_all(&target, &engine.model_name()).map_err(|error| error.to_string())?.into_iter().filter(|content| content.parts.iter().any(|part| part.kind != "poster")).map(|content| content.clip_id).collect();
         progress.content = Some(clips.len());
     }
     if feature("shot_caption") {
