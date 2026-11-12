@@ -447,3 +447,7 @@ njih, a sljedeci nastavak krenuo je iza njega. Sada se retci daju cim su cuti, o
 (`lines_cut`). Postavke prijepisa (CH1, hr, Parakeet, prag) iste su kao u QNC-u. Isti klip u bazi 22:55 (jedno
 ustupanje) ima potpun tekst. Primjer `qnc-transcript-db/examples/line_words.rs` (samo citanje) u QNC-shared.
 Prijepis u bazi 22:03 nije napravljen ponovno.
+Izmjena 2026-11-12 (korisnik: "timecode broji trajanje od početka, a trebao bi davati timecode playholdera, a ne
+trajanje; njega može davati kao informaciju; za izjave je bitan timecode"): traka source timelinea (zajednicka kocka
+`qnc-source-dock` u QNC-shared, vrijedi i za klasicni QNC) prvo pokazuje TC playheada (timecode izvora), pa IN, OUT i
+Trajanje kao do sada. Gradnja aplikacija ceka zatvoren AI Media Assist.
