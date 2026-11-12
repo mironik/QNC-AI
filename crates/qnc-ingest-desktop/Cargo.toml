@@ -13,7 +13,6 @@ qnc-ingest-application = { workspace = true }
 qnc-ingest-blocks = { workspace = true }
 qnc-ingest-layout = { workspace = true }
 qnc-paint-pace = { workspace = true }
-qnc-attached-cards = { workspace = true }
-qnc-card-autoselect = { workspace = true }
 qnc-ai-open = { workspace = true }
+qnc-story-overlay = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }

@@ -1,0 +1,13 @@
+[package]
+name = "qnc-card-ingest"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the background ingest of the cards attached into the global Ingest base (Select, all selected, import as link; the worker copies the posters and makes the filmstrips and rough waves), without a form; draws nothing"
+
+[dependencies]
+qnc-active-project-read = { workspace = true }
+qnc-attached-cards = { workspace = true }
+qnc-card-autoselect = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-ingest-application = { workspace = true }
+qnc-playback-activity = { workspace = true }

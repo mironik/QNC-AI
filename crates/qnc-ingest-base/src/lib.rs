@@ -125,6 +125,54 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str)
     Ok(made.project_id)
 }
 
+/// The clips of the base `base_id` the user chose for the story `story_id` (Uvezi of the Ingest
+/// form), in `story_clips` of the story's own database; the clips' source data stay in the base
+/// (user 2026-11-12: the global base is a kind of media server, the project's own database keeps
+/// what is done with them).
+pub fn take_clips(root: &Path, story_id: &str, base_id: &str, clips: &[String]) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let (file, _) = store.project_db_binding(story_id)?;
+    let mut conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    let tx = conn.transaction().map_err(|error| error.to_string())?;
+    tx.execute_batch(
+        "CREATE TABLE IF NOT EXISTS story_clips (
+            base_id TEXT NOT NULL,
+            clip_id TEXT NOT NULL,
+            taken_at_utc TEXT NOT NULL,
+            PRIMARY KEY (base_id, clip_id)
+        )",
+    )
+    .map_err(|error| error.to_string())?;
+    for clip in clips {
+        tx.execute(
+            "INSERT INTO story_clips (base_id, clip_id, taken_at_utc) VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now')) ON CONFLICT DO NOTHING",
+            [base_id, clip.as_str()],
+        )
+        .map_err(|error| error.to_string())?;
+    }
+    tx.commit().map_err(|error| error.to_string())
+}
+
+/// The clips a story took, as (base, clip).
+pub fn story_clips(root: &Path, story_id: &str) -> Result<Vec<(String, String)>, String> {
+    let store = ProjectStore::open(root)?;
+    let (file, _) = store.project_db_binding(story_id)?;
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    let exists: bool = conn.query_row("SELECT count(*) FROM sqlite_master WHERE name = 'story_clips'", [], |row| row.get::<_, i64>(0)).map_err(|error| error.to_string())? > 0;
+    if !exists {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare("SELECT base_id, clip_id FROM story_clips ORDER BY taken_at_utc, clip_id").map_err(|error| error.to_string())?;
+    let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?))).map_err(|error| error.to_string())?;
+    rows.collect::<Result<_, _>>().map_err(|error| error.to_string())
+}
+
+/// The id of the story `name` (a project that is no base).
+pub fn story_id(root: &Path, name: &str) -> Result<Option<String>, String> {
+    Ok(ProjectStore::open(root)?.list_projects()?.into_iter().find(|row| row.name == name && !row.name.starts_with(NAME_PREFIX)).map(|row| row.project_id))
+}
+
 /// The story `story_id` takes the base `base` (a story may take several: every card Ingest brought
 /// for it), in `story_ingest_bases` of its own database.
 fn write_story_base(store: &ProjectStore, story_id: &str, base: &qnc_project_store::ProjectRow) -> Result<(), String> {
@@ -378,6 +426,10 @@ mod tests {
         assert_eq!(last_story(&root, &next.id).unwrap(), Some((story.clone(), "2026/11/11 Luka".to_string())), "the story worked on last");
         assert_eq!(continue_story(&root, &next.id, &story).unwrap(), "2026/11/11 Luka");
         assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/11 Luka"), "the next card goes on the same story");
+        take_clips(&root, &story, &next.id, &["c1".into(), "c2".into()]).unwrap();
+        take_clips(&root, &story, &next.id, &["c2".into()]).unwrap();
+        assert_eq!(story_clips(&root, &story).unwrap(), vec![(next.id.clone(), "c1".into()), (next.id.clone(), "c2".into())], "the clips the story took, once each");
+        assert_eq!(story_id(&root, "2026/11/11 Luka").unwrap().as_deref(), Some(story.as_str()));
         let store = ProjectStore::open(&root).unwrap();
         let (base_db, _) = store.project_db_binding(&base.id).unwrap();
         let (story_db, _) = store.project_db_binding(&story).unwrap();

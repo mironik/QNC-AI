@@ -47,6 +47,8 @@ pub struct StoryStart {
     offer: Option<(String, String)>,
     templates: (Vec<(String, String)>, usize),
     confirm_label: String,
+    /// The clips the user chose in the Ingest form: the story takes them.
+    clips: Vec<String>,
     job: Option<Receiver<Job>>,
 }
 
@@ -65,15 +67,22 @@ impl StoryStart {
         self.job = Some(receive);
     }
 
-    /// Looks whether the base of `root` has its story (the answer comes in `poll`).
-    pub fn import_asked(&mut self, root: &Path) {
+    /// Uvezi with `clips` chosen: looks whether the base of `root` has its story (the answer comes
+    /// in `poll`); a base that has one gives it the clips at once.
+    pub fn import_asked(&mut self, root: &Path, clips: Vec<String>) {
         if self.busy() || self.sheet.is_some() || self.offer.is_some() {
             return;
         }
+        self.clips = clips.clone();
         let root = root.to_path_buf();
         self.run(move || {
             Job::Checked(qnc_ingest_base::active(&root).and_then(|base| {
                 let base = base.map(|base| (base.id, base.project_name));
+                if let Some((id, Some(name))) = &base {
+                    if let Some(story) = qnc_ingest_base::story_id(&root, name)? {
+                        qnc_ingest_base::take_clips(&root, &story, id, &clips)?;
+                    }
+                }
                 let Some((id, None)) = &base else { return Ok(Found { base, last: None, templates: (Vec::new(), 0) }) };
                 let last = qnc_ingest_base::last_story(&root, id)?;
                 Ok(Found { last, templates: qnc_ingest_base::templates(&root)?, base })
@@ -89,8 +98,15 @@ impl StoryStart {
     /// The user goes on with the story offered: the base joins it.
     pub fn go_on(&mut self, root: &Path) {
         let (Some((story_id, _)), Some(base_id)) = (self.offer.take(), self.base_id.clone()) else { return };
-        let root = root.to_path_buf();
-        self.run(move || Job::Taken(qnc_ingest_base::continue_story(&root, &base_id, &story_id)));
+        let (root, clips) = (root.to_path_buf(), self.clips.clone());
+        self.run(move || {
+            Job::Taken(qnc_ingest_base::continue_story(&root, &base_id, &story_id).and_then(|name| qnc_ingest_base::take_clips(&root, &story_id, &base_id, &clips).map(|_| name)))
+        });
+    }
+
+    /// The user cancels the choice: nothing is taken.
+    pub fn cancel(&mut self) {
+        (self.offer, self.sheet, self.base_id) = (None, None, None);
     }
 
     /// The user makes a new story: the sheet opens.
@@ -109,8 +125,10 @@ impl StoryStart {
                 let (Some(sheet), Some(base_id)) = (self.sheet.as_ref(), self.base_id.clone()) else { return };
                 let name = sheet.name.trim().to_string();
                 let template = sheet.template_id().unwrap_or_default().to_string();
-                let root: PathBuf = root.to_path_buf();
-                self.run(move || Job::Taken(qnc_ingest_base::take_for_story(&root, &base_id, &name, &template).map(|_| name)));
+                let (root, clips): (PathBuf, _) = (root.to_path_buf(), self.clips.clone());
+                self.run(move || {
+                    Job::Taken(qnc_ingest_base::take_for_story(&root, &base_id, &name, &template).and_then(|story| qnc_ingest_base::take_clips(&root, &story, &base_id, &clips)).map(|_| name))
+                });
             }
         }
     }

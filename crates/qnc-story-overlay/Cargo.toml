@@ -1,0 +1,13 @@
+[package]
+name = "qnc-story-overlay"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI panel: over the Ingest form, the choice to go on with the story that exists or make a new one, and QNC's new project sheet; draws only, answers what the user chose"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-choice-box = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-keyboard-shortcut = { workspace = true }
+qnc-newsroom-sheet = { workspace = true }
+qnc-wizard-text = { workspace = true }

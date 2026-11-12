@@ -3118,6 +3118,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-card-ingest"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-open",
+ "qnc-card-ingest",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-layout",
+ "qnc-tray",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-ai-catalog"
 version = "0.1.0"
 dependencies = [
@@ -3158,22 +3171,6 @@ dependencies = [
  "qnc-ui-kit",
  "qnc-ui-text",
  "serde_json",
-]
-
-[[package]]
-name = "qnc-ai-new-project"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "qnc-ai-open",
- "qnc-choice-box",
- "qnc-dev-diagnostics",
- "qnc-ingest-layout",
- "qnc-newsroom-sheet",
- "qnc-story-start",
- "qnc-tray",
- "qnc-ui-text",
- "qnc-wizard-text",
 ]
 
 [[package]]
@@ -3473,6 +3470,18 @@ name = "qnc-card-eject"
 version = "0.1.0"
 dependencies = [
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "qnc-card-ingest"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-attached-cards",
+ "qnc-card-autoselect",
+ "qnc-content-store",
+ "qnc-ingest-application",
+ "qnc-playback-activity",
 ]
 
 [[package]]
@@ -4134,6 +4143,7 @@ dependencies = [
  "qnc-ingest-store",
  "qnc-ingest-work-plan",
  "qnc-media-thumbnail",
+ "qnc-newsroom-sheet-model",
  "qnc-notice",
  "qnc-playback-priority",
  "qnc-player-client",
@@ -4141,6 +4151,7 @@ dependencies = [
  "qnc-source-panel",
  "qnc-source-reader",
  "qnc-source-timeline",
+ "qnc-story-start",
  "qnc-timeline-assets",
  "qnc-timeline-model",
  "qnc-ui-text",
@@ -4230,15 +4241,14 @@ dependencies = [
  "eframe",
  "qnc-action-event",
  "qnc-ai-open",
- "qnc-attached-cards",
  "qnc-board",
- "qnc-card-autoselect",
  "qnc-dev-diagnostics",
  "qnc-form-host",
  "qnc-ingest-application",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
  "qnc-paint-pace",
+ "qnc-story-overlay",
 ]
 
 [[package]]
@@ -6447,6 +6457,18 @@ dependencies = [
 [[package]]
 name = "qnc-store-jobs"
 version = "0.1.0"
+
+[[package]]
+name = "qnc-story-overlay"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-choice-box",
+ "qnc-desktop-theme",
+ "qnc-keyboard-shortcut",
+ "qnc-newsroom-sheet",
+ "qnc-wizard-text",
+]
 
 [[package]]
 name = "qnc-story-start"

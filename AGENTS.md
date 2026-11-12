@@ -325,3 +325,23 @@ drugu bazu), `continue_story`; projekt price pamti sve svoje baze u `story_inges
 umjesto jednoredne `story_ingest_base`, koja ostaje neiskoristena u starim projektima). `qnc-story-start`
 `offer`, `go_on`, `new_story`. Tekstovi `new_project.*` (en, hr). Testovi `qnc-ingest-base`. Uzivo nije
 provjereno.
+
+Izmjena pristupa 2026-11-12 (korisnik: "globalna baza kao ingest na velikim ingest sustavima: korisnik
+ubaci karticu, tray provjeri poznaje li karticu i odmah radi Select All i ingestira materijal po osnovnim
+postavkama (link media); ingest proces koji pokrece tray je kopiranje postera, filmstrip i gruba wave";
+"ingest formi je uvijek izvor globalna baza"; "info prozor Ingest proces u tijeku, kada zavrsi daje dugme
+Pokreni QNC"; "obrazac Novi projekt tretiraj kao overlay prozor Ingest forme"; "projekt koristi dvije
+baze: globalnu ingest bazu (vrsta media servera, izvorni podaci) i lokalnu projekt bazu (ono sto mi radimo
+s tim podacima)"). Zamjenjuje zaseban prozor "Novi projekt" od istog dana (`apps/qnc-ai-new-project`
+uklonjen) i Ingest koji sam skace po karticama. (1) Tray na poznatu karticu pokrece
+`apps/qnc-ai-card-ingest` (jedan primjerak): kocka `qnc-card-ingest` vozi Ingest aplikaciju bez prozora
+(Select svake kartice u globalnu bazu, Odaberi sve, uvoz po postavkama, `import_into_base`), radnik kopira
+postere i radi filmstrip i val; prozor pokazuje "Ingest u tijeku", kamere, broj klipova, a kad radnik
+stane gumb "Pokreni QNC" otvara Ingest formu. (2) Ingest forma vise ne prati kartice; cita aktivnu
+globalnu bazu. Uvezi s odabranim klipovima pita pricu preko forme (panel `qnc-story-overlay`: Nastavi /
+Novi projekt / Odustani, pa QNC-ov obrazac s templateom); odabrani klipovi idu u projekt
+(`qnc-ingest-base` `take_clips`, tablica `story_clips` u bazi projekta, izvorni podaci ostaju u globalnoj
+bazi; `story_clips`, `story_id`), zatim se otvara AI Media Assist i Ingest se zatvara. Testovi
+`qnc-ingest-base`, `qnc-ingest-application` (31). Nije izvedeno: AI Media Assist jos radi nad aktivnom
+globalnom bazom (svi njezini klipovi), a ne nad projektom s dvije baze; prozor Postavki (preklapanje).
+Uzivo nije provjereno.

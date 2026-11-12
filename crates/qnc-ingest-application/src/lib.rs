@@ -39,6 +39,7 @@ mod work_settings_tests;
 
 pub mod action_ids;
 pub use clip_state::{ClipFilter, SaveState, ThumbStatus};
+pub use actions::StoryAnswer;
 pub use clip_view::ClipView;
 pub use dispatch_result::IngestDispatchResult;
 pub use intent::{IngestIntent, IngestPayload};
@@ -79,6 +80,8 @@ pub struct IngestApplication {
     base_ids: std::collections::BTreeMap<String, String>,
     /// QNC-AI: the camera of each attached card, by volume serial (shown beside the disk's size).
     cameras: std::collections::BTreeMap<String, String>,
+    /// QNC-AI: Uvezi gives the chosen clips of the global base to a story (over the form).
+    story: qnc_story_start::StoryStart,
 }
 
 impl IngestApplication {

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use eframe::egui::{self, CentralPanel, Frame};
-use qnc_ingest_application::{action_ids, IngestApplication, IngestIntent};
+use qnc_ingest_application::{action_ids, IngestApplication, IngestIntent, StoryAnswer};
 
 use crate::{
     layout_contract::IngestContracts,
@@ -12,9 +12,6 @@ pub struct IngestApp {
     contracts: IngestContracts,
     application: IngestApplication,
     host: qnc_form_host::FormHost,
-    /// QNC-AI: Ingest goes to every card attached by itself, without waiting for the user.
-    cards: qnc_card_autoselect::AutoSelect,
-    attached: qnc_attached_cards::AttachedCards,
     root: PathBuf,
 }
 
@@ -41,57 +38,46 @@ impl IngestApp {
     pub fn new(root: PathBuf) -> Result<Self, String> {
         let contracts = IngestContracts::load()?;
         let application = IngestApplication::with_store_root(&root)?.with_focus(contracts.focus_names());
-        let attached = qnc_attached_cards::AttachedCards::start(&root);
-        Ok(Self { contracts, application, host: qnc_form_host::FormHost::new(), cards: qnc_card_autoselect::AutoSelect::new(Vec::new()), attached, root })
-    }
-
-    /// QNC-AI: the cards attached now are gone to one after another, as the user would (Ingest's
-    /// browser, the card's disk, Select); a card put in later too.
-    fn follow_cards(&mut self, ctx: &egui::Context) {
-        match self.attached.poll() {
-            Some(Ok(cards)) => {
-                let serials: Vec<String> = cards.iter().map(|card| card.serial.clone()).collect();
-                self.cards.want(&serials);
-                let cameras = cards.into_iter().filter_map(|card| card.camera.map(|camera| (card.serial.to_ascii_lowercase(), camera))).collect();
-                self.application.set_cameras(cameras);
-            }
-            Some(Err(error)) => log(format!("ai-ingest no camera catalog: {error}")),
-            None => {}
-        }
-        if let Some(intent) = self.cards.next(self.application.view()) {
-            log(format!("ai-ingest auto {intent:?}"));
-            qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), intent);
-        }
-        for (serial, reason) in self.cards.take_skipped() {
-            log(format!("ai-ingest card skipped serial={serial}: {reason}"));
-        }
-        ctx.request_repaint_after(std::time::Duration::from_millis(if self.cards.busy() { 200 } else { 1000 }));
+        Ok(Self { contracts, application, host: qnc_form_host::FormHost::new(), root })
     }
 
     pub fn show_desktop(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, frame: &mut qnc_board::Frame<'_>) {
-        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes: &["ingest"], play_action: action_ids::PLAY_PAUSE, theme: None };
+        // QNC-AI: while the story is asked over the form its keys are the overlay's.
+        let over = self.application.story_offer().is_some() || self.application.story_sheet_mut().is_some();
+        let scopes: &[&str] = if over { &[] } else { &["ingest"] };
+        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes, play_action: action_ids::PLAY_PAUSE, theme: None };
         self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
-        self.follow_cards(ctx);
         let theme = Theme::from_contract(&self.contracts.shell);
         theme::apply(ctx, &theme);
         // The view is borrowed, not copied: it holds every clip and the timeline data.
         if let Some(intent) = qnc_ingest_blocks::render_desktop(ui, frame, &self.contracts, &theme, self.application.view()) {
             qnc_form_host::dispatch(ctx, &mut Hosted(&mut self.application), intent);
         }
+        // QNC-AI: Uvezi asks the story over the form (go on or new, then the new project's sheet).
+        let offer = self.application.story_offer().map(str::to_string);
+        if let Some(chosen) = qnc_story_overlay::show(ctx, &theme, &self.contracts.shortcuts, offer.as_deref(), self.application.story_sheet_mut()) {
+            self.application.story_answer(match chosen {
+                qnc_story_overlay::Chosen::GoOn => StoryAnswer::GoOn,
+                qnc_story_overlay::Chosen::New => StoryAnswer::New,
+                qnc_story_overlay::Chosen::Cancel => StoryAnswer::Cancel,
+                qnc_story_overlay::Chosen::Sheet(answer) => StoryAnswer::Sheet(answer),
+            });
+            ctx.request_repaint();
+        }
     }
 
-    /// QNC-AI (user 2026-11-12): once Uvezi has handed the selection to the worker (which goes on
-    /// without Ingest), the new project's window opens and Ingest closes.
+    /// QNC-AI (user 2026-11-12): once the story has the chosen clips, AI Media Assist opens and
+    /// Ingest closes.
     fn hand_over(&mut self, ctx: &egui::Context, root: &std::path::Path) {
         if !self.application.take_navigation_request() {
             return;
         }
-        match qnc_ai_open::open(root, "qnc-ai-new-project") {
+        match qnc_ai_open::open(root, "qnc-media-assist-audio-ai") {
             Ok(program) => {
                 log(format!("ai-ingest handed over to {}", program.display()));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
-            Err(error) => log(format!("ai-ingest new project not opened: {error}")),
+            Err(error) => log(format!("ai-ingest AI Media Assist not opened: {error}")),
         }
     }
 

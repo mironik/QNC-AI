@@ -203,9 +203,10 @@ fn main() {
     }
 }
 
-/// Ingest (QNC-AI's copy of QNC's, beside this program), started when the one this tray started
-/// does not run any more. Its helper programs (player, worker, decoders) are console programs:
-/// they share one hidden console, so no window flashes.
+/// The background ingest of the cards into the global Ingest base (user 2026-11-12), beside this
+/// program, started when the one this tray started does not run any more; its window says it runs
+/// and, when it is done, starts QNC (the Ingest form). Its helper programs (player, worker,
+/// decoders) are console programs: they share one hidden console, so no window flashes.
 fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>) {
     if ingest.as_mut().is_some_and(|child| matches!(child.try_wait(), Ok(None))) {
         return;
@@ -221,7 +222,7 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::pro
     }
     let program = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ingest{}", std::env::consts::EXE_SUFFIX))))
+        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-card-ingest{}", std::env::consts::EXE_SUFFIX))))
         .unwrap_or_default();
     let mut command = std::process::Command::new(&program);
     command.current_dir(root).env("QNC_ROOT", root);

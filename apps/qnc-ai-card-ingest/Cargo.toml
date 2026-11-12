@@ -1,0 +1,14 @@
+[package]
+name = "qnc-ai-card-ingest"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI card ingest: the background ingest of the cards into the global Ingest base with a small window that says it runs; when it is done, its button starts QNC (the Ingest form, which reads the global base)"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-ai-open = { workspace = true }
+qnc-card-ingest = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-ingest-layout = { workspace = true }
+qnc-tray = { workspace = true }
+qnc-wizard-text = { workspace = true }
