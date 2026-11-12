@@ -6956,6 +6956,7 @@ dependencies = [
  "qnc-shot-caption",
  "qnc-shot-captions",
  "qnc-shot-content-db",
+ "qnc-shot-db",
  "qnc-work-settings",
 ]
 

@@ -219,7 +219,7 @@ fn run_once(root: &Path) -> Result<bool, String> {
                 // at the same 30 posters at once, 27 s of work twice).
                 if !copying {
                     trace("completion: shots of the posters".into());
-                    make_shots(root, &config, &lease, &stops, true);
+                    make_shots(root, &config, &lease, &stops, Look::Posters);
                     trace("completion: shots of the posters done".into());
                 }
             }
@@ -263,17 +263,20 @@ fn run_once(root: &Path) -> Result<bool, String> {
         // artifacts (user 2026-11-12: "ne rade AI, šta čekaju"); what is left after the import
         // is done once more at the end of the run.
         if copying {
-            scope.spawn(|| {
-                while running.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
-                    make_shots(root, &config, &lease, &stops, false);
-                    for _ in 0..5 {
-                        if !running.load(std::sync::atomic::Ordering::Relaxed) {
-                            break;
+            for look in [Look::Shots, Look::Captions] {
+                let (running, closed, config, lease, stops) = (&running, &closed, &config, &lease, &stops);
+                scope.spawn(move || {
+                    while running.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
+                        make_shots(root, config, lease, stops, look);
+                        for _ in 0..5 {
+                            if !running.load(std::sync::atomic::Ordering::Relaxed) {
+                                break;
+                            }
+                            std::thread::sleep(Duration::from_secs(1));
                         }
-                        std::thread::sleep(Duration::from_secs(1));
                     }
-                }
-            });
+                });
+            }
         }
         // The records first: every clip can play (and editing start) before the card is read
         // for waves and filmstrips (user 2026-10-18: speed for editing comes first).
@@ -324,7 +327,7 @@ fn run_once(root: &Path) -> Result<bool, String> {
             make_posters(root, &config, &lease, &stops);
             // The shots after the filmstrips and waves (user 2026-10-27: Video AI, a job of
             // its own, lower than the player).
-            make_shots(root, &config, &lease, &stops, false);
+            make_shots(root, &config, &lease, &stops, Look::All);
         }
         artifacts.and(import).map(|()| true)
     })
@@ -494,9 +497,7 @@ fn make_shots(
     config: &qnc_ingest_select::selection_config::SelectionConfig,
     lease: &qnc_playback_activity::Lease,
     stops: &Stops,
-    // Only the first look, from the posters (right after Select: user 2026-11-10 "first the AI
-    // look at the card's posters").
-    only_posters: bool,
+    look: Look,
 ) {
     let result = (|| {
         let project = qnc_shot_analysis::ShotProject::active(root)?;
@@ -532,25 +533,25 @@ fn make_shots(
         let (shots, content, captions) = (qnc_stopped_work::SHOTS, qnc_stopped_work::CONTENT, qnc_stopped_work::CAPTIONS);
         // First the quickest sorting, from each clip's poster (user 2026-11-10), before any
         // picture of a shot is read.
-        if !stops.is(content) {
+        if look != Look::Captions && !stops.is(content) {
             if let Err(error) = qnc_shot_content_run::look_posters(active.settings_reader(), &snapshot.settings, &local_media, Some(lease.write_lease()), &pace(content)) {
                 qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-content posters failed error={error}"));
             }
         }
-        if only_posters {
+        if look == Look::Posters {
             return Ok(0);
         }
-        let analysed = if stops.is(shots) { Ok(0) } else { qnc_shot_analysis::analyse_missing(&project, &local_media, Some(lease.write_lease()), &pace(shots)) };
+        let analysed = if look == Look::Captions || stops.is(shots) { Ok(0) } else { qnc_shot_analysis::analyse_missing(&project, &local_media, Some(lease.write_lease()), &pace(shots)) };
         // What the usable parts show (user 2026-11-10: sorting the B-roll by content), right
         // after their analysis, with the same pace.
-        if !stops.is(content) {
+        if look != Look::Captions && !stops.is(content) {
             if let Err(error) = qnc_shot_content_run::look_missing(active.settings_reader(), &snapshot.settings, &local_media, Some(lease.write_lease()), &pace(content)) {
                 qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-content failed error={error}"));
             }
         }
         // A sentence of what each looked-at shot shows, from its poster (user 2026-11-10:
         // Florence-2 as the second AI engine), kept on this computer.
-        if !stops.is(captions) {
+        if matches!(look, Look::Captions | Look::All) && !stops.is(captions) {
             if let Err(error) = qnc_shot_caption_run::caption_missing(root, active.settings_reader(), &snapshot.settings, &local_media, &pace(captions)) {
                 qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-caption failed error={error}"));
             }
@@ -632,4 +633,19 @@ fn import_stopped(
 /// One line of where the worker is, in the log (live 2026-11-12: the copy ran, nothing else).
 fn trace(line: String) {
     qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("worker {line}"));
+}
+
+/// What one turn of the AI does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Look {
+    /// Only the first look, from the posters (right after Select: user 2026-11-10 "first the AI
+    /// look at the card's posters").
+    Posters,
+    /// The posters, the analysis of the shots and what they show.
+    Shots,
+    /// Only the sentences about the shots (Florence-2, seconds a shot): on a thread of their own
+    /// while the clips are copied, so the analysis never waits behind them (live 2026-11-12: the
+    /// shots of 28 copied clips waited 2.5 min behind the captions).
+    Captions,
+    All,
 }
