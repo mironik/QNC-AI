@@ -153,7 +153,8 @@ fn main() {
                             }
                         }
                         let mut result = Err(String::new());
-                        for _ in 0..20 {
+                        // A worker in the middle of an AI step ends it first (seconds).
+                        for _ in 0..60 {
                             result = qnc_ingest_base::forget(&root, &base.id);
                             if result.is_ok() {
                                 break;

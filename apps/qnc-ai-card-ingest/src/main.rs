@@ -40,6 +40,13 @@ impl eframe::App for Window {
         let theme = qnc_ingest_layout::theme::Theme::from_contract(&self.contracts.shell);
         qnc_ingest_layout::theme::apply(ctx, &theme);
         let status: Status = self.ingest.poll();
+        // Its base is no longer the active project (closed to be deleted): the window ends and
+        // lets the base's database go.
+        if status.progress.left {
+            log("ai-card-ingest its base is no longer active: the window closes".into());
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            return;
+        }
         if self.last != Some(status.phase) {
             log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
             self.last = Some(status.phase);

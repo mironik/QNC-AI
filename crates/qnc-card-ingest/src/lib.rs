@@ -53,6 +53,8 @@ pub struct Progress {
     pub captions: Option<usize>,
     /// The functions the user stopped (the X beside a bar), one bit per `qnc_stopped_work::ALL`.
     pub stopped: u8,
+    /// The base is no longer the active project (closed to be deleted, another opened).
+    pub left: bool,
 }
 
 /// One bar of the window.
@@ -147,7 +149,22 @@ impl CardIngest {
         let at = root.to_path_buf();
         std::thread::spawn(move || {
             let mut said = String::new();
+            // The base this ingest works in: once the active project is another one (the base
+            // closed to be deleted, another opened) the window lets it go (live 2026-11-12: a
+            // window still open held the base the tray deleted).
+            let mut base: Option<String> = None;
             loop {
+                let now = qnc_active_project_read::ActiveProjectReader::from_root(&at)
+                    .ok()
+                    .and_then(|active| active.read().ok())
+                    .map(|snapshot| snapshot.settings.project_id);
+                if base.is_none() {
+                    base = now.clone();
+                }
+                if base.is_some() && now != base {
+                    let _ = send.send(Progress { left: true, ..Progress::default() });
+                    return;
+                }
                 let read = progress(&at).unwrap_or_else(|error| {
                     // A base that cannot be read is said once in the log, not hidden as nothing done.
                     if error != said {
