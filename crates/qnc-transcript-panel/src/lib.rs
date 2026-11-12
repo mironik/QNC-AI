@@ -135,12 +135,14 @@ fn paint_silence(ui: &mut egui::Ui, from: &str, to: &str, theme: &qnc_desktop_th
 /// one with how long it took and how many times faster than real time (user 2026-10-26).
 fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
     let mut opened = None;
-    if view.queue.is_empty() {
+    if view.queue.iter().all(|row| row.state == QueueState::Done) {
         return None;
     }
     ui.add_space(4.0);
     ui.label(RichText::new(qnc_ui_text::text("transcript.queue")).color(theme.text_muted).size(theme.font_ui));
-    for row in &view.queue {
+    // The clips done are not listed: they are in the pool's Transcript tab, and the ingest queues
+    // every clip of a card, whose rows hid the transcript (live 2026-11-12).
+    for row in view.queue.iter().filter(|row| row.state != QueueState::Done) {
         let (state, color) = match row.state {
             QueueState::Waiting => (qnc_ui_text::text("transcript.waiting").to_string(), theme.text_muted),
             QueueState::Running => (
