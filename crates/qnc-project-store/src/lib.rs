@@ -50,6 +50,8 @@ const PRODUCT_DIRECTORY_FIELDS: &[&str] = &[
     "prerender",
     // The recorded voice-overs of the script (user 2026-10-28).
     "voice",
+    // The posters of the shots the AI looked at (user 2026-11-12: a folder of their own).
+    "ai_shots",
 ];
 
 /// The folder of product `field` inside the project.

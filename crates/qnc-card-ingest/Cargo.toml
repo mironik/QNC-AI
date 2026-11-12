@@ -16,6 +16,7 @@ qnc-content-store = { workspace = true }
 qnc-stopped-work = { workspace = true }
 qnc-work-settings = { workspace = true }
 qnc-shot-db = { workspace = true }
+qnc-transcript-db = { workspace = true }
 qnc-shot-content-db = { workspace = true }
 qnc-shot-captions = { workspace = true }
 qnc-ai-catalog = { workspace = true }

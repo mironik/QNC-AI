@@ -28,3 +28,9 @@ qnc-shot-analysis = { workspace = true }
 qnc-shot-content-run = { workspace = true }
 qnc-shot-caption-run = { workspace = true }
 qnc-transcribe-queue = { workspace = true }
+qnc-transcript-db = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-still-locator = { workspace = true }
+qnc-source-bindings = { workspace = true }
+qnc-player-clip-content = { workspace = true }
+qnc-ai-features = { workspace = true }

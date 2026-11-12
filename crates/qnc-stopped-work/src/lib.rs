@@ -19,9 +19,12 @@ pub const WAVES: &str = "waves";
 pub const SHOTS: &str = "shots";
 pub const CONTENT: &str = "content";
 pub const CAPTIONS: &str = "captions";
+/// The transcription of the first channel (user 2026-11-12: a clip whose first channel holds a
+/// statement is not looked at by the AI shots).
+pub const TRANSCRIPTS: &str = "transcripts";
 
 /// Every function that can be stopped.
-pub const ALL: [&str; 7] = [IMPORT, POSTERS, FILMSTRIPS, WAVES, SHOTS, CONTENT, CAPTIONS];
+pub const ALL: [&str; 8] = [IMPORT, POSTERS, FILMSTRIPS, WAVES, TRANSCRIPTS, SHOTS, CONTENT, CAPTIONS];
 
 /// The codes of a record (unknown ones left out).
 pub fn parse(value: &str) -> BTreeSet<String> {

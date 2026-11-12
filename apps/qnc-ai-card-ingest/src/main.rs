@@ -117,6 +117,10 @@ impl eframe::App for Window {
                     }
                 });
             }
+            if progress.statements > 0 {
+                ui.add_space(6.0);
+                ui.label(RichText::new(fill("card_ingest.statements", &[("statements", &progress.statements.to_string())])).color(theme.text));
+            }
             if progress.failed > 0 {
                 ui.add_space(6.0);
                 ui.label(RichText::new(fill("card_ingest.failed", &[("failed", &progress.failed.to_string())])).color(theme.text));
@@ -150,7 +154,7 @@ fn main() -> eframe::Result<()> {
     let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default() };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 510.0]).with_resizable(false),
+        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 570.0]).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

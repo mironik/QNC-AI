@@ -11,6 +11,8 @@ use std::{
     time::Duration,
 };
 
+mod transcribe;
+
 fn main() -> ExitCode {
     qnc_dev_diagnostics::log_panics("qnc-ingest-worker");
     let Some(root) = root_argument() else {
@@ -262,6 +264,9 @@ fn run_once(root: &Path) -> Result<bool, String> {
         // The AI of each clip as soon as it is copied, from the copy, beside the copy and the
         // artifacts (user 2026-11-12: "ne rade AI, šta čekaju"); what is left after the import
         // is done once more at the end of the run.
+        // The first channel of each imported clip is heard (with transcription on), so the AI
+        // shots know which clips are statements (user 2026-11-12).
+        let heard = scope.spawn(|| transcribe::run(root, &running, stops.flag(qnc_stopped_work::TRANSCRIPTS)));
         let mut looks = Vec::new();
         if copying {
             for look in [Look::Shots, Look::Captions] {
@@ -327,6 +332,8 @@ fn run_once(root: &Path) -> Result<bool, String> {
         for look in looks.drain(..) {
             let _ = look.join();
         }
+        // The last AI turn knows every statement: the transcription is heard out first.
+        let _ = heard.join();
         // Once more after the import: a clip imported before its record was final could not
         // get its poster at Uvezi (user 2026-10-18).
         if !closed.load(std::sync::atomic::Ordering::Relaxed) {
@@ -416,7 +423,10 @@ fn run_artifacts(
     // A transcription the user asked for counts as playing (user 2026-10-28: it crawled behind
     // the waves and filmstrips of a fresh import, read 157 s and engine 156 s for 254 s of
     // sound): only the open clip's artifacts go on beside it, the rest wait until it is done.
-    let transcribing = transcription_running(target.clone());
+    // From the copies the transcription reads no card: the artifacts do not wait for it then.
+    let copying = settings.ingest_copies();
+    let transcription = transcription_running(target.clone());
+    let transcribing = || !copying && transcription();
     let player_works = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing();
     let cap = || if transcribing() { qnc_playback_activity::PlaybackLevel::Playing.background_cap() } else { level().background_cap() };
     let start = |settings: &qnc_work_settings::WorkSettings| -> Result<qnc_content_artifacts::ProjectArtifacts, String> {
@@ -531,11 +541,15 @@ fn make_shots(
         let level = qnc_playback_activity::playback_level(target.clone());
         // It also waits while a transcription the user asked for runs: both read the same card
         // (live 2026-10-27: the transcription read crawled behind the shot analysis).
-        let transcribing = || qnc_playback_activity::is_fresh(&target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
+        // From the copies the transcription reads no card: the AI does not wait for it then.
+        let transcribing = || !copying && qnc_playback_activity::is_fresh(&target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
         let player_plays = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing();
         let wanted = || qnc_playback_activity::read(&target, qnc_playback_activity::PLAYBACK_CLIP);
         // Each step its own pace: its cancel is its X (the project closed sets them all).
-        let pace = |function| qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, cancel: stops.flag(function) };
+        // A clip whose first channel holds a statement is not looked at (user 2026-11-12); with
+        // transcription on, a clip is taken once it is heard.
+        let takes = transcribe::ai_takes(root, stops.is(qnc_stopped_work::TRANSCRIPTS))?;
+        let pace = |function| qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes: &*takes, cancel: stops.flag(function) };
         let (shots, content, captions) = (qnc_stopped_work::SHOTS, qnc_stopped_work::CONTENT, qnc_stopped_work::CAPTIONS);
         // First the quickest sorting, from each clip's poster (user 2026-11-10), before any
         // picture of a shot is read.
@@ -593,7 +607,7 @@ fn transcription_running(target: qnc_content_store::ContentTarget) -> impl Fn() 
 /// 2026-11-12), read from the project database by the watch of a run once a second. A flag is
 /// the cancel of its function: it stops what runs and nothing of it starts again; the run's
 /// project closed sets every flag.
-struct Stops([std::sync::atomic::AtomicBool; 7]);
+struct Stops([std::sync::atomic::AtomicBool; qnc_stopped_work::ALL.len()]);
 
 impl Stops {
     fn new() -> Self {

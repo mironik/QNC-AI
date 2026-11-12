@@ -51,6 +51,10 @@ pub struct Progress {
     pub content: Option<usize>,
     /// AI: a sentence about each shot.
     pub captions: Option<usize>,
+    /// The first channel heard (transcribed, or found to have no speech to hear).
+    pub transcripts: Option<usize>,
+    /// Clips whose first channel holds a statement: the AI shots leave them alone.
+    pub statements: usize,
     /// The functions the user stopped (the X beside a bar), one bit per `qnc_stopped_work::ALL`.
     pub stopped: u8,
     /// The base is no longer the active project (closed to be deleted, another opened).
@@ -82,12 +86,13 @@ impl Progress {
 
     /// One bar per function the project's settings have on.
     pub fn bars(&self) -> Vec<Bar> {
-        use qnc_stopped_work::{CAPTIONS, CONTENT, FILMSTRIPS, IMPORT, POSTERS, SHOTS, WAVES};
+        use qnc_stopped_work::{CAPTIONS, CONTENT, FILMSTRIPS, IMPORT, POSTERS, SHOTS, TRANSCRIPTS, WAVES};
         [
             ("card_ingest.imported", IMPORT, Some(self.imported)),
             ("card_ingest.posters", POSTERS, Some(self.posters)),
             ("card_ingest.filmstrips", FILMSTRIPS, self.filmstrips),
             ("card_ingest.waves", WAVES, self.waves),
+            ("card_ingest.transcripts", TRANSCRIPTS, self.transcripts),
             ("card_ingest.shots", SHOTS, self.shots),
             ("card_ingest.content", CONTENT, self.content),
             ("card_ingest.captions", CAPTIONS, self.captions),
@@ -267,22 +272,47 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
             *done += usize::from(artifacts.read_wave(clip)?.is_some());
         }
     }
+    // The first channel heard, and which clips it shows to be statements: the AI shots leave
+    // those alone (user 2026-11-12), so they count as done on the AI bars.
+    let mut statements = std::collections::BTreeSet::new();
+    if feature("transcription") {
+        let frames: std::collections::HashMap<String, u64> = content.summaries()?.into_iter().map(|clip| (clip.clip_id, clip.duration_frames)).collect();
+        let mut heard = 0;
+        for entry in qnc_transcript_db::read_queue(&target)? {
+            match entry.state {
+                qnc_transcript_db::QueueState::Done => {
+                    heard += 1;
+                    let transcripts = qnc_transcript_db::read_clip(&target, &entry.clip_id)?;
+                    let to = frames.get(&entry.clip_id).copied().unwrap_or(entry.to_frame);
+                    if qnc_transcript_db::spoken_share(&transcripts, 0, to).is_some_and(|share| share >= qnc_transcript_db::SPOKEN) {
+                        statements.insert(entry.clip_id);
+                    }
+                }
+                qnc_transcript_db::QueueState::Failed => heard += 1,
+                _ => {}
+            }
+        }
+        progress.transcripts = Some(heard);
+        progress.statements = statements.len();
+    }
     // The analyses the project's AI has on, counted per clip (user 2026-11-12).
     if feature("shot_analysis") {
-        progress.shots = Some(qnc_shot_db::read_analysed(&target).map_err(|error| error.to_string())?.len());
+        let analysed: std::collections::BTreeSet<String> = qnc_shot_db::read_analysed(&target).map_err(|error| error.to_string())?.into_iter().collect();
+        progress.shots = Some(analysed.union(&statements).count());
     }
     if feature("shot_content") {
         let engine = qnc_ai_catalog::installed_shot_content()?;
         // Only the look at the shots counts: the quick look at the card's posters right after Select
         // is not the content of the clip (live 2026-11-12: 30/30 with 9 clips copied).
         let clips: std::collections::BTreeSet<_> = qnc_shot_content_db::read_all(&target, &engine.model_name()).map_err(|error| error.to_string())?.into_iter().filter(|content| content.parts.iter().any(|part| part.kind != "poster")).map(|content| content.clip_id).collect();
-        progress.content = Some(clips.len());
+        progress.content = Some(clips.union(&statements).count());
     }
     if feature("shot_caption") {
         let captioner = qnc_ai_catalog::installed_shot_captioner()?;
         let keys = qnc_shot_captions::captioned(root, &captioner.model_name(), &snapshot.project_uri)?;
         let clips: std::collections::BTreeSet<_> = keys.iter().filter_map(|key| key.split('|').nth(1)).collect();
-        progress.captions = Some(clips.len());
+        let statements: std::collections::BTreeSet<&str> = statements.iter().map(String::as_str).collect();
+        progress.captions = Some(clips.union(&statements).count());
     }
     Ok(progress)
 }

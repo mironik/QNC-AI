@@ -54,6 +54,8 @@
     "card_ingest.posters": "Posteri",
     "card_ingest.filmstrips": "Filmstrip",
     "card_ingest.waves": "Val",
+    "card_ingest.transcripts": "Prijepis (A1)",
+    "card_ingest.statements": "{statements} klipova su izjave (A1): AI kadrovi ih ne analiziraju.",
     "card_ingest.imported": "Uvoz",
     "card_ingest.shots": "AI kadrovi",
     "card_ingest.content": "AI sadržaj",
