@@ -8,5 +8,5 @@
   "priority_group": "a",
   "host_mode": "embedded_public_api",
   "desktop_entry": "qnc_project",
-  "standalone_executable": "qnc-ai-settings"
+  "standalone_executable": "qnc-project"
 }

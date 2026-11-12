@@ -335,6 +335,31 @@ qnc-voice-take = { path = "crates/qnc-voice-take" }
 qnc-word-align = { path = "crates/qnc-word-align" }
 qnc-wrap-session = { path = "crates/qnc-wrap-session" }
 qnc-zoom-words = { path = "crates/qnc-zoom-words" }
+# Copied 2026-11-12: the rest of QNC (user: "kopirati cijeli QNC projekt u QNC-AI"), same tag.
+qnc-app-registry = { path = "crates/qnc-app-registry" }
+qnc-ctc-align = { path = "crates/qnc-ctc-align" }
+qnc-desktop-entry = { path = "crates/qnc-desktop-entry" }
+qnc-desktop-tabs = { path = "crates/qnc-desktop-tabs" }
+qnc-desktop = { path = "crates/qnc-desktop" }
+qnc-fcp7-xml = { path = "crates/qnc-fcp7-xml" }
+qnc-florence2 = { path = "crates/qnc-florence2" }
+qnc-ingest-desktop-adapter = { path = "crates/qnc-ingest-desktop-adapter" }
+qnc-installed-versions = { path = "crates/qnc-installed-versions" }
+qnc-ma-script-desktop-adapter = { path = "crates/qnc-ma-script-desktop-adapter" }
+qnc-media-assist-audio-ai-desktop-adapter = { path = "crates/qnc-media-assist-audio-ai-desktop-adapter" }
+qnc-media-assist-audio-desktop-adapter = { path = "crates/qnc-media-assist-audio-desktop-adapter" }
+qnc-media-assist-video-desktop-adapter = { path = "crates/qnc-media-assist-video-desktop-adapter" }
+qnc-program-render = { path = "crates/qnc-program-render" }
+qnc-project-close = { path = "crates/qnc-project-close" }
+qnc-project-desktop-adapter = { path = "crates/qnc-project-desktop-adapter" }
+qnc-s-story-desktop-adapter = { path = "crates/qnc-s-story-desktop-adapter" }
+qnc-script-profile-editor = { path = "crates/qnc-script-profile-editor" }
+qnc-shell-desktop-api = { path = "crates/qnc-shell-desktop-api" }
+qnc-siglip = { path = "crates/qnc-siglip" }
+qnc-story-desktop-adapter = { path = "crates/qnc-story-desktop-adapter" }
+qnc-translate = { path = "crates/qnc-translate" }
+qnc-unit-join = { path = "crates/qnc-unit-join" }
+qnc-wav2vec2 = { path = "crates/qnc-wav2vec2" }
 
 # Real-time pixel processing must also meet the frame budget in development builds.
 [profile.dev.package.qnc-pixel-convert]

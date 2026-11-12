@@ -1,0 +1,775 @@
+//! Automatic acceptance of the Broadcast Player (AGENTS 8.3 point 6, user request
+//! 2026-10-02: "stabiliziraj player"). It plays clips and the story program of the
+//! active project through the same `qnc-source-preview` the forms use, without a form,
+//! and measures what a viewer gets: time to ready, Play to the first new picture, how
+//! many of the frames the player advanced reached the monitor, the longest gap between
+//! pictures, stutters, and the stalls the player logged.
+//!
+//! It refuses to run on a real project: the preview writes "a player works" into the
+//! project database, so the project the root names must live inside that root (an
+//! isolated copy, AGENTS 0.4). The card is only read.
+
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+use qnc_source_preview::{PreviewContext, SourcePreview};
+
+struct Args {
+    root: PathBuf,
+    clips: Vec<String>,
+    program_from: Vec<u64>,
+    steps: Vec<String>,
+    jumps: Vec<String>,
+    back: Vec<String>,
+    program_back: Vec<u64>,
+    /// Clips scrubbed as by the mouse wheel, then played (live 2026-10-16: the sound
+    /// stopped every second after a scrub).
+    scrub: Vec<String>,
+    seconds: u64,
+    /// Also run the program output on the external screen and measure what it showed.
+    hdmi: bool,
+    /// Clips play from this frame (a pan where the user saw it).
+    start: u64,
+    /// Clips whose fine wave around `start` is read as the trim zoom reads it.
+    fine_wave: Vec<String>,
+}
+
+fn args() -> Result<Args, String> {
+    let mut parsed = Args { root: PathBuf::new(), clips: Vec::new(), program_from: Vec::new(), steps: Vec::new(), jumps: Vec::new(), back: Vec::new(), program_back: Vec::new(), scrub: Vec::new(), seconds: 10, hdmi: false, start: 0, fine_wave: Vec::new() };
+    let mut list = std::env::args().skip(1);
+    while let Some(arg) = list.next() {
+        if arg == "--hdmi" {
+            parsed.hdmi = true;
+            continue;
+        }
+        let value = list.next().ok_or(format!("{arg} needs a value"))?;
+        match arg.as_str() {
+            "--root" => parsed.root = PathBuf::from(value),
+            "--clip" => parsed.clips.push(value),
+            "--program" => parsed.program_from.push(value.parse().map_err(|_| "--program FRAME")?),
+            "--steps" => parsed.steps.push(value),
+            "--jumps" => parsed.jumps.push(value),
+            "--back" => parsed.back.push(value),
+            "--scrub" => parsed.scrub.push(value),
+            "--program-back" => parsed.program_back.push(value.parse().map_err(|_| "--program-back FRAME")?),
+            "--start" => parsed.start = value.parse().map_err(|_| "--start FRAME")?,
+            "--seconds" => parsed.seconds = value.parse().map_err(|_| "--seconds N")?,
+            "--fine-wave" => parsed.fine_wave.push(value),
+            other => return Err(format!("unknown argument {other}")),
+        }
+    }
+    if parsed.root.as_os_str().is_empty() {
+        return Err("usage: qnc-player-acceptance --root <isolated QNC root> [--clip NAME]... [--program FRAME]... [--steps NAME]... [--jumps NAME]... [--back NAME]... [--program-back FRAME]... [--seconds N] [--hdmi]".into());
+    }
+    Ok(parsed)
+}
+
+/// What one play gave.
+#[derive(Default)]
+struct Run {
+    name: String,
+    prepare_ms: Option<u128>,
+    first_picture_ms: Option<u128>,
+    frames_advanced: u64,
+    pictures: u64,
+    longest_gap_ms: u128,
+    longest_gap_at: u64,
+    stutters: u64,
+    /// Each stutter: when the late picture came (unix ms), the gap and the frame before it.
+    stutters_at: Vec<(u128, u128, u64)>,
+    error: Option<String>,
+    started: u128,
+    ended: u128,
+    /// Each new picture on the monitor: when it came (unix ns) and its frame.
+    pictures_at: Vec<(u128, u64)>,
+    /// Frames per second of the played source (num, den).
+    rate: (u64, u64),
+}
+
+fn unix_ns() -> u128 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos())
+}
+
+fn unix_ms() -> u128 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis())
+}
+
+/// Polls until the player can start, or an error, or the timeout.
+fn wait_ready(preview: &mut SourcePreview, timeout: Duration) -> Result<u128, String> {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        preview.poll();
+        if let Some(error) = preview.player_view().error.clone() {
+            if !error.contains("NotFinal") {
+                return Err(error);
+            }
+        }
+        if preview.player_view().can_start_playback() {
+            return Ok(start.elapsed().as_millis());
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    Err(format!("not ready in {} s", timeout.as_secs()))
+}
+
+/// The program output process on the external screen, fed the frame map of the player
+/// the preview runs, as the desktop does; its own counts land in the player log.
+struct Hdmi {
+    child: std::process::Child,
+    stdin: std::process::ChildStdin,
+    map: Option<PathBuf>,
+}
+
+impl Hdmi {
+    fn start() -> Result<Self, String> {
+        let screens = qnc_program_output::screens()?;
+        let screen = qnc_program_output::output_screen(&screens).ok_or("no external screen")?;
+        let host = std::env::current_exe()
+            .map_err(|e| e.to_string())?
+            .with_file_name(format!("qnc-program-output-host{}", std::env::consts::EXE_SUFFIX));
+        let mut child = std::process::Command::new(host)
+            .args(["--x", &screen.x.to_string(), "--y", &screen.y.to_string()])
+            .args(["--width", &screen.width.to_string(), "--height", &screen.height.to_string()])
+            .args(["--refresh-hz", &screen.refresh_hz.unwrap_or(0).to_string()])
+            .args(["--interlaced", if screen.interlaced { "1" } else { "0" }])
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        let stdin = child.stdin.take().ok_or("no stdin")?;
+        Ok(Self { child, stdin, map: None })
+    }
+
+    fn follow(&mut self, preview: &SourcePreview) {
+        use std::io::Write;
+        let map = preview.player_view().picture.as_ref().map(|picture| picture.frame_map.to_path_buf());
+        if map.is_some() && map != self.map {
+            if let Some(path) = &map {
+                let _ = writeln!(self.stdin, "map {}", path.display());
+            }
+            self.map = map;
+        }
+    }
+}
+
+impl Drop for Hdmi {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+/// What the output reported between two moments: refreshes, new pictures, skipped.
+fn hdmi_counts(root: &Path, from: u128, to: u128) -> Option<(u64, u64, u64)> {
+    let text = std::fs::read_to_string(qnc_dev_diagnostics::log_path(root, qnc_dev_diagnostics::DiagnosticsStream::Player)).ok()?;
+    let field = |line: &str, key: &str| -> u64 {
+        line.split_whitespace().find_map(|part| part.strip_prefix(key)?.parse().ok()).unwrap_or(0)
+    };
+    let mut total = None;
+    for line in text.lines().filter(|line| line.contains(" program-output refreshes=")) {
+        let Some(stamp) = line.split(' ').next().and_then(|s| s.parse::<u128>().ok()) else { continue };
+        if stamp < from || stamp > to {
+            continue;
+        }
+        let (r, n, s) = total.unwrap_or((0, 0, 0));
+        total = Some((r + field(line, "refreshes="), n + field(line, "new_pictures="), s + field(line, "skipped=")));
+    }
+    total
+}
+
+/// Plays for `seconds` from where the player stands and measures the pictures.
+fn play(preview: &mut SourcePreview, run: &mut Run, seconds: u64, mut hdmi: Option<&mut Hdmi>) {
+    let frame_ms = preview
+        .player_view()
+        .source_timebase()
+        .map_or(40.0, |tb| 1000.0 * tb.fps_den as f64 / tb.fps_num as f64);
+    let first_frame = preview.player_view().confirmed_source_frame().unwrap_or(0);
+    if let Some(tb) = preview.player_view().source_timebase() {
+        run.rate = (tb.fps_num as u64, tb.fps_den as u64);
+    }
+    let mut last_key = preview.view().monitor_frame.as_ref().map(|f| (f.generation, f.sequence));
+    preview.toggle_play();
+    let start = Instant::now();
+    let mut last_picture = start;
+    let mut last_frame = first_frame;
+    while start.elapsed() < Duration::from_secs(seconds) {
+        preview.poll();
+        if let Some(hdmi) = hdmi.as_deref_mut() {
+            hdmi.follow(preview);
+        }
+        let now = Instant::now();
+        if let Some(frame) = preview.player_view().confirmed_source_frame() {
+            last_frame = last_frame.max(frame);
+        }
+        let key = preview.view().monitor_frame.as_ref().map(|f| (f.generation, f.sequence));
+        if key.is_some() && key != last_key {
+            last_key = key;
+            run.pictures += 1;
+            if let Some(picture) = preview.player_view().picture.as_ref() {
+                run.pictures_at.push((unix_ns(), picture.header.frame));
+            }
+            if run.first_picture_ms.is_none() {
+                run.first_picture_ms = Some(now.duration_since(start).as_millis());
+            } else {
+                let gap = now.duration_since(last_picture).as_millis();
+                if gap > run.longest_gap_ms {
+                    run.longest_gap_ms = gap;
+                    run.longest_gap_at = last_frame;
+                }
+                // More than 3 frame times: a picture the viewer misses (the 1 ms poll on
+                // Windows can itself be late by about 15 ms).
+                if gap as f64 > 3.0 * frame_ms {
+                    run.stutters += 1;
+                    run.stutters_at.push((unix_ms(), gap, last_frame));
+                }
+            }
+            last_picture = now;
+        }
+        if let Some(error) = preview.player_view().error.clone() {
+            run.error = Some(error);
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    if preview.player_view().playing() {
+        preview.toggle_play();
+    }
+    run.frames_advanced = last_frame.saturating_sub(first_frame);
+}
+
+/// The stalls and video decoder reopens the player logged during a run.
+fn logged(root: &Path, from: u128, to: u128) -> (u64, u64) {
+    let log = qnc_dev_diagnostics::log_path(root, qnc_dev_diagnostics::DiagnosticsStream::Player);
+    let text = std::fs::read_to_string(log).unwrap_or_default();
+    let (mut stalls, mut reopens) = (0, 0);
+    for line in text.lines() {
+        let Some((stamp, rest)) = line.split_once(' ') else { continue };
+        let Ok(stamp) = stamp.parse::<u128>() else { continue };
+        if stamp < from || stamp > to {
+            continue;
+        }
+        if rest.starts_with("player-rebuffer reason=") {
+            stalls += 1;
+        } else if rest.starts_with("player-video reopen") {
+            reopens += 1;
+        }
+    }
+    (stalls, reopens)
+}
+
+/// Picture minus sound, in frames, over a run.
+struct AvOffsets {
+    median: f64,
+    lag_worst: f64,
+    lead_worst: f64,
+    points: usize,
+}
+
+/// For every picture that reached the monitor, the frame being heard at that moment:
+/// from the `AV_A` lines of the player (the sample the audio device plays and when),
+/// carried to the picture's time at the sample rate. Positive: picture ahead of sound.
+fn av_offsets(root: &Path, run: &Run) -> Option<AvOffsets> {
+    let (num, den) = run.rate;
+    if num == 0 || den == 0 || run.pictures_at.is_empty() {
+        return None;
+    }
+    let log = qnc_dev_diagnostics::log_path(root, qnc_dev_diagnostics::DiagnosticsStream::Player);
+    let text = std::fs::read_to_string(log).ok()?;
+    let field = |line: &str, key: &str| -> Option<u128> {
+        line.split_whitespace().find_map(|part| part.strip_prefix(key)?.parse().ok())
+    };
+    let audio: Vec<(u128, u128, u128)> = text
+        .lines()
+        .filter(|line| line.contains(" AV_A "))
+        .filter_map(|line| Some((field(line, "unix_ns=")?, field(line, "sample=")?, field(line, "rate=")?)))
+        .filter(|(at, _, _)| *at / 1_000_000 >= run.started && *at / 1_000_000 <= run.ended)
+        .collect();
+    let mut offsets: Vec<f64> = run
+        .pictures_at
+        .iter()
+        .filter_map(|(at, frame)| {
+            let (heard_at, sample, rate) = audio.iter().min_by_key(|(t, _, _)| t.abs_diff(*at))?;
+            if heard_at.abs_diff(*at) > 300_000_000 || *rate == 0 {
+                return None;
+            }
+            let now = *sample as f64 + (*at as f64 - *heard_at as f64) * *rate as f64 / 1e9;
+            let heard_frame = now * num as f64 / (*rate as f64 * den as f64);
+            Some(*frame as f64 - heard_frame)
+        })
+        .collect();
+    if offsets.is_empty() {
+        return None;
+    }
+    offsets.sort_by(f64::total_cmp);
+    Some(AvOffsets {
+        median: offsets[offsets.len() / 2],
+        lag_worst: offsets[offsets.len() / 100],
+        lead_worst: offsets[offsets.len() - 1 - offsets.len() / 100],
+        points: offsets.len(),
+    })
+}
+
+fn measure(preview: &mut SourcePreview, run: &mut Run, seconds: u64, hdmi: Option<&mut Hdmi>) {
+    run.started = unix_ms();
+    match wait_ready(preview, Duration::from_secs(20)) {
+        Ok(ms) => {
+            run.prepare_ms = Some(ms);
+            play(preview, run, seconds, hdmi);
+        }
+        Err(error) => run.error = Some(error),
+    }
+    run.ended = unix_ms();
+}
+
+/// What the arrow keys gave on one clip: the time from a press until the monitor shows
+/// the asked frame, the time the call itself held the caller (the form's thread), and
+/// how a burst of presses ended.
+#[derive(Default)]
+struct Steps {
+    name: String,
+    single_ms: Vec<u128>,
+    call_us: Vec<u128>,
+    missed: u64,
+    burst_ms: Option<u128>,
+    burst_pictures: u64,
+    error: Option<String>,
+}
+
+/// The frame of the picture the monitor shows now.
+fn shown_frame(preview: &SourcePreview) -> Option<u64> {
+    preview.player_view().picture.as_ref().map(|picture| picture.header.frame)
+}
+
+/// Polls until the monitor shows `frame`; the time it took, or None after `timeout`.
+fn wait_shown(preview: &mut SourcePreview, frame: u64, timeout: Duration) -> Option<u128> {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        preview.poll();
+        if shown_frame(preview) == Some(frame) {
+            return Some(start.elapsed().as_millis());
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    None
+}
+
+/// Ten single steps forward, ten back (each waits for its picture), then a burst of
+/// ten presses 80 ms apart (a fast hand): when the last asked frame shows and how many
+/// pictures the monitor showed on the way.
+fn steps(preview: &mut SourcePreview, run: &mut Steps) {
+    if let Err(error) = wait_ready(preview, Duration::from_secs(20)) {
+        run.error = Some(error);
+        return;
+    }
+    std::thread::sleep(Duration::from_millis(500));
+    preview.poll();
+    let Some(mut at) = preview.player_view().confirmed_source_frame() else {
+        run.error = Some("no confirmed frame".into());
+        return;
+    };
+    at += 30;
+    preview.cue(at);
+    if wait_shown(preview, at, Duration::from_secs(5)).is_none() {
+        run.error = Some("the start frame did not show".into());
+        return;
+    }
+    std::thread::sleep(Duration::from_millis(500));
+    for delta in [1i64; 10].into_iter().chain([-1i64; 10]) {
+        let target = at.saturating_add_signed(delta);
+        let call = Instant::now();
+        preview.step(delta);
+        run.call_us.push(call.elapsed().as_micros());
+        match wait_shown(preview, target, Duration::from_secs(3)) {
+            Some(_) => run.single_ms.push(call.elapsed().as_millis()),
+            None => run.missed += 1,
+        }
+        at = target;
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    let target = at + 10;
+    let start = Instant::now();
+    let mut last = shown_frame(preview);
+    let mut next_press = start;
+    let mut pressed = 0;
+    while start.elapsed() < Duration::from_secs(5) {
+        if pressed < 10 && Instant::now() >= next_press {
+            let call = Instant::now();
+            preview.step(1);
+            run.call_us.push(call.elapsed().as_micros());
+            pressed += 1;
+            next_press += Duration::from_millis(80);
+        }
+        preview.poll();
+        let shown = shown_frame(preview);
+        if shown != last {
+            last = shown;
+            run.burst_pictures += 1;
+        }
+        if pressed == 10 && shown == Some(target) {
+            run.burst_ms = Some(start.elapsed().as_millis());
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+/// Jumps around one place, as trimming does (user 2026-10-11): cue to `start`, wait 4 s
+/// (the player may prepare the GOPs around it meanwhile), then jumps back and forth
+/// within about a second, across GOP boundaries; each waits for its picture.
+fn jumps(preview: &mut SourcePreview, run: &mut Steps, start: u64) {
+    if let Err(error) = wait_ready(preview, Duration::from_secs(20)) {
+        run.error = Some(error);
+        return;
+    }
+    preview.cue(start);
+    if wait_shown(preview, start, Duration::from_secs(10)).is_none() {
+        run.error = Some("the start frame did not show".into());
+        return;
+    }
+    std::thread::sleep(Duration::from_secs(4));
+    for delta in [-30i64, 20, -45, 10, -12, 35, -50, 5, -25, 40] {
+        let target = start.saturating_add_signed(delta);
+        let call = Instant::now();
+        preview.cue(target);
+        run.call_us.push(call.elapsed().as_micros());
+        match wait_shown(preview, target, Duration::from_secs(5)) {
+            Some(_) => run.single_ms.push(call.elapsed().as_millis()),
+            None => run.missed += 1,
+        }
+        println!("  jump {delta:+} to {target}: {} ms, shown {:?} error {:?}", call.elapsed().as_millis(), shown_frame(preview), preview.player_view().error);
+        std::thread::sleep(Duration::from_millis(300));
+    }
+    run.burst_ms = Some(0);
+}
+
+/// Steps back through the GOPs around one place, as trimming does (user 2026-10-11): cue
+/// to `start`, wait 4 s, then 60 single steps back (past the pictures the player keeps
+/// behind a cue and across GOP boundaries), each waiting for its picture.
+fn back(preview: &mut SourcePreview, run: &mut Steps, start: u64) {
+    if let Err(error) = wait_ready(preview, Duration::from_secs(20)) {
+        run.error = Some(error);
+        return;
+    }
+    preview.cue(start);
+    if wait_shown(preview, start, Duration::from_secs(10)).is_none() {
+        run.error = Some("the start frame did not show".into());
+        return;
+    }
+    std::thread::sleep(Duration::from_secs(4));
+    let mut at = start;
+    for _ in 0..60 {
+        at -= 1;
+        let call = Instant::now();
+        preview.step(-1);
+        run.call_us.push(call.elapsed().as_micros());
+        match wait_shown(preview, at, Duration::from_secs(5)) {
+            Some(_) => run.single_ms.push(call.elapsed().as_millis()),
+            None => run.missed += 1,
+        }
+        std::thread::sleep(Duration::from_millis(80));
+    }
+    run.burst_ms = Some(0);
+}
+
+/// The wheel over the source timeline (user 2026-10-16): bursts of single steps 20-50 ms
+/// apart, back and forth, with the pauses in which the player's background decoding
+/// starts, then Play, measured as any play.
+fn scrub(preview: &mut SourcePreview, run: &mut Run, seconds: u64, hdmi: Option<&mut Hdmi>) {
+    run.started = unix_ms();
+    if let Err(error) = wait_ready(preview, Duration::from_secs(20)) {
+        run.error = Some(error);
+        return;
+    }
+    for (count, delta) in [(5, -1i64), (5, 1), (5, -1), (5, 1), (8, -1), (6, 1)] {
+        for _ in 0..count {
+            preview.step(delta);
+            for _ in 0..3 {
+                preview.poll();
+                std::thread::sleep(Duration::from_millis(12));
+            }
+        }
+        let pause = Instant::now();
+        while pause.elapsed() < Duration::from_millis(900) {
+            preview.poll();
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+    match wait_ready(preview, Duration::from_secs(20)) {
+        Ok(ms) => {
+            run.prepare_ms = Some(ms);
+            play(preview, run, seconds, hdmi);
+        }
+        Err(error) => run.error = Some(error),
+    }
+    run.ended = unix_ms();
+}
+
+/// The same steps back on the story program, as Wrap makes them (a cue per step on the
+/// program's own frames).
+fn program_back(preview: &mut SourcePreview, run: &mut Steps, start: u64) {
+    preview.show_program_frame(start, true);
+    if let Err(error) = wait_ready(preview, Duration::from_secs(20)) {
+        run.error = Some(error);
+        return;
+    }
+    if wait_shown(preview, start, Duration::from_secs(10)).is_none() {
+        run.error = Some("the start frame did not show".into());
+        return;
+    }
+    std::thread::sleep(Duration::from_secs(4));
+    let mut at = start;
+    for _ in 0..60 {
+        at -= 1;
+        let call = Instant::now();
+        preview.show_program_frame(at, false);
+        run.call_us.push(call.elapsed().as_micros());
+        match wait_shown(preview, at, Duration::from_secs(5)) {
+            Some(_) => run.single_ms.push(call.elapsed().as_millis()),
+            None => run.missed += 1,
+        }
+        std::thread::sleep(Duration::from_millis(80));
+    }
+    run.burst_ms = Some(0);
+}
+
+/// The fine wave of a second on each side of `at`, read as the trim zoom reads it: how long
+/// until it is there, and the peaks of each camera channel (user 2026-10-25).
+fn fine_wave(preview: &SourcePreview, clip_id: &str, name: &str, at: u64) {
+    let Some(locator) = preview.still_locator() else {
+        println!("fine wave {name}: no locator");
+        return;
+    };
+    let (from, to) = (at.saturating_sub(50), at + 50);
+    for channel in 0..4u16 {
+        let piece = qnc_program_waveform::Placement {
+            clip_id: clip_id.to_string(),
+            channel,
+            program_start: from,
+            program_end: to,
+            source_in: from,
+            source_out: to,
+            level_db: 0,
+            off: false,
+            curve: Vec::new(),
+        };
+        let mut wave = qnc_fine_wave::FineWave::new();
+        let started = Instant::now();
+        let mut peaks = wave.lane_peaks(&locator, std::slice::from_ref(&piece), from, to, 900).0;
+        while wave.loading() && started.elapsed() < Duration::from_secs(20) {
+            std::thread::sleep(Duration::from_millis(10));
+            peaks = wave.lane_peaks(&locator, std::slice::from_ref(&piece), from, to, 900).0;
+        }
+        let loud = peaks.iter().filter(|peak| **peak > 0.01).count();
+        let top = peaks.iter().copied().fold(0f32, f32::max);
+        println!("fine wave {name} ch{} frames {from}..{to}: {} ms, {loud} of {} columns sound, peak {top:.3}", channel + 1, started.elapsed().as_millis(), peaks.len());
+    }
+}
+
+fn percentile(values: &[u128], p: f64) -> u128 {
+    let mut sorted = values.to_vec();
+    sorted.sort_unstable();
+    sorted.get(((sorted.len() as f64 * p) as usize).min(sorted.len().saturating_sub(1))).copied().unwrap_or(0)
+}
+
+fn main() -> Result<(), String> {
+    let args = args()?;
+    std::env::set_var("QNC_ROOT", &args.root);
+    std::env::set_var("QNC_PLAYER_DIAGNOSTICS", "1");
+    let reader = qnc_active_project_read::ActiveProjectReader::from_root(&args.root).map_err(|e| e.to_string())?;
+    let snapshot = reader.read().map_err(|e| e.to_string())?;
+    let settings = reader.settings_reader();
+    let project_dir = settings
+        .local_workspace_dir(&snapshot.settings)
+        .map_err(|e| e.to_string())?
+        .ok_or("the project has no local directory")?;
+    let root = args.root.canonicalize().map_err(|e| e.to_string())?;
+    let dir = project_dir.canonicalize().map_err(|e| e.to_string())?;
+    if !dir.starts_with(&root) {
+        return Err(format!(
+            "refused: the project {} is not inside {} (use an isolated copy)",
+            dir.display(),
+            root.display()
+        ));
+    }
+    let content = qnc_content_read::ContentReader::for_project(settings, &snapshot.settings)?;
+    let clips = content.summaries()?;
+    let bindings = qnc_source_bindings::load(&args.root)?;
+    // The player logs where the diagnostics find a QNC root: an isolated copy without
+    // the root files falls back to the QNC the player was built in. Read the stalls and
+    // sound timing there, or a run measured nothing and passed.
+    let log_root = qnc_dev_diagnostics::locate_qnc_root().unwrap_or_else(|| args.root.clone());
+    let mut preview = SourcePreview::new();
+    preview.configure(PreviewContext::new(settings.clone(), snapshot.settings, content, bindings));
+    // The story is heard as Story hears it at start (2026-10-25: normalising on, so the story
+    // plays the prerender, which is normalised as the export).
+    preview.normalize_program(Some([None, None]));
+
+    let mut hdmi = if args.hdmi { Some(Hdmi::start()?) } else { None };
+    let mut runs = Vec::new();
+    for wanted in &args.clips {
+        let mut run = Run { name: format!("clip {wanted}"), ..Run::default() };
+        match clips.iter().find(|clip| clip.name.contains(wanted.as_str())) {
+            Some(clip) => {
+                preview.open_at(&clip.clip_id, args.start);
+                measure(&mut preview, &mut run, args.seconds, hdmi.as_mut());
+            }
+            None => run.error = Some("no such clip".into()),
+        }
+        runs.push(run);
+    }
+    for from in &args.program_from {
+        let mut run = Run { name: format!("program from {from}"), ..Run::default() };
+        preview.show_program_frame(*from, true);
+        measure(&mut preview, &mut run, args.seconds, hdmi.as_mut());
+        runs.push(run);
+    }
+    let mut step_runs = Vec::new();
+    for wanted in &args.steps {
+        let mut run = Steps { name: format!("steps {wanted}"), ..Steps::default() };
+        match clips.iter().find(|clip| clip.name.contains(wanted.as_str())) {
+            Some(clip) => {
+                preview.open(&clip.clip_id);
+                steps(&mut preview, &mut run);
+            }
+            None => run.error = Some("no such clip".into()),
+        }
+        step_runs.push(run);
+    }
+    for start in &args.program_back {
+        let mut run = Steps { name: format!("program back {start}"), ..Steps::default() };
+        program_back(&mut preview, &mut run, *start);
+        step_runs.push(run);
+    }
+    for wanted in &args.back {
+        let mut run = Steps { name: format!("back {wanted}"), ..Steps::default() };
+        match clips.iter().find(|clip| clip.name.contains(wanted.as_str())) {
+            Some(clip) => {
+                preview.open(&clip.clip_id);
+                back(&mut preview, &mut run, args.start.max(100));
+            }
+            None => run.error = Some("no such clip".into()),
+        }
+        step_runs.push(run);
+    }
+    for wanted in &args.scrub {
+        let mut run = Run { name: format!("scrub {wanted}"), ..Run::default() };
+        match clips.iter().find(|clip| clip.name.contains(wanted.as_str())) {
+            Some(clip) => {
+                preview.open_at(&clip.clip_id, args.start);
+                scrub(&mut preview, &mut run, args.seconds, hdmi.as_mut());
+            }
+            None => run.error = Some("no such clip".into()),
+        }
+        runs.push(run);
+    }
+    for wanted in &args.jumps {
+        let mut run = Steps { name: format!("jumps {wanted}"), ..Steps::default() };
+        match clips.iter().find(|clip| clip.name.contains(wanted.as_str())) {
+            Some(clip) => {
+                preview.open(&clip.clip_id);
+                jumps(&mut preview, &mut run, args.start.max(60));
+            }
+            None => run.error = Some("no such clip".into()),
+        }
+        step_runs.push(run);
+    }
+    for wanted in &args.fine_wave {
+        match clips.iter().find(|clip| clip.name.contains(wanted.as_str())) {
+            Some(clip) => fine_wave(&preview, &clip.clip_id, wanted, args.start),
+            None => println!("fine wave {wanted}: no such clip"),
+        }
+    }
+    preview.close();
+    std::thread::sleep(Duration::from_millis(300));
+    drop(hdmi);
+
+    let mut failed = false;
+    let mut report = Vec::new();
+    for run in &runs {
+        let (stalls, reopens) = logged(&log_root, run.started, run.ended + 200);
+        let shown = if run.frames_advanced > 0 {
+            100.0 * run.pictures as f64 / run.frames_advanced as f64
+        } else {
+            0.0
+        };
+        let av = av_offsets(&log_root, run);
+        // Picture vs sound: the median within one frame, and no point where the picture
+        // lags the sound by more than two frames (AGENTS 8.3 point 6).
+        let av_ok = av.as_ref().is_none_or(|a| a.median.abs() <= 1.0 && a.lag_worst >= -2.0);
+        // Pictures in their order: a frame lower than the one before is shown out of order
+        // (it looks like ghosts or a wrong field on motion); repeats are counted apart.
+        let (mut backwards, mut repeats) = (0u64, 0u64);
+        for pair in run.pictures_at.windows(2) {
+            if pair[1].1 < pair[0].1 {
+                println!("     backwards: frame {} after {}", pair[1].1, pair[0].1);
+            }
+            backwards += u64::from(pair[1].1 < pair[0].1);
+            repeats += u64::from(pair[1].1 == pair[0].1);
+        }
+        println!("     order: {} pictures, {backwards} backwards, {repeats} repeated", run.pictures_at.len());
+        if let Some((refreshes, new, skipped)) = hdmi_counts(&log_root, run.started, run.ended + 6000) {
+            println!("     hdmi: {refreshes} refreshes, {new} new pictures, {skipped} skipped (reports of 5 s within the play)");
+        }
+        for (at, gap, frame) in &run.stutters_at {
+            println!("     stutter at_ms={at} gap_ms={gap} after_frame={frame}");
+        }
+        let ok = run.error.is_none() && stalls == 0 && run.stutters == 0 && shown >= 99.0 && av_ok && backwards == 0;
+        failed |= !ok;
+        println!(
+            "{} {:<24} ready {:>5} ms | first picture {:>4} ms | frames {:>5} | shown {:>5.1}% | longest gap {:>4} ms at {} | stutters {:>3} | stalls {} | decoder reopens {} | A/V {}{}",
+            if ok { "PASS" } else { "FAIL" },
+            run.name,
+            run.prepare_ms.map_or("-".into(), |v| v.to_string()),
+            run.first_picture_ms.map_or("-".into(), |v| v.to_string()),
+            run.frames_advanced,
+            shown,
+            run.longest_gap_ms,
+            run.longest_gap_at,
+            run.stutters,
+            stalls,
+            reopens,
+            av.as_ref().map_or("-".to_string(), |a| format!("median {:+.1} f, picture behind sound up to {:.1} f, ahead up to {:.1} f ({} points)", a.median, -a.lag_worst.min(0.0), a.lead_worst.max(0.0), a.points)),
+            run.error.as_ref().map_or(String::new(), |e| format!(" | error {e}")),
+        );
+        report.push(serde_json::json!({
+            "name": run.name, "ok": ok, "prepare_ms": run.prepare_ms,
+            "first_picture_ms": run.first_picture_ms, "frames_advanced": run.frames_advanced,
+            "pictures": run.pictures, "shown_percent": shown, "longest_gap_ms": run.longest_gap_ms,
+            "stutters": run.stutters, "stalls": stalls, "decoder_reopens": reopens, "error": run.error,
+            "av_median_frames": av.as_ref().map(|a| a.median), "av_picture_behind_frames": av.as_ref().map(|a| -a.lag_worst.min(0.0)),
+            "av_picture_ahead_frames": av.as_ref().map(|a| a.lead_worst.max(0.0)),
+        }));
+    }
+    for run in &step_runs {
+        // Every press is seen: a step shows its picture within two frame times, and a
+        // burst of presses ends on the last asked frame.
+        let median = percentile(&run.single_ms, 0.5);
+        let ok = run.error.is_none() && run.missed == 0 && median <= 80 && run.burst_ms.is_some();
+        failed |= !ok;
+        println!(
+            "{} {:<24} step to picture median {:>4} ms p90 {:>4} ms max {:>4} ms | missed {} | call on caller median {} us max {} us | burst of 10: {} ms, {} pictures{}",
+            if ok { "PASS" } else { "FAIL" },
+            run.name,
+            median,
+            percentile(&run.single_ms, 0.9),
+            percentile(&run.single_ms, 1.0),
+            run.missed,
+            percentile(&run.call_us, 0.5),
+            percentile(&run.call_us, 1.0),
+            run.burst_ms.map_or("never".into(), |v| v.to_string()),
+            run.burst_pictures,
+            run.error.as_ref().map_or(String::new(), |e| format!(" | error {e}")),
+        );
+        report.push(serde_json::json!({
+            "name": run.name, "ok": ok, "single_ms": run.single_ms, "step_median_ms": median, "step_max_ms": percentile(&run.single_ms, 1.0),
+            "missed": run.missed, "call_us_median": percentile(&run.call_us, 0.5), "call_us_max": percentile(&run.call_us, 1.0),
+            "burst_ms": run.burst_ms, "burst_pictures": run.burst_pictures, "error": run.error,
+        }));
+    }
+    let out = qnc_dev_diagnostics::log_dir(&log_root).join("player-acceptance.json");
+    let _ = std::fs::write(&out, serde_json::to_string_pretty(&report).unwrap_or_default());
+    if failed {
+        Err("player acceptance failed".into())
+    } else {
+        Ok(())
+    }
+}

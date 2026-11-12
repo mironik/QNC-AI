@@ -125,6 +125,7 @@ dependencies = [
  "cfg-if",
  "getrandom 0.3.4",
  "once_cell",
+ "serde",
  "version_check",
  "zerocopy",
 ]
@@ -137,6 +138,12 @@ checksum = "c982642fa9e8606056828ee9a8505737230110bb1099153c79efe865c59d12ba"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "alsa"
@@ -493,6 +500,12 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "base64"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
+
+[[package]]
+name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
@@ -506,7 +519,9 @@ dependencies = [
  "bitflags 2.13.2",
  "cexpr",
  "clang-sys",
- "itertools",
+ "itertools 0.13.0",
+ "log",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
@@ -628,6 +643,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+
+[[package]]
 name = "byteorder-lite"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -690,6 +711,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "candle-core"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c15b675b80d994b2eadb20a4bbe434eabeb454eac3ee5e2b4cf6f147ee9be091"
+dependencies = [
+ "byteorder",
+ "float8",
+ "gemm",
+ "half",
+ "libm",
+ "memmap2",
+ "num-traits",
+ "num_cpus",
+ "rand 0.9.5",
+ "rand_distr",
+ "rayon",
+ "safetensors",
+ "thiserror 2.0.21",
+ "yoke",
+ "zip",
+]
+
+[[package]]
+name = "candle-nn"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3045fa9e7aef8567d209a27d56b692f60b96f4d0569f4c3011f8ca6715c65e03"
+dependencies = [
+ "candle-core",
+ "half",
+ "libc",
+ "num-traits",
+ "rayon",
+ "safetensors",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "candle-transformers"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b538ec4aa807c416a2ddd3621044888f188827862e2a6fcacba4738e89795d01"
+dependencies = [
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "fancy-regex 0.17.0",
+ "num-traits",
+ "rand 0.9.5",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_plain",
+ "tracing",
+]
+
+[[package]]
 name = "cap-primitives"
 version = "4.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -717,6 +796,15 @@ dependencies = [
  "io-extras",
  "io-lifetimes 3.0.1",
  "rustix 1.1.6",
+]
+
+[[package]]
+name = "castaway"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dec551ab6e7578819132c713a93c022a05d60159dc86e7a7050223577484c55a"
+dependencies = [
+ "rustversion",
 ]
 
 [[package]]
@@ -805,6 +893,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.58"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -822,6 +919,21 @@ checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
 dependencies = [
  "bytes",
  "memchr",
+]
+
+[[package]]
+name = "compact_str"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dfdd1c2274d9aa354115b09dc9a901d6c5576818cdf70d14cae2bdb47df00ab"
+dependencies = [
+ "castaway",
+ "cfg-if",
+ "itoa",
+ "rustversion",
+ "ryu",
+ "serde",
+ "static_assertions",
 ]
 
 [[package]]
@@ -955,6 +1067,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-deque"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "622f3fc73690be383c7214310406f28a90e6edeadc3cea882f9d71e495b9711a"
+dependencies = [
+ "crossbeam-epoch",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.9.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc74980687109a3b14c72fd458107bf0baa1da1a1a805e178d15501ba9b86d9d"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -983,6 +1114,50 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
+name = "darling"
+version = "0.20.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
+dependencies = [
+ "darling_core",
+ "darling_macro",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.20.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.20.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
+dependencies = [
+ "darling_core",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "dary_heap"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1e3a325bc115f096c8b77bbf027a7c2592230e70be2d985be950d3d5e60ebe"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "dasp_sample"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -993,6 +1168,37 @@ name = "deranged"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e9de72ce2ad1f90dc62fa25f0f430ef85eb4b0d8fa0be4f30373bc40a21d28e"
+
+[[package]]
+name = "derive_builder"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "507dfb09ea8b7fa618fcf76e953f4f5e192547945816d5358edffe39f6f94947"
+dependencies = [
+ "derive_builder_macro",
+]
+
+[[package]]
+name = "derive_builder_core"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d5bcf7b024d6835cfb3d473887cd966994907effbe9227e8c8219824d06c4e8"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "derive_builder_macro"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
+dependencies = [
+ "derive_builder_core",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "digest"
@@ -1062,6 +1268,22 @@ name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
+
+[[package]]
+name = "dyn-stack"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c4713e43e2886ba72b8271aa66c93d722116acf7a75555cce11dcde84388fe8"
+dependencies = [
+ "bytemuck",
+ "dyn-stack-macros",
+]
+
+[[package]]
+name = "dyn-stack-macros"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1d926b4d407d372f141f93bb444696142c29d32962ccbd3531117cf3aa0bfa9"
 
 [[package]]
 name = "ecolor"
@@ -1206,6 +1428,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
 
 [[package]]
+name = "enum-as-inner"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1e6a265c649f3f5979b601d26f1d05ada116434c87741c9493cb56218f76cbc"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "enumflags2"
 version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1273,6 +1507,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 
 [[package]]
+name = "esaxx-rs"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
+
+[[package]]
 name = "event-listener"
 version = "5.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1303,6 +1543,28 @@ name = "fallible-streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
+
+[[package]]
+name = "fancy-regex"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e24cb5a94bcae1e5408b0effca5cd7172ea3c5755049c5f3af4cd283a165298"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "fancy-regex"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
 
 [[package]]
 name = "fast_image_resize"
@@ -1380,10 +1642,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "float8"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "719a903cc23e4a89e87962c2a80fdb45cdaad0983a89bd150bb57b4c8571a7d5"
+dependencies = [
+ "half",
+ "num-traits",
+ "rand 0.9.5",
+ "rand_distr",
+]
+
+[[package]]
+name = "fnv"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
+
+[[package]]
 name = "foldhash"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "foreign-types"
@@ -1431,6 +1717,12 @@ dependencies = [
  "rustix 1.1.6",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "fs_extra"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "futures-channel"
@@ -1503,6 +1795,125 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
+]
+
+[[package]]
+name = "gemm"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa0673db364b12263d103b68337a68fbecc541d6f6b61ba72fe438654709eacb"
+dependencies = [
+ "dyn-stack",
+ "gemm-c32",
+ "gemm-c64",
+ "gemm-common",
+ "gemm-f16",
+ "gemm-f32",
+ "gemm-f64",
+ "num-complex",
+ "num-traits",
+ "paste",
+ "raw-cpuid",
+ "seq-macro",
+]
+
+[[package]]
+name = "gemm-c32"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "086936dbdcb99e37aad81d320f98f670e53c1e55a98bee70573e83f95beb128c"
+dependencies = [
+ "dyn-stack",
+ "gemm-common",
+ "num-complex",
+ "num-traits",
+ "paste",
+ "raw-cpuid",
+ "seq-macro",
+]
+
+[[package]]
+name = "gemm-c64"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20c8aeeeec425959bda4d9827664029ba1501a90a0d1e6228e48bef741db3a3f"
+dependencies = [
+ "dyn-stack",
+ "gemm-common",
+ "num-complex",
+ "num-traits",
+ "paste",
+ "raw-cpuid",
+ "seq-macro",
+]
+
+[[package]]
+name = "gemm-common"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88027625910cc9b1085aaaa1c4bc46bb3a36aad323452b33c25b5e4e7c8e2a3e"
+dependencies = [
+ "bytemuck",
+ "dyn-stack",
+ "half",
+ "libm",
+ "num-complex",
+ "num-traits",
+ "once_cell",
+ "paste",
+ "pulp",
+ "raw-cpuid",
+ "rayon",
+ "seq-macro",
+ "sysctl",
+]
+
+[[package]]
+name = "gemm-f16"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3df7a55202e6cd6739d82ae3399c8e0c7e1402859b30e4cb780e61525d9486e"
+dependencies = [
+ "dyn-stack",
+ "gemm-common",
+ "gemm-f32",
+ "half",
+ "num-complex",
+ "num-traits",
+ "paste",
+ "raw-cpuid",
+ "rayon",
+ "seq-macro",
+]
+
+[[package]]
+name = "gemm-f32"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02e0b8c9da1fbec6e3e3ab2ce6bc259ef18eb5f6f0d3e4edf54b75f9fd41a81c"
+dependencies = [
+ "dyn-stack",
+ "gemm-common",
+ "num-complex",
+ "num-traits",
+ "paste",
+ "raw-cpuid",
+ "seq-macro",
+]
+
+[[package]]
+name = "gemm-f64"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "056131e8f2a521bfab322f804ccd652520c79700d81209e9d9275bbdecaadc6a"
+dependencies = [
+ "dyn-stack",
+ "gemm-common",
+ "num-complex",
+ "num-traits",
+ "paste",
+ "raw-cpuid",
+ "seq-macro",
 ]
 
 [[package]]
@@ -1733,8 +2144,12 @@ version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
 dependencies = [
+ "bytemuck",
  "cfg-if",
  "crunchy",
+ "num-traits",
+ "rand 0.9.5",
+ "rand_distr",
  "zerocopy",
 ]
 
@@ -1753,7 +2168,20 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
- "foldhash",
+ "foldhash 0.1.5",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -1873,7 +2301,7 @@ dependencies = [
  "icu_normalizer_data",
  "icu_properties",
  "icu_provider",
- "smallvec",
+ "smallvec 1.16.5",
  "zerovec",
 ]
 
@@ -1920,13 +2348,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ident_case"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
 name = "idna"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de"
 dependencies = [
  "idna_adapter",
- "smallvec",
+ "smallvec 1.16.5",
  "utf8_iter",
 ]
 
@@ -2028,6 +2462,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -2167,6 +2610,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "libm"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+
+[[package]]
 name = "libredox"
 version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2253,12 +2702,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
 
 [[package]]
+name = "macro_rules_attribute"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3ae8f6d608c795738406608304d30a2dfbdc8e58e44f7ba43236da5208ded3c"
+dependencies = [
+ "macro_rules_attribute-proc_macro",
+ "pastey",
+]
+
+[[package]]
+name = "macro_rules_attribute-proc_macro"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc04a4c58212d57930a24bf47d3fa87485264a3a054e9c10e042eb373573ad3c"
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "matrixmultiply"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f607c237553f086e7043417a51df26b2eb899d3caff94e6a67592ff992fedc7"
+dependencies = [
+ "autocfg",
+ "rawpointer",
 ]
 
 [[package]]
@@ -2280,6 +2755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b0ca1155a9ecc25aa12e8313a119f32edf0255fea2f44839c4ac0a12b2ac157"
 dependencies = [
  "libc",
+ "stable_deref_trait",
 ]
 
 [[package]]
@@ -2333,6 +2809,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "monostate"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3341a273f6c9d5bef1908f17b7267bbab0e95c9bf69a0d4dcf8e9e1b2c76ef67"
+dependencies = [
+ "monostate-impl",
+ "serde",
+ "serde_core",
+]
+
+[[package]]
+name = "monostate-impl"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4db6d5580af57bf992f59068d4ea26fd518574ff48d7639b255a36f9de6e7e9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2362,6 +2860,21 @@ dependencies = [
  "termcolor",
  "thiserror 2.0.21",
  "unicode-xid",
+]
+
+[[package]]
+name = "ndarray"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "portable-atomic",
+ "portable-atomic-util",
+ "rawpointer",
 ]
 
 [[package]]
@@ -2433,6 +2946,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-complex"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
+dependencies = [
+ "bytemuck",
+ "num-traits",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2450,12 +2973,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-integer"
+version = "0.1.47"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -2865,6 +3398,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ort"
+version = "2.0.0-rc.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa7e49bd669d32d7bc2a15ec540a527e7764aec722a45467814005725bcd721"
+dependencies = [
+ "libloading",
+ "ndarray",
+ "ort-sys",
+ "smallvec 2.0.0-alpha.10",
+ "tracing",
+]
+
+[[package]]
+name = "ort-sys"
+version = "2.0.0-rc.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2aba9f5c7c479925205799216e7e5d07cc1d4fa76ea8058c60a9a30f6a4e890"
+dependencies = [
+ "pkg-config",
+]
+
+[[package]]
 name = "owned_ttf_parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2898,7 +3453,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "redox_syscall 0.5.18",
- "smallvec",
+ "smallvec 1.16.5",
  "windows-link",
 ]
 
@@ -2909,12 +3464,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pastey"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
+
+[[package]]
 name = "pem"
 version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d30c53c26bc5b31a98cd02d20f25a7c8567146caf63ed593a9d87b2775291be"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "serde_core",
 ]
 
@@ -3007,6 +3568,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f3a9f18d041e6d0e102a0a46750538147e5e8992d3b4873aaafee2520b00ce3"
 
 [[package]]
+name = "portable-atomic"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
+
+[[package]]
+name = "portable-atomic-util"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10ab3eb7f3becc3a1cbc4f2c6f20267996cfc1a6467a873763411b136a122715"
+dependencies = [
+ "portable-atomic",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3037,6 +3613,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8cf8e6a8aa66ce33f63993ffc4ea4271eb5b0530a9002db8455ea6050c77bfa"
 
 [[package]]
+name = "prettyplease"
+version = "0.2.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3059,6 +3645,29 @@ name = "profiling"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
+
+[[package]]
+name = "pulp"
+version = "0.22.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "046aa45b989642ec2e4717c8e72d677b13edd831a4d3b6cf37d9a3e54912496a"
+dependencies = [
+ "bytemuck",
+ "cfg-if",
+ "libm",
+ "num-complex",
+ "paste",
+ "pulp-wasm-simd-flag",
+ "raw-cpuid",
+ "reborrow",
+ "version_check",
+]
+
+[[package]]
+name = "pulp-wasm-simd-flag"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d8f70e07b9c3962945a74e59ca1c511bba65b6419468acc217c457d93f3c740"
 
 [[package]]
 name = "pxfm"
@@ -3178,6 +3787,17 @@ name = "qnc-ai-open"
 version = "0.1.0"
 
 [[package]]
+name = "qnc-ai-pack"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-dev-diagnostics",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "qnc-ai-place"
 version = "0.1.0"
 dependencies = [
@@ -3187,6 +3807,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-ai-server"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ai-tls",
+ "qnc-dev-diagnostics",
+ "qnc-plugin-process",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3209,6 +3841,16 @@ dependencies = [
  "qnc-plugin-process",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-ai-store-program"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-store",
+ "qnc-dev-diagnostics",
+ "qnc-shot-captions",
+ "qnc-shot-examples",
 ]
 
 [[package]]
@@ -3244,6 +3886,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-align-wav2vec2"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ctc-align",
+ "qnc-dev-diagnostics",
+ "qnc-letter-align",
+ "qnc-transcribe-jobs",
+ "qnc-wav2vec2",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "qnc-app"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-app-registry",
+ "qnc-decoder-catalog",
+ "qnc-desktop",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-desktop-adapter",
+ "qnc-ma-script-desktop-adapter",
+ "qnc-media-assist-audio-ai-desktop-adapter",
+ "qnc-media-assist-audio-desktop-adapter",
+ "qnc-media-assist-video-desktop-adapter",
+ "qnc-project-desktop-adapter",
+ "qnc-s-story-desktop-adapter",
+ "qnc-shell-desktop-api",
+ "qnc-story-desktop-adapter",
+]
+
+[[package]]
 name = "qnc-app-catalog"
 version = "0.1.0"
 dependencies = [
@@ -3252,6 +3927,14 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-app-registry"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3401,6 +4084,16 @@ dependencies = [
  "qnc-media-metadata",
  "qnc-source-contract",
  "qnc-source-groups",
+]
+
+[[package]]
+name = "qnc-camera-catalog"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -3618,6 +4311,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-conformance"
+version = "0.1.0"
+dependencies = [
+ "qnc-contracts",
+ "qnc-db-contract",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-content-artifacts"
 version = "0.1.0"
 dependencies = [
@@ -3678,6 +4380,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ctc-align"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-db-broker"
 version = "0.1.0"
 dependencies = [
@@ -3700,6 +4406,17 @@ version = "0.1.0"
 dependencies = [
  "qnc-contracts",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-decoder-acceptance"
+version = "0.1.0"
+dependencies = [
+ "qnc-decoder-jobs",
+ "qnc-ffmpeg-decode",
+ "qnc-frame-timebase",
+ "qnc-plugin-process",
+ "tempfile",
 ]
 
 [[package]]
@@ -3733,10 +4450,47 @@ dependencies = [
 name = "qnc-decoder-jobs"
 version = "0.1.0"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "qnc-plugin-process",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-desktop"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-app-registry",
+ "qnc-board",
+ "qnc-contracts",
+ "qnc-desktop-tabs",
+ "qnc-desktop-theme",
+ "qnc-dev-diagnostics",
+ "qnc-program-output",
+ "qnc-project-close",
+ "qnc-project-desktop-adapter",
+ "qnc-shell-desktop-api",
+ "qnc-shell-footer",
+ "qnc-status-line",
+ "qnc-theme-styles",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-desktop-entry"
+version = "0.1.0"
+
+[[package]]
+name = "qnc-desktop-tabs"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-application-sequence",
+ "qnc-desktop-entry",
 ]
 
 [[package]]
@@ -3754,6 +4508,22 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-dev-diagnostics-app"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-active-project-read",
+ "qnc-artifact-db",
+ "qnc-content-store",
+ "qnc-db-broker",
+ "qnc-desktop-theme",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-work-plan",
+ "qnc-media-metadata",
+ "qnc-ui-kit",
 ]
 
 [[package]]
@@ -3919,6 +4689,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-export"
+version = "0.1.0"
+dependencies = [
+ "qnc-broadcast-engine",
+ "qnc-content-store",
+ "qnc-db-broker",
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-export-choice",
+ "qnc-fcp7-xml",
+ "qnc-media-metadata",
+ "qnc-media-stream",
+ "qnc-playback-activity",
+ "qnc-player-clip-content",
+ "qnc-player-input",
+ "qnc-prerender-db",
+ "qnc-prerender-launch",
+ "qnc-program-input",
+ "qnc-program-render",
+ "qnc-script-db",
+ "qnc-script-draft",
+ "qnc-source-bindings",
+ "qnc-ui-text",
+ "qnc-unit-join",
+ "qnc-voice-catalog",
+ "qnc-voice-take",
+ "qnc-work-settings",
+]
+
+[[package]]
 name = "qnc-export-box"
 version = "0.1.0"
 dependencies = [
@@ -3955,6 +4755,14 @@ dependencies = [
  "qnc-settings-path",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-fcp7-xml"
+version = "0.1.0"
+dependencies = [
+ "qnc-program-playlist",
+ "qnc-source-timecode",
 ]
 
 [[package]]
@@ -4032,6 +4840,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-florence2"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "ort",
+ "tokenizers",
+]
+
+[[package]]
 name = "qnc-focus-walk"
 version = "0.1.0"
 dependencies = [
@@ -4063,6 +4880,21 @@ version = "0.1.0"
 dependencies = [
  "qnc-clip-row",
  "qnc-db-broker",
+]
+
+[[package]]
+name = "qnc-format-sony"
+version = "0.1.0"
+dependencies = [
+ "qnc-camera-adapter",
+ "qnc-dev-diagnostics",
+ "qnc-plugin-process",
+ "qnc-record-format-plugin",
+ "qnc-sony-metadata",
+ "qnc-source-contract",
+ "qnc-source-groups",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -4261,6 +5093,16 @@ dependencies = [
  "qnc-ingest-layout",
  "qnc-paint-pace",
  "qnc-story-overlay",
+]
+
+[[package]]
+name = "qnc-ingest-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-ingest-desktop",
+ "qnc-shell-desktop-api",
 ]
 
 [[package]]
@@ -4486,6 +5328,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-installed-versions"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-decoder-catalog",
+ "qnc-decoder-jobs",
+ "qnc-plugin-process",
+ "qnc-record-format-plugin",
+ "qnc-transcribe-jobs",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-json-transport"
 version = "0.1.0"
 dependencies = [
@@ -4705,8 +5561,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ma-script"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-desktop",
+]
+
+[[package]]
+name = "qnc-ma-script-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-editorial-desktop",
+ "qnc-shell-desktop-api",
+ "qnc-status-line",
+]
+
+[[package]]
 name = "qnc-match-frame"
 version = "0.1.0"
+
+[[package]]
+name = "qnc-media-assist-audio"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-desktop",
+]
 
 [[package]]
 name = "qnc-media-assist-audio-ai"
@@ -4715,6 +5600,48 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+]
+
+[[package]]
+name = "qnc-media-assist-audio-ai-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-editorial-desktop",
+ "qnc-shell-desktop-api",
+ "qnc-status-line",
+]
+
+[[package]]
+name = "qnc-media-assist-audio-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-editorial-desktop",
+ "qnc-shell-desktop-api",
+ "qnc-status-line",
+]
+
+[[package]]
+name = "qnc-media-assist-video"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-desktop",
+]
+
+[[package]]
+name = "qnc-media-assist-video-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-editorial-desktop",
+ "qnc-shell-desktop-api",
+ "qnc-status-line",
 ]
 
 [[package]]
@@ -5006,6 +5933,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-newsroom-sheet-tool"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-active-project-read",
+ "qnc-db-broker",
+ "qnc-desktop-theme",
+ "qnc-dev-diagnostics",
+ "qnc-keyboard-shortcut",
+ "qnc-newsroom-sheet",
+ "qnc-newsroom-sheet-db",
+ "qnc-script-db",
+ "qnc-script-profile-editor",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-notice"
 version = "0.1.0"
 dependencies = [
@@ -5104,6 +6049,21 @@ dependencies = [
 [[package]]
 name = "qnc-playback-priority"
 version = "0.1.0"
+
+[[package]]
+name = "qnc-player-acceptance"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-content-read",
+ "qnc-dev-diagnostics",
+ "qnc-fine-wave",
+ "qnc-program-output",
+ "qnc-program-waveform",
+ "qnc-source-bindings",
+ "qnc-source-preview",
+ "serde_json",
+]
 
 [[package]]
 name = "qnc-player-client"
@@ -5226,7 +6186,7 @@ dependencies = [
 name = "qnc-plugin-process"
 version = "0.1.0"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "serde",
  "serde_json",
 ]
@@ -5271,6 +6231,30 @@ version = "0.1.0"
 dependencies = [
  "qnc-decoder-catalog",
  "qnc-frame-timebase",
+]
+
+[[package]]
+name = "qnc-prerender"
+version = "0.1.0"
+dependencies = [
+ "qnc-broadcast-engine",
+ "qnc-content-store",
+ "qnc-db-broker",
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-media-metadata",
+ "qnc-media-stream",
+ "qnc-playback-activity",
+ "qnc-player-clip-content",
+ "qnc-player-input",
+ "qnc-prerender-db",
+ "qnc-prerender-launch",
+ "qnc-program-input",
+ "qnc-program-render",
+ "qnc-render-unit",
+ "qnc-source-bindings",
+ "qnc-work-settings",
+ "serde_json",
 ]
 
 [[package]]
@@ -5396,6 +6380,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-program-render"
+version = "0.1.0"
+dependencies = [
+ "qnc-media-decode",
+ "qnc-media-metadata",
+ "qnc-media-stream",
+ "qnc-render-unit",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-program-segments"
 version = "0.1.0"
 dependencies = [
@@ -5458,6 +6454,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-project"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-project-desktop",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-project-application"
 version = "0.1.0"
 dependencies = [
@@ -5502,6 +6508,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-project-close"
+version = "0.1.0"
+dependencies = [
+ "qnc-contracts",
+ "qnc-json-transport",
+ "qnc-transport-resolver",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "tempfile",
+ "tiny_http",
+]
+
+[[package]]
 name = "qnc-project-desktop"
 version = "0.1.0"
 dependencies = [
@@ -5510,6 +6530,16 @@ dependencies = [
  "qnc-project-application",
  "qnc-project-blocks",
  "qnc-project-session",
+]
+
+[[package]]
+name = "qnc-project-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-project-desktop",
+ "qnc-shell-desktop-api",
 ]
 
 [[package]]
@@ -5614,6 +6644,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-release-check"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-editorial-application",
+ "qnc-project-close",
+]
+
+[[package]]
 name = "qnc-render-unit"
 version = "0.1.0"
 dependencies = [
@@ -5644,6 +6683,26 @@ dependencies = [
  "qnc-source-timecode",
  "qnc-transcript",
  "qnc-transcript-panel",
+]
+
+[[package]]
+name = "qnc-s-story"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-desktop",
+]
+
+[[package]]
+name = "qnc-s-story-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-editorial-desktop",
+ "qnc-shell-desktop-api",
+ "qnc-status-line",
 ]
 
 [[package]]
@@ -5785,6 +6844,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-script-profile-editor"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-newsroom-sheet",
+ "qnc-script-profile",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-script-writer-panel"
 version = "0.1.0"
 dependencies = [
@@ -5899,6 +6970,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-shell-desktop-api"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-desktop-entry",
+ "qnc-status-line",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-shell-footer"
 version = "0.1.0"
 dependencies = [
@@ -5953,6 +7035,18 @@ dependencies = [
  "qnc-plugin-process",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-shot-caption-florence"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "qnc-ai-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-florence2",
+ "qnc-shot-caption",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6028,6 +7122,18 @@ dependencies = [
  "qnc-ui-text",
  "qnc-work-settings",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-shot-content-siglip"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "qnc-ai-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-shot-content",
+ "qnc-siglip",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6133,6 +7239,18 @@ dependencies = [
  "qnc-source-timecode",
  "qnc-timeline-model",
  "qnc-transcript",
+]
+
+[[package]]
+name = "qnc-siglip"
+version = "0.1.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "image",
+ "serde_json",
+ "tokenizers",
 ]
 
 [[package]]
@@ -6471,6 +7589,27 @@ name = "qnc-store-jobs"
 version = "0.1.0"
 
 [[package]]
+name = "qnc-story"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-decoder-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-editorial-desktop",
+]
+
+[[package]]
+name = "qnc-story-desktop-adapter"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-board",
+ "qnc-editorial-desktop",
+ "qnc-shell-desktop-api",
+ "qnc-status-line",
+]
+
+[[package]]
 name = "qnc-story-overlay"
 version = "0.1.0"
 dependencies = [
@@ -6696,6 +7835,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-transcribe-parakeet"
+version = "0.1.0"
+dependencies = [
+ "libloading",
+ "qnc-dev-diagnostics",
+ "qnc-transcribe-jobs",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "qnc-transcribe-queue"
 version = "0.1.0"
 dependencies = [
@@ -6724,6 +7873,25 @@ dependencies = [
  "qnc-transcribe-jobs",
  "qnc-transcript-db",
  "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-transcribe-wav2vec2"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-transcribe-jobs",
+ "qnc-wav2vec2",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "qnc-transcribe-whisper"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-transcribe-jobs",
+ "whisper-rs",
 ]
 
 [[package]]
@@ -6767,6 +7935,28 @@ dependencies = [
  "qnc-transcript",
  "qnc-ui-kit",
  "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-translate"
+version = "0.1.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "serde_json",
+ "tokenizers",
+]
+
+[[package]]
+name = "qnc-translate-opus"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-dev-diagnostics",
+ "qnc-text-translate",
+ "qnc-translate",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6850,6 +8040,23 @@ version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-unit-join"
+version = "0.1.0"
+dependencies = [
+ "qnc-gain",
+ "qnc-loudness",
+]
+
+[[package]]
+name = "qnc-versions"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-installed-versions",
  "serde_json",
 ]
 
@@ -6951,6 +8158,16 @@ dependencies = [
  "qnc-voice-clip",
  "qnc-voice-record",
  "qnc-work-settings",
+]
+
+[[package]]
+name = "qnc-wav2vec2"
+version = "0.1.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+ "qnc-transcribe-jobs",
+ "serde_json",
 ]
 
 [[package]]
@@ -7232,16 +8449,72 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_distr"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
+dependencies = [
+ "num-traits",
+ "rand 0.9.5",
+]
+
+[[package]]
 name = "range-alloc"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca45419789ae5a7899559e9512e58ca889e41f04f1f2445e9f4b290ceccd1d08"
 
 [[package]]
+name = "raw-cpuid"
+version = "11.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "498cd0dc59d73224351ee52a95fee0f1a617a2eae0e7d9d720cc622c73a54186"
+dependencies = [
+ "bitflags 2.13.2",
+]
+
+[[package]]
 name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
+
+[[package]]
+name = "rawpointer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
+
+[[package]]
+name = "rayon"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb39b166781f92d482534ef4b4b1b2568f42613b53e5b6c160e24cfbfa30926d"
+dependencies = [
+ "either",
+ "rayon-core",
+]
+
+[[package]]
+name = "rayon-cond"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2964d0cf57a3e7a06e8183d14a8b527195c706b7983549cd5462d5aa3747438f"
+dependencies = [
+ "either",
+ "itertools 0.14.0",
+ "rayon",
+]
+
+[[package]]
+name = "rayon-core"
+version = "1.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
+dependencies = [
+ "crossbeam-deque",
+ "crossbeam-utils",
+]
 
 [[package]]
 name = "rcgen"
@@ -7255,6 +8528,12 @@ dependencies = [
  "time",
  "yasna",
 ]
+
+[[package]]
+name = "reborrow"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03251193000f4bd3b042892be858ee50e8b3719f2b08e5833ac4353724632430"
 
 [[package]]
 name = "redox_syscall"
@@ -7373,7 +8652,7 @@ dependencies = [
  "fallible-streaming-iterator",
  "hashlink",
  "libsqlite3-sys",
- "smallvec",
+ "smallvec 1.16.5",
 ]
 
 [[package]]
@@ -7497,6 +8776,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
+name = "safetensors"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "675656c1eabb620b921efea4f9199f97fc86e36dd6ffd1fbbe48d0f59a4987f5"
+dependencies = [
+ "hashbrown 0.16.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7569,6 +8865,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
+name = "seq-macro"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bc711410fbe7399f390ca1c3b60ad0f53f80e95c5eb935e52268a0e2cd49acc"
+
+[[package]]
 name = "serde"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7609,6 +8911,15 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce1fc6db65a611022b23a0dec6975d63fb80a302cb3388835ff02c097258d50"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -7710,6 +9021,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46"
 
 [[package]]
+name = "smallvec"
+version = "2.0.0-alpha.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51d44cfb396c3caf6fbfd0ab422af02631b69ddd96d2eff0b0f0724f9024051b"
+
+[[package]]
 name = "smbios-lib"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7807,6 +9124,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "spm_precompiled"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5851699c4033c63636f7ea4cf7b7c1f1bf06d0cc03cfb42e711de5a5c46cf326"
+dependencies = [
+ "base64 0.13.1",
+ "nom",
+ "serde",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7823,6 +9152,12 @@ name = "strict-num"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
+
+[[package]]
+name = "strsim"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
@@ -7883,6 +9218,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.10",
+]
+
+[[package]]
+name = "sysctl"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01198a2debb237c62b6826ec7081082d951f46dbb64b0e8c7649a452230d1dfc"
+dependencies = [
+ "bitflags 2.13.2",
+ "byteorder",
+ "enum-as-inner",
+ "libc",
+ "thiserror 1.0.69",
+ "walkdir",
 ]
 
 [[package]]
@@ -8028,6 +9377,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokenizers"
+version = "0.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a620b996116a59e184c2fa2dfd8251ea34a36d0a514758c6f966386bd2e03476"
+dependencies = [
+ "ahash",
+ "aho-corasick",
+ "compact_str",
+ "dary_heap",
+ "derive_builder",
+ "esaxx-rs",
+ "fancy-regex 0.14.0",
+ "getrandom 0.3.4",
+ "itertools 0.14.0",
+ "log",
+ "macro_rules_attribute",
+ "monostate",
+ "paste",
+ "rand 0.9.5",
+ "rayon",
+ "rayon-cond",
+ "regex",
+ "regex-syntax",
+ "serde",
+ "serde_json",
+ "spm_precompiled",
+ "thiserror 2.0.21",
+ "unicode-normalization-alignments",
+ "unicode-segmentation",
+ "unicode_categories",
+]
+
+[[package]]
 name = "tokio"
 version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8114,6 +9496,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "typed-path"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54ec2755506471f54baf5e4bb5499d8e510cc1caf271270e778a736bd2d7336c"
+
+[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8135,6 +9523,15 @@ name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
+
+[[package]]
+name = "unicode-normalization-alignments"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43f613e4fa046e69818dd287fdc4bc78175ff20331479dab6e1b0f98d57062de"
+dependencies = [
+ "smallvec 1.16.5",
+]
 
 [[package]]
 name = "unicode-segmentation"
@@ -8161,6 +9558,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
+name = "unicode_categories"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8172,7 +9575,7 @@ version = "2.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02d1a66277ed75f640d608235660df48c8e3c19f3b4edb6a263315626cc3c01d"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "flate2",
  "log",
  "once_cell",
@@ -8339,7 +9742,7 @@ dependencies = [
  "downcast-rs",
  "rustix 1.1.6",
  "scoped-tls",
- "smallvec",
+ "smallvec 1.16.5",
  "wayland-sys",
 ]
 
@@ -8540,7 +9943,7 @@ dependencies = [
  "parking_lot",
  "profiling",
  "raw-window-handle",
- "smallvec",
+ "smallvec 1.16.5",
  "static_assertions",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -8569,7 +9972,7 @@ dependencies = [
  "profiling",
  "raw-window-handle",
  "rustc-hash 1.1.0",
- "smallvec",
+ "smallvec 1.16.5",
  "thiserror 2.0.21",
  "wgpu-hal",
  "wgpu-types",
@@ -8612,7 +10015,7 @@ dependencies = [
  "raw-window-handle",
  "renderdoc-sys",
  "rustc-hash 1.1.0",
- "smallvec",
+ "smallvec 1.16.5",
  "thiserror 2.0.21",
  "wasm-bindgen",
  "web-sys",
@@ -8631,6 +10034,29 @@ dependencies = [
  "js-sys",
  "log",
  "web-sys",
+]
+
+[[package]]
+name = "whisper-rs"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2088172d00f936c348d6a72f488dc2660ab3f507263a195df308a3c2383229f6"
+dependencies = [
+ "libc",
+ "whisper-rs-sys",
+]
+
+[[package]]
+name = "whisper-rs-sys"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6986c0fe081241d391f09b9a071fbcbb59720c3563628c3c829057cf69f2a56f"
+dependencies = [
+ "bindgen",
+ "cfg-if",
+ "cmake",
+ "fs_extra",
+ "semver",
 ]
 
 [[package]]
@@ -9450,6 +10876,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.10",
+]
+
+[[package]]
+name = "zip"
+version = "7.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc12baa6db2b15a140161ce53d72209dacea594230798c24774139b54ecaa980"
+dependencies = [
+ "crc32fast",
+ "indexmap",
+ "memchr",
+ "typed-path",
 ]
 
 [[package]]
