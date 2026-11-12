@@ -7749,10 +7749,13 @@ dependencies = [
 name = "qnc-transcribe-queue"
 version = "0.1.0"
 dependencies = [
+ "qnc-active-project-read",
  "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-playback-activity",
+ "qnc-player-clip-content",
+ "qnc-source-bindings",
  "qnc-still-locator",
  "qnc-transcribe-run",
  "qnc-transcript-db",

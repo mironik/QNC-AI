@@ -450,4 +450,7 @@ Prijepis u bazi 22:03 nije napravljen ponovno.
 Izmjena 2026-11-12 (korisnik: "timecode broji trajanje od početka, a trebao bi davati timecode playholdera, a ne
 trajanje; njega može davati kao informaciju; za izjave je bitan timecode"): traka source timelinea (zajednicka kocka
 `qnc-source-dock` u QNC-shared, vrijedi i za klasicni QNC) prvo pokazuje TC playheada (timecode izvora), pa IN, OUT i
-Trajanje kao do sada. Gradnja aplikacija ceka zatvoren AI Media Assist.
+Trajanje kao do sada. Aplikacije izgradjene 2026-11-13 (desktop i Story s `libav`).
+Ponovni prijepis 2026-11-13 (korisnik: "izgradi i prepiši 3608"): Mironik 3608 u bazi 22:03 prepisan je ponovno
+kroz isti red prijepisa (primjer `qnc-transcribe-queue/examples/again.rs`, kopiran uz aplikaciju jer red trazi
+programe uz sebe), 105 s u jednom prolazu. Tekst 1444-4266 ("kad je riječ o miši...") je tu; ostale stanke 2-3 s.

@@ -13,3 +13,8 @@ qnc-still-locator = { workspace = true }
 qnc-transcribe-run = { workspace = true }
 qnc-transcript-db = { workspace = true }
 qnc-worker-wake = { workspace = true }
+
+[dev-dependencies]
+qnc-active-project-read = { workspace = true }
+qnc-player-clip-content = { workspace = true }
+qnc-source-bindings = { workspace = true }
