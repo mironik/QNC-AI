@@ -439,3 +439,11 @@ aktivna sama), pa se otvara AI Media Assist kao nakon Uvezi, a forma se zatvara.
 (`last_story`, cita se svakih 10 s; otvara isto) i "Projekti"; kartica vec uvezena bez novih klipova pita "Otvoriti vase
 projekte?" (Da otvara formu Projekti). Uzivo: forma se otvorila, nasla 1 projekt korisnika; otvaranje projekta i
 stavke traya nisu provjerene uzivo.
+Popravak 2026-11-12 (korisnik: "transkript najduže izjave napravljen je značajno lošije nego u QNC, puno nedostaje";
+"kad je riječ o miši... taj tekst"): u bazi 22:03 prijepisu Mironik 3608 falilo je 1444-4266 (56 s). Red prijepisa je
+dugi klip dvaput prekinuo za kraće (1463, 4268); nastavak usred klipa slusa sekundu sire (`padded`) i u tom nacinu
+`qnc-transcribe-run` je retke davao tek na kraju, pa je dio koji red zapise pri ustupanju (`keep_part`) bio bez
+njih, a sljedeci nastavak krenuo je iza njega. Sada se retci daju cim su cuti, odrezani na trazeni raspon
+(`lines_cut`). Postavke prijepisa (CH1, hr, Parakeet, prag) iste su kao u QNC-u. Isti klip u bazi 22:55 (jedno
+ustupanje) ima potpun tekst. Primjer `qnc-transcript-db/examples/line_words.rs` (samo citanje) u QNC-shared.
+Prijepis u bazi 22:03 nije napravljen ponovno.

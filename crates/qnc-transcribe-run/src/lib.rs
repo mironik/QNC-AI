@@ -97,12 +97,17 @@ pub fn transcribe(locator: &StillLocator, ask: &Ask, quality: Quality, pace: Pac
             if padded == *ask {
                 background(&job, ask, cancel, on_line, on_progress)?
             } else {
-                let (lines, language, made_by) = background(&job, &padded, cancel, &mut |_| {}, on_progress)?;
-                let lines = qnc_transcript_db::lines_cut(&lines, ask.from, ask.to, true);
-                for line in &lines {
-                    on_line(line);
-                }
-                (lines, language, made_by)
+                // The lines go out as they are heard, cut to the range: the queue keeps what is
+                // heard after every piece (live 2026-11-12: a clip that went on from the middle
+                // gave its lines only at its end, so the part it kept when it gave way again had
+                // none of them and 56 s of the interview were lost).
+                let mut cut = |line: &Line| {
+                    for kept in qnc_transcript_db::lines_cut(std::slice::from_ref(line), ask.from, ask.to, true) {
+                        on_line(&kept);
+                    }
+                };
+                let (lines, language, made_by) = background(&job, &padded, cancel, &mut cut, on_progress)?;
+                (qnc_transcript_db::lines_cut(&lines, ask.from, ask.to, true), language, made_by)
             }
         }
     };
