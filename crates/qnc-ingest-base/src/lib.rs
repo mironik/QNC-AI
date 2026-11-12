@@ -234,22 +234,9 @@ pub fn forget(root: &Path, id: &str) -> Result<(), String> {
     store.delete_project(id).map(|_| ())
 }
 
-/// The setting of this computer that says where the Ingest bases are made (Settings writes it).
-const FOLDER_SETTING: &str = "data/ingest-bases.json";
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct FolderSetting {
-    folder: PathBuf,
-}
-
-/// The folder the Ingest bases of `root` are made in: the one Settings chose (user 2026-11-12:
-/// "direktoriji ne smiju biti hardkodirani"). Not chosen is an error: no folder is guessed.
-pub fn folder(root: &Path) -> Result<PathBuf, String> {
-    let file = root.join(FOLDER_SETTING);
-    let bytes = std::fs::read(&file).map_err(|_| format!("the folder of the Ingest bases is not set ({} missing; choose it in Settings)", file.display()))?;
-    let setting: FolderSetting = serde_json::from_slice(&bytes).map_err(|error| format!("{}: {error}", file.display()))?;
-    Ok(if setting.folder.is_absolute() { setting.folder } else { root.join(setting.folder) })
-}
+/// The folder of the bases is the setting of the computer the shared block reads and writes
+/// (`data/ingest-bases.json`; classic QNC reads the same, user 2026-11-12).
+pub use qnc_base_cards::{folder, set_folder};
 
 /// The projects' folder is never the bases' folder (earlier versions of QNC-AI made the bases by
 /// moving it): when they are one, the user is told to choose the projects' folder in Settings.
@@ -264,15 +251,6 @@ fn keep_apart(store: &mut ProjectStore, root: &Path) -> Result<(), String> {
         }
         _ => Ok(()),
     }
-}
-
-/// Settings: the Ingest bases are made in `folder` from now on (the bases made before stay where
-/// they are; the registry knows each one's folder).
-pub fn set_folder(root: &Path, folder: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
-    let file = root.join(FOLDER_SETTING);
-    let json = serde_json::to_vec_pretty(&FolderSetting { folder: folder.to_path_buf() }).map_err(|error| error.to_string())?;
-    std::fs::write(&file, json).map_err(|error| format!("{}: {error}", file.display()))
 }
 
 /// The Ingest base Ingest works in now: the active one when it is an Ingest base no story has taken

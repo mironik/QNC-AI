@@ -6,6 +6,7 @@ description = "QNC-AI block: the Ingest bases of the application (data/ingest), 
 
 [dependencies]
 qnc-application-catalog = { workspace = true }
+qnc-base-cards = { workspace = true }
 qnc-project-store = { workspace = true }
 rusqlite = { workspace = true }
 serde = { workspace = true }
