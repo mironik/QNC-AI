@@ -6560,6 +6560,7 @@ dependencies = [
 name = "qnc-project-session"
 version = "0.1.0"
 dependencies = [
+ "qnc-ai-catalog",
  "qnc-ai-features",
  "qnc-dir-browser",
  "qnc-ingest-base",

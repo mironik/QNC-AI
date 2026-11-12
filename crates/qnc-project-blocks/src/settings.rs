@@ -307,6 +307,10 @@ impl Blocks<'_> {
         self.path_row(ui, width, settings, LocationTarget::ProjectsRoot);
         self.path_row(ui, width, settings, LocationTarget::BasesRoot);
         self.path_row(ui, width, settings, LocationTarget::ExportDir);
+        // QNC-AI: the AI folder QNC and QNC-AI share, a setting of this computer.
+        if self.settings_only {
+            self.path_row(ui, width, settings, LocationTarget::AiShare);
+        }
     }
 
     /// A location field (piece `qnc-location-field`): the path, Choose, and while open its
@@ -314,7 +318,9 @@ impl Blocks<'_> {
     fn path_row(&mut self, ui: &mut egui::Ui, content_w: f32, settings: &SettingsPanelMetrics, target: LocationTarget) {
         let (shell, texts) = (&self.contracts.theme, &self.contracts.project.texts);
         let bases_label = qnc_ui_text::text("project.bases_root_label").to_string();
+        let share_label = qnc_ui_text::text("project.ai_share_label").to_string();
         let (label, field, id, height) = match target {
+            LocationTarget::AiShare => (&share_label, &mut self.session.ai_share, "ai_share", 150.0),
             LocationTarget::ProjectsRoot => (&texts.projects_root_label, &mut self.session.projects_root, "project_root", 170.0),
             LocationTarget::ExportDir => (&texts.export_directory_label, &mut self.session.export_dir, "export_dir", 150.0),
             LocationTarget::BasesRoot => (&bases_label, &mut self.session.bases_root, "bases_root", 150.0),

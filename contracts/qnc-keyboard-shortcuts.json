@@ -556,6 +556,21 @@
     "project_bases_root_browser_cancel": {
       "label": "Odustani od mape Ingest baza"
     },
+    "project_pick_ai_share": {
+      "label": "Odaberi zajednicki AI direktorij"
+    },
+    "project_ai_share_browser_select_source": {
+      "label": "Izvor preglednika AI direktorija"
+    },
+    "project_ai_share_browser_open_path": {
+      "label": "Otvori mapu u pregledniku AI direktorija"
+    },
+    "project_ai_share_browser_confirm": {
+      "label": "Potvrdi AI direktorij"
+    },
+    "project_ai_share_browser_cancel": {
+      "label": "Odustani od AI direktorija"
+    },
     "ingest_source_kind_local": {
       "label": "Ingest izvor Računalo"
     },

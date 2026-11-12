@@ -231,6 +231,8 @@
     "project.msg.bases_root_set": "Mapa Ingest baza postavljena.",
     "project.bases_root_label": "Ingest baze (globalne)",
     "project.locations_title": "LOKACIJE",
+    "project.ai_share_label": "AI direktorij (zajednički)",
+    "project.msg.ai_share_set": "Zajednički AI direktorij postavljen.",
     "project.msg.confirm_remove": "Potvrdi uklanjanje projekta.",
     "project.store.root_empty": "Lokacija projekata je prazna.",
     "project.store.template_name_empty": "Naziv templatea je prazan.",

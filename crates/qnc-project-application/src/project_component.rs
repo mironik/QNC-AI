@@ -14,6 +14,8 @@ pub enum ProjectBrowserTarget {
     ExportDir,
     /// QNC-AI: where the Ingest bases of the application are made.
     BasesRoot,
+    /// The AI folder QNC and QNC-AI share (its models), a setting of this computer.
+    AiShare,
 }
 
 /// The Project component: its work on the registry and folders runs in the background
@@ -26,6 +28,7 @@ pub struct ProjectComponent {
     projects_root_browser: BackgroundBrowser,
     export_dir_browser: BackgroundBrowser,
     bases_root_browser: BackgroundBrowser,
+    ai_share_browser: BackgroundBrowser,
     navigation: Option<(String, Result<Vec<ProjectNavigationStep>, String>)>,
     navigation_pending: bool,
 }
@@ -39,6 +42,7 @@ impl ProjectComponent {
             projects_root_browser: BackgroundBrowser::start("qnc-project-root-browser"),
             export_dir_browser: BackgroundBrowser::start("qnc-project-export-browser"),
             bases_root_browser: BackgroundBrowser::start("qnc-ai-bases-browser"),
+            ai_share_browser: BackgroundBrowser::start("qnc-ai-share-browser"),
             navigation: None,
             navigation_pending: false,
         }
@@ -86,7 +90,7 @@ impl ProjectComponent {
 
     /// Whether a request still waits for its reply.
     pub fn busy(&self) -> bool {
-        self.jobs.busy() || self.projects_root_browser.busy() || self.export_dir_browser.busy() || self.bases_root_browser.busy()
+        self.jobs.busy() || self.projects_root_browser.busy() || self.export_dir_browser.busy() || self.bases_root_browser.busy() || self.ai_share_browser.busy()
     }
 
     pub fn take_navigation_trigger(&mut self) -> bool {
@@ -109,7 +113,7 @@ impl ProjectComponent {
     /// The listings that came, each with its browser, in the order of their steps.
     pub fn poll_browsers(&mut self) -> Vec<(ProjectBrowserTarget, Result<BrowserState, String>)> {
         let mut listings = Vec::new();
-        for target in [ProjectBrowserTarget::ProjectsRoot, ProjectBrowserTarget::ExportDir, ProjectBrowserTarget::BasesRoot] {
+        for target in [ProjectBrowserTarget::ProjectsRoot, ProjectBrowserTarget::ExportDir, ProjectBrowserTarget::BasesRoot, ProjectBrowserTarget::AiShare] {
             listings.extend(self.browser_mut(target).poll().into_iter().map(|listing| (target, listing)));
         }
         listings
@@ -121,6 +125,7 @@ impl ProjectComponent {
             ProjectBrowserTarget::ProjectsRoot => self.projects_root_browser.path_for_uri(uri),
             ProjectBrowserTarget::ExportDir => self.export_dir_browser.path_for_uri(uri),
             ProjectBrowserTarget::BasesRoot => self.bases_root_browser.path_for_uri(uri),
+            ProjectBrowserTarget::AiShare => self.ai_share_browser.path_for_uri(uri),
         }
     }
 
@@ -129,6 +134,7 @@ impl ProjectComponent {
             ProjectBrowserTarget::ProjectsRoot => &mut self.projects_root_browser,
             ProjectBrowserTarget::ExportDir => &mut self.export_dir_browser,
             ProjectBrowserTarget::BasesRoot => &mut self.bases_root_browser,
+            ProjectBrowserTarget::AiShare => &mut self.ai_share_browser,
         }
     }
 }

@@ -26,6 +26,8 @@ pub struct ProjectSession {
     pub export_dir: LocationField,
     /// QNC-AI: where the Ingest bases of the application are made (not where projects go).
     pub bases_root: LocationField,
+    /// The AI folder QNC and QNC-AI share (user 2026-11-12), a setting of this computer.
+    pub ai_share: LocationField,
     pub picker_open: bool,
     pub template_create_open: bool,
     pub advanced_open: bool,
@@ -141,12 +143,14 @@ impl ProjectSession {
         // Shown once the registry answers (piece `qnc-project-jobs`).
         let ai = qnc_ai_features::Choice::load(&component.root);
         let bases_root = qnc_dir_browser::display_private_path(&qnc_ingest_base::folder(&component.root));
+        let ai_share = qnc_ai_catalog::chosen_share(&component.root).map(|folder| qnc_dir_browser::display_private_path(&folder)).unwrap_or_default();
         let mut session = Self {
             component,
             project_name: String::new(),
             projects_root: LocationField::new(String::new()),
             export_dir: LocationField::new("exports/projekti"),
             bases_root: LocationField::new(bases_root),
+            ai_share: LocationField::new(ai_share),
             picker_open: false,
             template_create_open: false,
             advanced_open: false,
@@ -286,7 +290,7 @@ impl ProjectSession {
             }
             ProjectIntent::PickLocation { target } => {
                 // One browser open at a time among the three fields.
-                for field in [LocationTarget::ProjectsRoot, LocationTarget::ExportDir, LocationTarget::BasesRoot] {
+                for field in [LocationTarget::ProjectsRoot, LocationTarget::ExportDir, LocationTarget::BasesRoot, LocationTarget::AiShare] {
                     if field != target {
                         self.locations_mut(field).0.open = false;
                     }
@@ -319,17 +323,28 @@ impl ProjectSession {
         let path = std::path::PathBuf::from(&text);
         match target {
             LocationTarget::ProjectsRoot => self.component.request(Request::SetProjectsRoot { path }),
-            LocationTarget::BasesRoot => match qnc_ingest_base::set_folder(&self.component.root, &path) {
-                Ok(()) => {
-                    self.bases_root.chosen(qnc_dir_browser::display_private_path(&path));
-                    self.status = qnc_ui_text::text("project.msg.bases_root_set").to_string();
-                }
-                Err(error) => self.status = error,
-            },
+            LocationTarget::BasesRoot | LocationTarget::AiShare => self.keep_computer_folder(target, &path),
             LocationTarget::ExportDir => {
                 qnc_settings_path::set_string_path(&mut self.draft_settings, "export.directory", text);
                 self.status = qnc_ui_text::text("project.msg.export_dir_set").to_string();
             }
+        }
+    }
+
+    /// QNC-AI: a folder that is a setting of this computer (the Ingest bases, the shared AI folder)
+    /// is kept at once.
+    fn keep_computer_folder(&mut self, target: LocationTarget, path: &std::path::Path) {
+        let root = self.component.root.clone();
+        let (kept, field, said) = match target {
+            LocationTarget::AiShare => (qnc_ai_catalog::set_share(&root, path), &mut self.ai_share, "project.msg.ai_share_set"),
+            _ => (qnc_ingest_base::set_folder(&root, path), &mut self.bases_root, "project.msg.bases_root_set"),
+        };
+        match kept {
+            Ok(()) => {
+                field.chosen(qnc_dir_browser::display_private_path(path));
+                self.status = qnc_ui_text::text(said).to_string();
+            }
+            Err(error) => self.status = error,
         }
     }
 
@@ -506,6 +521,7 @@ impl ProjectSession {
             LocationTarget::ProjectsRoot => (&mut self.projects_root, &mut self.export_dir),
             LocationTarget::ExportDir => (&mut self.export_dir, &mut self.projects_root),
             LocationTarget::BasesRoot => (&mut self.bases_root, &mut self.projects_root),
+            LocationTarget::AiShare => (&mut self.ai_share, &mut self.projects_root),
         }
     }
 
@@ -531,15 +547,8 @@ impl ProjectSession {
             return self.component.request(Request::SetProjectsRoot { path });
         }
         // QNC-AI: a setting of this computer, apart from the projects' folder.
-        if target == LocationTarget::BasesRoot {
-            match qnc_ingest_base::set_folder(&self.component.root, &path) {
-                Ok(()) => {
-                    self.bases_root.chosen(shown);
-                    self.status = qnc_ui_text::text("project.msg.bases_root_set").to_string();
-                }
-                Err(error) => self.status = error,
-            }
-            return;
+        if matches!(target, LocationTarget::BasesRoot | LocationTarget::AiShare) {
+            return self.keep_computer_folder(target, &path);
         }
         self.export_dir.chosen(shown);
         qnc_settings_path::set_string_path(&mut self.draft_settings, "export.directory", self.export_dir.text.clone());
@@ -552,7 +561,7 @@ impl ProjectSession {
         field.dirty = true;
         let text = field.text.clone();
         // The bases' folder is kept when it is chosen (Choose, Select), not while it is typed.
-        if target == LocationTarget::BasesRoot {
+        if matches!(target, LocationTarget::BasesRoot | LocationTarget::AiShare) {
             return;
         }
         let path = if target == LocationTarget::ProjectsRoot { "storage.projects_root" } else { "export.directory" };
@@ -667,5 +676,10 @@ fn location_action(target: LocationTarget, what: &str) -> &'static str {
         (LocationTarget::BasesRoot, "browser_open_path") => "project_bases_root_browser_open_path",
         (LocationTarget::BasesRoot, "browser_confirm") => "project_bases_root_browser_confirm",
         (LocationTarget::BasesRoot, _) => "project_bases_root_browser_cancel",
+        (LocationTarget::AiShare, "pick") => "project_pick_ai_share",
+        (LocationTarget::AiShare, "browser_select_source") => "project_ai_share_browser_select_source",
+        (LocationTarget::AiShare, "browser_open_path") => "project_ai_share_browser_open_path",
+        (LocationTarget::AiShare, "browser_confirm") => "project_ai_share_browser_confirm",
+        (LocationTarget::AiShare, _) => "project_ai_share_browser_cancel",
     }
 }

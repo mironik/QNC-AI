@@ -375,6 +375,11 @@ aplikacija"): modeli su u `C:\Users\Public\QNC-AI-share\models`, katalog AI-ja i
 (`qnc-ai-catalog` `share_dir`, `model_path`; AI paket pod `share/`). Ista izmjena u QNC-u. AI biblioteke uz
 programe (onnxruntime, sherpa-onnx, rife, vcomp) u `target/release` su tvrde veze na QNC-ove. Debug build
 obrisan u oba projekta (korisnik: "ocisti nepotrebne kes i debug datoteke").
+Dopuna (korisnik: "direktoriji ne smiju biti hardkodirani"): AI direktorij je postavka racunala
+`data/ai-share.json` (`qnc-ai-catalog` `share_dir`, `set_share`, `chosen_share`; bez postavke greska, bez
+zadane mape). Postavke imaju polje "AI direktorij (zajednicki)" (`LocationTarget::AiShare`,
+`ProjectBrowserTarget::AiShare`, radnje kataloga `project_pick_ai_share` i `project_ai_share_browser_*`,
+`ProjectSession::keep_computer_folder` za Ingest baze i AI direktorij). Upisano `C:\Users\Public\QNC-AI-share`.
 
 Otvoreno (korisnik: "direktorij zajednickih kocki da ono sto je zajednicko ne bude duplicirano; jedino GUI
 verzije su drugacije"; "korisniku izbor nacina rada: kroz Wizard ili klasicni nacin"; "tray bi koristila i
