@@ -52,11 +52,23 @@ impl eframe::App for Window {
             }
             // One bar per function the project's settings have on (user 2026-11-12).
             ui.add_space(10.0);
-            for (code, done) in progress.bars() {
+            // The X beside a bar stops that function when the user does not need it (user
+            // 2026-11-12); what is made stays.
+            for bar in progress.bars() {
                 let total = progress.clips.max(1);
                 ui.horizontal(|ui| {
-                    ui.add_sized([110.0, 20.0], egui::Label::new(RichText::new(text(code)).color(theme.text)));
-                    ui.add(egui::ProgressBar::new(done.min(total) as f32 / total as f32).desired_width(260.0).text(format!("{done} / {}", progress.clips)));
+                    ui.add_sized([110.0, 20.0], egui::Label::new(RichText::new(text(bar.text)).color(theme.text)));
+                    let label = if bar.stopped {
+                        fill("card_ingest.stopped", &[("done", &bar.done.to_string()), ("clips", &progress.clips.to_string())])
+                    } else {
+                        format!("{} / {}", bar.done, progress.clips)
+                    };
+                    ui.add(egui::ProgressBar::new(bar.done.min(total) as f32 / total as f32).desired_width(260.0).text(label));
+                    let running = !bar.stopped && bar.done < progress.clips;
+                    let x = ui.add_enabled(running, egui::Button::new("✕").min_size(egui::vec2(22.0, 20.0)));
+                    if x.on_hover_text(text("card_ingest.stop_hint")).clicked() {
+                        qnc_card_ingest::stop(&self.root, bar.function);
+                    }
                 });
             }
             if progress.failed > 0 {

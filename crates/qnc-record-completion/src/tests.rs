@@ -28,13 +28,14 @@ fn card_records_are_completed_once_in_the_background_and_published() {
     let records = ProjectMediaRecords::new(writer.clone());
     let sources = ProjectSourceIndex::new(writer);
     let probes = calls.clone();
-    let make_backend = move |_: &str, _: &[SourceReference]| {
+    let make_backend = move |_: &str, _: &[SourceReference], _: &[(String, std::path::PathBuf)]| {
         Ok(qnc_ingest_select::test_support::probe_backend(probes.clone()))
     };
     let parts = Parts {
         records: &records,
         sources: &sources,
         make_backend: &make_backend,
+        copies: Default::default(),
     };
     let cancel = AtomicBool::new(false);
     let run = Run {
@@ -69,13 +70,14 @@ fn a_working_player_is_waited_for_and_cancel_ends_the_wait() {
     .unwrap();
     let records = ProjectMediaRecords::new(writer.clone());
     let sources = ProjectSourceIndex::new(writer);
-    let make_backend = |_: &str, _: &[SourceReference]| -> Result<_, String> {
+    let make_backend = |_: &str, _: &[SourceReference], _: &[(String, std::path::PathBuf)]| -> Result<_, String> {
         unreachable!("no probe while a player works")
     };
     let parts = Parts {
         records: &records,
         sources: &sources,
         make_backend: &make_backend,
+        copies: Default::default(),
     };
     let cancel = AtomicBool::new(false);
     let waiting = camera_clips(&target.content).unwrap();
@@ -109,13 +111,14 @@ fn the_wanted_clip_is_completed_first() {
     let records = ProjectMediaRecords::new(writer.clone());
     let sources = ProjectSourceIndex::new(writer);
     let probes = calls;
-    let make_backend = move |_: &str, _: &[SourceReference]| {
+    let make_backend = move |_: &str, _: &[SourceReference], _: &[(String, std::path::PathBuf)]| {
         Ok(qnc_ingest_select::test_support::probe_backend(probes.clone()))
     };
     let parts = Parts {
         records: &records,
         sources: &sources,
         make_backend: &make_backend,
+        copies: Default::default(),
     };
     let waiting = camera_clips(&target.content).unwrap();
     let last = waiting.last().unwrap().id().to_string();
@@ -149,7 +152,7 @@ fn run_with_first_failure(first: qnc_media_probe::Error) -> (Completion, usize) 
     let sources = ProjectSourceIndex::new(writer);
     let seen = Arc::new(Mutex::new(std::collections::BTreeSet::new()));
     let probes = calls;
-    let make_backend = move |_: &str, _: &[SourceReference]| -> Result<Box<dyn ProbeBackend + Send>, String> {
+    let make_backend = move |_: &str, _: &[SourceReference], _: &[(String, std::path::PathBuf)]| -> Result<Box<dyn ProbeBackend + Send>, String> {
         Ok(Box::new(Shared {
             seen: seen.clone(),
             first: first.clone(),
@@ -160,6 +163,7 @@ fn run_with_first_failure(first: qnc_media_probe::Error) -> (Completion, usize) 
         records: &records,
         sources: &sources,
         make_backend: &make_backend,
+        copies: Default::default(),
     };
     let cancel = AtomicBool::new(false);
     let run = Run {

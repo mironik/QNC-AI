@@ -51,31 +51,68 @@ pub struct Progress {
     pub content: Option<usize>,
     /// AI: a sentence about each shot.
     pub captions: Option<usize>,
+    /// The functions the user stopped (the X beside a bar), one bit per `qnc_stopped_work::ALL`.
+    pub stopped: u8,
+}
+
+/// One bar of the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Bar {
+    /// The code of its text.
+    pub text: &'static str,
+    /// The function (`qnc_stopped_work`), what its X stops.
+    pub function: &'static str,
+    pub done: usize,
+    pub stopped: bool,
 }
 
 impl Progress {
-    /// Every clip imported and every function the settings have on made for it.
+    /// Every clip imported and every function the settings have on made for it; a function the
+    /// user stopped is not waited for.
     pub fn complete(&self) -> bool {
-        self.clips > 0 && self.bars().iter().all(|(_, done)| *done >= self.clips)
+        self.clips > 0 && self.bars().iter().all(|bar| bar.stopped || bar.done >= self.clips)
     }
 
-    /// One bar per function the project's settings have on: its text's code and how many clips
-    /// it has done.
-    pub fn bars(&self) -> Vec<(&'static str, usize)> {
-        let mut bars = vec![("card_ingest.imported", self.imported), ("card_ingest.posters", self.posters)];
-        for (code, done) in [
-            ("card_ingest.filmstrips", self.filmstrips),
-            ("card_ingest.waves", self.waves),
-            ("card_ingest.shots", self.shots),
-            ("card_ingest.content", self.content),
-            ("card_ingest.captions", self.captions),
-        ] {
-            if let Some(done) = done {
-                bars.push((code, done));
-            }
-        }
-        bars
+    /// Whether the user stopped `function`.
+    pub fn is_stopped(&self, function: &str) -> bool {
+        qnc_stopped_work::ALL.iter().position(|code| *code == function).is_some_and(|bit| self.stopped & (1 << bit) != 0)
     }
+
+    /// One bar per function the project's settings have on.
+    pub fn bars(&self) -> Vec<Bar> {
+        use qnc_stopped_work::{CAPTIONS, CONTENT, FILMSTRIPS, IMPORT, POSTERS, SHOTS, WAVES};
+        [
+            ("card_ingest.imported", IMPORT, Some(self.imported)),
+            ("card_ingest.posters", POSTERS, Some(self.posters)),
+            ("card_ingest.filmstrips", FILMSTRIPS, self.filmstrips),
+            ("card_ingest.waves", WAVES, self.waves),
+            ("card_ingest.shots", SHOTS, self.shots),
+            ("card_ingest.content", CONTENT, self.content),
+            ("card_ingest.captions", CAPTIONS, self.captions),
+        ]
+        .into_iter()
+        .filter_map(|(text, function, done)| Some(Bar { text, function, done: done?, stopped: self.is_stopped(function) }))
+        .collect()
+    }
+}
+
+/// Stops `function` in the active base of `root` (the X beside its bar), on a thread of its own;
+/// the next reading of the progress shows it stopped.
+pub fn stop(root: &Path, function: &'static str) {
+    let root = root.to_path_buf();
+    std::thread::spawn(move || {
+        let result = (|| {
+            let active = qnc_active_project_read::ActiveProjectReader::from_root(&root).map_err(|error| error.to_string())?;
+            let snapshot = active.read().map_err(|error| error.to_string())?;
+            let target = qnc_content_store::ContentTarget::for_project(active.settings_reader(), &snapshot.settings)?;
+            qnc_stopped_work::stop(target, function)
+        })();
+        let line = match result {
+            Ok(()) => format!("ai-card-ingest stopped {function}"),
+            Err(error) => format!("ai-card-ingest {function} not stopped: {error}"),
+        };
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+    });
 }
 
 /// What the window shows.
@@ -185,6 +222,9 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
     let posters = content.clip_posters()?;
     let target = qnc_db_broker::ProjectDbTarget::for_project(active.settings_reader(), settings)?;
     let mut artifacts = qnc_artifact_db::ArtifactReader::open(&target)?;
+    let content_target = qnc_content_store::ContentTarget::for_project(active.settings_reader(), settings)?;
+    let stopped = qnc_stopped_work::read(&content_target);
+    let stopped = qnc_stopped_work::ALL.iter().enumerate().filter(|(_, code)| stopped.contains(**code)).fold(0u8, |bits, (bit, _)| bits | 1 << bit);
     let on = |kind| settings.artifact_mode(kind).map(|mode| mode != qnc_work_settings::ArtifactMode::Off).unwrap_or(true);
     let feature = |code| settings.ai_feature(code).unwrap_or(false);
     let mut progress = Progress {
@@ -192,6 +232,7 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
         posters: posters.iter().filter(|(_, poster)| poster.is_some()).count(),
         filmstrips: on(qnc_work_settings::ArtifactKind::Filmstrip).then_some(0),
         waves: on(qnc_work_settings::ArtifactKind::Wave).then_some(0),
+        stopped,
         ..Default::default()
     };
     for summary in content.summaries()? {
@@ -225,4 +266,21 @@ fn progress(root: &PathBuf) -> Result<Progress, String> {
         progress.captions = Some(clips.len());
     }
     Ok(progress)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_function_the_user_stopped_is_not_waited_for() {
+        let mut progress = Progress { clips: 4, imported: 4, posters: 4, filmstrips: Some(1), waves: Some(4), ..Default::default() };
+        assert!(!progress.complete());
+        let bit = qnc_stopped_work::ALL.iter().position(|code| *code == qnc_stopped_work::FILMSTRIPS).unwrap();
+        progress.stopped = 1 << bit;
+        assert!(progress.complete());
+        let bar = progress.bars().into_iter().find(|bar| bar.function == qnc_stopped_work::FILMSTRIPS).unwrap();
+        assert!(bar.stopped && bar.done == 1);
+        assert!(!progress.is_stopped(qnc_stopped_work::WAVES));
+    }
 }

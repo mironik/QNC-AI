@@ -162,6 +162,12 @@ impl ArtifactPublisher {
     }
 }
 
+/// Whether a clip's media may be read now: always when the import links the clips (the card is
+/// read), only once its copy is in the project when the import copies them (user 2026-11-12).
+fn readable(stored: &StoredClip, copies: bool) -> bool {
+    !copies || stored.imported_copy_of.is_some()
+}
+
 fn artifact_priority(stored: &StoredClip) -> bool {
     stored.selected
         || matches!(
@@ -204,7 +210,9 @@ struct ProjectFilmstripContentReader {
     read: SharedRead,
     artifacts: SharedArtifacts,
     /// `artifacts.filmstrip` of the project: `off` gives the generator no clip.
+    /// The import copies the clips (`ingest_copies`): a clip is made from its copy only, never the card.
     enabled: bool,
+    copies: bool,
 }
 
 impl qnc_filmstrip_worker::FilmstripContentRead for ProjectFilmstripContentReader {
@@ -218,6 +226,8 @@ impl qnc_filmstrip_worker::FilmstripContentRead for ProjectFilmstripContentReade
         self.read
             .open()?
             .list(after)?
+            .into_iter()
+            .filter(|stored| readable(stored, self.copies))
             .into_iter()
             .map(|stored| {
                 Ok(qnc_filmstrip_worker::FilmstripClipRecord {
@@ -237,7 +247,7 @@ impl qnc_filmstrip_worker::FilmstripContentRead for ProjectFilmstripContentReade
         if !self.enabled {
             return Ok(None);
         }
-        Ok(self.read.open()?.read(clip_id)?.map(|stored| {
+        Ok(self.read.open()?.read(clip_id)?.filter(|stored| readable(stored, self.copies)).map(|stored| {
             qnc_filmstrip_worker::FilmstripClipRecord {
                 priority: artifact_priority(&stored),
                 clip_id: stored.clip.id().to_string(),
@@ -286,7 +296,9 @@ struct ProjectWaveContentReader {
     read: SharedRead,
     artifacts: SharedArtifacts,
     /// `artifacts.wave` of the project: `off` gives the generator no clip.
+    /// The import copies the clips (`ingest_copies`): a clip is made from its copy only, never the card.
     enabled: bool,
+    copies: bool,
 }
 
 impl qnc_wave_worker::WaveContentRead for ProjectWaveContentReader {
@@ -300,6 +312,8 @@ impl qnc_wave_worker::WaveContentRead for ProjectWaveContentReader {
         self.read
             .open()?
             .list(after)?
+            .into_iter()
+            .filter(|stored| readable(stored, self.copies))
             .into_iter()
             .map(|stored| {
                 Ok(qnc_wave_worker::WaveClipRecord {
@@ -320,6 +334,7 @@ impl qnc_wave_worker::WaveContentRead for ProjectWaveContentReader {
             .read
             .open()?
             .read(clip_id)?
+            .filter(|stored| readable(stored, self.copies))
             .map(|stored| qnc_wave_worker::WaveClipRecord {
                 priority: artifact_priority(&stored),
                 clip_id: stored.clip.id().to_string(),
@@ -444,6 +459,7 @@ pub fn artifacts_context(
             read: SharedRead::new(content_target.clone()),
             artifacts: artifacts.clone(),
             enabled: filmstrip_enabled,
+            copies: settings.ingest_copies(),
         }),
         filmstrip_writer: {
             let (target, lease) = (project_db.clone(), lease.clone());
@@ -456,6 +472,7 @@ pub fn artifacts_context(
             read: SharedRead::new(content_target),
             artifacts,
             enabled: wave_enabled,
+            copies: settings.ingest_copies(),
         }),
         wave_writer: Arc::new(move || -> Result<Box<dyn qnc_wave_worker::WaveContentWrite>, String> {
             Ok(Box::new(ProjectWaveContentWriter(ArtifactPublisher::start(&project_db, lease.clone())?)))

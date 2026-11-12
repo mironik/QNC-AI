@@ -26,6 +26,7 @@ qnc-ai-engines = { path = "../QNC-shared/crates/qnc-ai-engines" }
 qnc-ai-features = { path = "../QNC-shared/crates/qnc-ai-features" }
 qnc-ai-open = { path = "crates/qnc-ai-open" }
 qnc-card-ingest = { path = "crates/qnc-card-ingest" }
+qnc-stopped-work = { path = "crates/qnc-stopped-work" }
 qnc-story-overlay = { path = "crates/qnc-story-overlay" }
 qnc-ai-features-view = { path = "crates/qnc-ai-features-view" }
 qnc-ai-place = { path = "../QNC-shared/crates/qnc-ai-place" }

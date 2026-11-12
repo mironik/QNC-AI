@@ -148,15 +148,34 @@ pub fn run_import(root: &Path, run: &ImportRun<'_>) -> Result<ImportSummary, Str
         failed: 0,
     };
     let mut project = Project::open(root, &reader, &plan, &target, Some(run.lease.write_lease()))?;
-    let outcome = loop {
-        let mut queue = RunQueue { queue: &mut project.queue, run };
-        match run_next(&mut queue, &plan, &project.dir, &project.opener, run.cancel) {
-            Ok(Some(outcome)) if outcome.result.is_ok() => summary.imported += 1,
-            Ok(Some(_)) => summary.failed += 1,
-            Ok(None) => break Ok(()),
-            Err(error) => break Err(error),
-        }
+    // The first clip tells the pace of its card (user 2026-11-12: "može li u više niti"): its
+    // medium is tested once and that many clips are copied side by side, each worker with its own
+    // writer of the queue. Linked clips copy nothing, so one is enough for them.
+    let first = RunQueue { queue: &mut project.queue, run }.claim_next()?;
+    let workers = first.as_ref().map_or(1, |clip| copy_workers(&project.opener, clip, &plan, run.cancel));
+    let counts = std::sync::Mutex::new((0_usize, 0_usize));
+    let count = |outcome: &crate::Outcome| {
+        let mut counts = counts.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if outcome.result.is_ok() { counts.0 += 1 } else { counts.1 += 1 }
     };
+    let drain = |project: &mut Project, first: Option<StoredClip>| -> Result<(), String> {
+        let mut queue = RunQueue { queue: &mut project.queue, run };
+        if let Some(clip) = first {
+            count(&crate::run::import_one(&mut queue, clip, &plan, &project.dir, &project.opener, run.cancel)?);
+        }
+        while let Some(outcome) = run_next(&mut queue, &plan, &project.dir, &project.opener, run.cancel)? {
+            count(&outcome);
+        }
+        Ok(())
+    };
+    let outcome = std::thread::scope(|scope| {
+        let others: Vec<_> = (1..workers)
+            .map(|_| scope.spawn(|| Project::open(root, &reader, &plan, &target, Some(run.lease.write_lease())).and_then(|mut project| drain(&mut project, None))))
+            .collect();
+        let mine = drain(&mut project, first);
+        others.into_iter().map(|other| other.join().unwrap_or_else(|_| Err(qnc_ui_text::text("import.import_interrupted").into()))).fold(mine, Result::and)
+    });
+    (summary.imported, summary.failed) = counts.into_inner().unwrap_or_else(|poisoned| poisoned.into_inner());
     let result = match &outcome {
         Ok(()) => qnc_ui_text::fill("import.result_done", &[("imported", &summary.imported.to_string()), ("failed", &summary.failed.to_string())]),
         Err(error) => qnc_ui_text::fill("import.result_error", &[("error", error)]),
@@ -167,6 +186,25 @@ pub fn run_import(root: &Path, run: &ImportRun<'_>) -> Result<ImportSummary, Str
         }
     }
     outcome.map(|()| summary)
+}
+
+/// How many clips are copied at once: as many as the test of the card (`qnc-read-pace`) reads
+/// fastest with, never more than the threads of this computer; one when the clip is linked or
+/// its medium cannot be tested (another computer's file, a small file).
+fn copy_workers(opener: &ConfigMediaOpener, clip: &StoredClip, plan: &IngestWorkPlan, cancel: &AtomicBool) -> usize {
+    if !matches!(crate::action_for(clip, plan), Ok(crate::Action::Copy { .. } | crate::Action::Optimize { .. })) {
+        return 1;
+    }
+    let Some(file) = crate::MediaOpener::local_path(opener, &clip.clip.snapshot.binding.original_uri) else {
+        return 1;
+    };
+    let most = std::thread::available_parallelism().map_or(1, usize::from);
+    let readers = match qnc_read_pace::measure(&file, most, cancel) {
+        Ok(Some(measured)) => measured.readers,
+        _ => 1,
+    };
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("import copy workers={readers} tested={}", file.display()));
+    readers
 }
 
 /// Makes sure the worker runs (the wake block's; no copy of it here).

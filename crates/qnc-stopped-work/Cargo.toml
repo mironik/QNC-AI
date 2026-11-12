@@ -1,0 +1,9 @@
+[package]
+name = "qnc-stopped-work"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: which functions of an ingest the user stopped (the X beside its bar), written in the base's own database and read by the worker"
+
+[dependencies]
+qnc-content-store = { workspace = true }
+qnc-playback-activity = { workspace = true }

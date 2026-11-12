@@ -1,7 +1,14 @@
 use crate::*;
 use std::{fs, io::{Read, Write}, path::Path, sync::atomic::{AtomicBool, Ordering}};
 
-const CHUNK: usize = 1024 * 1024;
+/// Large pieces read in order: a card behind USB reads fastest so.
+const CHUNK: usize = 4 * 1024 * 1024;
+/// Pieces read ahead while the ones before are written (the card never waits for the disk).
+const AHEAD: usize = 4;
+/// A card that gives no data this long (a bad place of the card, a reader that hangs) fails
+/// the clip with a clear reason; the other clips go on and it is imported again when the card
+/// is back (user 2026-11-12: "zapelo je na neispravnom klipu").
+const STALL: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// Well inside the store lease, so a slow copy never loses its clip.
 const HEARTBEAT_EVERY: std::time::Duration = std::time::Duration::from_secs(20);
@@ -13,9 +20,53 @@ pub(crate) fn copy_into(
     cancel: &AtomicBool,
     beat: &mut dyn FnMut(),
 ) -> Result<(), String> {
-    let mut source = opener.open(source_uri)?;
+    // A medium on this computer is read straight from its file (read only, large pieces); the
+    // stream of the media transport checks the file at every read, which makes a card behind USB
+    // crawl (user 2026-11-12: "3,5 gigabajta mora biti za čas"). It is checked once, at the end.
+    // A medium of another computer goes through the transport.
+    let local = opener.local_path(source_uri);
+    let stamp_of = |path: &Path| fs::metadata(path).and_then(|meta| Ok((meta.len(), meta.modified()?))).ok();
+    let before = local.as_deref().and_then(stamp_of);
+    let mut source: Box<dyn Read + Send> = match &local {
+        Some(path) => Box::new(fs::File::open(path).map_err(|e| e.to_string())?),
+        None => Box::new(opener.open(source_uri)?),
+    };
+    let copied = copy_pieces(opener, &mut source, destination, cancel, beat);
+    if copied.is_ok() && local.as_deref().and_then(stamp_of) != before {
+        return Err(qnc_ui_text::text("import.source_changed").into());
+    }
+    copied
+}
+
+fn copy_pieces(
+    opener: &dyn MediaOpener,
+    source: &mut Box<dyn Read + Send>,
+    destination: &Path,
+    cancel: &AtomicBool,
+    beat: &mut dyn FnMut(),
+) -> Result<(), String> {
+    let mut source = std::mem::replace(source, Box::new(std::io::empty()));
     let mut file = fs::File::create(destination).map_err(|e| e.to_string())?;
-    let mut buffer = vec![0_u8; CHUNK];
+    // The card is read on a thread of its own, ahead of the writes. A read the card never answers
+    // leaves that thread behind; the copy itself ends after `STALL`.
+    let (send, pieces) = std::sync::mpsc::sync_channel::<Result<Vec<u8>, String>>(AHEAD);
+    let stop = std::sync::Arc::new(AtomicBool::new(false));
+    let stopped = stop.clone();
+    std::thread::spawn(move || loop {
+        if stopped.load(Ordering::Relaxed) {
+            return;
+        }
+        let mut buffer = vec![0_u8; CHUNK];
+        let read = fill(&mut *source, &mut buffer).map(|n| {
+            buffer.truncate(n);
+            buffer
+        });
+        let end = !matches!(&read, Ok(piece) if !piece.is_empty());
+        if send.send(read).is_err() || end {
+            return;
+        }
+    });
+    let _stop = StopOnDrop(stop);
     let mut last_beat = std::time::Instant::now();
     loop {
         while opener.paused() {
@@ -31,15 +82,42 @@ pub(crate) fn copy_into(
         if cancel.load(Ordering::Relaxed) {
             return Err(qnc_ui_text::text("import.import_interrupted").into());
         }
-        let n = source.read(&mut buffer).map_err(|e| e.to_string())?;
-        if n == 0 {
+        let piece = match pieces.recv_timeout(STALL) {
+            Ok(piece) => piece?,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return Err(qnc_ui_text::fill("import.card_stalled", &[("seconds", &STALL.as_secs().to_string())])),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Err(qnc_ui_text::text("import.import_interrupted").into()),
+        };
+        if piece.is_empty() {
             return Ok(());
         }
-        file.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
+        file.write_all(&piece).map_err(|e| e.to_string())?;
         if last_beat.elapsed() >= HEARTBEAT_EVERY {
             beat();
             last_beat = std::time::Instant::now();
         }
+    }
+}
+
+/// Reads until the buffer is full or the medium ends.
+fn fill(source: &mut dyn Read, buffer: &mut [u8]) -> Result<usize, String> {
+    let mut filled = 0;
+    while filled < buffer.len() {
+        match source.read(&mut buffer[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Ok(filled)
+}
+
+/// Tells the reading thread to stop when the copy ends early.
+struct StopOnDrop(std::sync::Arc<AtomicBool>);
+
+impl Drop for StopOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
     }
 }
 

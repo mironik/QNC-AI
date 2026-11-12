@@ -141,6 +141,25 @@ impl SourceConfig {
         Ok(Some(path))
     }
 
+    /// A probe of media whose files the caller names (the copies the import made in the project,
+    /// user 2026-11-12: when the clips are copied, the records are completed from the copy, never
+    /// the card). Each medium keeps its own URI, so its record is the card's; only the bytes are
+    /// the copy's. The probe of this computer is this source's (a local one).
+    pub fn backend_with_files(&self, files: &[(String, PathBuf)]) -> Result<Box<dyn ProbeBackend + Send>> {
+        let ProbeConfig::Local { executable, probe_size_bytes, analyze_duration_us } = &self.probe else {
+            return Err("a copy in the project is probed on this computer".into());
+        };
+        let bindings = files.iter().map(|(media_uri, file)| MediaBinding { media_uri: media_uri.clone(), private_file: file.clone() }).collect();
+        Ok(Box::new(Executor::new(OwnerConfig {
+            executable: executable.clone(),
+            bindings,
+            timeout_ms: 30_000,
+            probe_size_bytes: *probe_size_bytes,
+            analyze_duration_us: *analyze_duration_us,
+            demuxers: vec!["mov".into(), "mxf".into()],
+        })?))
+    }
+
     pub fn backend(&self, media: &[SourceReference]) -> Result<Box<dyn ProbeBackend + Send>> {
         match &self.probe {
             ProbeConfig::Remote { binding } => Ok(Box::new(qnc_media_probe::Client::connect(

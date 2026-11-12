@@ -1,0 +1,18 @@
+{
+  "module_id": "qnc.module.stopped-work",
+  "module_name": "stopped-work",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": ["stopped_work.read", "stopped_work.stop"],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": ["windows", "linux", "macos"],
+  "supported_cpu": ["x86_64", "aarch64"],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": ["ffprobe", "media.probe.full", "source.scan", "player.command", "project.workflow"],
+  "forbidden_dependencies": ["qnc.module.media-probe", "qnc.module.scanner"],
+  "state_policy": "stateless",
+  "database_write_policy": "public_db_write_transports_only",
+  "runtime_crate": "qnc-stopped-work",
+  "reader_policy": "The functions of an ingest the user stopped (the X beside a bar of the card ingest window) are one runtime record (stopped_work) of the base's own database, written and read through the public content write transport (qnc-playback-activity Writer and read). The window writes it, the worker reads it once a second and leaves those functions alone; nothing is kept elsewhere (user 2026-11-12)."
+}

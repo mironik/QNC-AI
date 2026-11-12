@@ -72,6 +72,22 @@ impl Tray {
         let _ = (key, title, text, ok);
     }
 
+    /// A question with Yes and No (No chosen when Enter is pressed): it does not wait; the answer
+    /// comes on the channel. Another system answers No at once (it has no tray yet).
+    pub fn confirm(&self, title: &str, text: &str) -> Receiver<bool> {
+        #[cfg(windows)]
+        {
+            windows::confirm(title, text)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (title, text);
+            let (send, answer) = std::sync::mpsc::channel();
+            let _ = send.send(false);
+            answer
+        }
+    }
+
     /// Closes the alert of `key`, when one is shown.
     pub fn close_alert(&self, key: &str) {
         #[cfg(windows)]

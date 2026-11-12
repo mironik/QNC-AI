@@ -19,6 +19,7 @@ const STATUS: u32 = 1;
 const GO_ON: u32 = 2;
 const QUIT: u32 = 3;
 const SETTINGS: u32 = 4;
+const DELETE_BASE: u32 = 5;
 /// "Eject" of the n-th card of the story is `EJECT + n`.
 const EJECT: u32 = 100;
 /// How often the disks are looked at.
@@ -46,6 +47,8 @@ fn menu(status: Option<&Status>) -> Vec<MenuItem> {
     }
     // Settings are rarely used and apart from the wizard (user 2026-11-11).
     items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
+    // The Ingest base and its folder, after a question (user 2026-11-12).
+    items.push(MenuItem { id: DELETE_BASE, text: text("tray.delete_base"), enabled: true });
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
     items
 }
@@ -80,6 +83,9 @@ fn main() {
     let mut looked: Option<Instant> = None;
     // A card is ejected on its own thread (the lock may wait); its answer comes back here.
     let ejected = std::sync::mpsc::channel::<(Card, Result<(), qnc_card_eject::EjectError>)>();
+    // A base being asked about, and the bases deleted (their label and the result).
+    let mut deleting: Option<(qnc_ingest_base::IngestBase, std::sync::mpsc::Receiver<bool>)> = None;
+    let deleted = std::sync::mpsc::channel::<(String, Result<(), String>)>();
     loop {
         flow.poll();
         let status = flow.status();
@@ -98,6 +104,14 @@ fn main() {
                     return;
                 }
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
+                TrayEvent::Menu(DELETE_BASE) => match qnc_ingest_base::active(&root) {
+                    Ok(Some(base)) => {
+                        let ask = fill("tray.delete_base_ask", &[("base", base.label())]);
+                        deleting = Some((base, tray.confirm(&text("tray.title"), &ask)));
+                    }
+                    Ok(None) => tray.notify(&text("tray.title"), &text("tray.delete_base_none")),
+                    Err(error) => tray.notify(&text("tray.title"), &error),
+                },
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest),
@@ -114,6 +128,44 @@ fn main() {
                     }
                 }
                 TrayEvent::Menu(_) => {}
+            }
+        }
+        // The answer to "delete the base?": the ingest of it stops first (its window and worker
+        // let the base go), then the base and its folder are deleted on a thread of their own.
+        if let Some((base, answer)) = &deleting {
+            if let Ok(yes) = answer.try_recv() {
+                if yes {
+                    if let Some(child) = ingest.as_mut() {
+                        let _ = child.kill();
+                    }
+                    ingest = None;
+                    let (root, base, send) = (root.clone(), base.clone(), deleted.0.clone());
+                    std::thread::spawn(move || {
+                        // The worker stops within a second once its base is no longer active.
+                        let mut result = Err(String::new());
+                        for _ in 0..15 {
+                            result = qnc_ingest_base::forget(&root, &base.id);
+                            if result.is_ok() {
+                                break;
+                            }
+                            std::thread::sleep(Duration::from_secs(1));
+                        }
+                        let _ = send.send((base.label().to_string(), result));
+                    });
+                }
+                deleting = None;
+            }
+        }
+        while let Ok((label, result)) = deleted.1.try_recv() {
+            match result {
+                Ok(()) => {
+                    log(format!("base deleted {label}"));
+                    tray.notify(&text("tray.title"), &fill("tray.base_deleted", &[("base", &label)]));
+                }
+                Err(error) => {
+                    log(format!("base not deleted {label}: {error}"));
+                    tray.alert("delete-base", &text("tray.title"), &fill("tray.base_delete_failed", &[("base", &label), ("error", &error)]), &text("tray.ok"));
+                }
             }
         }
         while let Ok((card, result)) = ejected.1.try_recv() {

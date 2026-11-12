@@ -407,3 +407,11 @@ Izvedeno 2026-11-12 (korisnik: "tray je jedan"; "u QNC ingestu dodati izbor ulaz
 klasicni QNC Ingest ima tab Baze s karticama baza koje je napravio ovaj tray; klik otvara karticu, Select je kupi u
 QNC projekt. Mapa baza je jedna postavka racunala (`data/ingest-bases.json`), koju sada cita zajednicka kocka
 `qnc-base-cards`; `qnc-ingest-base` vise nema svoju kopiju (`folder`, `set_folder` su njezini). Detalj u AGENTS.md QNC-a.
+Izvedeno 2026-11-12 (korisnik: "na info prozoru za svaku radnju dodaj ikonu X što obustavlja taj proces, ako korisniku
+nije potreban"; "dodaj u tray brisanje baze"): info prozor uvoza kartice ima uz svaku traku X. Obustavljene funkcije su
+jedan zapis baze baze (`ingest_runtime` kljuc `stopped_work`, kroz javni pisac), nova kocka `crates/qnc-stopped-work`
+(+ ugovor modula); radnik (`tools/qnc-ingest-worker`) ga cita svake sekunde: svaka funkcija ima svoju zastavicu koja je
+njezin cancel (uvoz, posteri, filmstrip i val (radnici se ponovno slazu bez obustavljene vrste), AI kadrovi, sadrzaj,
+opisi), obustavljena se ne pokrece; napravljeno ostaje; obustava vrijedi za tu bazu. Prozor ne ceka obustavljenu
+funkciju (`Progress::complete`). Tray ima "Obrisi Ingest bazu": pitanje Da/Ne (`qnc-tray` `confirm`), zaustavi uvoz pa
+obrise bazu i njezinu mapu (`qnc_ingest_base::forget`), kartica se ne dira. Uzivo nije provjereno.

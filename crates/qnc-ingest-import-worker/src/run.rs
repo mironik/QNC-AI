@@ -22,6 +22,18 @@ pub fn run_next(
     let Some(clip) = queue.claim_next()? else {
         return Ok(None);
     };
+    import_one(queue, clip, plan, project_dir, opener, cancel).map(Some)
+}
+
+/// Imports one clip already claimed and records the outcome.
+pub(crate) fn import_one(
+    queue: &mut dyn ImportQueue,
+    clip: StoredClip,
+    plan: &IngestWorkPlan,
+    project_dir: &Path,
+    opener: &dyn MediaOpener,
+    cancel: &AtomicBool,
+) -> Result<Outcome, String> {
     let clip_id = clip.clip.id().to_string();
     let imported = import_media(&clip, plan, project_dir, opener, cancel, &mut || {
         let _ = queue.heartbeat(&clip_id);
@@ -46,11 +58,11 @@ pub fn run_next(
             Err(error)
         }
     };
-    Ok(Some(Outcome {
+    Ok(Outcome {
         clip_id,
         result,
         thumbnail_uri,
-    }))
+    })
 }
 
 /// Runs until the queue is empty or the import is cancelled.

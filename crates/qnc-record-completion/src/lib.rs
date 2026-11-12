@@ -11,7 +11,8 @@
 
 use std::{
     collections::VecDeque,
-    path::Path,
+    collections::HashMap,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Mutex,
@@ -50,7 +51,9 @@ pub struct Completion {
 /// A probe backend for the source `source_uri` and the media of it that lack
 /// something. The composing process binds it to this computer (where the card is
 /// mounted, which ffprobe); this module names no application and no host.
-pub type MakeBackend<'a> = &'a (dyn Fn(&str, &[SourceReference]) -> Result<Box<dyn ProbeBackend + Send>, String>
+/// The third argument names, for the media the import copied into the project, the files of the
+/// copies: the probe reads those and never the card (user 2026-11-12).
+pub type MakeBackend<'a> = &'a (dyn Fn(&str, &[SourceReference], &[(String, PathBuf)]) -> Result<Box<dyn ProbeBackend + Send>, String>
          + Sync);
 
 /// How a run goes: how many clips at once (the host parallelism), which clip is
@@ -70,6 +73,8 @@ pub struct Parts<'a> {
     pub records: &'a ProjectMediaRecords,
     pub sources: &'a ProjectSourceIndex,
     pub make_backend: MakeBackend<'a>,
+    /// Per clip, the copies the import made of its media (card URI and file in the project).
+    pub copies: HashMap<String, Vec<(String, PathBuf)>>,
 }
 
 /// Completes every camera record of the active project under `root`. `player_works`
@@ -100,11 +105,10 @@ pub fn complete_active_project(
     };
     let records = ProjectMediaRecords::new(writer.clone());
     let sources = ProjectSourceIndex::new(writer);
-    let parts = Parts {
-        records: &records,
-        sources: &sources,
-        make_backend,
-    };
+    // When the import copies the clips, a record is completed only once its clip is copied, and
+    // from the copy (user 2026-11-12: "ostale radnje idu iz kopiranih kadrova").
+    let copying = snapshot.settings.ingest_copies();
+    let project_dir = reader.local_workspace_dir(&snapshot.settings).map_err(|e| e.to_string())?;
     let wanted = || wanted_clip(&content);
     let run = Run {
         workers,
@@ -128,13 +132,19 @@ pub fn complete_active_project(
             .map(String::as_str)
             .chain(done.failed.iter().map(|(clip, _)| clip.as_str()))
             .collect();
+        let copies = match &project_dir {
+            Some(dir) => copies_of(&content, dir)?,
+            None => HashMap::new(),
+        };
         let waiting: Vec<CatalogClip> = camera_clips(&content)?
             .into_iter()
             .filter(|clip| !tried.contains(clip.id()))
+            .filter(|clip| !copying || copies.contains_key(clip.id()))
             .collect();
         if waiting.is_empty() {
             return Ok(done);
         }
+        let parts = Parts { records: &records, sources: &sources, make_backend, copies };
         let round = complete_clips(&parts, waiting, &content, &run);
         done.completed.extend(round.completed);
         done.failed.extend(round.failed);
@@ -145,6 +155,33 @@ pub fn complete_active_project(
 pub fn wanted_clip(content: &ContentTarget) -> Option<String> {
     let entry = content.open(Access::ReadOnly).ok()?.get_runtime(WANTED).ok()??;
     Some(entry.value).filter(|value| !value.is_empty())
+}
+
+/// The copies the import made in the project folder `project_dir`, per clip: the card URI of
+/// the medium copied and the file of its copy.
+pub fn copies_of(content: &ContentTarget, project_dir: &Path) -> Result<HashMap<String, Vec<(String, PathBuf)>>, String> {
+    let mut client = content.open(Access::ReadOnly)?;
+    let mut copies = HashMap::new();
+    let mut after = None;
+    loop {
+        let page = client.list(after.clone())?;
+        let Some(last) = page.last() else {
+            return Ok(copies);
+        };
+        after = Some(last.clip.id().to_string());
+        for stored in page {
+            let (Some(imported), Some(copy)) = (&stored.imported_media_uri, stored.imported_copy_of) else { continue };
+            let binding = &stored.clip.snapshot.binding;
+            let card = match copy {
+                qnc_content_store::ImportedCopy::Original => Some(binding.original_uri.clone()),
+                qnc_content_store::ImportedCopy::Proxy => binding.proxy_uri.clone(),
+            };
+            let file = SourceReference::from_uri(imported).ok().map(|reference| project_dir.join(reference.relative_path()));
+            if let (Some(card), Some(file)) = (card, file) {
+                copies.insert(stored.clip.id().to_string(), vec![(card, file)]);
+            }
+        }
+    }
 }
 
 /// The clips of the project content whose record is still a camera record.
@@ -292,7 +329,7 @@ fn complete_clip(
     let backend: Box<dyn ProbeBackend + Send> = if media.is_empty() {
         Box::new(NoProbe)
     } else {
-        (parts.make_backend)(&clip.source_uri, &media)?
+        (parts.make_backend)(&clip.source_uri, &media, parts.copies.get(clip.id()).map_or(&[][..], Vec::as_slice))?
     };
     clip.snapshot = qnc_record_probe::complete(
         parts.records,

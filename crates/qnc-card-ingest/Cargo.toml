@@ -12,6 +12,8 @@ qnc-card-autoselect = { workspace = true }
 qnc-content-read = { workspace = true }
 qnc-db-broker = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-stopped-work = { workspace = true }
 qnc-work-settings = { workspace = true }
 qnc-shot-db = { workspace = true }
 qnc-shot-content-db = { workspace = true }

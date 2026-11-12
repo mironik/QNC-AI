@@ -4160,12 +4160,14 @@ dependencies = [
  "qnc-attached-cards",
  "qnc-card-autoselect",
  "qnc-content-read",
+ "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-ingest-application",
  "qnc-shot-captions",
  "qnc-shot-content-db",
  "qnc-shot-db",
+ "qnc-stopped-work",
  "qnc-work-settings",
 ]
 
@@ -5105,6 +5107,7 @@ dependencies = [
  "qnc-camera-profile-adapter",
  "qnc-camera-profiles",
  "qnc-content-store",
+ "qnc-dev-diagnostics",
  "qnc-dir-browser",
  "qnc-ffprobe-metadata",
  "qnc-import-fit",
@@ -5116,6 +5119,7 @@ dependencies = [
  "qnc-media-stream",
  "qnc-missing-posters",
  "qnc-playback-activity",
+ "qnc-read-pace",
  "qnc-sony-metadata",
  "qnc-source-reader",
  "qnc-source-timecode",
@@ -5287,8 +5291,11 @@ dependencies = [
  "qnc-shot-caption-run",
  "qnc-shot-content-run",
  "qnc-source-reader",
+ "qnc-stopped-work",
  "qnc-transcribe-queue",
  "qnc-ui-text",
+ "qnc-work-settings",
+ "serde_json",
 ]
 
 [[package]]
@@ -7443,6 +7450,14 @@ dependencies = [
  "qnc-source-contract",
  "qnc-ui-text",
  "qnc-work-settings",
+]
+
+[[package]]
+name = "qnc-stopped-work"
+version = "0.1.0"
+dependencies = [
+ "qnc-content-store",
+ "qnc-playback-activity",
 ]
 
 [[package]]
