@@ -166,30 +166,21 @@ fn run_once(root: &Path) -> Result<bool, String> {
     // Its cancel is the import's stop: the user's X, or the project closed.
     let run = qnc_ingest_import_worker::ImportRun { project_id: &started, lease: &lease, cancel: stops.flag(qnc_stopped_work::IMPORT) };
     let artifacts_done = std::sync::atomic::AtomicBool::new(false);
-    std::thread::scope(|scope| {
-        scope.spawn(|| {
-            while running.load(std::sync::atomic::Ordering::Relaxed) {
-                if !still_active(&active_project, &started) || !lease.held() {
-                    closed.store(true, std::sync::atomic::Ordering::Relaxed);
-                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-                    stops.all();
-                    return;
-                }
-                stops.read(&stop_target);
-                std::thread::sleep(Duration::from_secs(1));
-            }
-        });
-        let import = scope.spawn(|| import_while(root, &running, &closed, &run));
+    // Kept across the phases of a run: the records a round left waiting, and whether the first
+    // round (posters and the AI look at them) is done.
+    let stuck_records = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
+    let first_round = std::sync::atomic::AtomicBool::new(true);
         // The records are completed for as long as this run works: a Select made while it
         // runs (or right after the worker was started for an opened project) adds clips
         // whose records are completed at once (user 2026-10-18: they waited until the
         // filmstrips were done, Play said NotFinal).
-        let completion = scope.spawn(|| {
+        let completion_work = || {
           // The records a round left waiting (its probe failed or was uncertain): only another
           // clip starts a new round (audit 2026-10-25: they started one every second).
-          let mut stuck = std::collections::BTreeSet::<String>::new();
-          let mut first = true;
+          let mut stuck = stuck_records.lock().expect("stuck records");
+          let mut first = first_round.swap(false, std::sync::atomic::Ordering::Relaxed);
           loop {
+            trace("completion round".into());
             let done = qnc_record_completion::complete_active_project(
                 root,
                 &make_backend,
@@ -214,14 +205,18 @@ fn run_once(root: &Path) -> Result<bool, String> {
                     qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("record-completion failed error={error}"));
                 }
             }
+            trace(format!("completion round done completed={completed}"));
             first = false;
             // Once more now the records are final: a clip whose record had no timing at
             // Select gets its poster from the start of the clip.
             if completed && !closed.load(std::sync::atomic::Ordering::Relaxed) {
+                trace("completion: posters".into());
                 make_posters(root, &config, &lease, &stops);
                 // The AI looks at the posters right away (user 2026-11-10), before the waves,
                 // the filmstrips and the import.
+                trace("completion: shots of the posters".into());
                 make_shots(root, &config, &lease, &stops, true);
+                trace("completion: shots of the posters done".into());
             }
             // While the clips are copied, every clip copied is worked on at once, from its copy
             // (user 2026-11-12: "nema čekanja dok se kartica ingestira"): the artifacts keep
@@ -237,23 +232,59 @@ fn run_once(root: &Path) -> Result<bool, String> {
                 std::thread::sleep(Duration::from_secs(1));
                 let importing = copying && import_busy(root).unwrap_or(false);
                 completing.store(importing, std::sync::atomic::Ordering::Relaxed);
-                if records_waiting(root).is_ok_and(|waiting| waiting.iter().any(|clip| !stuck.contains(clip))) {
+                let waiting = records_waiting(root);
+                if waiting.is_ok_and(|waiting| waiting.iter().any(|clip| !stuck.contains(clip))) {
                     completing.store(true, std::sync::atomic::Ordering::Relaxed);
                     break;
                 }
             }
           }
+        };
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            while running.load(std::sync::atomic::Ordering::Relaxed) {
+                if !still_active(&active_project, &started) || !lease.held() {
+                    closed.store(true, std::sync::atomic::Ordering::Relaxed);
+                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                    stops.all();
+                    return;
+                }
+                stops.read(&stop_target);
+                std::thread::sleep(Duration::from_secs(1));
+            }
         });
+        let import = scope.spawn(|| import_while(root, &running, &closed, &run));
         // The records first: every clip can play (and editing start) before the card is read
         // for waves and filmstrips (user 2026-10-18: speed for editing comes first).
         // When the clips are copied the artifacts start at once: they take each clip once it is
         // copied and its record final, from the copy.
-        while !copying && completing.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
-            std::thread::sleep(Duration::from_millis(100));
+        //
+        // While the clips are copied the records and artifacts go round again for as long as
+        // the import works (live 2026-11-12: the worker started at Select, before the import
+        // was queued; its records and artifacts found nothing copied and ended, and the run then
+        // only waited for the whole copy). The first seconds count as importing: the import is
+        // queued right after Select.
+        let grace = std::time::Instant::now() + Duration::from_secs(15);
+        let mut artifacts = Ok(());
+        loop {
+            completing.store(true, std::sync::atomic::Ordering::Relaxed);
+            artifacts_done.store(false, std::sync::atomic::Ordering::Relaxed);
+            let completion = scope.spawn(&completion_work);
+            while !copying && completing.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            artifacts = artifacts.and(run_artifacts(root, &lease, &closed, &completing, &stops));
+            artifacts_done.store(true, std::sync::atomic::Ordering::Relaxed);
+            let _ = completion.join();
+            let importing = copying
+                && !stops.is(qnc_stopped_work::IMPORT)
+                && (std::time::Instant::now() < grace || import_busy(root).unwrap_or(false));
+            if closed.load(std::sync::atomic::Ordering::Relaxed) || artifacts.is_err() || !importing {
+                break;
+            }
+            trace("the import still copies: records and artifacts go round again".into());
+            std::thread::sleep(Duration::from_secs(1));
         }
-        let artifacts = run_artifacts(root, &lease, &closed, &completing, &stops);
-        artifacts_done.store(true, std::sync::atomic::Ordering::Relaxed);
-        let _ = completion.join();
         if closed.load(std::sync::atomic::Ordering::Relaxed) {
             running.store(false, std::sync::atomic::Ordering::Relaxed);
             let _ = import.join();
@@ -562,4 +593,9 @@ fn import_stopped(
 ) -> bool {
     qnc_content_store::ContentTarget::for_project(active_project.settings_reader(), settings)
         .is_ok_and(|target| qnc_stopped_work::read(&target).contains(qnc_stopped_work::IMPORT))
+}
+
+/// One line of where the worker is, in the log (live 2026-11-12: the copy ran, nothing else).
+fn trace(line: String) {
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("worker {line}"));
 }
