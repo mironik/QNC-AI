@@ -50,21 +50,23 @@ pub fn show(ui: &mut egui::Ui, choice: &mut Choice, settings: &mut Value) -> boo
     for feature in &features.list {
         let mut on = chosen.contains(&feature.code);
         let needed: Vec<String> = features.needed_by(&chosen, &feature.code).iter().map(|by| qnc_ai_features::words_of(&by.name)).collect();
-        ui.horizontal(|ui| {
-            if qnc_ui_kit::check_box(ui, &mut on, qnc_ai_features::words_of(&feature.name), needed.is_empty()).changed() {
-                choice.switch(settings, &feature.code, on);
-                changed = true;
-            }
+        if qnc_ui_kit::check_box(ui, &mut on, qnc_ai_features::words_of(&feature.name), needed.is_empty()).changed() {
+            choice.switch(settings, &feature.code, on);
+            changed = true;
+        }
+        // Under the switch, wrapped inside the panel (a long line pushed the panel past the window).
+        ui.indent(("ai-feature-notes", &feature.code), |ui| {
             if !needed.is_empty() {
-                ui.label(RichText::new(qnc_ui_text::fill("ai.needed_lock", &[("names", &needed.join(", "))])).weak().small());
+                ui.add(egui::Label::new(RichText::new(qnc_ui_text::fill("ai.needed_lock", &[("names", &needed.join(", "))])).weak().small()).wrap());
             }
             // Where its engine runs on this computer, or why it is not installed (docs/102 step 4).
             for state in choice.engines_of(feature) {
-                match state {
-                    Ok(qnc_ai_engines::Runs::Here(engine)) => ui.label(RichText::new(qnc_ui_text::fill("ai.engine_here", &[("engine", engine)])).weak().small()),
-                    Ok(qnc_ai_engines::Runs::Server { address, engine }) => ui.label(RichText::new(qnc_ui_text::fill("ai.engine_server", &[("address", address), ("engine", engine)])).weak().small()),
-                    Err(why) => ui.label(RichText::new(qnc_ui_text::fill("ai.engine_missing", &[("why", why)])).color(qnc_desktop_theme::danger()).small()),
+                let note = match state {
+                    Ok(qnc_ai_engines::Runs::Here(engine)) => RichText::new(qnc_ui_text::fill("ai.engine_here", &[("engine", engine)])).weak(),
+                    Ok(qnc_ai_engines::Runs::Server { address, engine }) => RichText::new(qnc_ui_text::fill("ai.engine_server", &[("address", address), ("engine", engine)])).weak(),
+                    Err(why) => RichText::new(qnc_ui_text::fill("ai.engine_missing", &[("why", why)])).color(qnc_desktop_theme::danger()),
                 };
+                ui.add(egui::Label::new(note.small()).wrap());
             }
         });
     }
