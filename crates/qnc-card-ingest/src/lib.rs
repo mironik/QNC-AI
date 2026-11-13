@@ -81,6 +81,17 @@ impl Progress {
         self.clips > 0 && self.bars().iter().all(|bar| bar.stopped || bar.done >= self.clips)
     }
 
+    /// QNC can be started: every clip imported and its first channel heard (transcribed, stopped,
+    /// or the transcript off); what is left (filmstrips, waves, AI) goes on in the background
+    /// (user 2026-11-13: "čim je završen Prijepis učini dostupnim dugme Pokreni QNC").
+    pub fn ready_for_qnc(&self) -> bool {
+        let heard = match self.transcripts {
+            Some(done) => done >= self.clips || self.is_stopped(qnc_stopped_work::TRANSCRIPTS),
+            None => true,
+        };
+        self.clips > 0 && self.imported >= self.clips && heard
+    }
+
     /// Whether the user stopped `function`.
     pub fn is_stopped(&self, function: &str) -> bool {
         qnc_stopped_work::ALL.iter().position(|code| *code == function).is_some_and(|bit| self.stopped & (1 << bit) != 0)
@@ -484,5 +495,17 @@ mod tests {
         let bar = progress.bars().into_iter().find(|bar| bar.function == qnc_stopped_work::FILMSTRIPS).unwrap();
         assert!(bar.stopped && bar.done == 1);
         assert!(!progress.is_stopped(qnc_stopped_work::WAVES));
+    }
+
+    #[test]
+    fn qnc_can_start_once_every_clip_is_imported_and_heard_the_rest_goes_on() {
+        let mut progress = Progress { clips: 4, imported: 4, posters: 4, filmstrips: Some(1), waves: Some(0), transcripts: Some(3), shots: Some(0), ..Default::default() };
+        assert!(!progress.ready_for_qnc(), "a clip is not heard yet");
+        progress.transcripts = Some(4);
+        assert!(progress.ready_for_qnc() && !progress.complete(), "heard: QNC can start, the rest goes on");
+        progress.imported = 3;
+        assert!(!progress.ready_for_qnc(), "a clip is not imported yet");
+        progress = Progress { clips: 2, imported: 2, transcripts: None, ..Default::default() };
+        assert!(progress.ready_for_qnc(), "the transcript off: imported is enough");
     }
 }

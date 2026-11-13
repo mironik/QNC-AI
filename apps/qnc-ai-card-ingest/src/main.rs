@@ -184,7 +184,13 @@ impl eframe::App for Window {
             }
             ui.add_space(20.0);
             let button = egui::Button::new(RichText::new(text("card_ingest.start_qnc")).size(theme.font_ui + 2.0)).min_size(egui::vec2(200.0, 36.0));
-            if ui.add_enabled(status.phase == Phase::Done, button).clicked() {
+            // Ready once the clips are imported and heard: the rest goes on in the background (the
+            // worker is its own program; closing this window does not stop it, user 2026-11-13).
+            let ready = status.phase == Phase::Done || (status.phase == Phase::Making && progress.ready_for_qnc());
+            if ui.add_enabled(ready, button).clicked() {
+                if status.phase != Phase::Done {
+                    log("ai-card-ingest QNC started before the end: the rest goes on in the background".into());
+                }
                 match qnc_ai_open::open(&self.root, "qnc-ingest") {
                     Ok(program) => log(format!("ai-card-ingest opened {}", program.display())),
                     Err(error) => log(format!("ai-card-ingest QNC not opened: {error}")),

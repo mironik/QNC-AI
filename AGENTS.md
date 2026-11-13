@@ -594,3 +594,8 @@ po profilima kamera (`qnc_card_watch::camera_of`: model, npr. "Sony ILME-FX3A"; 
 kao prije); poruke (vracena, vec uvezena, izbacena, vratite karticu), stavke izbornika i status wizarda pisu karticu s
 kamerom (`qnc-wizard-flow` `Card::name_with_camera`: "XAVC (G:\) · Sony ILME-FX3A"); log `card ... camera=`. Uzivo: log
 pokazuje "camera=Sony ILME-FX3A" za karticu G:.
+Izmjena 2026-11-13 (korisnik: "cim je zavrsen Prijepis ucini dostupnim dugme Pokreni QNC, a preostali procesi neka nastave u
+pozadini"): u prozoru uvoza "Pokreni QNC" je dostupan cim su svi klipovi uvezeni i im je prvi kanal cut (prijepis gotov,
+zaustavljen ili iskljucen u postavkama; `qnc-card-ingest` `Progress::ready_for_qnc`), ne tek kad je sve gotovo. Klik otvara
+QNC i zatvara prozor; filmstrip, valovi i AI rade dalje u pozadinskom procesu, koji ne ovisi o prozoru. Test
+`qnc_can_start_once_every_clip_is_imported_and_heard_the_rest_goes_on`, release gradnja prozora. Uzivo nije provjereno.
