@@ -153,7 +153,10 @@ unsafe fn picture_icon(icon: Option<fn(u32) -> Vec<u8>>) -> HICON {
     for (to, from) in target.chunks_mut(4).zip(rgba.chunks(4)) {
         to.copy_from_slice(&[from[2], from[1], from[0], from[3]]);
     }
-    let mask = CreateBitmap(size as i32, size as i32, 1, 1, std::ptr::null());
+    // The mask is all zeros (the colour bitmap's alpha decides); a bitmap made without bits has
+    // whatever its memory held. Its rows are padded to two bytes.
+    let zeros = vec![0u8; (size.div_ceil(16) * 2 * size) as usize];
+    let mask = CreateBitmap(size as i32, size as i32, 1, 1, zeros.as_ptr().cast());
     let info = ICONINFO { fIcon: 1, xHotspot: 0, yHotspot: 0, hbmMask: mask, hbmColor: colour };
     let made = CreateIconIndirect(&info);
     DeleteObject(colour);
@@ -181,8 +184,7 @@ fn run(made: Sender<Result<isize, String>>, icon: Option<fn(u32) -> Vec<u8>>) {
         data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
         data.uCallbackMessage = WM_TRAY;
         let own = picture_icon(icon);
-        data.hIcon = if own.is_null() { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) } else { own };
-        let tip = SHARED.lock().ok().and_then(|shared| shared.as_ref().map(|shared| shared.tip.clone())).unwrap_or_default();
+        data.hIcon = if own.is_null() { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) } else { own };        let tip = SHARED.lock().ok().and_then(|shared| shared.as_ref().map(|shared| shared.tip.clone())).unwrap_or_default();
         copy_into(&mut data.szTip, &tip);
         if Shell_NotifyIconW(NIM_ADD, &data) == 0 {
             if !own.is_null() {

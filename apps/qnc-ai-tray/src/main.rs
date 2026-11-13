@@ -68,7 +68,10 @@ fn main() {
     qnc_dev_diagnostics::log_panics("qnc-ai-tray");
     let _one = match OneCopy::take("QNC-AI-tray") {
         Ok(Some(one)) => one,
-        Ok(None) => return,
+        Ok(None) => {
+            log("not started: another copy runs".into());
+            return;
+        }
         Err(error) => {
             log(format!("not started: {error}"));
             return;
