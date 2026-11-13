@@ -3732,6 +3732,8 @@ dependencies = [
  "qnc-ai-open",
  "qnc-card-ingest",
  "qnc-dev-diagnostics",
+ "qnc-ingest-application",
+ "qnc-ingest-blocks",
  "qnc-ingest-layout",
  "qnc-tray",
  "qnc-wizard-text",

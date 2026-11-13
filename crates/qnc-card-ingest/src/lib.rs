@@ -24,6 +24,8 @@ const READ: Duration = Duration::from_secs(1);
 pub enum Phase {
     /// Waiting for a card (or for the base to load).
     Waiting,
+    /// A folder is to be picked in Ingest's browser (a source that is no card).
+    Choosing,
     /// A card is Selected: its clips are read into the base.
     Selecting,
     /// The worker copies the posters and makes the filmstrips and rough waves.
@@ -161,9 +163,78 @@ pub struct CardIngest {
     read: Receiver<Progress>,
     /// The attached cards were looked at once.
     looked: bool,
+    /// The source is a folder the user picks, not the cards attached (user 2026-11-13).
+    folder: Option<FolderPick>,
+}
+
+/// Where the pick of a folder is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum FolderPick {
+    /// The browser is shown; the disks are listed once.
+    Choosing { listed: bool },
+    /// Select of the folder sent; waits until Ingest took it.
+    Taking(String),
+    /// Select runs.
+    Selecting,
+    /// Select ended: the rest is as for a card.
+    Taken,
 }
 
 impl CardIngest {
+    /// The source is a folder the user picks in Ingest's browser (`view`, `choose`); the cards
+    /// attached are left alone.
+    pub fn start_folder(root: &Path) -> Result<Self, String> {
+        let mut ingest = Self::start(root)?;
+        ingest.folder = Some(FolderPick::Choosing { listed: false });
+        ingest.looked = true;
+        Ok(ingest)
+    }
+
+    /// What Ingest shows (its browser while a folder is picked).
+    pub fn view(&self) -> &qnc_ingest_application::IngestViewModel {
+        self.application.view()
+    }
+
+    /// Whether a folder is still to be picked.
+    pub fn choosing(&self) -> bool {
+        matches!(self.folder, Some(FolderPick::Choosing { .. }))
+    }
+
+    /// What the user did in the browser while a folder is picked: Select of a folder starts its
+    /// ingest. Anything else after the pick is not taken.
+    pub fn choose(&mut self, intent: IngestIntent) {
+        if !self.choosing() {
+            return;
+        }
+        if intent.action_id == action_ids::INGEST_DIR_CONFIRM {
+            if let qnc_ingest_application::IngestPayload::LocationUri(uri) = &intent.payload {
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-card-ingest folder {uri}"));
+                self.folder = Some(FolderPick::Taking(uri.clone()));
+            }
+        }
+        self.application.dispatch(intent);
+    }
+
+    /// The folder's Select, step by step: taken, running, ended (then the clips go to the import).
+    fn folder_step(&mut self) {
+        let view = self.application.view();
+        let next = match &self.folder {
+            Some(FolderPick::Choosing { listed: false }) if !view.browser.busy && !view.work_settings_loading => {
+                self.application.dispatch(IngestIntent::empty(action_ids::INGEST_SOURCE_KIND_LOCAL));
+                Some(FolderPick::Choosing { listed: true })
+            }
+            Some(FolderPick::Taking(uri)) if view.command_busy || view.selected_source_uri.as_deref() == Some(uri.as_str()) => Some(FolderPick::Selecting),
+            Some(FolderPick::Selecting) if !view.command_busy => {
+                self.selected = true;
+                Some(FolderPick::Taken)
+            }
+            _ => None,
+        };
+        if let Some(next) = next {
+            self.folder = Some(next);
+        }
+    }
+
     pub fn start(root: &Path) -> Result<Self, String> {
         let (send, read) = channel();
         let at = root.to_path_buf();
@@ -212,12 +283,15 @@ impl CardIngest {
             progress: Progress::default(),
             read,
             looked: false,
+            folder: None,
         })
     }
 
     /// One step: the cards attached, Ingest polled, the next action sent.
     pub fn poll(&mut self) -> Status {
-        if let Some(Ok(cards)) = self.attached.poll() {
+        // A folder picked by the user: the cards attached are not this window's.
+        let cards = if self.folder.is_none() { self.attached.poll() } else { None };
+        if let Some(Ok(cards)) = cards {
             self.looked = true;
             // A card an earlier base already has is not imported again: the base Ingest works in
             // links to that base (user 2026-11-13); only a card with clips that base has not is
@@ -247,6 +321,9 @@ impl CardIngest {
             self.progress = progress;
         }
         self.application.poll(None);
+        if self.folder.is_some() {
+            self.folder_step();
+        }
         if let Some(intent) = self.auto.next(self.application.view()) {
             self.making = false;
             self.selected = true;
@@ -274,8 +351,9 @@ impl CardIngest {
         // The import handed over: Ingest would go on to the next application; here nothing does.
         let _ = self.application.take_navigation_request();
         // Nothing is done before the cards were looked at once and every one was Selected.
-        let selecting = !self.looked || self.auto.busy() || self.application.view().command_busy || self.selected;
+        let selecting = !self.looked || self.auto.busy() || self.application.view().command_busy || self.selected || matches!(self.folder, Some(FolderPick::Taking(_) | FolderPick::Selecting));
         let phase = match () {
+            _ if self.choosing() => Phase::Choosing,
             _ if selecting => Phase::Selecting,
             _ if self.progress.complete() => Phase::Done,
             _ if self.making || self.progress.clips > 0 => Phase::Making,

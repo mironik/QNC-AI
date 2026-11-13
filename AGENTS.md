@@ -566,3 +566,13 @@ klipove redom kojim su snimljeni: `qnc-content-store` (QNC-shared) ClaimNext sla
 iz `creation_time` zapisa kamere) kao trenutku, bez obzira na zonu koju je kamera zapisala; klip bez vremena dolazi iza, po
 nazivu. Zamjenjuje "najkraci prvi" od 12. 11. Vrijedi za QNC i QNC-AI (ista kocka). Test
 `the_import_takes_the_clips_in_the_order_they_were_recorded`. Uzivo nije provjereno.
+Izmjena 2026-11-13 (korisnik: "u trayu otvaranje izbornika direktorija, ako izvor nije kartica nego neki direktorij"): tray
+ima stavku "Uvoz iz direktorija…" (`INGEST_FOLDER`); ona otvara prozor uvoza s `--folder` u bazi koju daje
+`qnc_ingest_base::current` (dok prozor uvoza vec radi, tray kaze da je uvoz u tijeku). Prozor (`qnc-ai-card-ingest`) tada
+pokazuje Ingestov preglednik izvora (Racunalo / LAN / Internet / Baze, mape, Odaberi / Odustani) istom kockom kao Ingest forma
+(`qnc-ingest-blocks` `source_browser`, novi javni ulaz na postojeci panel). `qnc-card-ingest` `start_folder`, `view`,
+`choose`, `Phase::Choosing`: spojene kartice se ne odabiru; Odaberi direktorija je Ingestov Select tog direktorija (karta
+kamere ili pojedinacne datoteke, kao u Ingestu), zatim isto kao kartica (svi klipovi, uvoz po postavkama, posteri, valovi,
+filmstrip, AI). Odustani zatvara prozor (baza koju je `current` napravila ostaje prazna). Rjecnik wizarda
+`tray.ingest_folder`, `tray.ingest_runs`, `card_ingest.choose_folder`. Testovi `qnc-card-ingest`, `qnc-wizard-text`, release
+gradnja trayja i prozora uvoza. Uzivo nije provjereno.

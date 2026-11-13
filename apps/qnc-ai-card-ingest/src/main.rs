@@ -53,7 +53,7 @@ impl eframe::App for Window {
             log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
             self.last = Some(status.phase);
         }
-        if status.phase != Phase::Waiting && self.started.is_none() {
+        if !matches!(status.phase, Phase::Waiting | Phase::Choosing) && self.started.is_none() {
             self.started = Some(std::time::Instant::now());
         }
         let elapsed = self.started.map(|started| started.elapsed());
@@ -82,10 +82,31 @@ impl eframe::App for Window {
                 }
             }
         }
+        // A source that is no card: Ingest's own browser, until the user Selects a folder; Cancel
+        // closes the window (user 2026-11-13).
+        if status.phase == Phase::Choosing {
+            let mut answer = None;
+            egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(16.0)).show(ctx, |ui| {
+                ui.label(RichText::new(text("card_ingest.choose_folder")).size(theme.font_ui + 6.0).color(theme.text).strong());
+                ui.add_space(8.0);
+                let rect = ui.available_rect_before_wrap();
+                answer = qnc_ingest_blocks::source_browser(ui, rect, &self.contracts, &theme, self.ingest.view());
+            });
+            match answer {
+                Some(intent) if intent.action_id == qnc_ingest_application::action_ids::INGEST_DIR_CANCEL => {
+                    log("ai-card-ingest folder not picked: the window closes".into());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                Some(intent) => self.ingest.choose(intent),
+                None => {}
+            }
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            return;
+        }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(24.0)).show(ctx, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
-                Phase::Waiting => text("card_ingest.waiting"),
+                Phase::Waiting | Phase::Choosing => text("card_ingest.waiting"),
                 Phase::Selecting | Phase::Making => text("card_ingest.running"),
             };
             ui.label(RichText::new(title).size(theme.font_ui + 6.0).color(theme.text).strong());
@@ -163,7 +184,10 @@ fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-card-ingest");
     let Ok(Some(_one)) = qnc_tray::OneCopy::take("QNC-AI-card-ingest") else { return Ok(()) };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let started = qnc_ingest_layout::IngestContracts::load().and_then(|contracts| Ok((contracts, CardIngest::start(&root)?)));
+    // `--folder`: the source is a folder the user picks (the tray's "Import from a folder").
+    let folder = std::env::args().any(|arg| arg == "--folder");
+    let started = qnc_ingest_layout::IngestContracts::load()
+        .and_then(|contracts| Ok((contracts, if folder { CardIngest::start_folder(&root)? } else { CardIngest::start(&root)? })));
     let (contracts, ingest) = match started {
         Ok(started) => started,
         Err(error) => {

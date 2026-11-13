@@ -22,6 +22,7 @@ const SETTINGS: u32 = 4;
 const DELETE_BASE: u32 = 5;
 const PROJECTS: u32 = 6;
 const LAST_PROJECT: u32 = 7;
+const INGEST_FOLDER: u32 = 8;
 /// How often the last project is read again for the menu.
 const LAST_AGAIN: Duration = Duration::from_secs(10);
 /// "Eject" of the n-th card of the story is `EJECT + n`.
@@ -55,6 +56,9 @@ fn menu(status: Option<&Status>, last: Option<&str>, has_bases: bool) -> Vec<Men
         items.push(MenuItem { id: LAST_PROJECT, text: fill("tray.last_project", &[("name", name)]), enabled: true });
     }
     items.push(MenuItem { id: PROJECTS, text: text("tray.projects"), enabled: true });
+    // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's browser
+    // (user 2026-11-13: "otvaranje izbornika direktorija, ako izvor nije kartica").
+    items.push(MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true });
     // Settings are rarely used and apart from the wizard (user 2026-11-11).
     items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
     // The Ingest base and its folder, after a question (user 2026-11-12); greyed when there is no
@@ -182,6 +186,7 @@ fn main() {
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
+                TrayEvent::Menu(INGEST_FOLDER) => open_ingest_of(&tray, &root, &mut ingest, qnc_ingest_base::current, true),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -395,7 +400,17 @@ fn main() {
 /// and, when it is done, starts QNC (the Ingest form). Its helper programs (player, worker,
 /// decoders) are console programs: they share one hidden console, so no window flashes.
 fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>) {
+    open_ingest_of(tray, root, ingest, base, false);
+}
+
+/// As `open_ingest`; with `folder` its window first shows Ingest's browser, the user picks the
+/// folder to import (a source that is no card), and the cards attached are left alone.
+fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, folder: bool) {
     if runs(ingest) {
+        // One window at a time: the one that runs is still busy with its source.
+        if folder {
+            tray.notify(&text("tray.title"), &text("tray.ingest_runs"));
+        }
         return;
     }
     // Ingest works in the base `base` makes active (the current one, the one a card is in, or a
@@ -414,6 +429,9 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::pro
         .unwrap_or_default();
     let mut command = std::process::Command::new(&program);
     command.current_dir(root).env("QNC_ROOT", root);
+    if folder {
+        command.arg("--folder");
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

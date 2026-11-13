@@ -11,6 +11,12 @@ use qnc_ingest_layout::{theme::Theme, IngestContracts};
 
 mod panels;
 
+/// Ingest's source browser alone in `rect` (sources, folders, Select and Cancel), for a window that
+/// lets the user pick a source that is no card (QNC-AI's import of a folder, user 2026-11-13).
+pub fn source_browser(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, theme: &Theme, view: &IngestViewModel) -> Option<IngestIntent> {
+    panels::browser(ui, rect, contracts, theme, view)
+}
+
 /// Ingest on the one desktop board: preview in the monitor, pool tabs and transport in the
 /// head row, the source browser in the body, the clip cards on the right, the source
 /// timeline in the dock; drawn in `frame` as one layout tree with it.
