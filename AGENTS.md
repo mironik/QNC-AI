@@ -561,3 +561,8 @@ ikona aplikacije. Tray je predaje. Primjer `qnc-app-mark/examples/save_mark.rs` 
 nulama (bitmapa bez bitova imala je sto god je bilo u memoriji); drugi primjerak trayja u log pise da prvi radi. Izmjena
 (korisnik: "ikona se vidi, podebljaj slova, neka kocka bude crna"): kvadrat crn, slova podebljana sirenjem za 2,8 % kvadrata
 (`thicker`). Uzivo: ikona se vidi u traci.
+Izmjena 2026-11-13 (korisnik: "neka uvoz po vremenu nastanka"; izabrao to umjesto "najveci najprije"): red uvoza uzima
+klipove redom kojim su snimljeni: `qnc-content-store` (QNC-shared) ClaimNext slaze po vremenu snimanja (`created_at_utc`,
+iz `creation_time` zapisa kamere) kao trenutku, bez obzira na zonu koju je kamera zapisala; klip bez vremena dolazi iza, po
+nazivu. Zamjenjuje "najkraci prvi" od 12. 11. Vrijedi za QNC i QNC-AI (ista kocka). Test
+`the_import_takes_the_clips_in_the_order_they_were_recorded`. Uzivo nije provjereno.
