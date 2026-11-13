@@ -24,6 +24,8 @@ struct Window {
     started: Option<std::time::Instant>,
     took: Option<std::time::Duration>,
     done_after: std::collections::HashMap<&'static str, std::time::Duration>,
+    /// Brought above the other applications when the ingest ended, until the user is in it.
+    on_top: bool,
 }
 
 /// m:ss, or h:mm:ss past an hour.
@@ -60,6 +62,18 @@ impl eframe::App for Window {
             if let Some(took) = elapsed {
                 log(format!("ai-card-ingest done after {}", clock(took)));
             }
+            // The user worked on something else meanwhile (mail, the web): the window, minimised
+            // or behind, comes back above the other applications so the end is seen (user
+            // 2026-11-13). It stays on top until the user clicks or types in it.
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Critical));
+            self.on_top = true;
+        } else if self.on_top && ctx.input(|input| input.pointer.any_pressed() || (input.focused && !input.keys_down.is_empty())) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::Normal));
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Reset));
+            self.on_top = false;
         }
         for bar in status.progress.bars() {
             if status.progress.clips > 0 && bar.done >= status.progress.clips {
@@ -151,7 +165,7 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default() };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: false };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 570.0]).with_resizable(false),

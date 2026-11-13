@@ -473,3 +473,8 @@ Izmjena 2026-11-13 (korisnik: "moraš formama zadati da se otvore jer se ne vidi
 MA Script, MA Audio, MA Video, S-Story i Story otvaraju se maksimizirane (`with_maximized(true)`, kao desktop i Project).
 Popravak istog dana (korisnik: "i dalje se otvara djelomično"): forme su vec imale `with_maximized(true)`, ali eframe
 po zadanom pamti zadnju velicinu prozora i vraca je pri otvaranju; sada `persist_window: false` kao desktop.
+Izmjena 2026-11-13 (korisnik: "info prozor importa ostaje istih dimenzija, nije dio desktopa; dok se odvija import
+korisnik moze raditi nesto drugo; ako ga minimizira, kad import zavrsi treba se otvoriti iznad drugih aplikacija"):
+prozor uvoza kartice (`apps/qnc-ai-card-ingest`) kad je uvoz gotov vraca se iz minimiziranog, dolazi iznad ostalih
+aplikacija (`WindowLevel::AlwaysOnTop`, `Focus`, treptanje na traci zadataka) i ostaje iznad dok korisnik u njemu ne
+klikne ili tipka; tada je obican prozor. Desktop QNC-AI-ja (ostale forme u jednom prozoru) ceka odluku korisnika.
