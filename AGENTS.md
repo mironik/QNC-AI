@@ -477,6 +477,15 @@ Popravak 2026-11-13 (korisnik: "i dalje ne prikazuje na punom ekranu"; izmjereno
 1536x864, `IsZoomed` false): zastavica `with_maximized` u graditelju prozora na Windowsima nije bila dovoljna. Forme
 pri pokretanju salju `ViewportCommand::Maximized(true)`, a pocetna velicina 1280x760 je uklonjena. Provjereno
 pokretanjem MA Video: `IsZoomed` true, prozor preko cijelog ekrana.
+Rjesenje istog dana (korisnik: "najprije se otvorio manji pa maksimizirao"; "to je zakrpa, nije rješenje"): uzrok je u
+winitu. eframe drzi wgpu prozor skrivenim do prvog crtanja, a winit ga prikazuje sa `SW_SHOWNOACTIVATE`, sto na
+Windowsima prikaze prozor u njegovoj normalnoj velicini i tek ga onda opet maksimizira. Nova kocka
+`crates/qnc-form-window`: normalna velicina prozora forme je radna povrsina ekrana (`SPI_GETWORKAREA`, procitana prije
+nego winit ukljuci svijest o mjerilu ekrana, dakle u logickim tockama), uz maksimiziranje i bez pamcenja zadnje
+velicine; normalni i maksimizirani prozor su isti, nista manje se ne prikazuje. Sedam formi (Ingest, AI Media Assist,
+MA Script, MA Audio, MA Video, S-Story, Story) predaju joj samo naslov i aplikaciju (`qnc_form_window::run`); naredba
+`Maximized` i skrivanje uklonjeni. Izmjereno (MA Video, svakih 25 ms): prozor se pojavi 1550x878 i odmah je
+maksimiziran. Ostali OS: samo maksimiziranje (radna povrsina se zasad cita samo na Windowsima).
 Izmjena 2026-11-13 (korisnik: "info prozor importa ostaje istih dimenzija, nije dio desktopa; dok se odvija import
 korisnik moze raditi nesto drugo; ako ga minimizira, kad import zavrsi treba se otvoriti iznad drugih aplikacija"):
 prozor uvoza kartice (`apps/qnc-ai-card-ingest`) kad je uvoz gotov vraca se iz minimiziranog, dolazi iznad ostalih

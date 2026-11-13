@@ -1,0 +1,11 @@
+[package]
+name = "qnc-form-window"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the window of a form - opened maximized, its normal size the screen's work area so nothing smaller is ever shown, its last size not kept"
+
+[dependencies]
+eframe = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

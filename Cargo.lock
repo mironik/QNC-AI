@@ -4871,6 +4871,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-form-window"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "qnc-format-sony"
 version = "0.1.0"
 dependencies = [
@@ -4941,6 +4949,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
+ "qnc-form-window",
  "qnc-ingest-desktop",
  "qnc-ui-text",
 ]
@@ -5564,6 +5573,7 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+ "qnc-form-window",
 ]
 
 [[package]]
@@ -5588,6 +5598,7 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+ "qnc-form-window",
 ]
 
 [[package]]
@@ -5597,6 +5608,7 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+ "qnc-form-window",
 ]
 
 [[package]]
@@ -5628,6 +5640,7 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+ "qnc-form-window",
 ]
 
 [[package]]
@@ -6623,6 +6636,7 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+ "qnc-form-window",
 ]
 
 [[package]]
@@ -7500,6 +7514,7 @@ dependencies = [
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
  "qnc-editorial-desktop",
+ "qnc-form-window",
 ]
 
 [[package]]

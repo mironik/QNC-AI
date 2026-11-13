@@ -7,4 +7,5 @@ edition = "2021"
 qnc-ui-text = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 eframe = { workspace = true }
+qnc-form-window = { workspace = true }
 qnc-ingest-desktop = { workspace = true }

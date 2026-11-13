@@ -7,6 +7,7 @@ edition = "2021"
 qnc-dev-diagnostics = { workspace = true }
 qnc-decoder-catalog = { workspace = true }
 eframe = { workspace = true }
+qnc-form-window = { workspace = true }
 qnc-editorial-desktop = { workspace = true }
 
 [features]

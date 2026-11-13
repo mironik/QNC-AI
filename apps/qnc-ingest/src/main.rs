@@ -22,24 +22,6 @@ fn main() -> eframe::Result<()> {
     });
     let app = qnc_ingest_desktop::create_ingest_app(qnc_root)
         .unwrap_or_else(|error| panic!("failed to create Ingest app: {error}"));
-    let options = eframe::NativeOptions {
-        renderer: eframe::Renderer::Wgpu,
-        viewport: eframe::egui::ViewportBuilder::default()
-            .with_title("QNC Ingest")
-            .with_min_inner_size([1100.0, 700.0])
-            .with_maximized(true),
-        // Opened maximized every time: the size eframe keeps of the last window is not used.
-        persist_window: false,
-        ..Default::default()
-    };
-
-    // Maximized by a command too: the builder's flag alone left the window at its default size.
-    eframe::run_native(
-        "QNC Ingest",
-        options,
-        Box::new(|cc| {
-            cc.egui_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Maximized(true));
-            Ok(Box::new(app))
-        }),
-    )
+    // Maximized, shown only once it is (block `qnc-form-window`).
+    qnc_form_window::run("QNC Ingest", app)
 }
