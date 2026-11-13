@@ -38,6 +38,8 @@
     "tray.delete_base_not_owner": "Ingest bazu {base} napravio je {user} na računalu {computer}.\n\nBaza je zajednička: brisati je smije samo onaj tko ju je napravio ili administrator (QNC AI pokrenut kao administrator).",
     "tray.delete_base_no_owner": "Ingest baza {base} nema zapis o tome tko ju je napravio.\n\nBrisati je smije samo administrator (QNC AI pokrenut kao administrator).",
     "tray.base_deleted": "Ingest baza {base} je obrisana.",
+    "tray.base_deleting": "Brišem Ingest bazu {base}… (može potrajati nekoliko sekundi dok pozadinski posao ne stane)",
+    "tray.quit_after_delete": "QNC AI izlazi čim baza bude obrisana.",
     "tray.base_delete_failed": "Ingest baza {base} nije obrisana: {error}",
     "tray.card_known": "Kartica {card} je već uvezena u Ingest bazu {base} ({had} klipova).\n\nNema novih klipova: ništa se ne uvozi ponovno.\n\nOtvoriti vaše projekte i nastaviti rad na jednom od njih?",
     "tray.projects": "Projekti",

@@ -38,6 +38,8 @@
     "tray.delete_base_not_owner": "Ingest base {base} was made by {user} on {computer}.\n\nThe base is shared: only who made it, or the administrator (QNC AI run as administrator), may delete it.",
     "tray.delete_base_no_owner": "Ingest base {base} does not say who made it.\n\nOnly the administrator (QNC AI run as administrator) may delete it.",
     "tray.base_deleted": "Ingest base {base} deleted.",
+    "tray.base_deleting": "Deleting Ingest base {base}… (it can take some seconds while the background work stops)",
+    "tray.quit_after_delete": "QNC AI quits once the base is deleted.",
     "tray.base_delete_failed": "Ingest base {base} was not deleted: {error}",
     "tray.card_known": "Card {card} is already imported into Ingest base {base} ({had} clips).\n\nNo new clips: nothing is imported again.\n\nOpen your projects and go on with one of them?",
     "tray.projects": "Projects",

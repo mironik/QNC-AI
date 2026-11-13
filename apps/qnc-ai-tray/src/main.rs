@@ -106,6 +106,9 @@ fn main() {
     let deleted = std::sync::mpsc::channel::<(String, Result<(), String>)>();
     // A base is being deleted: no card opens the ingest meanwhile.
     let mut removing = false;
+    // Quit was chosen while a base is deleted: the tray ends once the delete is done (live
+    // 2026-11-13: Quit 8 s into a delete left the base; the card was then "already imported").
+    let mut quitting = false;
     // A card a base already has, with new clips: the question where they go (user 2026-11-12).
     let mut known: Option<(qnc_ingest_base::KnownCard, std::sync::mpsc::Receiver<qnc_tray::Answer>)> = None;
     // A card already in a base, nothing new: "open your projects?" (user 2026-11-12).
@@ -139,6 +142,11 @@ fn main() {
         }
         while let Some(event) = tray.try_event() {
             match event {
+                TrayEvent::Menu(QUIT) if removing => {
+                    log("quit: waits for the base being deleted".into());
+                    tray.notify(&text("tray.title"), &text("tray.quit_after_delete"));
+                    quitting = true;
+                }
                 TrayEvent::Menu(QUIT) => {
                     log("quit".into());
                     return;
@@ -213,6 +221,8 @@ fn main() {
                     }
                     ingest = None;
                     removing = true;
+                    // It can take some seconds (the worker ends its step first): the user is told.
+                    tray.notify(&text("tray.title"), &fill("tray.base_deleting", &[("base", base.label())]));
                     let (root, base, send) = (root.clone(), base.clone(), deleted.0.clone());
                     std::thread::spawn(move || {
                         // The base is closed as the active project first: its worker stops within
@@ -253,6 +263,10 @@ fn main() {
                     tray.alert("delete-base", &text("tray.title"), &fill("tray.base_delete_failed", &[("base", &label), ("error", &error)]), &text("tray.ok"));
                 }
             }
+        }
+        if quitting && !removing {
+            log("quit".into());
+            return;
         }
         // Nothing new on the card: the user's projects, to go on with one of them.
         if let Some(yes) = offer.as_ref().and_then(|answer| answer.try_recv().ok()) {

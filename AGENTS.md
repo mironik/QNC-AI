@@ -583,3 +583,8 @@ Prozor koji radi tada pokaze preglednik (`qnc-card-ingest` `pick_folder`); pregl
 Selectu, a dok ga korisnik drzi kartice se ne odabiru; uvoz, posteri, valovi i AI vec odabranih klipova idu dalje u pozadini.
 Odaberi direktorij dodaje njegove klipove u istu bazu; Odustani vraca na uvoz kartice (`cancel_folder`), a prozor pokrenut
 samo za direktorij zatvara. Uzivo nije provjereno.
+Popravak 2026-11-13 (korisnik: "kaze da je kartica vec uvezena, a ja sam obrisao bazu prije toga"; log: potvrda brisanja u
+23:42:48, Izlaz iz trayja 8 s poslije, bez "base deleted"): brisanje ceka da pozadinski posao pusti bazu (do 60 s), a Izlaz je
+zavrsio tray usred toga, pa je baza ostala i kartica je u sljedecem pokretanju bila poznata. Sada tray odmah javi da brise
+(`tray.base_deleting`), a Izlaz dok brisanje traje kaze da ce izaci kad baza bude obrisana i izade tek tada
+(`tray.quit_after_delete`, `quitting`). Uzivo nije provjereno.
