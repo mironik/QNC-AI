@@ -47,7 +47,17 @@ impl AutoSelect {
     }
 
     /// The cards of the story as they are now: a card it has not had yet is gone to after the others.
+    /// A card no longer among them is forgotten, so when it is back it is gone to again and the
+    /// clips whose import failed while it was out go back to the queue (live 2026-11-13: a card
+    /// out for 3 s and back was never Selected again, its 30 clips stayed failed).
     pub fn want(&mut self, cards: &[String]) {
+        self.known.retain(|known| cards.contains(known));
+        let first = self.cards.first().cloned();
+        self.cards.retain(|card| cards.contains(card));
+        if self.cards.first() != first.as_ref() {
+            self.step = Step::Disks;
+            self.sent = None;
+        }
         for card in cards {
             if self.known.insert(card.clone()) {
                 self.cards.push(card.clone());
@@ -146,5 +156,15 @@ mod tests {
         select.done_with_card();
         select.want(&["83dbcfbe".into(), "30616164".into()]);
         assert_eq!(select.queued(), ["30616164".to_string()], "a card done is not gone to again");
+    }
+
+    #[test]
+    fn a_card_taken_out_and_back_is_gone_to_again() {
+        let mut select = AutoSelect::new(vec!["83dbcfbe".into()]);
+        select.done_with_card();
+        select.want(&[]);
+        assert!(!select.busy());
+        select.want(&["83dbcfbe".into()]);
+        assert_eq!(select.queued(), ["83dbcfbe".to_string()], "a card back is Selected again");
     }
 }

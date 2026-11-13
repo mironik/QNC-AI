@@ -525,3 +525,15 @@ Izmjena 2026-11-13 (korisnik: "da, podigni verziju analize"): `qnc-shot-db` `ANA
 analiziraju se i pregledavaju jednom ponovno i dobivaju zum, odzum i izjavu po kadru. Opisi kadrova (Florence-2) su po kljucu
 kadra u bazi racunala, pa novi kadrovi dobivaju svoje. Testovi `qnc-shot-db`, `qnc-shot-content-db`, `qnc-shot-content-run`,
 release gradnja radnika, `cargo check` QNC-a. Uzivo nije provjereno.
+Popravak 2026-11-13 (korisnik: "pogledaj log, imamo specificnu situaciju, dvije kartice ubacene"; log i baza 15:32:19 22f0,
+samo citanje): G: (FX3A) se uvozila, a D: (FX6V) ubacena dok je prozor uvoza radio usla je u istu bazu i svih 30 klipova
+dobilo je "Izvor medija nije povezan u konfiguraciji": pozadinski proces procitao je izvore jednom pri pokretanju, kad D:
+nije bila spojena. D: je zatim na 3 s nestala i vratila se, a prozor uvoza je nije ponovno odabrao (pamtio ju je kao
+obradenu), pa neuspjeli klipovi nisu vraceni u red. (1) `qnc-ingest-import-worker` `ConfigMediaOpener::of_root`: izvor
+koji nije na popisu cita se ponovno iz korijena (diskovi spojeni sada) i trazi jos jednom; `tools/qnc-ingest-worker`
+(`sources_now`): dovrsetak zapisa, posteri i analiza kadrova isto. (2) `qnc-card-autoselect` `want`: kartica koje vise
+nema zaboravlja se, pa se po povratku ponovno odabire i Uvezi vraca neuspjele klipove u red (test
+`a_card_taken_out_and_back_is_gone_to_again`). Primjer `qnc-content-read/examples/import_errors.rs` (QNC-shared, samo
+citanje). Testovi `qnc-card-autoselect`, `qnc-card-ingest`; `qnc-ingest-import-worker` 20/22 (dva testa padaju i bez ove
+izmjene). Radnik nije zamijenjen (radio je i drzao datoteku). Otvoreno: kartica koju neka baza vec ima, ubacena dok prozor
+uvoza radi, ulazi u tekucu bazu bez provjere; PMW-300 (E:) dala je 0 klipova; QNC ima svoju kopiju uvoza s istom greskom.

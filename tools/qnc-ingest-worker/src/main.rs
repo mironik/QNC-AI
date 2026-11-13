@@ -141,6 +141,14 @@ fn run_once(root: &Path) -> Result<bool, String> {
     let config = qnc_ingest_select::selection_config::SelectionConfig::load(root)
         .map_err(|error| error.to_string())?;
     let make_backend = |source_uri: &str, media: &[qnc_source_reader::SourceReference], copies: &[(String, PathBuf)]| {
+        // A card attached after the start is not among the sources read then: read them again.
+        let fresh;
+        let config = if config.sources.iter().any(|source| source.location.uri == source_uri) {
+            &config
+        } else {
+            fresh = sources_now(root, &config);
+            &fresh
+        };
         let card = config.sources.iter().find(|source| source.location.uri == source_uri);
         // Every medium probed has its copy in the project: the copy is read, never the card
         // (user 2026-11-12); the probe of this computer is the card's, or any local one.
@@ -348,6 +356,15 @@ fn run_once(root: &Path) -> Result<bool, String> {
     })
 }
 
+/// The sources of this computer now (a card attached after the worker started is among them,
+/// live 2026-11-13); the ones read at the start when they cannot be read again.
+fn sources_now(
+    root: &Path,
+    started: &qnc_ingest_select::selection_config::SelectionConfig,
+) -> qnc_ingest_select::selection_config::SelectionConfig {
+    qnc_ingest_select::selection_config::SelectionConfig::load(root).unwrap_or_else(|_| started.clone())
+}
+
 /// Posters of the clips without one, by their block (`qnc-missing-posters`); where each
 /// medium is on this computer comes from the source bindings Select uses.
 fn make_posters(
@@ -360,6 +377,7 @@ fn make_posters(
     if stops.is(qnc_stopped_work::POSTERS) {
         return;
     }
+    let config = &sources_now(root, config);
     let local_media = |uri: &str| {
         let reference = qnc_source_reader::SourceReference::from_uri(uri).ok()?;
         let source = config.sources.iter().find(|source| source.location.uri == reference.source_uri())?;
@@ -517,6 +535,7 @@ fn make_shots(
     stops: &Stops,
     look: Look,
 ) {
+    let config = &sources_now(root, config);
     let result = (|| {
         let project = qnc_shot_analysis::ShotProject::active(root)?;
         let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|e| e.to_string())?;

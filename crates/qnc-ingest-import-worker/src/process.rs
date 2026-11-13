@@ -14,7 +14,6 @@ use qnc_content_store::{ImportedCopy, StoredClip};
 use qnc_media_metadata::MediaRepresentation;
 use qnc_active_project_read::ActiveProjectReader;
 use qnc_playback_activity::{Lease, Writer, WORKER, WORKER_FRESH_SECONDS, WORKER_RESULT};
-use qnc_ingest_select::selection_config::SelectionConfig;
 use qnc_content_store::ContentTarget;
 use qnc_ingest_work_plan::IngestWorkPlan;
 use qnc_work_settings::SettingsReader;
@@ -50,17 +49,12 @@ impl Project {
             .local_workspace_dir(&plan.settings)
             .map_err(|e| e.to_string())?
             .ok_or(qnc_ui_text::text("import.import_needs_local_access_project_folder"))?;
-        // Link needs no source; a copy from an unconfigured source fails per clip.
-        let sources = SelectionConfig::load(root)
-            .map(|config| config.sources)
-            .unwrap_or_default();
+        // Link needs no source; a copy from a source not attached fails per clip. A card
+        // attached after the start is found when its clip comes (the sources read again).
         Ok(Self {
             dir,
             queue: TransportQueue::start_leased(target.clone(), lease)?,
-            opener: ConfigMediaOpener::new(
-                sources,
-                qnc_playback_activity::playback_pause(target.clone()),
-            ),
+            opener: ConfigMediaOpener::of_root(root, qnc_playback_activity::playback_pause(target.clone())),
         })
     }
 }

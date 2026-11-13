@@ -24,7 +24,11 @@ impl MediaRead for Stream {
 
 pub struct ConfigMediaOpener {
     pause: std::sync::Arc<dyn Fn() -> bool + Send + Sync>,
-    sources: Vec<SourceConfig>,
+    sources: std::sync::Mutex<Vec<SourceConfig>>,
+    /// The QNC root the sources are read from again when a medium's source is not among them
+    /// (live 2026-11-13: a card attached after the worker started had no source and every clip
+    /// of it failed with "Izvor medija nije povezan u konfiguraciji").
+    root: Option<std::path::PathBuf>,
 }
 
 impl ConfigMediaOpener {
@@ -32,7 +36,27 @@ impl ConfigMediaOpener {
         sources: Vec<SourceConfig>,
         pause: std::sync::Arc<dyn Fn() -> bool + Send + Sync>,
     ) -> Self {
-        Self { sources, pause }
+        Self { sources: std::sync::Mutex::new(sources), pause, root: None }
+    }
+
+    /// The sources of `root` now; a source not among them later is read again from `root`
+    /// (the disks attached then).
+    pub fn of_root(root: &std::path::Path, pause: std::sync::Arc<dyn Fn() -> bool + Send + Sync>) -> Self {
+        let sources = qnc_ingest_select::selection_config::SelectionConfig::load(root).map(|config| config.sources).unwrap_or_default();
+        Self { sources: std::sync::Mutex::new(sources), pause, root: Some(root.to_path_buf()) }
+    }
+
+    /// The source `source_uri`; not known, the sources are read again (a card attached since).
+    fn source(&self, source_uri: &str) -> Option<SourceConfig> {
+        let mut sources = self.sources.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(source) = sources.iter().find(|s| s.location.uri == source_uri) {
+            return Some(source.clone());
+        }
+        let root = self.root.as_ref()?;
+        if let Ok(config) = qnc_ingest_select::selection_config::SelectionConfig::load(root) {
+            *sources = config.sources;
+        }
+        sources.iter().find(|s| s.location.uri == source_uri).cloned()
     }
 }
 
@@ -51,19 +75,14 @@ impl MediaOpener for ConfigMediaOpener {
 
     fn local_path(&self, media_uri: &str) -> Option<std::path::PathBuf> {
         let reference = SourceReference::from_uri(media_uri).ok()?;
-        let source = self
-            .sources
-            .iter()
-            .find(|s| s.location.uri == reference.source_uri())?;
+        let source = self.source(reference.source_uri())?;
         source.local_media_path(media_uri).ok().flatten()
     }
 
     fn open(&self, media_uri: &str) -> Result<Box<dyn MediaRead>, String> {
         let reference = SourceReference::from_uri(media_uri).map_err(|e| e.to_string())?;
         let source = self
-            .sources
-            .iter()
-            .find(|s| s.location.uri == reference.source_uri())
+            .source(reference.source_uri())
             .ok_or_else(|| qnc_ui_text::text("import.media_source_bound_configuration").to_string())?;
         let stream = source.media_stream(media_uri).map_err(|e| e.to_string())?;
         Ok(Box::new(Stream(stream)))
@@ -80,6 +99,8 @@ impl ConfigMediaOpener {
     ) -> Result<qnc_media_metadata::MediaRepresentation, String> {
         let (executable, probe_size_bytes, analyze_duration_us) = self
             .sources
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .iter()
             .find_map(|source| match &source.probe {
                 ProbeConfig::Local { executable, probe_size_bytes, analyze_duration_us } => {
