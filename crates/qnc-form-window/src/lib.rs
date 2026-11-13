@@ -16,7 +16,7 @@ use eframe::egui;
 /// The options of a form's window titled `title`.
 pub fn options(title: &str) -> eframe::NativeOptions {
     let viewport = egui::ViewportBuilder::default().with_title(title).with_min_inner_size([1100.0, 700.0]);
-    let viewport = match work_area() {
+    let viewport = match maximized_place() {
         Some((left, top, width, height)) => viewport.with_position([left, top]).with_inner_size([width, height]),
         // Where the work area is not known the window is made maximized.
         None => viewport.with_maximized(true),
@@ -52,23 +52,45 @@ impl<A: eframe::App> eframe::App for Maximized<A> {
     }
 }
 
-/// The work area of the main screen (without the taskbar), in the points the window is given in:
-/// read before the window system makes the program aware of the screen's scale, it is in the
-/// screen's logical points. `None` where it is not known.
+/// The place of the window as Windows gives it when maximized (user 2026-11-13: "uskladi normalni
+/// prozor s maksimiziranim"): its outer top-left and its inner size. Maximized, a window's frame
+/// lies just outside the work area (the screen without the taskbar) and its inner part is the work
+/// area under the caption; the normal window is given the same, so maximizing it changes nothing
+/// seen. The frame and caption are read at the screen's real scale, in its pixels, as Windows sizes
+/// them (measured: at 125 % the frame is 9 pixels, not 8 points times 1.25), then given in points.
+/// `None` where it is not known.
 #[cfg(windows)]
-fn work_area() -> Option<(f32, f32, f32, f32)> {
+fn maximized_place() -> Option<(f32, f32, f32, f32)> {
     use windows_sys::Win32::{
         Foundation::RECT,
-        UI::WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA},
+        UI::{
+            HiDpi::{AdjustWindowRectExForDpi, GetDpiForSystem, SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
+            WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA, WS_OVERLAPPEDWINDOW},
+        },
     };
     let mut area = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-    // SAFETY: SPI_GETWORKAREA writes one RECT into the buffer given.
-    let read = unsafe { SystemParametersInfoW(SPI_GETWORKAREA, 0, (&mut area as *mut RECT).cast(), 0) };
-    (read != 0 && area.right > area.left && area.bottom > area.top)
-        .then(|| (area.left as f32, area.top as f32, (area.right - area.left) as f32, (area.bottom - area.top) as f32))
+    let mut frame = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+    // SAFETY: this thread reads in the screen's pixels for these calls only and is put back; the
+    // calls write one RECT each into the buffers given.
+    let (read, adjusted, dpi) = unsafe {
+        let before = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        let dpi = GetDpiForSystem();
+        let read = SystemParametersInfoW(SPI_GETWORKAREA, 0, (&mut area as *mut RECT).cast(), 0);
+        let adjusted = AdjustWindowRectExForDpi(&mut frame, WS_OVERLAPPEDWINDOW, 0, 0, dpi);
+        SetThreadDpiAwarenessContext(before);
+        (read, adjusted, dpi)
+    };
+    // The frame beside the window (`-left`) and the caption above it with the frame (`-top`).
+    let (side, above) = (-frame.left, -frame.top);
+    let (width, height) = (area.right - area.left, area.bottom - area.top - (above - side));
+    if read == 0 || adjusted == 0 || dpi == 0 || width <= 0 || height <= 0 {
+        return None;
+    }
+    let points = |pixels: i32| pixels as f32 * 96.0 / dpi as f32;
+    Some((points(area.left - side), points(area.top - side), points(width), points(height)))
 }
 
 #[cfg(not(windows))]
-fn work_area() -> Option<(f32, f32, f32, f32)> {
+fn maximized_place() -> Option<(f32, f32, f32, f32)> {
     None
 }

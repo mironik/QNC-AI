@@ -492,6 +492,11 @@ prozor stvoren kao maksimiziran Windows odmah prikaze (`SW_MAXIMIZE`), eframe ga
 ponovno prikazuje u normalnoj velicini. `qnc-form-window` vise ne stvara prozor maksimiziran: stvara ga na mjestu i u
 velicini radne povrsine, eframe ga prikaze jednom, nacrtan, a dvije slike kasnije trazi se `Maximized`. Izmjereno: prozor
 se pojavi jednom (1550x902), za 112 ms je maksimiziran (1550x878); bez skrivanja i bez manjeg prozora.
+Dopuna istog dana (korisnik: "uskladi normalni prozor s maksimiziranim"): normalni prozor dobiva mjesto koje Windows
+daje maksimiziranom: okvir tik izvan radne povrsine, unutrasnjost = radna povrsina ispod naslovne trake. Okvir i
+naslovna traka citaju se pri stvarnom mjerilu ekrana (`AdjustWindowRectExForDpi`, nit privremeno svjesna mjerila;
+pri 125 % okvir je 9 px, a ne 8 tocaka x 1,25) i daju u tockama. Izmjereno u fizickim pikselima: normalni i
+maksimizirani prozor 1938x1098 na -9,-9, unutrasnjost 1920x1051; maksimiziranje ne mijenja nista vidljivo.
 Izmjena 2026-11-13 (korisnik: "info prozor importa ostaje istih dimenzija, nije dio desktopa; dok se odvija import
 korisnik moze raditi nesto drugo; ako ga minimizira, kad import zavrsi treba se otvoriti iznad drugih aplikacija"):
 prozor uvoza kartice (`apps/qnc-ai-card-ingest`) kad je uvoz gotov vraca se iz minimiziranog, dolazi iznad ostalih
