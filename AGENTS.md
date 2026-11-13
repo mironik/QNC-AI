@@ -552,3 +552,9 @@ Izmjena 2026-11-13 (korisnik: "ako nema baza, brisanje baze bi trebalo biti neak
 bazu" je neaktivna kad nema nijedne Ingest baze; broj baza cita se uz zadnji projekt (svakih 10 s) i odmah nakon brisanja baze
 (`apps/qnc-ai-tray` `menu(.., has_bases)`); baze koje se ne mogu procitati ne gase stavku (brisanje tada kaze zasto). Tray
 izgraden (release).
+Izmjena 2026-11-13 (korisnik: "daj tray-u ikonu QNC"): nova kocka `crates/qnc-app-mark` (`qnc_mark(size)`: bijelo "QNC"
+fontom Hack koji QNC vec nosi, na plavom zaobljenom kvadratu, RGBA bez predmnozene prozirnosti, crtano cetiri puta vece pa
+smanjeno). `qnc-tray` `Tray::start(.., icon: Option<fn(u32) -> Vec<u8>>)`: Windows adapter trazi sliku u velicini male
+ikone zaslona (`SM_CXSMICON`) i od nje pravi ikonu (`CreateIconIndirect`); bez slike ili kad je sustav ne uzme, opca
+ikona aplikacije. Tray je predaje. Primjer `qnc-app-mark/examples/save_mark.rs` sprema PNG-ove za pregled. Test
+`the_mark_has_its_size_clear_corners_and_white_letters_in_the_middle`, release gradnja trayja. Uzivo nije provjereno.

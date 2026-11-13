@@ -42,16 +42,18 @@ pub struct Tray {
 }
 
 impl Tray {
-    /// Puts the icon in the tray with its tooltip and menu.
-    pub fn start(tip: &str, menu: Vec<MenuItem>) -> Result<Self, String> {
+    /// Puts the icon in the tray with its tooltip and menu. `icon` gives the picture of the icon
+    /// at the size the system asks for (straight-alpha RGBA, rows top to bottom); without it, or
+    /// when the system does not take the picture, the system's own application icon shows.
+    pub fn start(tip: &str, menu: Vec<MenuItem>, icon: Option<fn(u32) -> Vec<u8>>) -> Result<Self, String> {
         #[cfg(windows)]
         {
-            let (inner, events) = windows::Tray::start(tip, menu)?;
+            let (inner, events) = windows::Tray::start(tip, menu, icon)?;
             Ok(Self { inner, events })
         }
         #[cfg(not(windows))]
         {
-            let _ = (tip, menu);
+            let _ = (tip, menu, icon);
             Err("the tray is not made for this system yet".into())
         }
     }

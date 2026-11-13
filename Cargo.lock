@@ -3876,6 +3876,7 @@ name = "qnc-ai-tray"
 version = "0.1.0"
 dependencies = [
  "qnc-ai-open",
+ "qnc-app-mark",
  "qnc-camera-patterns",
  "qnc-card-eject",
  "qnc-card-watch",
@@ -3939,6 +3940,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-app-mark"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "epaint_default_fonts",
+ "image",
 ]
 
 [[package]]

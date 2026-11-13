@@ -5,14 +5,17 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Mutex;
 
 use windows_sys::Win32::Foundation::{GetLastError, CloseHandle, ERROR_ALREADY_EXISTS, HANDLE, HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows_sys::Win32::Graphics::Gdi::{
+    CreateBitmap, CreateDIBSection, DeleteObject, GetDC, ReleaseDC, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::CreateMutexW;
 use windows_sys::Win32::UI::Shell::{
     Shell_NotifyIconW, NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIIF_INFO, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos,
-    GetMessageW, LoadIconW, PostMessageW, PostQuitMessage, RegisterClassW, SetForegroundWindow, TrackPopupMenu, TranslateMessage,
+    AppendMenuW, CreateIconIndirect, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyMenu, DestroyWindow,
+    DispatchMessageW, GetCursorPos, GetMessageW, GetSystemMetrics, HICON, ICONINFO, LoadIconW, SM_CXSMICON, PostMessageW, PostQuitMessage, RegisterClassW, SetForegroundWindow, TrackPopupMenu, TranslateMessage,
     HWND_MESSAGE, IDI_APPLICATION, MF_GRAYED, MF_STRING, MSG, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CLOSE, WM_DESTROY,
     WM_LBUTTONUP, WM_RBUTTONUP, WNDCLASSW,
 };
@@ -56,7 +59,7 @@ fn icon_data(window: HWND) -> NOTIFYICONDATAW {
 }
 
 impl Tray {
-    pub(crate) fn start(tip: &str, menu: Vec<MenuItem>) -> Result<(Self, Receiver<TrayEvent>), String> {
+    pub(crate) fn start(tip: &str, menu: Vec<MenuItem>, icon: Option<fn(u32) -> Vec<u8>>) -> Result<(Self, Receiver<TrayEvent>), String> {
         let (send, events) = mpsc::channel();
         {
             let mut shared = SHARED.lock().map_err(|_| "tray state")?;
@@ -66,7 +69,7 @@ impl Tray {
             *shared = Some(Shared { events: send, menu, tip: tip.into(), notice: None });
         }
         let (made, window) = mpsc::channel();
-        let thread = std::thread::spawn(move || run(made));
+        let thread = std::thread::spawn(move || run(made, icon));
         match window.recv() {
             Ok(Ok(window)) => Ok((Self { window, thread: Some(thread) }, events)),
             Ok(Err(error)) => {
@@ -121,7 +124,44 @@ impl Drop for Tray {
     }
 }
 
-fn run(made: Sender<Result<isize, String>>) {
+/// The icon of the caller's picture at the size of a small icon on this screen; null when there
+/// is no picture or the system did not make the icon.
+///
+/// SAFETY: Win32 calls on bitmaps this function makes and frees; the icon is the caller's.
+unsafe fn picture_icon(icon: Option<fn(u32) -> Vec<u8>>) -> HICON {
+    let Some(icon) = icon else { return std::ptr::null_mut() };
+    let size = GetSystemMetrics(SM_CXSMICON).max(16) as u32;
+    let rgba = icon(size);
+    if rgba.len() != (size * size * 4) as usize {
+        return std::ptr::null_mut();
+    }
+    let mut header: BITMAPINFO = std::mem::zeroed();
+    header.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+    header.bmiHeader.biWidth = size as i32;
+    header.bmiHeader.biHeight = -(size as i32);
+    header.bmiHeader.biPlanes = 1;
+    header.bmiHeader.biBitCount = 32;
+    header.bmiHeader.biCompression = BI_RGB;
+    let screen = GetDC(std::ptr::null_mut());
+    let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
+    let colour = CreateDIBSection(screen, &header, DIB_RGB_COLORS, &mut bits, std::ptr::null_mut(), 0);
+    ReleaseDC(std::ptr::null_mut(), screen);
+    if colour.is_null() || bits.is_null() {
+        return std::ptr::null_mut();
+    }
+    let target = std::slice::from_raw_parts_mut(bits.cast::<u8>(), rgba.len());
+    for (to, from) in target.chunks_mut(4).zip(rgba.chunks(4)) {
+        to.copy_from_slice(&[from[2], from[1], from[0], from[3]]);
+    }
+    let mask = CreateBitmap(size as i32, size as i32, 1, 1, std::ptr::null());
+    let info = ICONINFO { fIcon: 1, xHotspot: 0, yHotspot: 0, hbmMask: mask, hbmColor: colour };
+    let made = CreateIconIndirect(&info);
+    DeleteObject(colour);
+    DeleteObject(mask);
+    made
+}
+
+fn run(made: Sender<Result<isize, String>>, icon: Option<fn(u32) -> Vec<u8>>) {
     let class = wide("QncAiTrayWindow");
     // SAFETY: Win32 calls with buffers that live through each call; the window and its icon
     // belong to this thread, which runs their message loop until the window is destroyed.
@@ -140,10 +180,14 @@ fn run(made: Sender<Result<isize, String>>) {
         let mut data = icon_data(window);
         data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
         data.uCallbackMessage = WM_TRAY;
-        data.hIcon = LoadIconW(std::ptr::null_mut(), IDI_APPLICATION);
+        let own = picture_icon(icon);
+        data.hIcon = if own.is_null() { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) } else { own };
         let tip = SHARED.lock().ok().and_then(|shared| shared.as_ref().map(|shared| shared.tip.clone())).unwrap_or_default();
         copy_into(&mut data.szTip, &tip);
         if Shell_NotifyIconW(NIM_ADD, &data) == 0 {
+            if !own.is_null() {
+                DestroyIcon(own);
+            }
             DestroyWindow(window);
             let _ = made.send(Err("the shell did not take the tray icon".into()));
             return;
@@ -153,6 +197,9 @@ fn run(made: Sender<Result<isize, String>>) {
         while GetMessageW(&mut message, std::ptr::null_mut(), 0, 0) > 0 {
             TranslateMessage(&message);
             DispatchMessageW(&message);
+        }
+        if !own.is_null() {
+            DestroyIcon(own);
         }
     }
 }
