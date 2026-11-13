@@ -109,7 +109,8 @@ pub struct TranscriptView {
     pub marks: Option<(u64, u64)>,
     /// The statements chosen (user 2026-10-26), in the order they were added.
     pub quotes: Vec<Quote>,
-    /// The clips that have a kept transcript (the pool's Transcript tab, user 2026-10-28).
+    /// The clips whose kept transcript has words (the pool's Transcript tab, user 2026-10-28;
+    /// a clip without speech is not in it, user 2026-11-13).
     pub transcribed: Arc<BTreeSet<String>>,
     /// True on the poll the whole queue asked was transcribed: the Transcript tab opens.
     pub all_done: bool,
@@ -569,7 +570,7 @@ impl Transcript {
         }
         let (send, done) = mpsc::channel();
         let target = project.clone();
-        if std::thread::Builder::new().name("qnc-transcript-queue-read".into()).spawn(move || _ = send.send(qnc_transcript_db::read_queue(&target).and_then(|queue| Ok((queue, qnc_transcript_db::read_quotes(&target)?, qnc_transcript_db::read_transcribed(&target)?))))).is_ok() {
+        if std::thread::Builder::new().name("qnc-transcript-queue-read".into()).spawn(move || _ = send.send(qnc_transcript_db::read_queue(&target).and_then(|queue| Ok((queue, qnc_transcript_db::read_quotes(&target)?, qnc_transcript_db::read_spoken(&target)?))))).is_ok() {
             self.queue_read = Some(done);
             self.queue_at = Some(Instant::now());
         }
