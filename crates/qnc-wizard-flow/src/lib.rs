@@ -40,6 +40,15 @@ impl Card {
             _ => self.disk.display().to_string(),
         }
     }
+
+    /// The card's name with its camera ("XAVC (G:\) · Sony ILME-FX3A"): a disk and a number alone
+    /// say little (user 2026-11-13).
+    pub fn name_with_camera(&self) -> String {
+        match self.cameras.is_empty() {
+            true => self.name(),
+            false => format!("{} · {}", self.name(), self.cameras.join(", ")),
+        }
+    }
 }
 
 /// The project the story is in, as last read.

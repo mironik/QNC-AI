@@ -90,6 +90,8 @@ fn main() {
         }
     };
     log("started".into());
+    // The camera profiles, to name a card's camera by its model.
+    let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));
     let mut flow = Flow::new(root.clone());
     let mut ingest: Option<std::process::Child> = None;
@@ -294,7 +296,7 @@ fn main() {
             }
         }
         while let Ok((card, result)) = ejected.1.try_recv() {
-            let name = card.name();
+            let name = card.name_with_camera();
             match result {
                 Ok(()) => {
                     // Ejected on purpose: it leaves the story before its disk is gone, so no "put it back".
@@ -331,14 +333,21 @@ fn main() {
                     match found {
                         Found::Card { volume, cameras, patterns } => {
                             let disk = volume.root.display().to_string();
-                            log(format!("card disk={disk} serial={} patterns={patterns:?}", volume.serial_number));
+                            // The model the camera profiles recognise ("Sony ILME-FX3A"), else the
+                            // camera families of the catalog (user 2026-11-13: numbers alone say little).
+                            let cameras = match qnc_card_watch::camera_of(catalog, &profiles, &volume) {
+                                Some(model) => vec![model],
+                                None => cameras,
+                            };
+                            log(format!("card disk={disk} serial={} camera={} patterns={patterns:?}", volume.serial_number, cameras.join(", ")));
                             let card = Card { disk: volume.root.clone(), serial: volume.serial_number.clone(), label: volume.volume_name.clone(), cameras: cameras.clone(), out: false };
                             let name = card.name();
+                            let named = card.name_with_camera();
                             // The card is in: its "put the card back" is done, whatever happened before.
                             tray.close_alert(&format!("put-back:{}", volume.serial_number));
                             if flow.add_card(card) {
                                 log(format!("card back disk={disk}"));
-                                tray.notify(&text("tray.title"), &fill("tray.card_back", &[("card", &name)]));
+                                tray.notify(&text("tray.title"), &fill("tray.card_back", &[("card", &named)]));
                             } else {
                                 let next = flow.status().name;
                                 tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
@@ -354,7 +363,7 @@ fn main() {
                                     Ok(None) => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
                                     Ok(Some(card_known)) if card_known.new.is_empty() => {
                                         log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
-                                        let said = fill("tray.card_known", &[("card", &name), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
+                                        let said = fill("tray.card_known", &[("card", &named), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
                                         if offer.is_none() {
                                             offer = Some(tray.confirm(&text("tray.title"), &said));
                                         }
@@ -362,7 +371,7 @@ fn main() {
                                     Ok(Some(card_known)) => {
                                         log(format!("card known disk={disk} base={} had={} new={}", card_known.base.label(), card_known.had, card_known.new.len()));
                                         let base = card_known.base.label().to_string();
-                                        let ask = fill("tray.card_known_ask", &[("card", &name), ("base", &base), ("had", &card_known.had.to_string()), ("new", &card_known.new.len().to_string())]);
+                                        let ask = fill("tray.card_known_ask", &[("card", &named), ("base", &base), ("had", &card_known.had.to_string()), ("new", &card_known.new.len().to_string())]);
                                         known = Some((card_known, tray.ask(&text("tray.title"), &ask)));
                                     }
                                     Err(error) => {
@@ -398,7 +407,7 @@ fn main() {
                             log(format!("gone disk={disk} serial={}", volume.serial_number));
                             // A card of the story taken out without ejecting it: the story still uses it.
                             if let Some(card) = flow.card_out(&volume.serial_number) {
-                                tray.alert(&format!("put-back:{}", card.serial), &text("tray.title"), &fill("tray.put_back", &[("card", &card.name())]), &text("tray.ok"));
+                                tray.alert(&format!("put-back:{}", card.serial), &text("tray.title"), &fill("tray.put_back", &[("card", &card.name_with_camera())]), &text("tray.ok"));
                             }
                         }
                     }

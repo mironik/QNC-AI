@@ -10,6 +10,7 @@ qnc-app-mark = { workspace = true }
 qnc-card-eject = { workspace = true }
 qnc-card-watch = { workspace = true }
 qnc-camera-patterns = { workspace = true }
+qnc-camera-profiles = { workspace = true }
 qnc-source-volumes = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-base = { workspace = true }

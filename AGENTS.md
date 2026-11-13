@@ -588,3 +588,9 @@ Popravak 2026-11-13 (korisnik: "kaze da je kartica vec uvezena, a ja sam obrisao
 zavrsio tray usred toga, pa je baza ostala i kartica je u sljedecem pokretanju bila poznata. Sada tray odmah javi da brise
 (`tray.base_deleting`), a Izlaz dok brisanje traje kaze da ce izaci kad baza bude obrisana i izade tek tada
 (`tray.quit_after_delete`, `quitting`). Uzivo nije provjereno.
+Izmjena 2026-11-13 (korisnik: "ako prepoznajes kameru, dodaj i naziv kamere pored broja kartice, jer sami brojevi ne govore
+puno"; log: brisanje baze 658c ovaj put zavrseno, preglednik direktorija tijekom uvoza otvoren): tray kameru kartice imenuje
+po profilima kamera (`qnc_card_watch::camera_of`: model, npr. "Sony ILME-FX3A"; bez prepoznatog profila obitelj iz kataloga
+kao prije); poruke (vracena, vec uvezena, izbacena, vratite karticu), stavke izbornika i status wizarda pisu karticu s
+kamerom (`qnc-wizard-flow` `Card::name_with_camera`: "XAVC (G:\) · Sony ILME-FX3A"); log `card ... camera=`. Uzivo: log
+pokazuje "camera=Sony ILME-FX3A" za karticu G:.
