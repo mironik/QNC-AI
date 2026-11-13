@@ -244,7 +244,15 @@ impl CardIngest {
         }
         if intent.action_id == action_ids::INGEST_DIR_CONFIRM {
             if let qnc_ingest_application::IngestPayload::LocationUri(uri) = &intent.payload {
-                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-card-ingest folder {uri}"));
+                // The folder as the browser shows it is written in the base, for the tray to tell.
+                let label = self.application.view().browser.path_label.clone();
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-card-ingest folder {uri} ({label})"));
+                let root = self.root.clone();
+                std::thread::spawn(move || {
+                    if let Err(error) = qnc_ingest_base::add_source(&root, &label) {
+                        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-card-ingest folder not written: {error}"));
+                    }
+                });
                 self.folder = Some(FolderPick::Taking(uri.clone()));
             }
         }

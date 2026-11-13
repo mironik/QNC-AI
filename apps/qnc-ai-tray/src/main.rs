@@ -39,9 +39,11 @@ fn log(line: String) {
 }
 
 /// The menu for where the story is: the status line (it only tells), "Eject" for each card, Go on, Quit.
-fn menu(status: Option<&Status>, last: Option<&str>, has_bases: bool) -> Vec<MenuItem> {
+fn menu(status: Option<&Status>, last: Option<&str>, has_bases: bool, sources: &[String]) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
+    // Where it imports from when a folder was picked (user 2026-11-14): lines that only tell.
+    items.extend(sources.iter().map(|source| MenuItem { id: STATUS, text: fill("tray.source", &[("source", source)]), enabled: false }));
     if let Some(status) = status {
         // A card taken out is only a line (it cannot be ejected); a card in can be ejected.
         items.extend(status.cards.iter().zip(&status.cards_out).enumerate().map(|(index, (card, out))| match out {
@@ -82,7 +84,7 @@ fn main() {
         }
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None, false), Some(qnc_app_mark::qnc_mark)) {
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None, false, &[]), Some(qnc_app_mark::qnc_mark)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -120,9 +122,16 @@ fn main() {
     let mut last_read: Option<Instant> = None;
     // Whether there is an Ingest base to delete, read with the last project.
     let mut has_bases = false;
+    // The folders the base Ingest works in takes (user 2026-11-14), read every few seconds.
+    let mut sources: Vec<String> = Vec::new();
+    let mut sources_read: Option<Instant> = None;
     loop {
         flow.poll();
         let status = flow.status();
+        if sources_read.is_none_or(|at| at.elapsed() >= LOOK) {
+            sources_read = Some(Instant::now());
+            sources = qnc_ingest_base::active_sources(&root).unwrap_or_default();
+        }
         if last_read.is_none_or(|at| at.elapsed() >= LAST_AGAIN) {
             last_read = Some(Instant::now());
             last = qnc_ingest_base::last_story(&root, "").unwrap_or_else(|error| {
@@ -136,10 +145,11 @@ fn main() {
         let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
         let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
         let last_name = last.as_ref().map(|(_, name)| name.as_str());
-        let key = format!("{line}|{}|{has_bases}", last_name.unwrap_or(""));
+        let key = format!("{line}|{}|{has_bases}|{}", last_name.unwrap_or(""), sources.join("|"));
         if shown.as_ref() != Some(&key) {
-            tray.set_menu(menu(story, last_name, has_bases));
-            tray.set_tip(&format!("{}: {line}", text("tray.title")));
+            tray.set_menu(menu(story, last_name, has_bases, &sources));
+            let from = sources.iter().map(|source| format!("\n{}", fill("tray.source", &[("source", source)]))).collect::<String>();
+            tray.set_tip(&format!("{}: {line}{from}", text("tray.title")));
             shown = Some(key);
         }
         while let Some(event) = tray.try_event() {
@@ -196,7 +206,7 @@ fn main() {
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
                 TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
-                TrayEvent::Menu(INGEST_FOLDER) => open_ingest_of(&tray, &root, &mut ingest, qnc_ingest_base::current, true),
+                TrayEvent::Menu(INGEST_FOLDER) => open_ingest_of(&tray, &root, &mut ingest, |root| qnc_ingest_base::current_for(root, &text("tray.folder_base")), true),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -290,7 +300,8 @@ fn main() {
                 }
                 qnc_tray::Answer::No => {
                     let from = card_known.base.clone();
-                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_with_only_new(root, &from));
+                    let camera = flow.cards().last().map(|card| card.cameras.join(", ")).unwrap_or_default();
+                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_with_only_new(root, &from, &camera));
                 }
                 qnc_tray::Answer::Cancel => {}
             }
@@ -358,9 +369,12 @@ fn main() {
                             // Not while a base is deleted: it would be made again at once.
                             // A card a base already has is not imported again (user 2026-11-12):
                             // nothing new is said; new clips are asked about.
+                            // A new base is named by the card's camera (user 2026-11-14).
+                            let camera = cameras.join(", ");
+                            let current = |root: &std::path::Path| qnc_ingest_base::current_for(root, &camera);
                             if !removing && known.is_none() && !runs(&mut ingest) {
                                 match card_check(&root, catalog, &volume) {
-                                    Ok(None) => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
+                                    Ok(None) => open_ingest(&tray, &root, &mut ingest, current),
                                     Ok(Some(card_known)) if card_known.new.is_empty() => {
                                         log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
                                         let said = fill("tray.card_known", &[("card", &named), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
@@ -377,11 +391,11 @@ fn main() {
                                     Err(error) => {
                                         // Not known for sure: Ingest goes on as before (Select reconciles).
                                         log(format!("card check failed disk={disk}: {error}"));
-                                        open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current);
+                                        open_ingest(&tray, &root, &mut ingest, current);
                                     }
                                 }
                             } else if !removing && known.is_none() {
-                                open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current);
+                                open_ingest(&tray, &root, &mut ingest, current);
                             }
                         }
                         Found::Unknown { volume } => {

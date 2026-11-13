@@ -44,6 +44,8 @@
     "tray.card_known": "Kartica {card} je već uvezena u Ingest bazu {base} ({had} klipova).\n\nNema novih klipova: ništa se ne uvozi ponovno.\n\nOtvoriti vaše projekte i nastaviti rad na jednom od njih?",
     "tray.projects": "Projekti",
     "tray.ingest_folder": "Uvoz iz direktorija…",
+    "tray.source": "Uvoz iz: {source}",
+    "tray.folder_base": "Direktorij",
     "tray.ingest_runs": "Uvoz je već u tijeku: novi izvor otvorite kad završi.",
     "card_ingest.choose_folder": "Izaberite direktorij za uvoz",
     "tray.last_project": "Zadnji projekt: {name}",

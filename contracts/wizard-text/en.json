@@ -44,6 +44,8 @@
     "tray.card_known": "Card {card} is already imported into Ingest base {base} ({had} clips).\n\nNo new clips: nothing is imported again.\n\nOpen your projects and go on with one of them?",
     "tray.projects": "Projects",
     "tray.ingest_folder": "Import from a folder…",
+    "tray.source": "Importing from: {source}",
+    "tray.folder_base": "Folder",
     "tray.ingest_runs": "An import is running: open the new source when it is done.",
     "card_ingest.choose_folder": "Pick the folder to import",
     "tray.last_project": "Last project: {name}",

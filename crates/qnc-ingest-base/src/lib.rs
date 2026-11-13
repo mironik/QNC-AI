@@ -271,6 +271,12 @@ fn keep_apart(store: &mut ProjectStore, root: &Path) -> Result<(), String> {
 /// story took is that story's; the next Ingest starts the next story). The projects' folder of
 /// Settings is left as it was.
 pub fn current(root: &Path) -> Result<IngestBase, String> {
+    current_for(root, "")
+}
+
+/// As `current`; a new base is named by `what` it takes (the camera of the card, user
+/// 2026-11-14: "bazi umjesto teksta Ingest daj naziv kamere"): "Sony ILME-FX3A 2026-11-14 00:01:45 7c4c".
+pub fn current_for(root: &Path, what: &str) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root)?;
     keep_apart(&mut store, root)?;
@@ -280,11 +286,12 @@ pub fn current(root: &Path) -> Result<IngestBase, String> {
             return Ok(base);
         }
     }
-    make(&mut store, &bases)
+    make(&mut store, &bases, what)
 }
 
-/// A new base made in the bases' folder and made active.
-fn make(store: &mut ProjectStore, bases: &Path) -> Result<IngestBase, String> {
+/// A new base made in the bases' folder and made active, named by `what` it takes (empty: the
+/// stamp alone). Its name keeps the prefix that makes it an Ingest base; what is shown is the label.
+fn make(store: &mut ProjectStore, bases: &Path, what: &str) -> Result<IngestBase, String> {
     let projects = PathBuf::from(store.projects_root_display());
     store.set_projects_root(&bases)?;
     // A template may name its own projects' folder; a base is always in the bases' folder.
@@ -292,11 +299,56 @@ fn make(store: &mut ProjectStore, bases: &Path) -> Result<IngestBase, String> {
     if let Some(storage) = settings.get_mut("storage").and_then(serde_json::Value::as_object_mut) {
         storage.insert("projects_root".into(), serde_json::Value::String(bases.to_string_lossy().into_owned()));
     }
-    let made = store.create_project(&format!("{NAME_PREFIX} {}", stamp()), "", Some(&settings), &selection());
+    let what = what.trim();
+    let name = match what.is_empty() {
+        true => format!("{NAME_PREFIX} {}", stamp()),
+        false => format!("{NAME_PREFIX} {what} {}", stamp()),
+    };
+    let made = store.create_project(&name, "", Some(&settings), &selection());
     let back = store.set_projects_root(&projects);
     let made = made?;
     back?;
     Ok(base_of(made, store))
+}
+
+/// The table of a base's own database with the folders it was Selected from (not cards).
+const SOURCES_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_sources (
+    label TEXT PRIMARY KEY,
+    added_at_utc TEXT NOT NULL
+)";
+
+/// Writes that the base Ingest works in takes a folder (`label`, its path as the browser shows it;
+/// user 2026-11-14: the tray tells where it imports from).
+pub fn add_source(root: &Path, label: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let active = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)).ok_or("no active Ingest base")?;
+    let (file, _) = store.project_db_binding(&active.project_id)?;
+    let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    conn.execute_batch(SOURCES_TABLE).map_err(|error| error.to_string())?;
+    conn.execute(
+        "INSERT INTO ingest_base_sources (label, added_at_utc) VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now')) ON CONFLICT(label) DO NOTHING",
+        [label.trim()],
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// The folders the base Ingest works in takes, in the order they were added; none without a base.
+pub fn active_sources(root: &Path) -> Result<Vec<String>, String> {
+    let store = ProjectStore::open(root)?;
+    let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) else { return Ok(Vec::new()) };
+    let (file, _) = store.project_db_binding(&active.project_id)?;
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    let has: bool = conn
+        .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_sources')", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if !has {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare("SELECT label FROM ingest_base_sources ORDER BY added_at_utc").map_err(|error| error.to_string())?;
+    let rows = statement.query_map([], |row| row.get::<_, String>(0)).map_err(|error| error.to_string())?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|error| error.to_string())
 }
 
 /// A card inserted again that a base already has (user 2026-11-12: "treba traj testirati je li ta
@@ -395,11 +447,12 @@ const ONLY_NEW_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_only_new (
 )";
 
 /// A new base, made active, that takes from the cards only the clips the base `from` has not.
-pub fn new_with_only_new(root: &Path, from: &IngestBase) -> Result<IngestBase, String> {
+/// It is named by `what` it takes (the camera), as `current_for`.
+pub fn new_with_only_new(root: &Path, from: &IngestBase, what: &str) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root)?;
     keep_apart(&mut store, root)?;
-    let made = make(&mut store, &bases)?;
+    let made = make(&mut store, &bases, what)?;
     let (file, _) = store.project_db_binding(&made.id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
@@ -627,7 +680,8 @@ mod tests {
         assert_eq!(known_card(&root, card, &[file("X.MXF")]).unwrap(), None, "a card shot again after formatting is new");
         assert!(not_taken(&root).unwrap().is_empty(), "a base made as usual takes every clip");
         std::thread::sleep(std::time::Duration::from_millis(1100));
-        let only_new = new_with_only_new(&root, &first).unwrap();
+        let only_new = new_with_only_new(&root, &first, "Sony ILME-FX3A").unwrap();
+        assert_eq!(only_new.label().split(' ').take(2).collect::<Vec<_>>(), ["Sony", "ILME-FX3A"], "named by its camera");
         assert!(only_new.active && only_new.id != first.id);
         clips(&only_new.id, &[("a2", &file("A.MXF")), ("b2", &file("B.MXF")), ("c2", &file("C.MXF"))]);
         assert_eq!(not_taken(&root).unwrap().into_iter().collect::<Vec<_>>(), vec!["a2".to_string(), "b2".to_string()], "what the first base has is not imported again");

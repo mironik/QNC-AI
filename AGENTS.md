@@ -604,3 +604,13 @@ kamere"): u popisu diskova uz disk spojene kartice pise model kamere ("Kartica /
 cita spojene kartice i kad je pokrenut samo za direktorij (`card_cameras`, po serijskom broju volumena; za uvoz se kartice i
 dalje uzimaju samo uz uvoz kartice), `qnc-ingest-blocks` `source_browser(.., cameras)`; Ingest forma predaje prazan popis
 (nema promjene). Uzivo nije provjereno.
+Izmjena 2026-11-14 (korisnik: "bazi mozes umjesto teksta Ingest dati naziv kamere, i u trayu dodati podatke s koje lokacije
+se uvozi (kad je odabran iz direktorija)"): nova baza se zove po kameri kartice (`qnc-ingest-base` `current_for`,
+`new_with_only_new(.., what)`; ime ostaje s prefiksom "Ingest" po kojem se baze prepoznaju, a prikazuje se oznaka bez njega:
+"Sony ILME-FX3A 2026-11-14 00:01:45 7c4c"); baza za direktorij "Direktorij <vrijeme>" (`tray.folder_base`). Izabrani
+direktorij prozor uvoza upisuje u bazu (`add_source`, tablica `ingest_base_sources` u bazi, put kako ga pokazuje preglednik),
+a tray ga cita svake 2 s (`active_sources`) i pokazuje u izborniku i opisu ikone ("Uvoz iz: E:\", `tray.source`). Testovi
+`qnc-ingest-base` (ime po kameri), release gradnja trayja i prozora. Uzivo nije provjereno.
+Odluka 2026-11-14 (korisnik: "razlicite kartice se trebaju uvoziti u svoje baze, ne u zajednicku bazu"; izabrao opciju 2):
+svaki izvor (kartica ili direktorij) ide u svoju bazu i uvoze se istodobno: svaka baza ima svoj prozor uvoza i svoj pozadinski
+proces, neovisno o aktivnom projektu. Nije izvedeno (sljedeci korak).
