@@ -41,6 +41,8 @@ pub fn show_with(
     instead: Option<&mut Instead<'_>>,
 ) -> (TimelineIntent, Option<qnc_action_event::ActionEvent>) {
     let style = &qnc_theme_styles::dock(theme, header_gap);
+    // The whole clip, before a statement narrows the window: the bar's end is the clip's end.
+    let clip_frames = projection.range_start_frame + projection.duration_frames;
     // A statement enlarged (user 2026-11-09): the same timeline, a narrower window of its clip.
     let window = view.enlarged.as_ref().map(|enlarged| {
         let mut window = *projection;
@@ -50,6 +52,7 @@ pub fn show_with(
     let (projection, assets) = window.as_ref().zip(view.enlarged.as_ref()).map_or((projection, assets), |(window, enlarged)| (window, enlarged.assets.as_ref()));
     let timeline = DockTimeline::from_assets(projection, qnc_theme_styles::timeline(theme), assets)
         .with_timecode(view.timecode)
+        .with_clip_frames(clip_frames)
         .with_a1_channel(view.a1)
         .with_a2_channel(view.a2)
         .with_wave_over_video(view.wave_over_video)

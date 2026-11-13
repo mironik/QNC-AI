@@ -458,4 +458,12 @@ Popravak 2026-11-13 (korisnik: "u tab Prijepisi stavio si i klipove koji nemaju 
 svaki klip, a klip bez govora dobije prazan prijepis (0 redaka). Tab Prijepis uzimao je svaki klip s prijepisom.
 Sada uzima samo klipove ciji prijepis ima rijeci (`qnc-transcript-db` `read_spoken`, nova operacija `ReadSpoken` u
 QNC-shared; `qnc-transcript`). Radnik i dalje koristi `read_transcribed` (klip bez govora se ne prepisuje ponovno).
-Test prosiren. AI Media Assist ceka gradnju (bio je otvoren).
+Test prosiren. AI Media Assist izgradjen 2026-11-13.
+Izmjena 2026-11-13 (korisnik: "početni TC, položaj playholdera, završni TC i prikaz trajanja odabranog dijela klipa
+(novog virtualnog SubClipa), njegovo trajanje, ne TC"; "nepotreban je prikaz IN/OUT, on je zapisan u bazi";
+"povećaj prikaz nivoa tona, prekratak je, na svim formama istih dimenzija"): traka source timelinea (`qnc-source-dock`
+u QNC-shared) iza naziva klipa pokazuje TC pocetka klipa, TC playheada, TC kraja klipa (i kad je izjava povecana:
+`SourceTimeline::with_clip_frames`, `qnc-source-timeline-view`) i trajanje dijela IN-OUT kao trajanje
+(sekunde:slike, od minute minute:sekunde:slike), bez IN/OUT; zamjenjuje "Trajanje do playheada" od 16. 10. Mjerac
+razine (`qnc-level-bar`) je 200 px (prije 78 px), gumbi NORM, AI, ZADRZI isti; jedna kocka, iste mjere u svakoj formi.
+Klasicni QNC dobiva istu traku (bez `with_clip_frames`: kraj je kraj prikazanog dijela).
