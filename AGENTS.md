@@ -469,3 +469,5 @@ razine (`qnc-level-bar`) je 200 px (prije 78 px), gumbi NORM, AI, ZADRZI isti; j
 Klasicni QNC dobiva istu traku (bez `with_clip_frames`: kraj je kraj prikazanog dijela).
 Dopuna 2026-11-13 (korisnik: "da ne bi netko krivo shvatio duljinu odabranog dijela, prikaz broja frejmova neka bude
 druge nijanse boje"): u trajanju je broj slika (iza zadnje dvotocke) u boji fokusa teme timelinea.
+Izmjena 2026-11-13 (korisnik: "moraš formama zadati da se otvore jer se ne vidi dio UI"): Ingest, AI Media Assist,
+MA Script, MA Audio, MA Video, S-Story i Story otvaraju se maksimizirane (`with_maximized(true)`, kao desktop i Project).
