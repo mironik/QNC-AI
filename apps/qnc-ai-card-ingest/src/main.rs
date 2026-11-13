@@ -93,8 +93,14 @@ impl eframe::App for Window {
                 ui.label(RichText::new(fill("card_ingest.elapsed", &[("time", &clock(time))])).color(theme.text));
             }
             ui.add_space(12.0);
-            if !status.cameras.is_empty() {
-                ui.label(RichText::new(status.cameras.join(", ")).color(theme.text));
+            // Each card on its line; one an earlier base already has says so (it is not imported again).
+            for card in &status.cards {
+                let line = match (&card.known_in, card.new) {
+                    (None, _) => card.camera.clone(),
+                    (Some(base), 0) => fill("card_ingest.already_imported", &[("camera", &card.camera), ("base", base)]),
+                    (Some(base), new) => fill("card_ingest.already_imported_new", &[("camera", &card.camera), ("base", base), ("new", &new.to_string())]),
+                };
+                ui.label(RichText::new(line).color(theme.text));
             }
             let progress = status.progress;
             ui.label(RichText::new(fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(theme.text));

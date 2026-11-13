@@ -17,6 +17,20 @@ const LOOK: Duration = Duration::from_secs(2);
 pub struct AttachedCard {
     pub serial: String,
     pub camera: Option<String>,
+    /// An earlier Ingest base (not the one Ingest works in now) that already has clips of it,
+    /// told once per card (user 2026-11-13: "ako je baza uvezena wizard ispiše pored naziva
+    /// kamere da je uvezena već").
+    pub elsewhere: Option<Elsewhere>,
+}
+
+/// The earlier base that has a card attached now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Elsewhere {
+    pub base_id: String,
+    pub base_label: String,
+    /// How many of the card's originals it has, and how many it has not.
+    pub had: usize,
+    pub new: usize,
 }
 
 /// The attached cards, looked at in the background.
@@ -34,6 +48,8 @@ impl AttachedCards {
             let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
             // The camera of each card seen, by serial: its records are read once.
             let mut cameras: BTreeMap<String, Option<String>> = BTreeMap::new();
+            // The earlier base of each card seen, by serial: looked for once.
+            let mut known: BTreeMap<String, Option<Elsewhere>> = BTreeMap::new();
             loop {
                 if catalog.is_none() {
                     match qnc_card_watch::catalog(&root) {
@@ -51,10 +67,12 @@ impl AttachedCards {
                         .filter(|volume| matches!(qnc_card_watch::card_patterns(catalog, &volume.root, &volume.source_uri()), Ok(patterns) if !patterns.is_empty()))
                         .map(|volume| {
                             let camera = cameras.entry(volume.serial_number.clone()).or_insert_with(|| qnc_card_watch::camera_of(catalog, &profiles, &volume)).clone();
-                            AttachedCard { serial: volume.serial_number, camera }
+                            let elsewhere = known.entry(volume.serial_number.clone()).or_insert_with(|| elsewhere(&root, &volume.source_uri(), qnc_card_watch::card_originals(catalog, &volume))).clone();
+                            AttachedCard { serial: volume.serial_number, camera, elsewhere }
                         })
                         .collect();
                     cameras.retain(|serial, _| cards.iter().any(|card| &card.serial == serial));
+                    known.retain(|serial, _| cards.iter().any(|card| &card.serial == serial));
                     if send.send(Ok(cards)).is_err() {
                         return;
                     }
@@ -72,5 +90,15 @@ impl AttachedCards {
             newest = Some(found);
         }
         newest
+    }
+}
+
+/// The earlier base that has clips of the card `source_uri` whose originals are `originals`; not
+/// known (the card or the bases not read) is none, so the card is Selected as before.
+fn elsewhere(root: &Path, source_uri: &str, originals: Result<Vec<String>, String>) -> Option<Elsewhere> {
+    let known = originals.and_then(|originals| qnc_ingest_base::known_card_elsewhere(root, source_uri, &originals));
+    match known {
+        Ok(known) => known.map(|known| Elsewhere { base_label: known.base.label().to_string(), base_id: known.base.id, had: known.had, new: known.new.len() }),
+        Err(_) => None,
     }
 }

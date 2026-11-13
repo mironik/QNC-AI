@@ -171,9 +171,20 @@ pub fn story_id(root: &Path, name: &str) -> Result<Option<String>, String> {
     Ok(ProjectStore::open(root)?.list_projects()?.into_iter().find(|row| row.name == name && !row.name.starts_with(NAME_PREFIX)).map(|row| row.project_id))
 }
 
+/// The story `story_id` takes the base `base` and the bases it links to (a card an earlier base
+/// already had, user 2026-11-13).
+fn write_story_base(store: &ProjectStore, story_id: &str, base: &qnc_project_store::ProjectRow) -> Result<(), String> {
+    write_one_story_base(store, story_id, base)?;
+    let links = links_in(store, &base.project_id)?;
+    for row in store.list_projects()?.into_iter().filter(|row| links.contains(&row.project_id)) {
+        write_one_story_base(store, story_id, &row)?;
+    }
+    Ok(())
+}
+
 /// The story `story_id` takes the base `base` (a story may take several: every card Ingest brought
 /// for it), in `story_ingest_bases` of its own database.
-fn write_story_base(store: &ProjectStore, story_id: &str, base: &qnc_project_store::ProjectRow) -> Result<(), String> {
+fn write_one_story_base(store: &ProjectStore, story_id: &str, base: &qnc_project_store::ProjectRow) -> Result<(), String> {
     let (file, _) = store.project_db_binding(story_id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
@@ -305,8 +316,18 @@ pub struct KnownCard {
 /// card now (`card`, QNC URIs), with what the card has new. `None`: no base has any of them (the
 /// card is new, or formatted and shot again). Read only.
 pub fn known_card(root: &Path, source_uri: &str, card: &[String]) -> Result<Option<KnownCard>, String> {
+    known_among(root, source_uri, card, false)
+}
+
+/// The newest base other than the one Ingest works in now that has clips of the card
+/// `source_uri` (a card put in while a base is being made, which an earlier base already has).
+pub fn known_card_elsewhere(root: &Path, source_uri: &str, card: &[String]) -> Result<Option<KnownCard>, String> {
+    known_among(root, source_uri, card, true)
+}
+
+fn known_among(root: &Path, source_uri: &str, card: &[String], but_active: bool) -> Result<Option<KnownCard>, String> {
     let store = ProjectStore::open(root)?;
-    for base in all(root)? {
+    for base in all(root)?.into_iter().filter(|base| !(but_active && base.active)) {
         let Ok((file, _)) = store.project_db_binding(&base.id) else { continue };
         let had: std::collections::BTreeSet<String> =
             qnc_content_read::clip_originals_of_file(&file)?.into_iter().filter(|clip| clip.source_uri == source_uri).map(|clip| clip.original_uri).collect();
@@ -318,6 +339,52 @@ pub fn known_card(root: &Path, source_uri: &str, card: &[String]) -> Result<Opti
         return Ok(Some(KnownCard { base, had: common, new }));
     }
     Ok(None)
+}
+
+/// The table of a base's own database with the bases it links to: an earlier base that already
+/// has a card put in now (user 2026-11-13: "dodaje se samo linkovi na prethodno uvezenu bazu,
+/// ponovo se ne uvozi"). A story that takes the base takes the linked bases too.
+const LINKS_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_links (
+    base_id TEXT PRIMARY KEY,
+    linked_at_utc TEXT NOT NULL
+)";
+
+/// The base Ingest works in now links to the base `to` (once).
+pub fn link_active_to(root: &Path, to: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let active = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)).ok_or("no active Ingest base")?;
+    if active.project_id == to {
+        return Ok(());
+    }
+    let (file, _) = store.project_db_binding(&active.project_id)?;
+    let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    conn.execute_batch(LINKS_TABLE).map_err(|error| error.to_string())?;
+    conn.execute(
+        "INSERT INTO ingest_base_links (base_id, linked_at_utc) VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now')) ON CONFLICT(base_id) DO NOTHING",
+        [to],
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// The bases the base `id` links to (none when it links to none).
+pub fn links(root: &Path, id: &str) -> Result<Vec<String>, String> {
+    links_in(&ProjectStore::open(root)?, id)
+}
+
+fn links_in(store: &ProjectStore, id: &str) -> Result<Vec<String>, String> {
+    let (file, _) = store.project_db_binding(id)?;
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    let has: bool = conn
+        .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_links')", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if !has {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare("SELECT base_id FROM ingest_base_links ORDER BY linked_at_utc").map_err(|error| error.to_string())?;
+    let rows = statement.query_map([], |row| row.get(0)).map_err(|error| error.to_string())?;
+    rows.collect::<Result<_, _>>().map_err(|error| error.to_string())
 }
 
 /// The table of a base's own database that says it takes only what base `from_base` has not (one row).
@@ -360,10 +427,16 @@ pub fn not_taken(root: &Path) -> Result<std::collections::BTreeSet<String>, Stri
         Err(error) => return Err(error.to_string()),
     };
     drop(conn);
-    let Some(from) = from else { return Ok(Default::default()) };
-    // The base it came from may be gone (deleted): then every clip is new.
-    let Ok((from_file, _)) = store.project_db_binding(&from) else { return Ok(Default::default()) };
-    let had: std::collections::BTreeSet<String> = qnc_content_read::clip_originals_of_file(&from_file)?.into_iter().map(|clip| clip.original_uri).collect();
+    // The base it came from and the bases it links to: what they have is not taken again. A base
+    // gone (deleted) takes nothing away.
+    let mut had = std::collections::BTreeSet::new();
+    for base in from.into_iter().chain(links_in(&store, &active.project_id)?) {
+        let Ok((other, _)) = store.project_db_binding(&base) else { continue };
+        had.extend(qnc_content_read::clip_originals_of_file(&other)?.into_iter().map(|clip| clip.original_uri));
+    }
+    if had.is_empty() {
+        return Ok(Default::default());
+    }
     Ok(qnc_content_read::clip_originals_of_file(&file)?.into_iter().filter(|clip| had.contains(&clip.original_uri)).map(|clip| clip.clip_id).collect())
 }
 

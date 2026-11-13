@@ -2,9 +2,10 @@
 name = "qnc-attached-cards"
 version.workspace = true
 edition.workspace = true
-description = "QNC-AI block: the cards of known cameras attached now (their volume serials), looked at in the background every two seconds; reads only, draws nothing"
+description = "QNC-AI block: the cards of known cameras attached now (their volume serials, and the earlier Ingest base that already has each), looked at in the background every two seconds; reads only, draws nothing"
 
 [dependencies]
 qnc-camera-profiles = { workspace = true }
+qnc-ingest-base = { workspace = true }
 qnc-card-watch = { workspace = true }
 qnc-source-volumes = { workspace = true }

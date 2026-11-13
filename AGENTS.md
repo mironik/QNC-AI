@@ -537,3 +537,14 @@ nema zaboravlja se, pa se po povratku ponovno odabire i Uvezi vraca neuspjele kl
 citanje). Testovi `qnc-card-autoselect`, `qnc-card-ingest`; `qnc-ingest-import-worker` 20/22 (dva testa padaju i bez ove
 izmjene). Radnik nije zamijenjen (radio je i drzao datoteku). Otvoreno: kartica koju neka baza vec ima, ubacena dok prozor
 uvoza radi, ulazi u tekucu bazu bez provjere; PMW-300 (E:) dala je 0 klipova; QNC ima svoju kopiju uvoza s istom greskom.
+Izmjena 2026-11-13 (korisnik: "ako je baza uvezena wizard ispise pored naziva kamere da je uvezena vec.. dodaje se samo linkovi
+na prethodno uvezenu bazu, ponovo se ne uvozi"): `qnc-attached-cards` uz svaku spojenu karticu jednom trazi raniju bazu (ne
+onu u kojoj Ingest sada radi) koja vec ima njezine klipove (`AttachedCard.elsewhere`; `qnc-ingest-base` `known_card_elsewhere`,
+zajednicka provjera `known_among`). Prozor uvoza (`qnc-card-ingest`): tekuca baza dobiva vezu na tu bazu (`qnc-ingest-base`
+`link_active_to`, tablica `ingest_base_links` u bazi, u zasebnoj niti); kartica koju ta baza ima cijelu se ne odabire,
+kartica s novim klipovima odabire se, a klipovi koje povezana baza ima ne uvoze se (`not_taken` broji i povezane baze); prica
+koja uzme bazu uzima i povezane (`write_story_base`). Prozor pise svaku karticu u svom retku, a poznatu uz kameru "vec uvezeno
+(<baza>), dodana je veza na tu bazu" ili "... uvoze se samo nova: n" (`Status.cards`, `CardLine`; rjecnik wizarda
+`card_ingest.already_imported`, `_new`). Testovi `qnc-attached-cards`, `qnc-card-ingest`, `qnc-card-autoselect`,
+`qnc-wizard-text`; release gradnja radnika i prozora uvoza (tray je radio, nije zamijenjen). `qnc-ingest-base` veze nemaju test.
+Uzivo nije provjereno.

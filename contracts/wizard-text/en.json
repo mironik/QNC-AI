@@ -72,6 +72,8 @@
     "card_ingest.stopped": "Stopped ({done} / {clips})",
     "card_ingest.stop_hint": "Stop this: it is not needed. What is made stays.",
     "card_ingest.clips": "Clips: {clips}",
+    "card_ingest.already_imported": "{camera}: already imported ({base}), a link to that base is added",
+    "card_ingest.already_imported_new": "{camera}: already imported ({base}), a link is added; only the new ones are imported: {new}",
     "card_ingest.start_qnc": "Start QNC",
     "tray.settings_failed": "Settings did not open: {error}",
     "tray.ok": "OK",

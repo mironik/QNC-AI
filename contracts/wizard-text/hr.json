@@ -72,6 +72,8 @@
     "card_ingest.stopped": "Obustavljeno ({done} / {clips})",
     "card_ingest.stop_hint": "Obustavi: nije potrebno. Ono što je napravljeno ostaje.",
     "card_ingest.clips": "Klipova: {clips}",
+    "card_ingest.already_imported": "{camera}: već uvezeno ({base}), dodana je veza na tu bazu",
+    "card_ingest.already_imported_new": "{camera}: već uvezeno ({base}), dodana je veza; uvoze se samo nova: {new}",
     "card_ingest.start_qnc": "Pokreni QNC",
     "tray.settings_failed": "Postavke se nisu otvorile: {error}",
     "tray.ok": "U redu",

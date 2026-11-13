@@ -129,8 +129,19 @@ pub struct Status {
     pub progress: Progress,
     /// The cameras of the cards attached.
     pub cameras: Vec<String>,
+    /// The cards attached, each with the earlier base that already has it.
+    pub cards: Vec<CardLine>,
     /// What Ingest said last (a failure among it).
     pub message: String,
+}
+
+/// A card attached: its camera and, when an earlier base already has it, that base (the card is
+/// then not imported again; the base Ingest works in links to it) and how many clips it has new.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CardLine {
+    pub camera: String,
+    pub known_in: Option<String>,
+    pub new: usize,
 }
 
 pub struct CardIngest {
@@ -139,6 +150,9 @@ pub struct CardIngest {
     attached: qnc_attached_cards::AttachedCards,
     auto: qnc_card_autoselect::AutoSelect,
     cameras: Vec<String>,
+    cards: Vec<CardLine>,
+    /// The cards whose earlier base the base Ingest works in links to already.
+    linked: std::collections::BTreeSet<String>,
     /// A Select ran since the clips were imported last.
     selected: bool,
     /// The import was handed to the worker.
@@ -191,6 +205,8 @@ impl CardIngest {
             attached: qnc_attached_cards::AttachedCards::start(root),
             auto: qnc_card_autoselect::AutoSelect::new(Vec::new()),
             cameras: Vec::new(),
+            cards: Vec::new(),
+            linked: Default::default(),
             selected: false,
             making: false,
             progress: Progress::default(),
@@ -203,7 +219,28 @@ impl CardIngest {
     pub fn poll(&mut self) -> Status {
         if let Some(Ok(cards)) = self.attached.poll() {
             self.looked = true;
-            self.auto.want(&cards.iter().map(|card| card.serial.clone()).collect::<Vec<_>>());
+            // A card an earlier base already has is not imported again: the base Ingest works in
+            // links to that base (user 2026-11-13); only a card with clips that base has not is
+            // Selected, and its clips that base has are left out (`qnc_ingest_base::not_taken`).
+            for card in &cards {
+                if let Some(elsewhere) = card.elsewhere.as_ref().filter(|_| !self.linked.contains(&card.serial)) {
+                    let (root, serial, elsewhere) = (self.root.clone(), card.serial.clone(), elsewhere.clone());
+                    std::thread::spawn(move || {
+                        let line = match qnc_ingest_base::link_active_to(&root, &elsewhere.base_id) {
+                            Ok(()) => format!("ai-card-ingest card {serial} known base={} had={} new={}: linked", elsewhere.base_label, elsewhere.had, elsewhere.new),
+                            Err(error) => format!("ai-card-ingest card {serial} known base={}: not linked: {error}", elsewhere.base_label),
+                        };
+                        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+                    });
+                    self.linked.insert(card.serial.clone());
+                }
+            }
+            self.linked.retain(|serial| cards.iter().any(|card| &card.serial == serial));
+            self.auto.want(&cards.iter().filter(|card| card.elsewhere.as_ref().is_none_or(|elsewhere| elsewhere.new > 0)).map(|card| card.serial.clone()).collect::<Vec<_>>());
+            self.cards = cards
+                .iter()
+                .map(|card| CardLine { camera: card.camera.clone().unwrap_or_default(), known_in: card.elsewhere.as_ref().map(|elsewhere| elsewhere.base_label.clone()), new: card.elsewhere.as_ref().map_or(0, |elsewhere| elsewhere.new) })
+                .collect();
             self.cameras = cards.into_iter().filter_map(|card| card.camera).collect();
         }
         while let Ok(progress) = self.read.try_recv() {
@@ -244,7 +281,7 @@ impl CardIngest {
             _ if self.making || self.progress.clips > 0 => Phase::Making,
             _ => Phase::Waiting,
         };
-        Status { phase, progress: self.progress, cameras: self.cameras.clone(), message: self.application.view().message.clone() }
+        Status { phase, progress: self.progress, cameras: self.cameras.clone(), cards: self.cards.clone(), message: self.application.view().message.clone() }
     }
 }
 
