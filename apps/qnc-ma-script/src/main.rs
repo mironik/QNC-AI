@@ -25,8 +25,9 @@ fn main() -> eframe::Result<()> {
             .with_title("QNC MA Script")
             .with_inner_size([1280.0, 760.0])
             .with_min_inner_size([1100.0, 700.0])
-            .with_maximized(true)
             .with_maximized(true),
+        // Opened maximized every time: the size eframe keeps of the last window is not used.
+        persist_window: false,
         ..Default::default()
     };
 

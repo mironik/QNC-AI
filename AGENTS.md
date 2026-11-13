@@ -471,3 +471,5 @@ Dopuna 2026-11-13 (korisnik: "da ne bi netko krivo shvatio duljinu odabranog dij
 druge nijanse boje"): u trajanju je broj slika (iza zadnje dvotocke) u boji fokusa teme timelinea.
 Izmjena 2026-11-13 (korisnik: "moraš formama zadati da se otvore jer se ne vidi dio UI"): Ingest, AI Media Assist,
 MA Script, MA Audio, MA Video, S-Story i Story otvaraju se maksimizirane (`with_maximized(true)`, kao desktop i Project).
+Popravak istog dana (korisnik: "i dalje se otvara djelomično"): forme su vec imale `with_maximized(true)`, ali eframe
+po zadanom pamti zadnju velicinu prozora i vraca je pri otvaranju; sada `persist_window: false` kao desktop.
