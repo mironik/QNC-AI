@@ -477,4 +477,8 @@ Izmjena 2026-11-13 (korisnik: "info prozor importa ostaje istih dimenzija, nije 
 korisnik moze raditi nesto drugo; ako ga minimizira, kad import zavrsi treba se otvoriti iznad drugih aplikacija"):
 prozor uvoza kartice (`apps/qnc-ai-card-ingest`) kad je uvoz gotov vraca se iz minimiziranog, dolazi iznad ostalih
 aplikacija (`WindowLevel::AlwaysOnTop`, `Focus`, treptanje na traci zadataka) i ostaje iznad dok korisnik u njemu ne
-klikne ili tipka; tada je obican prozor. Desktop QNC-AI-ja (ostale forme u jednom prozoru) ceka odluku korisnika.
+klikne ili tipka; tada je obican prozor.
+Odluka 2026-11-13 (korisnik: "zasebni prozori ostaju za sada, naknadno ćemo odlučiti finalno rješenje"): forme
+QNC-AI-ja ostaju zasebni prozori (maksimizirani); desktop (`qnc-app`, jedan prozor s launch barom) se ne uvodi dok
+korisnik ne odluci. Otvoreno pitanje za tada: launch bar bi citao slijed aplikacija price kojoj baza pripada (aktivna
+je baza, a njezin slijed je samo Project).
