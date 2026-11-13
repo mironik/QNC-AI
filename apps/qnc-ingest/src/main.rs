@@ -26,7 +26,6 @@ fn main() -> eframe::Result<()> {
         renderer: eframe::Renderer::Wgpu,
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("QNC Ingest")
-            .with_inner_size([1280.0, 760.0])
             .with_min_inner_size([1100.0, 700.0])
             .with_maximized(true),
         // Opened maximized every time: the size eframe keeps of the last window is not used.
@@ -34,5 +33,13 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    eframe::run_native("QNC Ingest", options, Box::new(|_| Ok(Box::new(app))))
+    // Maximized by a command too: the builder's flag alone left the window at its default size.
+    eframe::run_native(
+        "QNC Ingest",
+        options,
+        Box::new(|cc| {
+            cc.egui_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Maximized(true));
+            Ok(Box::new(app))
+        }),
+    )
 }
