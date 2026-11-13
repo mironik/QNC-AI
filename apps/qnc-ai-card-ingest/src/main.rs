@@ -190,8 +190,7 @@ impl eframe::App for Window {
             if ui.add_enabled(ready, button).clicked() {
                 if status.phase != Phase::Done {
                     log("ai-card-ingest QNC started before the end: the rest goes on in the background".into());
-                }
-                match qnc_ai_open::open(&self.root, "qnc-ingest") {
+                }                match qnc_ai_open::open(&self.root, "qnc-ingest") {
                     Ok(program) => log(format!("ai-card-ingest opened {}", program.display())),
                     Err(error) => log(format!("ai-card-ingest QNC not opened: {error}")),
                 }
@@ -206,18 +205,29 @@ fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-card-ingest");
     // `--folder`: the source is a folder the user picks (the tray's "Import from a folder").
     let folder = std::env::args().any(|arg| arg == "--folder");
-    let Ok(Some(_one)) = qnc_tray::OneCopy::take("QNC-AI-card-ingest") else {
-        // A copy runs: it shows the browser beside what it does.
+    // `--card <serial>`: the one card this window ingests, in the base the tray gave it
+    // (`QNC_WORK_PROJECT`); one window per base (user 2026-11-14).
+    let card = std::env::args().skip_while(|arg| arg != "--card").nth(1);
+    let base = qnc_work_settings::pinned_project().unwrap_or_default();
+    let (one_name, signal_name) = (format!("QNC-AI-card-ingest-{base}"), format!("{FOLDER_SIGNAL}-{base}"));
+    let Ok(Some(_one)) = qnc_tray::OneCopy::take(&one_name) else {
+        // A copy of this base runs: it shows the browser beside what it does.
         if folder {
-            let told = qnc_tray::Signal::fire(FOLDER_SIGNAL);
+            let told = qnc_tray::Signal::fire(&signal_name);
             log(format!("ai-card-ingest a copy runs: asked it for a folder ({told})"));
         }
         return Ok(());
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let folder_asked = qnc_tray::Signal::listen(FOLDER_SIGNAL).map_err(|error| log(format!("ai-card-ingest folder signal: {error}"))).ok();
-    let started = qnc_ingest_layout::IngestContracts::load()
-        .and_then(|contracts| Ok((contracts, if folder { CardIngest::start_folder(&root)? } else { CardIngest::start(&root)? })));
+    let folder_asked = qnc_tray::Signal::listen(&signal_name).map_err(|error| log(format!("ai-card-ingest folder signal: {error}"))).ok();
+    let started = qnc_ingest_layout::IngestContracts::load().and_then(|contracts| {
+        let ingest = if folder { CardIngest::start_folder(&root)? } else { CardIngest::start(&root)? };
+        Ok((contracts, match &card {
+            Some(serial) => ingest.only_card(serial),
+            None => ingest,
+        }))
+    });
+    log(format!("ai-card-ingest base={base} card={card:?} folder={folder}"));
     let (contracts, ingest) = match started {
         Ok(started) => started,
         Err(error) => {
@@ -225,10 +235,16 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
+    // Each window says its base (a window per base, user 2026-11-14).
+    let label = qnc_ingest_base::all(&root).ok().and_then(|bases| bases.into_iter().find(|known| known.id == base)).map(|known| known.label().to_string());
+    let title = match label {
+        Some(label) => format!("{}: {label}", text("card_ingest.title")),
+        None => text("card_ingest.title").to_string(),
+    };
     let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: false, folder_asked };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 570.0]).with_resizable(false),
+        viewport: egui::ViewportBuilder::default().with_title(title).with_inner_size([540.0, 570.0]).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

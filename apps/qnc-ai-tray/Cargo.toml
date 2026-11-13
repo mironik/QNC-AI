@@ -18,3 +18,4 @@ qnc-project-close = { workspace = true }
 qnc-tray = { workspace = true }
 qnc-wizard-flow = { workspace = true }
 qnc-wizard-text = { workspace = true }
+qnc-work-settings = { workspace = true }

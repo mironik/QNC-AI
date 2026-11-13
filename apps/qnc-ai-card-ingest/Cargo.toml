@@ -10,6 +10,8 @@ qnc-ai-open = { workspace = true }
 qnc-card-ingest = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-application = { workspace = true }
+qnc-ingest-base = { workspace = true }
+qnc-work-settings = { workspace = true }
 qnc-ingest-blocks = { workspace = true }
 qnc-ingest-layout = { workspace = true }
 qnc-tray = { workspace = true }

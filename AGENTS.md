@@ -613,4 +613,21 @@ a tray ga cita svake 2 s (`active_sources`) i pokazuje u izborniku i opisu ikone
 `qnc-ingest-base` (ime po kameri), release gradnja trayja i prozora. Uzivo nije provjereno.
 Odluka 2026-11-14 (korisnik: "razlicite kartice se trebaju uvoziti u svoje baze, ne u zajednicku bazu"; izabrao opciju 2):
 svaki izvor (kartica ili direktorij) ide u svoju bazu i uvoze se istodobno: svaka baza ima svoj prozor uvoza i svoj pozadinski
-proces, neovisno o aktivnom projektu. Nije izvedeno (sljedeci korak).
+proces, neovisno o aktivnom projektu.
+Prosirenje pravila 2026-11-14 (korisnik odobrio: "da, odobravam, kreni"; dopunjuje pravilo 3 i 4.1 root AGENTS.md QNC-a):
+proces moze dobiti projekt na kojem radi (`qnc-work-settings` `PINNED_PROJECT_ENV` = `QNC_WORK_PROJECT`, `pinned_project`,
+`SettingsReader::with_project`); tada mu je to "aktivni projekt" umjesto onog u `app_settings.active_project_id`. Taj projekt
+nikad nije izmisljen: bira ga program koji pokrece proces iz registra (tray QNC-AI-ja iz registra baza). Samo lokalni registar
+(preko mreze jasna greska); server postavki uvijek daje aktivni projekt iz baze. Korisnik 2026-11-14: baze su kartice s
+kojima QNC radi (kopirani klipovi ili linkovi na klipove na kartici, po postavkama); projekt nastaje tek u Ingest formi, gdje
+korisnik odlucuje sto ide u projekt; tray samo uvozi kartice, u pozadini, da je pri montazi sve vec na raspolaganju.
+Izvedeno: tray (`Windows`) drzi prozor uvoza po bazi: nova kartica dobiva novu bazu nazvanu po kameri (`qnc-ingest-base`
+`new_base`, aktivni projekt ostaje kakav je bio), direktorij svoju bazu "Direktorij"; prozor se pokrece s `QNC_WORK_PROJECT`
+= ta baza i `--card <serijski broj>` (prozor uvozi samo svoju karticu, `qnc-card-ingest` `only_card`; jedan prozor po bazi,
+`OneCopy` po bazi; naslov prozora je oznaka baze). Kartica vracena dok njezin prozor radi pripada tom prozoru. Pozadinski
+proces koji prozor probudi nasljeduje bazu. `qnc-ingest-base` "radna baza" je zadana baza procesa, inace aktivna (`working`).
+Brisanje baze: tray zavrsi njezin prozor i upise u bazu da se brise (`mark_closing`, tablica `ingest_base_closing`);
+prozor i pozadinski proces te baze tada zavrse (`closing`). "Pokreni QNC" ne mijenja aktivni projekt (Ingest forma baze
+vidi kao kartice, tab Baze). Testovi `qnc-work-settings` (`a_reader_given_a_project_reads_it_whichever_the_database_marks_active`),
+`qnc-ingest-base`, `qnc-card-ingest`, `qnc-active-project-read`, release gradnja trayja. Uzivo nije provjereno. Nije izvedeno:
+`new_with_only_new` (nova baza samo s novim klipovima poznate kartice) jos cini bazu aktivnom.

@@ -35,6 +35,50 @@ const PROJECT_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_project (
     written_at_utc TEXT NOT NULL
 )";
 
+/// Whether `row` is the Ingest base this process works in: the one the process was given (the
+/// ingest of one card in its own base, user 2026-11-14), else the active one.
+fn working(row: &qnc_project_store::ProjectRow) -> bool {
+    row.name.starts_with(NAME_PREFIX)
+        && match qnc_work_settings::pinned_project() {
+            Some(id) => row.project_id == id,
+            None => row.active,
+        }
+}
+
+/// The table of a base's own database that says it is being deleted (one row): the processes
+/// working in it end and let it go (with a base per card, closing the active project no longer
+/// stops them).
+const CLOSING_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_closing (
+    one INTEGER PRIMARY KEY CHECK (one = 1),
+    asked_at_utc TEXT NOT NULL
+)";
+
+/// Says in the base `id` that it is being deleted.
+pub fn mark_closing(root: &Path, id: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let (file, _) = store.project_db_binding(id)?;
+    let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    conn.execute_batch(CLOSING_TABLE).map_err(|error| error.to_string())?;
+    conn.execute("INSERT OR REPLACE INTO ingest_base_closing (one, asked_at_utc) VALUES (1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))", [])
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// Whether the base `id` is being deleted, or is gone: its processes end. A base that cannot be
+/// read is not said to close (a passing lock).
+pub fn closing(root: &Path, id: &str) -> bool {
+    let Ok(store) = ProjectStore::open(root) else { return false };
+    let Ok(rows) = store.list_projects() else { return false };
+    if !rows.iter().any(|row| row.project_id == id) {
+        return true;
+    }
+    let Ok((file, _)) = store.project_db_binding(id) else { return false };
+    let Ok(conn) = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) else { return false };
+    conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_closing')", [], |row| row.get::<_, bool>(0))
+        .unwrap_or(false)
+}
+
 fn base_of(row: qnc_project_store::ProjectRow, store: &ProjectStore) -> IngestBase {
     let project_name = project_name_in(store, &row.project_id).ok().flatten();
     IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active }
@@ -98,7 +142,7 @@ pub fn templates(root: &Path) -> Result<(Vec<(String, String)>, usize), String> 
 /// The base Ingest works in now (the active one), without making one.
 pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
     let store = ProjectStore::open(root)?;
-    Ok(store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &store)))
+    Ok(store.list_projects()?.into_iter().find(|row| working(row)).map(|row| base_of(row, &store)))
 }
 
 /// A story's project made with `name` that takes the base `base_id` as its Ingest base: the
@@ -227,6 +271,12 @@ pub fn continue_story(root: &Path, base_id: &str, story_id: &str) -> Result<Stri
     Ok(story.name.clone())
 }
 
+/// The base `id`, as it is (nothing is made active).
+pub fn by_id(root: &Path, id: &str) -> Result<IngestBase, String> {
+    let store = ProjectStore::open(root)?;
+    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &store)).ok_or_else(|| format!("no Ingest base {id}"))
+}
+
 /// Makes the base `id` the one Ingest works in.
 pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
@@ -280,13 +330,31 @@ pub fn current_for(root: &Path, what: &str) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root)?;
     keep_apart(&mut store, root)?;
-    if let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) {
+    if let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) {
         let base = base_of(active, &store);
         if base.project_name.is_none() {
             return Ok(base);
         }
     }
     make(&mut store, &bases, what)
+}
+
+/// A new base for a card or folder, named by `what` it takes (its camera, "Folder"): each source
+/// goes into its own base (user 2026-11-14: "različite kartice se trebaju uvoziti u svoje baze").
+/// A base is a card QNC works with, not a project: the project is made later, in Ingest.
+/// The project active before stays active: the base is worked in by the processes given it, and
+/// what the user has open in QNC is not changed.
+pub fn new_base(root: &Path, what: &str) -> Result<IngestBase, String> {
+    let mut store = ProjectStore::open(root)?;
+    let bases = folder(root)?;
+    keep_apart(&mut store, root)?;
+    let before = store.list_projects()?.into_iter().find(|row| row.active).map(|row| row.project_id);
+    let mut made = make(&mut store, &bases, what)?;
+    if let Some(before) = before {
+        store.open_project(&before)?;
+        made.active = false;
+    }
+    Ok(made)
 }
 
 /// A new base made in the bases' folder and made active, named by `what` it takes (empty: the
@@ -321,7 +389,7 @@ const SOURCES_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_sources (
 /// user 2026-11-14: the tray tells where it imports from).
 pub fn add_source(root: &Path, label: &str) -> Result<(), String> {
     let store = ProjectStore::open(root)?;
-    let active = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)).ok_or("no active Ingest base")?;
+    let active = store.list_projects()?.into_iter().find(|row| working(row)).ok_or("no active Ingest base")?;
     let (file, _) = store.project_db_binding(&active.project_id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
@@ -337,7 +405,7 @@ pub fn add_source(root: &Path, label: &str) -> Result<(), String> {
 /// The folders the base Ingest works in takes, in the order they were added; none without a base.
 pub fn active_sources(root: &Path) -> Result<Vec<String>, String> {
     let store = ProjectStore::open(root)?;
-    let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) else { return Ok(Vec::new()) };
+    let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) else { return Ok(Vec::new()) };
     let (file, _) = store.project_db_binding(&active.project_id)?;
     let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
     let has: bool = conn
@@ -404,7 +472,7 @@ const LINKS_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_links (
 /// The base Ingest works in now links to the base `to` (once).
 pub fn link_active_to(root: &Path, to: &str) -> Result<(), String> {
     let store = ProjectStore::open(root)?;
-    let active = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)).ok_or("no active Ingest base")?;
+    let active = store.list_projects()?.into_iter().find(|row| working(row)).ok_or("no active Ingest base")?;
     if active.project_id == to {
         return Ok(());
     }
@@ -469,7 +537,7 @@ pub fn new_with_only_new(root: &Path, from: &IngestBase, what: &str) -> Result<I
 /// base already has, when the active base was made to take only the new ones. Empty otherwise.
 pub fn not_taken(root: &Path) -> Result<std::collections::BTreeSet<String>, String> {
     let store = ProjectStore::open(root)?;
-    let Some(active) = store.list_projects()?.into_iter().find(|row| row.active && row.name.starts_with(NAME_PREFIX)) else {
+    let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) else {
         return Ok(Default::default());
     };
     let (file, _) = store.project_db_binding(&active.project_id)?;

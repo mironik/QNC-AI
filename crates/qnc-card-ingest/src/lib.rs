@@ -180,6 +180,8 @@ pub struct CardIngest {
     cards_too: bool,
     /// The camera of each card attached, by its volume serial (lower case).
     card_cameras: std::collections::BTreeMap<String, String>,
+    /// The one card this window ingests (a base per card, user 2026-11-14); `None`: every card.
+    only_card: Option<String>,
 }
 
 /// Where the pick of a folder is.
@@ -224,6 +226,13 @@ impl CardIngest {
     /// What Ingest shows (its browser while a folder is picked).
     pub fn view(&self) -> &qnc_ingest_application::IngestViewModel {
         self.application.view()
+    }
+
+    /// Ingests only the card of volume serial `serial`; the other cards attached have windows of
+    /// their own, each in its own base (user 2026-11-14).
+    pub fn only_card(mut self, serial: &str) -> Self {
+        self.only_card = Some(serial.to_ascii_lowercase());
+        self
     }
 
     /// The camera of each card attached, by its volume serial (lower case).
@@ -297,7 +306,9 @@ impl CardIngest {
                 if base.is_none() {
                     base = now.clone();
                 }
-                if base.is_some() && now != base {
+                // Its base deleted (a base per card: the active project no longer says it).
+                let closing = base.as_deref().is_some_and(|id| qnc_ingest_base::closing(&at, id));
+                if base.is_some() && (now != base || closing) {
                     let _ = send.send(Progress { left: true, ..Progress::default() });
                     return;
                 }
@@ -331,6 +342,7 @@ impl CardIngest {
             folder: None,
             cards_too: true,
             card_cameras: Default::default(),
+            only_card: None,
         })
     }
 
@@ -343,6 +355,9 @@ impl CardIngest {
             self.card_cameras = cards.iter().filter_map(|card| Some((card.serial.to_ascii_lowercase(), card.camera.clone()?))).collect();
         }
         let cards = if self.cards_too { polled } else { None };
+        // Only this window's card, when it has one.
+        let only = self.only_card.clone();
+        let cards = cards.map(|cards| cards.map(|cards| cards.into_iter().filter(|card| only.as_ref().is_none_or(|serial| card.serial.eq_ignore_ascii_case(serial))).collect::<Vec<_>>()));
         if let Some(Ok(cards)) = cards {
             self.looked = true;
             // A card an earlier base already has is not imported again: the base Ingest works in

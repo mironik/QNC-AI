@@ -260,7 +260,9 @@ fn run_once(root: &Path) -> Result<bool, String> {
     std::thread::scope(|scope| {
         scope.spawn(|| {
             while running.load(std::sync::atomic::Ordering::Relaxed) {
-                if !still_active(&active_project, &started) || !lease.held() {
+                // Its base being deleted ends it too (a base per card: closing the active
+                // project no longer reaches a worker given its base, user 2026-11-14).
+                if !still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
                     closed.store(true, std::sync::atomic::Ordering::Relaxed);
                     cancel.store(true, std::sync::atomic::Ordering::Relaxed);
                     stops.all();

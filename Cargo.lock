@@ -3733,10 +3733,12 @@ dependencies = [
  "qnc-card-ingest",
  "qnc-dev-diagnostics",
  "qnc-ingest-application",
+ "qnc-ingest-base",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
  "qnc-tray",
  "qnc-wizard-text",
+ "qnc-work-settings",
 ]
 
 [[package]]
@@ -3890,6 +3892,7 @@ dependencies = [
  "qnc-tray",
  "qnc-wizard-flow",
  "qnc-wizard-text",
+ "qnc-work-settings",
 ]
 
 [[package]]
@@ -5025,6 +5028,7 @@ dependencies = [
  "qnc-base-cards",
  "qnc-content-read",
  "qnc-project-store",
+ "qnc-work-settings",
  "qnc-workstation-identity",
  "rusqlite",
  "serde",
@@ -5328,6 +5332,7 @@ dependencies = [
  "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
+ "qnc-ingest-base",
  "qnc-ingest-import-worker",
  "qnc-ingest-select",
  "qnc-missing-posters",

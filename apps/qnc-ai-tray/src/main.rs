@@ -96,7 +96,7 @@ fn main() {
     let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));
     let mut flow = Flow::new(root.clone());
-    let mut ingest: Option<std::process::Child> = None;
+    let mut ingest = Windows::default();
     let mut shown: Option<String> = None;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
@@ -114,7 +114,8 @@ fn main() {
     // 2026-11-13: Quit 8 s into a delete left the base; the card was then "already imported").
     let mut quitting = false;
     // A card a base already has, with new clips: the question where they go (user 2026-11-12).
-    let mut known: Option<(qnc_ingest_base::KnownCard, std::sync::mpsc::Receiver<qnc_tray::Answer>)> = None;
+    // With the card's volume serial and camera.
+    let mut known: Option<(qnc_ingest_base::KnownCard, std::sync::mpsc::Receiver<qnc_tray::Answer>, String, String)> = None;
     // A card already in a base, nothing new: "open your projects?" (user 2026-11-12).
     let mut offer: Option<std::sync::mpsc::Receiver<bool>> = None;
     // The project worked on last (id, name), read again now and then for the menu.
@@ -205,8 +206,9 @@ fn main() {
                 },
                 // The form of the step: the card step is the import form; the forms of the steps
                 // after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current),
-                TrayEvent::Menu(INGEST_FOLDER) => open_ingest_of(&tray, &root, &mut ingest, |root| qnc_ingest_base::current_for(root, &text("tray.folder_base")), true),
+                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current, None),
+                // A folder goes into a base of its own, with its own window (user 2026-11-14).
+                TrayEvent::Menu(INGEST_FOLDER) => open_ingest_of(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_base(root, &text("tray.folder_base")), None, true),
                 TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
                 TrayEvent::Menu(id) if id >= EJECT => {
                     if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
@@ -228,10 +230,11 @@ fn main() {
             if let Ok(yes) = answer.try_recv() {
                 log(format!("delete base answered {}: {yes}", base.label()));
                 if yes {
-                    if let Some(child) = ingest.as_mut() {
-                        let _ = child.kill();
+                    // Its window ends; its worker ends once the base says it closes.
+                    ingest.end_base(&base.id);
+                    if let Err(error) = qnc_ingest_base::mark_closing(&root, &base.id) {
+                        log(format!("base not marked closing {}: {error}", base.label()));
                     }
-                    ingest = None;
                     removing = true;
                     // It can take some seconds (the worker ends its step first): the user is told.
                     tray.notify(&text("tray.title"), &fill("tray.base_deleting", &[("base", base.label())]));
@@ -290,18 +293,17 @@ fn main() {
         }
         // Where the new clips of a card a base has go: into that base, or into a new base that
         // takes only them; what the base has is never imported again.
-        if let Some(answer) = known.as_ref().and_then(|(_, answer)| answer.try_recv().ok()) {
-            let (card_known, _) = known.take().expect("asked");
+        if let Some(answer) = known.as_ref().and_then(|(_, answer, _, _)| answer.try_recv().ok()) {
+            let (card_known, _, serial, camera) = known.take().expect("asked");
             log(format!("card known answered base={}: {answer:?}", card_known.base.label()));
             match answer {
                 qnc_tray::Answer::Yes => {
                     let id = card_known.base.id.clone();
-                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::open(root, &id));
+                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::by_id(root, &id), Some(&serial));
                 }
                 qnc_tray::Answer::No => {
                     let from = card_known.base.clone();
-                    let camera = flow.cards().last().map(|card| card.cameras.join(", ")).unwrap_or_default();
-                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_with_only_new(root, &from, &camera));
+                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_with_only_new(root, &from, &camera), Some(&serial));
                 }
                 qnc_tray::Answer::Cancel => {}
             }
@@ -369,12 +371,15 @@ fn main() {
                             // Not while a base is deleted: it would be made again at once.
                             // A card a base already has is not imported again (user 2026-11-12):
                             // nothing new is said; new clips are asked about.
-                            // A new base is named by the card's camera (user 2026-11-14).
+                            // Each card goes into a base of its own, named by its camera, with its own
+                            // window and worker (user 2026-11-14); a card back whose window runs is
+                            // taken by that window.
                             let camera = cameras.join(", ");
-                            let current = |root: &std::path::Path| qnc_ingest_base::current_for(root, &camera);
-                            if !removing && known.is_none() && !runs(&mut ingest) {
+                            let serial = volume.serial_number.clone();
+                            let new_base = |root: &std::path::Path| qnc_ingest_base::new_base(root, &camera);
+                            if !removing && known.is_none() && !ingest.runs_card(&serial) {
                                 match card_check(&root, catalog, &volume) {
-                                    Ok(None) => open_ingest(&tray, &root, &mut ingest, current),
+                                    Ok(None) => open_ingest(&tray, &root, &mut ingest, new_base, Some(&serial)),
                                     Ok(Some(card_known)) if card_known.new.is_empty() => {
                                         log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
                                         let said = fill("tray.card_known", &[("card", &named), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
@@ -386,16 +391,14 @@ fn main() {
                                         log(format!("card known disk={disk} base={} had={} new={}", card_known.base.label(), card_known.had, card_known.new.len()));
                                         let base = card_known.base.label().to_string();
                                         let ask = fill("tray.card_known_ask", &[("card", &named), ("base", &base), ("had", &card_known.had.to_string()), ("new", &card_known.new.len().to_string())]);
-                                        known = Some((card_known, tray.ask(&text("tray.title"), &ask)));
+                                        known = Some((card_known, tray.ask(&text("tray.title"), &ask), serial.clone(), camera.clone()));
                                     }
                                     Err(error) => {
-                                        // Not known for sure: Ingest goes on as before (Select reconciles).
+                                        // Not known for sure: a base of its own (Select reconciles).
                                         log(format!("card check failed disk={disk}: {error}"));
-                                        open_ingest(&tray, &root, &mut ingest, current);
+                                        open_ingest(&tray, &root, &mut ingest, new_base, Some(&serial));
                                     }
                                 }
-                            } else if !removing && known.is_none() {
-                                open_ingest(&tray, &root, &mut ingest, current);
                             }
                         }
                         Found::Unknown { volume } => {
@@ -436,51 +439,79 @@ fn main() {
 /// program, started when the one this tray started does not run any more; its window says it runs
 /// and, when it is done, starts QNC (the Ingest form). Its helper programs (player, worker,
 /// decoders) are console programs: they share one hidden console, so no window flashes.
-fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>) {
-    open_ingest_of(tray, root, ingest, base, false);
+fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, card: Option<&str>) {
+    open_ingest_of(tray, root, ingest, base, card, false);
+}
+
+/// The ingest windows this tray started: one per base, each with the card it ingests (user
+/// 2026-11-14: "različite kartice se trebaju uvoziti u svoje baze"; each base its own window and
+/// background worker, at the same time).
+#[derive(Default)]
+struct Windows {
+    open: Vec<(String, Option<String>, std::process::Child)>,
+}
+
+impl Windows {
+    /// The windows that ended are let go.
+    fn prune(&mut self) {
+        self.open.retain_mut(|(_, _, child)| matches!(child.try_wait(), Ok(None)));
+    }
+
+    /// Whether a window ingests the card of volume serial `serial`.
+    fn runs_card(&mut self, serial: &str) -> bool {
+        self.prune();
+        self.open.iter().any(|(_, card, _)| card.as_deref().is_some_and(|card| card.eq_ignore_ascii_case(serial)))
+    }
+
+    /// Whether a window works in the base `id`.
+    fn runs_base(&mut self, id: &str) -> bool {
+        self.prune();
+        self.open.iter().any(|(base, _, _)| base == id)
+    }
+
+    /// Ends the window of the base `id` (its base is deleted).
+    fn end_base(&mut self, id: &str) {
+        for (_, _, child) in self.open.iter_mut().filter(|(base, _, _)| base == id) {
+            let _ = child.kill();
+        }
+        self.prune();
+    }
 }
 
 /// As `open_ingest`; with `folder` its window first shows Ingest's browser, the user picks the
-/// folder to import (a source that is no card), and the cards attached are left alone.
-fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, folder: bool) {
-    if runs(ingest) {
-        // One window at a time: asked for a folder, the window that runs shows the browser beside
-        // the card it ingests (a copy started with `--folder` tells it so and ends), in its base.
-        if folder {
-            let program = std::env::current_exe()
-                .ok()
-                .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-card-ingest{}", std::env::consts::EXE_SUFFIX))))
-                .unwrap_or_default();
-            let mut command = std::process::Command::new(&program);
-            command.current_dir(root).env("QNC_ROOT", root).arg("--folder");
-            match command.spawn() {
-                Ok(_) => log("ingest runs: asked it for a folder".into()),
-                Err(error) => {
-                    log(format!("ingest runs: folder not asked: {error}"));
-                    tray.notify(&text("tray.title"), &text("tray.ingest_runs"));
-                }
-            }
-        }
+/// folder to import (a source that is no card), and the cards attached are left alone. `card`:
+/// the one card the window ingests. Each window works in its own base (`QNC_WORK_PROJECT`).
+fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, card: Option<&str>, folder: bool) {
+    if card.is_some_and(|card| ingest.runs_card(card)) {
         return;
     }
-    // Ingest works in the base `base` makes active (the current one, the one a card is in, or a
+    // The base the window works in (a new one for a new card or folder, the one a card is in, or a
     // new one that takes only the new clips).
-    match base(root) {
-        Ok(base) => log(format!("ingest base {} {}", base.name, base.uri)),
+    let base = match base(root) {
+        Ok(base) => {
+            log(format!("ingest base {} {} card={card:?} folder={folder}", base.name, base.uri));
+            base
+        }
         Err(error) => {
             log(format!("ingest base failed: {error}"));
             tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));
             return;
         }
+    };
+    if ingest.runs_base(&base.id) {
+        return;
     }
     let program = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-card-ingest{}", std::env::consts::EXE_SUFFIX))))
         .unwrap_or_default();
     let mut command = std::process::Command::new(&program);
-    command.current_dir(root).env("QNC_ROOT", root);
+    command.current_dir(root).env("QNC_ROOT", root).env(qnc_work_settings::PINNED_PROJECT_ENV, &base.id);
     if folder {
         command.arg("--folder");
+    }
+    if let Some(card) = card {
+        command.arg("--card").arg(card);
     }
     #[cfg(windows)]
     {
@@ -489,8 +520,8 @@ fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::
     }
     match command.spawn() {
         Ok(child) => {
-            log(format!("ingest opened {}", program.display()));
-            *ingest = Some(child);
+            log(format!("ingest opened {} base={}", program.display(), base.id));
+            ingest.open.push((base.id.clone(), card.map(str::to_string), child));
         }
         Err(error) => {
             log(format!("ingest failed {}: {error}", program.display()));
@@ -523,10 +554,6 @@ fn open_last(tray: &Tray, root: &std::path::Path, id: &str, name: &str) {
     }
 }
 
-/// Whether the ingest this tray started still runs.
-fn runs(ingest: &mut Option<std::process::Child>) -> bool {
-    ingest.as_mut().is_some_and(|child| matches!(child.try_wait(), Ok(None)))
-}
 
 /// The base that already has the card at `volume` and what is new on it (user 2026-11-12: the
 /// camera operator did not erase the card before the next shoot). `None` when no base has its
