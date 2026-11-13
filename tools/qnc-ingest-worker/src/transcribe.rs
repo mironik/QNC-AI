@@ -109,33 +109,54 @@ pub(crate) fn run(root: &Path, running: &std::sync::atomic::AtomicBool, stop: &s
     }
 }
 
-/// Which clips the AI shots may look at: with transcription off every clip; with it on, a clip
-/// whose transcription is done and whose words cover less than a statement's share, or whose
-/// transcription failed (nothing is known of its speech). A clip still waiting is not taken yet.
-pub(crate) fn ai_takes(root: &Path, stopped: bool) -> Result<Box<dyn Fn(&str) -> bool>, String> {
-    let Some(transcription) = Transcription::of_active(root)? else { return Ok(Box::new(|_| true)) };
+/// Which clips the AI steps take: `shots` for the shot analysis, `content` for what the shots show.
+pub(crate) struct AiTakes {
+    pub(crate) shots: Box<dyn Fn(&str) -> bool>,
+    pub(crate) content: Box<dyn Fn(&str) -> bool>,
+}
+
+/// With transcription off every clip; with it on, a clip whose transcription is done or failed
+/// (nothing is known of its speech) is analysed, a clip still waiting is not taken yet. What
+/// the shots show is looked at for a clip that is no statement, and for a statement only when
+/// its analysis found more than one shot (user 2026-11-12: "ako se kadar potpuno promijeni to
+/// treba analizirati jer se iz toga mogu izvući pokrivalice"); its spoken shot stays whole.
+pub(crate) fn ai_takes(root: &Path, stopped: bool) -> Result<AiTakes, String> {
+    let Some(transcription) = Transcription::of_active(root)? else { return Ok(AiTakes { shots: Box::new(|_| true), content: Box::new(|_| true) }) };
     let statement = |clip_id: &str, to: u64| -> Result<bool, String> {
         let transcripts = qnc_transcript_db::read_clip(&transcription.db, clip_id)?;
         Ok(qnc_transcript_db::spoken_share(&transcripts, 0, to).is_some_and(|share| share >= qnc_transcript_db::SPOKEN))
     };
     let frames: HashMap<String, u64> = transcription.content.summaries()?.into_iter().map(|clip| (clip.clip_id, clip.duration_frames)).collect();
-    let mut taken = HashMap::new();
+    // Per clip: (heard, a statement).
+    let mut known: HashMap<String, (bool, bool)> = HashMap::new();
     for entry in qnc_transcript_db::read_queue(&transcription.db)? {
-        let take = match entry.state {
+        let state = match entry.state {
             // A clip that failed only because its record was not final is heard again.
-            QueueState::Failed => stopped || !entry.error.contains("NotFinal"),
-            QueueState::Done => !statement(&entry.clip_id, frames.get(&entry.clip_id).copied().unwrap_or(entry.to_frame))?,
+            QueueState::Failed => (stopped || !entry.error.contains("NotFinal"), false),
+            QueueState::Done => (true, statement(&entry.clip_id, frames.get(&entry.clip_id).copied().unwrap_or(entry.to_frame))?),
             // The user stopped the transcription: what is not heard is not known as a statement.
-            QueueState::Waiting | QueueState::Running => stopped,
+            QueueState::Waiting | QueueState::Running => (stopped, false),
         };
-        taken.insert(entry.clip_id, take);
+        known.insert(entry.clip_id, state);
     }
     // A clip transcribed before (by hand) without a queue entry is judged by its transcript.
     for clip in qnc_transcript_db::read_transcribed(&transcription.db)? {
-        if !taken.contains_key(&clip) {
+        if !known.contains_key(&clip) {
             let to = frames.get(&clip).copied().unwrap_or(0);
-            taken.insert(clip.clone(), !statement(&clip, to)?);
+            known.insert(clip.clone(), (true, statement(&clip, to)?));
         }
     }
-    Ok(Box::new(move |clip| taken.get(clip).copied().unwrap_or(stopped)))
+    let known = std::rc::Rc::new(known);
+    let of_shots = known.clone();
+    let db = transcription.db.clone();
+    Ok(AiTakes {
+        shots: Box::new(move |clip| of_shots.get(clip).map_or(stopped, |(heard, _)| *heard)),
+        content: Box::new(move |clip| match known.get(clip) {
+            None => stopped,
+            Some((false, _)) => false,
+            Some((true, false)) => true,
+            // A statement: only when its analysis found the scene change.
+            Some((true, true)) => qnc_shot_db::read_clip(&db, clip).ok().flatten().is_some_and(|shots| shots.shots.len() >= 2),
+        }),
+    })
 }

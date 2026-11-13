@@ -506,3 +506,17 @@ Odluka 2026-11-13 (korisnik: "zasebni prozori ostaju za sada, naknadno ćemo odl
 QNC-AI-ja ostaju zasebni prozori (maksimizirani); desktop (`qnc-app`, jedan prozor s launch barom) se ne uvodi dok
 korisnik ne odluci. Otvoreno pitanje za tada: launch bar bi citao slijed aplikacija price kojoj baza pripada (aktivna
 je baza, a njezin slijed je samo Project).
+Izvedeno 2026-11-13 (korisnik: "ako nešto ima A1 i tretman Izjave... ako se kadar potpuno promijeni to treba analizirati
+jer se iz toga mogu izvući pokrivalice"; "ne označavaš odzume ili zumove"): (1) Zum i odzum. `qnc-shot-detect` uz pomak
+cijele slike trazi i povecanje oko sredine (`zoom_scale`: mjerila 1±k/100, bilinearno uzorkovanje, srednji dio slike, prihvaca
+se samo kad je barem 15 % bolje od mjerila 1); par slika koji raste 3 %+ u sekundi je zum, koji se smanjuje odzum
+(`Camera::ZoomIn`, `ZoomOut`, imena `zoom_in`, `zoom_out`); dio je niz parova iste vrste, najmanje 3 s. Baza analize,
+pregled sadrzaja i opis kadra uzimaju ih kao upotrebljive dijelove; natpisi `shots.camera.zoom_in/zoom_out` (zum, odzum) u
+Video AI panelu i AI pokrivalicama. Test `a_take_gives_its_zoom_in_and_its_zoom_out`. (2) Izjava s promjenom kadra. Analiza
+kadrova uzima i izjave (kad je prijepis gotov); pregled sadrzaja uzima izjavu samo kad je analiza nasla barem dva kadra
+(`tools/qnc-ingest-worker` `AiTakes`: `shots`, `content`; `qnc-shot-content-run` `look_missing` filtrira po `pace.takes`).
+Izjava se vise ne odlucuje za cijeli klip nego po kadru (`qnc-shot-content-run` `statement_shots`): kadar koji izgleda kao
+izjava i ima govor na A1 ostaje cijeli (vrsta `statement`), ostali kadrovi istog klipa daju svoje dijelove za AI pokrivalice.
+Klipovi vec analizirani ne dobivaju zum dok se ne analiziraju ponovno (`ANALYSIS_VERSION` nije podignut); izjave dosad nisu
+bile analizirane, pa ih radnik uzima sam. Testovi `qnc-shot-detect`, `qnc-shot-db`, `qnc-shot-content-run`,
+`qnc-shot-caption-run`, release gradnja radnika. Uzivo nije provjereno; pravilo `statement_shots` nema vlastiti test.

@@ -551,7 +551,10 @@ fn make_shots(
         // A clip whose first channel holds a statement is not looked at (user 2026-11-12); with
         // transcription on, a clip is taken once it is heard.
         let takes = transcribe::ai_takes(root, stops.is(qnc_stopped_work::TRANSCRIPTS))?;
-        let pace = |function| qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes: &*takes, cancel: stops.flag(function) };
+        let pace = |function| {
+            let takes: &dyn Fn(&str) -> bool = if function == qnc_stopped_work::SHOTS { &*takes.shots } else { &*takes.content };
+            qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes, cancel: stops.flag(function) }
+        };
         let (shots, content, captions) = (qnc_stopped_work::SHOTS, qnc_stopped_work::CONTENT, qnc_stopped_work::CAPTIONS);
         // First the quickest sorting, from each clip's poster (user 2026-11-10), before any
         // picture of a shot is read.

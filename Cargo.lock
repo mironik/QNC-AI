@@ -5323,6 +5323,7 @@ dependencies = [
  "qnc-shot-analysis",
  "qnc-shot-caption-run",
  "qnc-shot-content-run",
+ "qnc-shot-db",
  "qnc-source-bindings",
  "qnc-source-reader",
  "qnc-still-locator",
