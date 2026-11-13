@@ -5,8 +5,10 @@
 
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 
-/// The square behind the letters.
-const BACK: [u8; 3] = [0x1f, 0x5f, 0xb4];
+/// The square behind the letters (user 2026-11-13: "neka kocka bude crna").
+const BACK: [u8; 3] = [0x00, 0x00, 0x00];
+/// How much the letters are made thicker, as a share of the square (user: "podebljaj slova").
+const BOLD: f32 = 0.028;
 /// The letters.
 const TEXT: [u8; 3] = [0xff, 0xff, 0xff];
 /// Drawn this many times larger, then made smaller.
@@ -26,6 +28,7 @@ pub fn qnc_mark(size: u32) -> Vec<u8> {
     }
     if let Ok(font) = FontRef::try_from_slice(epaint_default_fonts::HACK_REGULAR) {
         letters(&font, big, &mut ink);
+        ink = thicker(&ink, big, (big as f32 * BOLD).round() as i64);
     }
     let mut pixels = Vec::with_capacity((size * size * 4) as usize);
     for y in 0..size {
@@ -51,6 +54,34 @@ pub fn qnc_mark(size: u32) -> Vec<u8> {
     pixels
 }
 
+/// The letters grown by `reach` pixels on every side (each pixel takes the most ink within a
+/// circle of that reach), so a regular font reads bold.
+fn thicker(ink: &[f32], big: u32, reach: i64) -> Vec<f32> {
+    if reach <= 0 {
+        return ink.to_vec();
+    }
+    let side = i64::from(big);
+    let mut out = vec![0f32; ink.len()];
+    for y in 0..side {
+        for x in 0..side {
+            let mut most = 0f32;
+            for dy in -reach..=reach {
+                for dx in -reach..=reach {
+                    if dx * dx + dy * dy > reach * reach {
+                        continue;
+                    }
+                    let (sx, sy) = (x + dx, y + dy);
+                    if sx >= 0 && sy >= 0 && sx < side && sy < side {
+                        most = most.max(ink[(sy * side + sx) as usize]);
+                    }
+                }
+            }
+            out[(y * side + x) as usize] = most;
+        }
+    }
+    out
+}
+
 /// How much of a pixel at (x, y) is inside the rounded square of `side` with corners of `radius`.
 fn inside_rounded(x: f32, y: f32, side: f32, radius: f32) -> f32 {
     let cx = x.clamp(radius, side - radius);
@@ -61,7 +92,8 @@ fn inside_rounded(x: f32, y: f32, side: f32, radius: f32) -> f32 {
 
 /// "QNC" as large as fits the square with a small margin, in its middle.
 fn letters(font: &FontRef<'_>, big: u32, ink: &mut [f32]) {
-    let room = big as f32 * 0.86;
+    // Room for the letters once they are made thicker.
+    let room = big as f32 * (0.86 - 2.0 * BOLD);
     let mut scale = PxScale::from(big as f32);
     let width = |scale: PxScale| -> f32 {
         let scaled = font.as_scaled(scale);

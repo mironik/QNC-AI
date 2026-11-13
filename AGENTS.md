@@ -557,4 +557,7 @@ fontom Hack koji QNC vec nosi, na plavom zaobljenom kvadratu, RGBA bez predmnoze
 smanjeno). `qnc-tray` `Tray::start(.., icon: Option<fn(u32) -> Vec<u8>>)`: Windows adapter trazi sliku u velicini male
 ikone zaslona (`SM_CXSMICON`) i od nje pravi ikonu (`CreateIconIndirect`); bez slike ili kad je sustav ne uzme, opca
 ikona aplikacije. Tray je predaje. Primjer `qnc-app-mark/examples/save_mark.rs` sprema PNG-ove za pregled. Test
-`the_mark_has_its_size_clear_corners_and_white_letters_in_the_middle`, release gradnja trayja. Uzivo nije provjereno.
+`the_mark_has_its_size_clear_corners_and_white_letters_in_the_middle`, release gradnja trayja. Popravak: maska ikone popunjena
+nulama (bitmapa bez bitova imala je sto god je bilo u memoriji); drugi primjerak trayja u log pise da prvi radi. Izmjena
+(korisnik: "ikona se vidi, podebljaj slova, neka kocka bude crna"): kvadrat crn, slova podebljana sirenjem za 2,8 % kvadrata
+(`thicker`). Uzivo: ikona se vidi u traci.
