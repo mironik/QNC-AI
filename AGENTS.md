@@ -520,3 +520,8 @@ izjava i ima govor na A1 ostaje cijeli (vrsta `statement`), ostali kadrovi istog
 Klipovi vec analizirani ne dobivaju zum dok se ne analiziraju ponovno (`ANALYSIS_VERSION` nije podignut); izjave dosad nisu
 bile analizirane, pa ih radnik uzima sam. Testovi `qnc-shot-detect`, `qnc-shot-db`, `qnc-shot-content-run`,
 `qnc-shot-caption-run`, release gradnja radnika. Uzivo nije provjereno; pravilo `statement_shots` nema vlastiti test.
+Izmjena 2026-11-13 (korisnik: "da, podigni verziju analize"): `qnc-shot-db` `ANALYSIS_VERSION` 2 -> 3 i `qnc-shot-content-db`
+`CONTENT_VERSION` 3 -> 4 (sadrzaj kadra se veze na dijelove analize, pa se radi iznova uz nju): svi klipovi aktivnog projekta
+analiziraju se i pregledavaju jednom ponovno i dobivaju zum, odzum i izjavu po kadru. Opisi kadrova (Florence-2) su po kljucu
+kadra u bazi racunala, pa novi kadrovi dobivaju svoje. Testovi `qnc-shot-db`, `qnc-shot-content-db`, `qnc-shot-content-run`,
+release gradnja radnika, `cargo check` QNC-a. Uzivo nije provjereno.
