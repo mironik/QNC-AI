@@ -548,3 +548,7 @@ koja uzme bazu uzima i povezane (`write_story_base`). Prozor pise svaku karticu 
 `card_ingest.already_imported`, `_new`). Testovi `qnc-attached-cards`, `qnc-card-ingest`, `qnc-card-autoselect`,
 `qnc-wizard-text`; release gradnja radnika i prozora uvoza (tray je radio, nije zamijenjen). `qnc-ingest-base` veze nemaju test.
 Uzivo nije provjereno.
+Izmjena 2026-11-13 (korisnik: "ako nema baza, brisanje baze bi trebalo biti neaktivno (blijeda slova)"): stavka trayja "Obrisi
+bazu" je neaktivna kad nema nijedne Ingest baze; broj baza cita se uz zadnji projekt (svakih 10 s) i odmah nakon brisanja baze
+(`apps/qnc-ai-tray` `menu(.., has_bases)`); baze koje se ne mogu procitati ne gase stavku (brisanje tada kaze zasto). Tray
+izgraden (release).

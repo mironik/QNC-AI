@@ -38,7 +38,7 @@ fn log(line: String) {
 }
 
 /// The menu for where the story is: the status line (it only tells), "Eject" for each card, Go on, Quit.
-fn menu(status: Option<&Status>, last: Option<&str>) -> Vec<MenuItem> {
+fn menu(status: Option<&Status>, last: Option<&str>, has_bases: bool) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
     if let Some(status) = status {
@@ -57,8 +57,9 @@ fn menu(status: Option<&Status>, last: Option<&str>) -> Vec<MenuItem> {
     items.push(MenuItem { id: PROJECTS, text: text("tray.projects"), enabled: true });
     // Settings are rarely used and apart from the wizard (user 2026-11-11).
     items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
-    // The Ingest base and its folder, after a question (user 2026-11-12).
-    items.push(MenuItem { id: DELETE_BASE, text: text("tray.delete_base"), enabled: true });
+    // The Ingest base and its folder, after a question (user 2026-11-12); greyed when there is no
+    // base (user 2026-11-13).
+    items.push(MenuItem { id: DELETE_BASE, text: text("tray.delete_base"), enabled: has_bases });
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
     items
 }
@@ -74,7 +75,7 @@ fn main() {
         }
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None)) {
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None, false)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -105,6 +106,8 @@ fn main() {
     // The project worked on last (id, name), read again now and then for the menu.
     let mut last: Option<(String, String)> = None;
     let mut last_read: Option<Instant> = None;
+    // Whether there is an Ingest base to delete, read with the last project.
+    let mut has_bases = false;
     loop {
         flow.poll();
         let status = flow.status();
@@ -114,14 +117,16 @@ fn main() {
                 log(format!("last project not read: {error}"));
                 None
             });
+            // Not read is not greyed: the delete then says why.
+            has_bases = qnc_ingest_base::all(&root).map_or(true, |bases| !bases.is_empty());
         }
         // Without a card and without a project there is no story yet: the tray waits.
         let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
         let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
         let last_name = last.as_ref().map(|(_, name)| name.as_str());
-        let key = format!("{line}|{}", last_name.unwrap_or(""));
+        let key = format!("{line}|{}|{has_bases}", last_name.unwrap_or(""));
         if shown.as_ref() != Some(&key) {
-            tray.set_menu(menu(story, last_name));
+            tray.set_menu(menu(story, last_name, has_bases));
             tray.set_tip(&format!("{}: {line}", text("tray.title")));
             shown = Some(key);
         }
@@ -227,6 +232,8 @@ fn main() {
         }
         while let Ok((label, result)) = deleted.1.try_recv() {
             removing = false;
+            // The menu says at once whether a base is left to delete.
+            last_read = None;
             match result {
                 Ok(()) => {
                     log(format!("base deleted {label}"));
