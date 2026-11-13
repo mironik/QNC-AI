@@ -454,3 +454,8 @@ Trajanje kao do sada. Aplikacije izgradjene 2026-11-13 (desktop i Story s `libav
 Ponovni prijepis 2026-11-13 (korisnik: "izgradi i prepiši 3608"): Mironik 3608 u bazi 22:03 prepisan je ponovno
 kroz isti red prijepisa (primjer `qnc-transcribe-queue/examples/again.rs`, kopiran uz aplikaciju jer red trazi
 programe uz sebe), 105 s u jednom prolazu. Tekst 1444-4266 ("kad je riječ o miši...") je tu; ostale stanke 2-3 s.
+Popravak 2026-11-13 (korisnik: "u tab Prijepisi stavio si i klipove koji nemaju prijepis"): uvoz kroz tray prepise
+svaki klip, a klip bez govora dobije prazan prijepis (0 redaka). Tab Prijepis uzimao je svaki klip s prijepisom.
+Sada uzima samo klipove ciji prijepis ima rijeci (`qnc-transcript-db` `read_spoken`, nova operacija `ReadSpoken` u
+QNC-shared; `qnc-transcript`). Radnik i dalje koristi `read_transcribed` (klip bez govora se ne prepisuje ponovno).
+Test prosiren. AI Media Assist ceka gradnju (bio je otvoren).
