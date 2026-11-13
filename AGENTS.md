@@ -599,3 +599,8 @@ pozadini"): u prozoru uvoza "Pokreni QNC" je dostupan cim su svi klipovi uvezeni
 zaustavljen ili iskljucen u postavkama; `qnc-card-ingest` `Progress::ready_for_qnc`), ne tek kad je sve gotovo. Klik otvara
 QNC i zatvara prozor; filmstrip, valovi i AI rade dalje u pozadinskom procesu, koji ne ovisi o prozoru. Test
 `qnc_can_start_once_every_clip_is_imported_and_heard_the_rest_goes_on`, release gradnja prozora. Uzivo nije provjereno.
+Izmjena 2026-11-13 (korisnik, slika preglednika u prozoru uvoza: "na ovom direktorij panelu treba takoder pisati naziv
+kamere"): u popisu diskova uz disk spojene kartice pise model kamere ("Kartica / USB · Sony ILME-FX3A"). `qnc-card-ingest`
+cita spojene kartice i kad je pokrenut samo za direktorij (`card_cameras`, po serijskom broju volumena; za uvoz se kartice i
+dalje uzimaju samo uz uvoz kartice), `qnc-ingest-blocks` `source_browser(.., cameras)`; Ingest forma predaje prazan popis
+(nema promjene). Uzivo nije provjereno.

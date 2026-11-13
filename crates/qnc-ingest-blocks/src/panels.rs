@@ -24,7 +24,14 @@ pub(super) fn pool_tabs(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, th
     qnc_pool_tabs_panel::show(ui, rect, (theme, head.tab_gap), &tabs, |id| view.pool_tab.as_deref() == Some(id), |_| true).map(IngestIntent::empty)
 }
 
-pub(super) fn browser(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, theme: &Theme, view: &IngestViewModel) -> Option<IngestIntent> {
+pub(super) fn browser(
+    ui: &mut Ui,
+    rect: Rect,
+    contracts: &IngestContracts,
+    theme: &Theme,
+    view: &IngestViewModel,
+    cameras: &std::collections::BTreeMap<String, String>,
+) -> Option<IngestIntent> {
     let labels = &contracts.ingest.dir_browser;
     let kinds: Vec<&str> = KINDS.iter().enumerate().map(|(index, kind)| labels.kinds.get(index).map_or(kind.label(), String::as_str)).collect();
     let empty = match view.source_kind {
@@ -34,6 +41,16 @@ pub(super) fn browser(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, them
         SourceKind::Bases => &labels.empty_bases,
     };
     let browser = &view.browser;
+    // A disk whose camera is known has it beside its name ("Kartica / USB · Sony ILME-FX3A",
+    // user 2026-11-13: a number alone says little).
+    let names: Vec<String> = browser
+        .entries
+        .iter()
+        .map(|entry| match cameras.get(&entry.serial_number.to_ascii_lowercase()) {
+            Some(camera) if browser.roots => format!("{} · {camera}", entry.name),
+            _ => entry.name.clone(),
+        })
+        .collect();
     let (focused_entry, opened) = qnc_list_focus::list_keys(ui, "qnc-ingest-browser", browser.entries.len(), &view.focus, qnc_focus_walk::BROWSER);
     let input = BrowserInput {
         id_salt: "qnc-ingest-browser",
@@ -41,7 +58,7 @@ pub(super) fn browser(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, them
         kind: KINDS.iter().position(|kind| *kind == view.source_kind).unwrap_or(0),
         nav: if browser.roots { Nav::Roots { empty } } else { Nav::Path(&browser.path_label) },
         body: if browser.roots { Body::Nothing } else { Body::Folders },
-        entries: browser.entries.iter().map(|entry| Entry { name: &entry.name, serial: &entry.serial_number, volume: &entry.volume_name, uri: &entry.qnc_uri }).collect(),
+        entries: browser.entries.iter().zip(&names).map(|(entry, name)| Entry { name, serial: &entry.serial_number, volume: &entry.volume_name, uri: &entry.qnc_uri }).collect(),
         can_up: browser.parent_available,
         can_disks: !view.command_busy,
         busy: browser.busy,

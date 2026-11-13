@@ -13,8 +13,16 @@ mod panels;
 
 /// Ingest's source browser alone in `rect` (sources, folders, Select and Cancel), for a window that
 /// lets the user pick a source that is no card (QNC-AI's import of a folder, user 2026-11-13).
-pub fn source_browser(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, theme: &Theme, view: &IngestViewModel) -> Option<IngestIntent> {
-    panels::browser(ui, rect, contracts, theme, view)
+/// `cameras` names the camera of a disk by its volume serial: it is written beside the disk.
+pub fn source_browser(
+    ui: &mut Ui,
+    rect: Rect,
+    contracts: &IngestContracts,
+    theme: &Theme,
+    view: &IngestViewModel,
+    cameras: &std::collections::BTreeMap<String, String>,
+) -> Option<IngestIntent> {
+    panels::browser(ui, rect, contracts, theme, view, cameras)
 }
 
 /// Ingest on the one desktop board: preview in the monitor, pool tabs and transport in the
@@ -37,7 +45,7 @@ pub fn render_desktop(
         "preview" => panels::preview(ui, rect, contracts, theme, view),
         "pool-head" => framed(panels::pool_tabs(ui, rect, contracts, theme, view), ui, rect, &[qnc_focus_walk::POOL_TABS]),
         "transport" => qnc_transport_panel::show(ui, rect, theme, contracts.ingest.pool_head.tab_gap).map(|action| IngestIntent::empty(&action)),
-        "source-browser" => framed(panels::browser(ui, rect, contracts, theme, view), ui, rect, &[qnc_focus_walk::SOURCE_KINDS, qnc_focus_walk::BROWSER, qnc_focus_walk::BROWSER_BUTTONS]),
+        "source-browser" => framed(panels::browser(ui, rect, contracts, theme, view, &Default::default()), ui, rect, &[qnc_focus_walk::SOURCE_KINDS, qnc_focus_walk::BROWSER, qnc_focus_walk::BROWSER_BUTTONS]),
         "clip-cards" => framed(panels::pool(ui, contracts, theme, view), ui, rect, &[qnc_focus_walk::CARDS]),
         "source-dock" => framed(panels::source_dock(ui, contracts, theme, view), ui, rect, &[qnc_focus_walk::SOURCE_TIMELINE, qnc_focus_walk::SOURCE_BUTTONS]),
         _ => None,

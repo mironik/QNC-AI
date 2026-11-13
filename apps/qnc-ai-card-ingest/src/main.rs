@@ -103,7 +103,7 @@ impl eframe::App for Window {
                 ui.label(RichText::new(text("card_ingest.choose_folder")).size(theme.font_ui + 6.0).color(theme.text).strong());
                 ui.add_space(8.0);
                 let rect = ui.available_rect_before_wrap();
-                answer = qnc_ingest_blocks::source_browser(ui, rect, &self.contracts, &theme, self.ingest.view());
+                answer = qnc_ingest_blocks::source_browser(ui, rect, &self.contracts, &theme, self.ingest.view(), self.ingest.card_cameras());
             });
             match answer {
                 Some(intent) if intent.action_id == qnc_ingest_application::action_ids::INGEST_DIR_CANCEL => {

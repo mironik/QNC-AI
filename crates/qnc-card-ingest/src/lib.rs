@@ -178,6 +178,8 @@ pub struct CardIngest {
     folder: Option<FolderPick>,
     /// The cards attached are ingested too (not when the window was started for a folder alone).
     cards_too: bool,
+    /// The camera of each card attached, by its volume serial (lower case).
+    card_cameras: std::collections::BTreeMap<String, String>,
 }
 
 /// Where the pick of a folder is.
@@ -222,6 +224,11 @@ impl CardIngest {
     /// What Ingest shows (its browser while a folder is picked).
     pub fn view(&self) -> &qnc_ingest_application::IngestViewModel {
         self.application.view()
+    }
+
+    /// The camera of each card attached, by its volume serial (lower case).
+    pub fn card_cameras(&self) -> &std::collections::BTreeMap<String, String> {
+        &self.card_cameras
     }
 
     /// Whether a folder is still to be picked.
@@ -315,13 +322,19 @@ impl CardIngest {
             looked: false,
             folder: None,
             cards_too: true,
+            card_cameras: Default::default(),
         })
     }
 
     /// One step: the cards attached, Ingest polled, the next action sent.
     pub fn poll(&mut self) -> Status {
         // A folder picked by the user: the cards attached are not this window's.
-        let cards = if self.cards_too { self.attached.poll() } else { None };
+        let polled = self.attached.poll();
+        // The camera of every card attached, for the browser's list of disks (also for a folder alone).
+        if let Some(Ok(cards)) = &polled {
+            self.card_cameras = cards.iter().filter_map(|card| Some((card.serial.to_ascii_lowercase(), card.camera.clone()?))).collect();
+        }
+        let cards = if self.cards_too { polled } else { None };
         if let Some(Ok(cards)) = cards {
             self.looked = true;
             // A card an earlier base already has is not imported again: the base Ingest works in
