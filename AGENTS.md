@@ -576,3 +576,10 @@ kamere ili pojedinacne datoteke, kao u Ingestu), zatim isto kao kartica (svi kli
 filmstrip, AI). Odustani zatvara prozor (baza koju je `current` napravila ostaje prazna). Rjecnik wizarda
 `tray.ingest_folder`, `tray.ingest_runs`, `card_ingest.choose_folder`. Testovi `qnc-card-ingest`, `qnc-wizard-text`, release
 gradnja trayja i prozora uvoza. Uzivo nije provjereno.
+Dopuna 2026-11-13 (korisnik: "dok uvozi s jedne kartice ne dozvoljava pristup direktorija uvozu"): prozor uvoza je i dalje
+jedan, ali uvoz iz direktorija radi i dok on uvozi karticu: tray pokrene prozor s `--folder`, a taj primjerak, kad prvi vec
+radi, da mu signal i zavrsi (`qnc-tray` `Signal`: imenovani dogadaj sesije, samo "sad", bez stanja; `listen`, `fired`, `fire`).
+Prozor koji radi tada pokaze preglednik (`qnc-card-ingest` `pick_folder`); preglednik uzme tek kad nijedna kartica nije u
+Selectu, a dok ga korisnik drzi kartice se ne odabiru; uvoz, posteri, valovi i AI vec odabranih klipova idu dalje u pozadini.
+Odaberi direktorij dodaje njegove klipove u istu bazu; Odustani vraca na uvoz kartice (`cancel_folder`), a prozor pokrenut
+samo za direktorij zatvara. Uzivo nije provjereno.

@@ -163,8 +163,10 @@ pub struct CardIngest {
     read: Receiver<Progress>,
     /// The attached cards were looked at once.
     looked: bool,
-    /// The source is a folder the user picks, not the cards attached (user 2026-11-13).
+    /// A folder the user picks (user 2026-11-13), as the source or beside the cards.
     folder: Option<FolderPick>,
+    /// The cards attached are ingested too (not when the window was started for a folder alone).
+    cards_too: bool,
 }
 
 /// Where the pick of a folder is.
@@ -186,8 +188,24 @@ impl CardIngest {
     pub fn start_folder(root: &Path) -> Result<Self, String> {
         let mut ingest = Self::start(root)?;
         ingest.folder = Some(FolderPick::Choosing { listed: false });
+        ingest.cards_too = false;
         ingest.looked = true;
         Ok(ingest)
+    }
+
+    /// A folder to pick beside what runs (the tray's "Import from a folder" while a card is
+    /// ingested, user 2026-11-13): the browser is shown once the card's Select has ended; what
+    /// the worker does goes on.
+    pub fn pick_folder(&mut self) {
+        if !self.choosing() {
+            self.folder = Some(FolderPick::Choosing { listed: false });
+        }
+    }
+
+    /// Back from the browser without a folder; a window started for a folder alone ends.
+    pub fn cancel_folder(&mut self) -> bool {
+        self.folder = None;
+        self.cards_too
     }
 
     /// What Ingest shows (its browser while a folder is picked).
@@ -219,7 +237,8 @@ impl CardIngest {
     fn folder_step(&mut self) {
         let view = self.application.view();
         let next = match &self.folder {
-            Some(FolderPick::Choosing { listed: false }) if !view.browser.busy && !view.work_settings_loading => {
+            // The browser is Ingest's: it is taken once no card is being gone to.
+            Some(FolderPick::Choosing { listed: false }) if !self.auto.busy() && !view.command_busy && !view.browser.busy && !view.work_settings_loading => {
                 self.application.dispatch(IngestIntent::empty(action_ids::INGEST_SOURCE_KIND_LOCAL));
                 Some(FolderPick::Choosing { listed: true })
             }
@@ -284,13 +303,14 @@ impl CardIngest {
             read,
             looked: false,
             folder: None,
+            cards_too: true,
         })
     }
 
     /// One step: the cards attached, Ingest polled, the next action sent.
     pub fn poll(&mut self) -> Status {
         // A folder picked by the user: the cards attached are not this window's.
-        let cards = if self.folder.is_none() { self.attached.poll() } else { None };
+        let cards = if self.cards_too { self.attached.poll() } else { None };
         if let Some(Ok(cards)) = cards {
             self.looked = true;
             // A card an earlier base already has is not imported again: the base Ingest works in
@@ -324,7 +344,10 @@ impl CardIngest {
         if self.folder.is_some() {
             self.folder_step();
         }
-        if let Some(intent) = self.auto.next(self.application.view()) {
+        // While the user has the browser (a folder picked or Selected), no card is gone to.
+        let browser_taken = matches!(self.folder, Some(FolderPick::Choosing { listed: true } | FolderPick::Taking(_) | FolderPick::Selecting));
+        let next = if browser_taken { None } else { self.auto.next(self.application.view()) };
+        if let Some(intent) = next {
             self.making = false;
             self.selected = true;
             self.application.dispatch(intent);

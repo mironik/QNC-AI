@@ -148,6 +148,53 @@ impl Tray {
     }
 }
 
+/// A wake-up one running program waits for and another program gives it (no state, only "now"):
+/// a second copy that may not run asks the first to do what it was started for. The program that
+/// listens holds it while it runs.
+pub struct Signal {
+    #[cfg(windows)]
+    inner: windows::Signal,
+}
+
+impl Signal {
+    pub fn listen(name: &str) -> Result<Self, String> {
+        #[cfg(windows)]
+        {
+            Ok(Self { inner: windows::Signal::listen(name)? })
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = name;
+            Err("a signal between programs is not made for this system yet".into())
+        }
+    }
+
+    /// Whether it was given since the last ask (never waits).
+    pub fn fired(&self) -> bool {
+        #[cfg(windows)]
+        {
+            self.inner.fired()
+        }
+        #[cfg(not(windows))]
+        {
+            false
+        }
+    }
+
+    /// Gives it to the program that listens; `false` when none listens.
+    pub fn fire(name: &str) -> bool {
+        #[cfg(windows)]
+        {
+            windows::Signal::fire(name)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = name;
+            false
+        }
+    }
+}
+
 /// One running copy of a program on this computer for this user: `None` when another copy runs.
 /// The copy holds it while it runs.
 pub struct OneCopy {

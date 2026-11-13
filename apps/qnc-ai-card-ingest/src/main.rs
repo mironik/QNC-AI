@@ -26,7 +26,12 @@ struct Window {
     done_after: std::collections::HashMap<&'static str, std::time::Duration>,
     /// Brought above the other applications when the ingest ended, until the user is in it.
     on_top: bool,
+    /// A second copy started for a folder asks this one to show the browser.
+    folder_asked: Option<qnc_tray::Signal>,
 }
+
+/// The signal a copy started for a folder gives the copy that runs.
+const FOLDER_SIGNAL: &str = "QNC-AI-card-ingest-folder";
 
 /// m:ss, or h:mm:ss past an hour.
 fn clock(time: std::time::Duration) -> String {
@@ -41,6 +46,14 @@ impl eframe::App for Window {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let theme = qnc_ingest_layout::theme::Theme::from_contract(&self.contracts.shell);
         qnc_ingest_layout::theme::apply(ctx, &theme);
+        // The tray's "Import from a folder" while this window runs (a card being ingested): the
+        // browser is shown here, the card's import goes on (user 2026-11-13).
+        if self.folder_asked.as_ref().is_some_and(qnc_tray::Signal::fired) {
+            log("ai-card-ingest a folder is asked for beside what runs".into());
+            self.ingest.pick_folder();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
         let status: Status = self.ingest.poll();
         // Its base is no longer the active project (closed to be deleted): the window ends and
         // lets the base's database go.
@@ -94,8 +107,11 @@ impl eframe::App for Window {
             });
             match answer {
                 Some(intent) if intent.action_id == qnc_ingest_application::action_ids::INGEST_DIR_CANCEL => {
-                    log("ai-card-ingest folder not picked: the window closes".into());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    // Started for a folder alone: the window ends; beside a card: back to its import.
+                    if !self.ingest.cancel_folder() {
+                        log("ai-card-ingest folder not picked: the window closes".into());
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
                 }
                 Some(intent) => self.ingest.choose(intent),
                 None => {}
@@ -182,10 +198,18 @@ impl eframe::App for Window {
 
 fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-card-ingest");
-    let Ok(Some(_one)) = qnc_tray::OneCopy::take("QNC-AI-card-ingest") else { return Ok(()) };
-    let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     // `--folder`: the source is a folder the user picks (the tray's "Import from a folder").
     let folder = std::env::args().any(|arg| arg == "--folder");
+    let Ok(Some(_one)) = qnc_tray::OneCopy::take("QNC-AI-card-ingest") else {
+        // A copy runs: it shows the browser beside what it does.
+        if folder {
+            let told = qnc_tray::Signal::fire(FOLDER_SIGNAL);
+            log(format!("ai-card-ingest a copy runs: asked it for a folder ({told})"));
+        }
+        return Ok(());
+    };
+    let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    let folder_asked = qnc_tray::Signal::listen(FOLDER_SIGNAL).map_err(|error| log(format!("ai-card-ingest folder signal: {error}"))).ok();
     let started = qnc_ingest_layout::IngestContracts::load()
         .and_then(|contracts| Ok((contracts, if folder { CardIngest::start_folder(&root)? } else { CardIngest::start(&root)? })));
     let (contracts, ingest) = match started {
@@ -195,7 +219,7 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: false };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: false, folder_asked };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default().with_title(text("card_ingest.title")).with_inner_size([540.0, 570.0]).with_resizable(false),

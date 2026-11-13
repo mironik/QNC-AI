@@ -407,9 +407,22 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::pro
 /// folder to import (a source that is no card), and the cards attached are left alone.
 fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Option<std::process::Child>, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, folder: bool) {
     if runs(ingest) {
-        // One window at a time: the one that runs is still busy with its source.
+        // One window at a time: asked for a folder, the window that runs shows the browser beside
+        // the card it ingests (a copy started with `--folder` tells it so and ends), in its base.
         if folder {
-            tray.notify(&text("tray.title"), &text("tray.ingest_runs"));
+            let program = std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-card-ingest{}", std::env::consts::EXE_SUFFIX))))
+                .unwrap_or_default();
+            let mut command = std::process::Command::new(&program);
+            command.current_dir(root).env("QNC_ROOT", root).arg("--folder");
+            match command.spawn() {
+                Ok(_) => log("ingest runs: asked it for a folder".into()),
+                Err(error) => {
+                    log(format!("ingest runs: folder not asked: {error}"));
+                    tray.notify(&text("tray.title"), &text("tray.ingest_runs"));
+                }
+            }
         }
         return;
     }

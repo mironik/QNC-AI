@@ -356,3 +356,48 @@ impl Drop for OneCopy {
         unsafe { CloseHandle(self.0) };
     }
 }
+
+/// A named event of this session that one program waits for and another fires (auto-reset).
+pub(crate) struct Signal(HANDLE);
+
+// SAFETY: the handle is only waited on and closed, once, by its owner.
+unsafe impl Send for Signal {}
+
+impl Signal {
+    pub(crate) fn listen(name: &str) -> Result<Self, String> {
+        let name = wide(&format!("Local\\{name}"));
+        // SAFETY: a named event of this session; the name lives through the call.
+        let handle = unsafe { windows_sys::Win32::System::Threading::CreateEventW(std::ptr::null(), 0, 0, name.as_ptr()) };
+        if handle.is_null() {
+            return Err(format!("signal: {}", unsafe { GetLastError() }));
+        }
+        Ok(Self(handle))
+    }
+
+    pub(crate) fn fired(&self) -> bool {
+        // SAFETY: a wait of no time on the event this owner made; it is reset by the wait.
+        unsafe { windows_sys::Win32::System::Threading::WaitForSingleObject(self.0, 0) == windows_sys::Win32::Foundation::WAIT_OBJECT_0 }
+    }
+
+    pub(crate) fn fire(name: &str) -> bool {
+        let name = wide(&format!("Local\\{name}"));
+        // SAFETY: the event is opened, set and closed within the call.
+        unsafe {
+            use windows_sys::Win32::System::Threading::{OpenEventW, SetEvent, EVENT_MODIFY_STATE};
+            let handle = OpenEventW(EVENT_MODIFY_STATE, 0, name.as_ptr());
+            if handle.is_null() {
+                return false;
+            }
+            let set = SetEvent(handle) != 0;
+            CloseHandle(handle);
+            set
+        }
+    }
+}
+
+impl Drop for Signal {
+    fn drop(&mut self) {
+        // SAFETY: the handle this owner made.
+        unsafe { CloseHandle(self.0) };
+    }
+}
