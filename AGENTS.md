@@ -467,3 +467,5 @@ u QNC-shared) iza naziva klipa pokazuje TC pocetka klipa, TC playheada, TC kraja
 (sekunde:slike, od minute minute:sekunde:slike), bez IN/OUT; zamjenjuje "Trajanje do playheada" od 16. 10. Mjerac
 razine (`qnc-level-bar`) je 200 px (prije 78 px), gumbi NORM, AI, ZADRZI isti; jedna kocka, iste mjere u svakoj formi.
 Klasicni QNC dobiva istu traku (bez `with_clip_frames`: kraj je kraj prikazanog dijela).
+Dopuna 2026-11-13 (korisnik: "da ne bi netko krivo shvatio duljinu odabranog dijela, prikaz broja frejmova neka bude
+druge nijanse boje"): u trajanju je broj slika (iza zadnje dvotocke) u boji fokusa teme timelinea.
