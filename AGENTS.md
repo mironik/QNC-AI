@@ -486,6 +486,12 @@ velicine; normalni i maksimizirani prozor su isti, nista manje se ne prikazuje. 
 MA Script, MA Audio, MA Video, S-Story, Story) predaju joj samo naslov i aplikaciju (`qnc_form_window::run`); naredba
 `Maximized` i skrivanje uklonjeni. Izmjereno (MA Video, svakih 25 ms): prozor se pojavi 1550x878 i odmah je
 maksimiziran. Ostali OS: samo maksimiziranje (radna povrsina se zasad cita samo na Windowsima).
+Ispravak istog dana (korisnik: "i dalje se pokaže manji prazan prozor a onda maximize"; izmjereno svim prozorima
+procesa bez pauze: prikazan maksimiziran, skriven, prikazan u normalnoj velicini i prazan, skriven, prikazan):
+prozor stvoren kao maksimiziran Windows odmah prikaze (`SW_MAXIMIZE`), eframe ga skriva do prvog crtanja, winit ga
+ponovno prikazuje u normalnoj velicini. `qnc-form-window` vise ne stvara prozor maksimiziran: stvara ga na mjestu i u
+velicini radne povrsine, eframe ga prikaze jednom, nacrtan, a dvije slike kasnije trazi se `Maximized`. Izmjereno: prozor
+se pojavi jednom (1550x902), za 112 ms je maksimiziran (1550x878); bez skrivanja i bez manjeg prozora.
 Izmjena 2026-11-13 (korisnik: "info prozor importa ostaje istih dimenzija, nije dio desktopa; dok se odvija import
 korisnik moze raditi nesto drugo; ako ga minimizira, kad import zavrsi treba se otvoriti iznad drugih aplikacija"):
 prozor uvoza kartice (`apps/qnc-ai-card-ingest`) kad je uvoz gotov vraca se iz minimiziranog, dolazi iznad ostalih
