@@ -53,6 +53,7 @@ qnc-camera-profile-adapter = { path = "../QNC-shared/crates/qnc-camera-profile-a
 qnc-camera-profiles = { path = "../QNC-shared/crates/qnc-camera-profiles" }
 qnc-card-autoselect = { path = "crates/qnc-card-autoselect" }
 qnc-card-eject = { path = "crates/qnc-card-eject" }
+qnc-autoplay-guard = { path = "crates/qnc-autoplay-guard" }
 qnc-card-watch = { path = "crates/qnc-card-watch" }
 qnc-channel-picker = { path = "../QNC-shared/crates/qnc-channel-picker" }
 qnc-choice-box = { path = "../QNC-shared/crates/qnc-choice-box" }

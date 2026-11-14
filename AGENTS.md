@@ -675,3 +675,10 @@ je karticu nakon izbacivanja medija odmah ponovno spojio): `qnc-card-eject` posl
 medija pusti disk i zatrazi od sustava uklanjanje uredaja diska, a kad ga sustav ne pusti, uredaja na kojem visi (citac), kao
 "Sigurno ukloni hardver" (SetupDi po broju diska, `CM_Request_Device_EjectW`, razlog odbijanja u gresci). Uzivo nije
 provjereno: kartica izbacena tako vraca se tek kad se citac ili kartica ponovno utaknu.
+Izvedeno 2026-11-14 (korisnik: "kad se ubacuje kartica koju poznaje tray, da se ne otvara File Explorer, nego import
+wizard"): nova kocka `crates/qnc-autoplay-guard`: dok radi, odgovara na pitanje Windowsa smije li AutoPlay otvoriti nesto za
+ubaceni disk (`IQueryCancelAutoPlay` u running object tableu, klasni moniker `CLSID_QueryCancelAutoPlay`, vlastita nit s COM-om
+i petljom poruka); odgovor daje pozivatelj. Postavke Windowsa se ne mijenjaju: kad tray ne radi, AutoPlay je kakav ga je korisnik
+postavio. Tray: za disk koji je kartica poznate kamere (`qnc-card-watch` `what_is`) AutoPlay se otkaze i otvara se prozor uvoza
+kao i dosad; za svaki drugi disk AutoPlay radi; odluka ide u log (`autoplay disk= card=`). Test registracije i otpustanja.
+Uzivo nije provjereno.

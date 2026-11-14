@@ -1,0 +1,17 @@
+[package]
+name = "qnc-autoplay-guard"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: while it runs, the system's AutoPlay (File Explorer opening) is cancelled for the disks the caller names, as the system asks the running programs (IQueryCancelAutoPlay); no system setting is changed; an adapter per system (Windows first)"
+
+[dependencies]
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+windows-core = "0.62"

@@ -102,6 +102,19 @@ fn main() {
         }
     };
     log("started".into());
+    // A card of a camera the tray knows: the system does not open File Explorer for it, the
+    // tray's import opens (user 2026-11-14). Any other disk: AutoPlay as the user set it.
+    let _autoplay = {
+        let root = root.clone();
+        qnc_autoplay_guard::guard(Box::new(move |disk, serial| {
+            let volume = qnc_source_volumes::Volume { root: disk.to_path_buf(), serial_number: format!("{serial:08x}"), volume_name: None };
+            let card = qnc_card_watch::catalog(&root).is_ok_and(|catalog| matches!(qnc_card_watch::what_is(&catalog, volume), Found::Card { .. }));
+            log(format!("autoplay disk={} card={card}", disk.display()));
+            card
+        }))
+        .map_err(|error| log(format!("autoplay not taken: {error}")))
+        .ok()
+    };
     // The camera profiles, to name a card's camera by its model.
     let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));

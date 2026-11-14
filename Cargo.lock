@@ -3880,6 +3880,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-ai-open",
  "qnc-app-mark",
+ "qnc-autoplay-guard",
  "qnc-camera-patterns",
  "qnc-camera-profiles",
  "qnc-card-eject",
@@ -4029,6 +4030,14 @@ dependencies = [
  "cpal",
  "rtrb",
  "serde",
+]
+
+[[package]]
+name = "qnc-autoplay-guard"
+version = "0.1.0"
+dependencies = [
+ "windows 0.62.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
