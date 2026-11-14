@@ -21,13 +21,23 @@ pub fn render_desktop(
     theme: &Theme,
     view: &EditorialView,
 ) -> Option<EditorialIntent> {
-    let (faces, board) = (theme.board_faces(), contracts.board_layout(|id| view.tab_selected(id)));
+    // The columns as the user dragged them (a view choice of this window, user 2026-11-14).
+    let sizes_id = egui::Id::new(("qnc-editorial-columns", contracts.group.as_str()));
+    let sizes: qnc_editorial_layout::ColumnSizes = ui.ctx().data(|data| data.get_temp(sizes_id)).unwrap_or_default();
+    let (faces, board) = (theme.board_faces(), contracts.board_layout_sized(|id| view.tab_selected(id), sizes));
     let framed = |intent, ui: &Ui, rect, panels: &[Panel]| { paint_focus(ui, rect, panels.contains(&view.focus.panel), theme.focus); intent };
-    let mut place = |ui: &mut Ui, block: &str, rect: Rect| qnc_dev_diagnostics::timed_block(block, || match block {
+    let placed = std::cell::RefCell::new(std::collections::HashMap::<String, Rect>::new());
+    let mut place = |ui: &mut Ui, block: &str, rect: Rect| { placed.borrow_mut().insert(block.to_string(), rect); qnc_dev_diagnostics::timed_block(block, || match block {
         "preview" => preview(ui, rect, contracts, theme, view),
         "pool-head" => framed(pool_tabs(ui, rect, contracts, theme, view), ui, rect, &[Panel::PoolTabs]),
         "transport" => qnc_transport_panel::show(ui, rect, theme, contracts.tab_gap()).map(|action| EditorialIntent::action(&action)),
         "clip-cards" => framed(pool(ui, contracts, theme, view), ui, rect, &[Panel::Pool]),
+        // The statements made in a column of their own (AI Media Assist, user 2026-11-14).
+        qnc_editorial_layout::STATEMENTS_HEAD => {
+            let title = contracts.statements_pool().map_or("", |pool| pool.title.as_str());
+            qnc_pool_tabs_panel::show(ui, rect, (theme, contracts.tab_gap()), &[qnc_pool_tabs_panel::PoolTab { label: title, action_id: None }], |_| true, |_| true).map(EditorialIntent::action)
+        }
+        qnc_editorial_layout::STATEMENT_CARDS => statements(ui, contracts, theme, view),
         // The group's panels by its layout contract (Segmenti for Story, the transcript for Audio AI and in the MA Script media window).
         block if contracts.panel_at(block).is_some() => {
             let (answer, segments) = qnc_right_panel::show_tabbed(ui, contracts.panel_at(block)?.0, contracts.panel_at(block)?.1, theme, &qnc_right_panel::Shown { segments: &view.segments, cover_lengths: &contracts.editorial.cover_lengths, transcript: &view.focus.transcript, shots: &view.focus.shots, script: &view.focus.script, timecode: view.source_timeline.timecode.as_ref(), ai: &view.focus.ai });
@@ -35,9 +45,31 @@ pub fn render_desktop(
         }
         "source-dock" => framed(source_dock(ui, contracts, theme, view), ui, rect, if view.segments.zoom.is_some() { &[Panel::Segments, Panel::SourceButtons] } else { &[Panel::SourceTimeline, Panel::SourceButtons] }),
         place => qnc_action_bar_panel::show(ui, rect, theme, contracts.editorial.board.block_pad, contracts.action_bar(place), |id| view.action_enabled(id)).map(EditorialIntent::action),
-    });
+    }) };
     let answer = qnc_board::show_in_frame(ui, frame, &board, |name| faces.named(name), &mut place);
+    let placed = placed.borrow().clone();
+    if contracts.statements_pool().is_some() {
+        resize_columns(ui, sizes_id, sizes, &placed);
+    }
     answer.or(qnc_media_overlay::show_board(ui.ctx(), theme, contracts.media_overlay().map(|overlay| overlay.title.as_str()), contracts.media_overlay_layout(|id| view.tab_selected(id)), |name| faces.named(name), place))
+}
+
+/// The borders of the three columns and under the monitor, dragged by the user (user
+/// 2026-11-14): the sizes go into the window's memory and the next frame lays the board out with
+/// them.
+fn resize_columns(ui: &mut Ui, id: egui::Id, sizes: qnc_editorial_layout::ColumnSizes, placed: &std::collections::HashMap<String, Rect>) {
+    let (Some(left), Some(right), Some(monitor), Some(panel)) = (placed.get("pool-head"), placed.get(qnc_editorial_layout::STATEMENTS_HEAD), placed.get("preview"), placed.get("right-panel")) else { return };
+    let (width, height) = ((right.max.x - left.min.x).max(1.0), (panel.max.y - monitor.min.y).max(1.0));
+    let (top, bottom) = (left.min.y, panel.max.y);
+    let mut new = sizes;
+    new.left += qnc_board::drag_edge(ui, id.with("left"), Rect::from_x_y_ranges(left.max.x..=left.max.x, top..=bottom), false) / width;
+    new.right -= qnc_board::drag_edge(ui, id.with("right"), Rect::from_x_y_ranges(right.min.x..=right.min.x, top..=bottom), false) / width;
+    new.monitor += qnc_board::drag_edge(ui, id.with("monitor"), Rect::from_x_y_ranges(monitor.min.x..=monitor.max.x, monitor.max.y..=monitor.max.y), true) / height;
+    let new = new.held();
+    if new != sizes {
+        ui.ctx().data_mut(|data| data.insert_temp(id, new));
+        ui.ctx().request_repaint();
+    }
 }
 
 fn preview(ui: &mut Ui, rect: Rect, contracts: &EditorialContracts, theme: &Theme, view: &EditorialView) -> Option<EditorialIntent> {
@@ -73,6 +105,23 @@ fn source_dock(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view:
     match intent {
         TimelineIntent::None => zoomed.map(EditorialIntent::Action).or(clicked.map(EditorialIntent::action)),
         intent => qnc_source_timeline::SourceTimeline::event_of(&intent).map(EditorialIntent::Action).or(clicked.map(EditorialIntent::action)),
+    }
+}
+
+/// The statements made (the shorts, no B-roll), beside the media pool; a click opens one.
+fn statements(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view: &EditorialView) -> Option<EditorialIntent> {
+    let spec = contracts.pool_spec();
+    let now = qnc_media_pool_panel::PoolNow {
+        chosen_id: view.chosen_shot_id.as_deref().unwrap_or(""),
+        panel_focused: false,
+        step: None,
+        empty_message: contracts.editorial.media_card.empty_message(LibraryTab::Virtual, view.loading, &view.message),
+        id_salt: "editorial_statement_grid",
+    };
+    let shown: Vec<_> = view.shorts.iter().filter(|shot| !shot.b_roll).collect();
+    match qnc_media_pool_panel::show_removable(ui, (theme, LibraryTab::Virtual.corner()), &spec, &now, &shown)? {
+        CardGridAction::Remove(id) => Some(EditorialIntent::Action(qnc_action_event::ActionEvent::key(LibraryTab::Virtual.remove_action()?).with_target(id))),
+        CardGridAction::Activate(id) | CardGridAction::ToggleSelection(id) => Some(EditorialIntent::PreviewShort(id)),
     }
 }
 

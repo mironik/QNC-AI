@@ -68,6 +68,8 @@ pub struct EditorialApplication {
     segments: qnc_program_segments::ProgramSegments,
     wrap: qnc_wrap_session::WrapSession,
     focus: PanelFocus,
+    /// The pool has a tab of the statements (else they have a column of their own, user 2026-11-14).
+    statements_tab: bool,
 }
 
 impl Default for EditorialApplication {
@@ -92,6 +94,7 @@ impl Default for EditorialApplication {
             segments: qnc_program_segments::ProgramSegments::new(),
             wrap: qnc_wrap_session::WrapSession::new(),
             focus: PanelFocus::new(),
+            statements_tab: true,
         }
     }
 }
@@ -100,7 +103,8 @@ impl EditorialApplication {
     /// Starts from the QNC root with the Tab walk of its form. Missing settings end in a
     /// controlled error, never in an invented project.
     pub fn new(root: impl AsRef<Path>, focus: FocusLayout) -> Self {
-        let mut app = Self { focus: PanelFocus::with_layout(focus), ..Self::default() };
+        let statements_tab = focus.tabs.iter().any(|tab| tab == "editorial_tab_virtual");
+        let mut app = Self { focus: PanelFocus::with_layout(focus), statements_tab, ..Self::default() };
         app.bindings = qnc_source_bindings::load(root.as_ref());
         app.preview.wake_worker_from(root.as_ref());
         match ActiveProjectReader::from_root(root.as_ref()) {
@@ -396,7 +400,7 @@ impl EditorialApplication {
         };
         self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks)));
         self.reload_shorts();
-        if self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // from the transcript more statements follow (user 2026-11-01)
+        if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // from the transcript more statements follow (user 2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);
         self.view.chosen_shot_id = Some(saved.shot_id);
     }

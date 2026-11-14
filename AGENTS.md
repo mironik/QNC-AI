@@ -682,3 +682,14 @@ i petljom poruka); odgovor daje pozivatelj. Postavke Windowsa se ne mijenjaju: k
 postavio. Tray: za disk koji je kartica poznate kamere (`qnc-card-watch` `what_is`) AutoPlay se otkaze i otvara se prozor uvoza
 kao i dosad; za svaki drugi disk AutoPlay radi; odluka ide u log (`autoplay disk= card=`). Test registracije i otpustanja.
 Uzivo nije provjereno.
+Izmjena izgleda 2026-11-14 (korisnik, AI Media Assist: "iznad timelinea tri podjele vertikalno: lijevo media pool, desno media
+pool kreiranih izjava, u srednjem dijelu gore monitor, ispod prepis odabranog fajla"; "idealno da se paneli mogu siriti po
+korisnikovim potrebama"; "za QNC neka ostane stari za sada"): ugovor rasporeda grupe e (`contracts/ui/editorial.layout.json`)
+ima `statements_pool` (naslov "Izjave"); tab izjava je iz lijevog poola uklonjen. `qnc-editorial-layout` (QNC-shared): grupa sa
+`statements_pool` ima ploču od tri stupca iznad source timelinea (lijevo tabovi poola, kartice i traka Prijepis; u sredini
+monitor, transport i desni panel grupe, tj. prijepis s tabovima Audio AI / Video AI; desno naslov i kartice izjava;
+`STATEMENTS_HEAD`, `STATEMENT_CARDS`, `ColumnSizes`, `board_layout_sized`); ostale grupe i klasicni QNC nepromijenjeni.
+`qnc-board` `drag_edge`: granicu stupca i granicu ispod monitora korisnik povlaci misem; velicine su izbor prozora dok radi
+(egui memorija), nikad u bazi; nijedan stupac ispod desetine sirine. `qnc-editorial-blocks` crta pool izjava (klik otvara
+izjavu, X je brise) i rucke. `qnc-editorial-application`: spremanje izjave prebacuje tab samo kad pool ima tab izjava. Uzivo nije
+provjereno.

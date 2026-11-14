@@ -144,12 +144,11 @@
           {
             "label": "@pool.tab.transcript",
             "action_id": "editorial_tab_transcript"
-          },
-          {
-            "label": "@pool.tab.sot",
-            "action_id": "editorial_tab_virtual"
           }
         ]
+      },
+      "statements_pool": {
+        "title": "@pool.tab.sot"
       },
       "right_panel": "transcript_panel",
       "right_panel_tabs": [
