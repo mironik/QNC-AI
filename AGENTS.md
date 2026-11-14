@@ -699,3 +699,11 @@ svoj direktorij) QNC-AI ima vlastitu kopiju `qnc-ai-editorial-layout` (ime knjiz
 "stavi je u isti direktorij kao i ostale, u share, samo joj daj novi naziv": kocka je u `QNC-shared/crates/qnc-ai-editorial-layout`
 i ugradjuje svoj ugovor `QNC-shared/contracts/ui/ai-editorial.layout.json` (kopija QNC-AI `contracts/ui/editorial.layout.json`); zajednicka `qnc-editorial-layout` vracena je na stanje prije tri stupca, pa je klasicni QNC
 nepromijenjen. `qnc-board` `drag_edge` ostaje u zajednickoj kocki (opca, samo dodana).
+Izmjena 2026-11-15 (korisnik: "nije sretno rjesenje, vratiti stari izgled, a na desnoj strani ostaviti izjave, ako postoje";
+"neka ostane mogucnost promjene dimenzija svih panela, a trenutni neka bude default"): tri stupca uklonjena. Ploca je opet
+standardna (lijevo monitor, tabovi i transport, media pool; desno prijepis), a desno od prijepisa je stupac izjava samo dok
+postoji izjava (`qnc-ai-editorial-layout` `board_layout_with`, sirina iz ugovora `statements_pool.width` 420). Granice se
+povlace misem: izmedju lijevog stupca i prijepisa, ispod monitora i pred stupcem izjava (`PanelSizes`, `drag_edge` crta crtu u
+boji ruba teme, u boji fokusa dok je mis na njoj); bez povlacenja raspored je kakav ugovor kaze. Velicine su izbor prozora dok
+radi (egui memorija), nikad u bazi. Vrijedi za sve forme ploce u QNC-AI (Story, S-Story, MA); klasicni QNC nepromijenjen.
+Uzivo nije provjereno.

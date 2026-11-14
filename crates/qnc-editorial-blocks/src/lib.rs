@@ -21,10 +21,12 @@ pub fn render_desktop(
     theme: &Theme,
     view: &EditorialView,
 ) -> Option<EditorialIntent> {
-    // The columns as the user dragged them (a view choice of this window, user 2026-11-14).
-    let sizes_id = egui::Id::new(("qnc-editorial-columns", contracts.group.as_str()));
-    let sizes: qnc_editorial_layout::ColumnSizes = ui.ctx().data(|data| data.get_temp(sizes_id)).unwrap_or_default();
-    let (faces, board) = (theme.board_faces(), contracts.board_layout_sized(|id| view.tab_selected(id), sizes));
+    // The statements' column only while there are statements (user 2026-11-14).
+    let any_statement = view.shorts.iter().any(|shot| !shot.b_roll);
+    // The panels as the user dragged their borders (a view choice of this window, user 2026-11-14).
+    let sizes_id = egui::Id::new(("qnc-editorial-panels", contracts.group.as_str()));
+    let sizes: qnc_editorial_layout::PanelSizes = ui.ctx().data(|data| data.get_temp(sizes_id)).unwrap_or_default();
+    let (faces, board) = (theme.board_faces(), contracts.board_layout_with(|id| view.tab_selected(id), any_statement, sizes));
     let framed = |intent, ui: &Ui, rect, panels: &[Panel]| { paint_focus(ui, rect, panels.contains(&view.focus.panel), theme.focus); intent };
     let placed = std::cell::RefCell::new(std::collections::HashMap::<String, Rect>::new());
     let mut place = |ui: &mut Ui, block: &str, rect: Rect| { placed.borrow_mut().insert(block.to_string(), rect); qnc_dev_diagnostics::timed_block(block, || match block {
@@ -47,26 +49,39 @@ pub fn render_desktop(
         place => qnc_action_bar_panel::show(ui, rect, theme, contracts.editorial.board.block_pad, contracts.action_bar(place), |id| view.action_enabled(id)).map(EditorialIntent::action),
     }) };
     let answer = qnc_board::show_in_frame(ui, frame, &board, |name| faces.named(name), &mut place);
-    let placed = placed.borrow().clone();
-    if contracts.statements_pool().is_some() {
-        resize_columns(ui, theme, sizes_id, sizes, &placed);
+    if contracts.media_overlay().is_none() {
+        let placed = placed.borrow().clone();
+        resize_panels(ui, theme, sizes_id, sizes, &placed);
     }
     answer.or(qnc_media_overlay::show_board(ui.ctx(), theme, contracts.media_overlay().map(|overlay| overlay.title.as_str()), contracts.media_overlay_layout(|id| view.tab_selected(id)), |name| faces.named(name), place))
 }
 
-/// The borders of the three columns and under the monitor, dragged by the user (user
-/// 2026-11-14): the sizes go into the window's memory and the next frame lays the board out with
-/// them.
-fn resize_columns(ui: &mut Ui, theme: &Theme, id: egui::Id, sizes: qnc_editorial_layout::ColumnSizes, placed: &std::collections::HashMap<String, Rect>) {
-    let (Some(left), Some(right), Some(monitor), Some(panel)) = (placed.get("pool-head"), placed.get(qnc_editorial_layout::STATEMENTS_HEAD), placed.get("preview"), placed.get("right-panel")) else { return };
-    let (width, height) = ((right.max.x - left.min.x).max(1.0), (panel.max.y - monitor.min.y).max(1.0));
-    let (top, bottom) = (left.min.y, panel.max.y);
-    let mut new = sizes;
+/// The borders the user drags (user 2026-11-14: "mogucnost promjene dimenzija svih panela"):
+/// between the left column and the group's panel, under the monitor and before the statements'
+/// column; the sizes go into the window's memory and the next frame lays the board out with them.
+fn resize_panels(ui: &mut Ui, theme: &Theme, id: egui::Id, sizes: qnc_editorial_layout::PanelSizes, placed: &std::collections::HashMap<String, Rect>) {
+    let (Some(monitor), Some(panel)) = (placed.get("preview"), placed.get("right-panel")) else { return };
+    let statements = (placed.get(qnc_editorial_layout::STATEMENTS_HEAD), placed.get(qnc_editorial_layout::STATEMENT_CARDS));
+    let right_edge = statements.1.map_or(panel.max.x, |cards| cards.max.x);
+    let (top, bottom) = (monitor.min.y, panel.max.y);
+    let width = (right_edge - monitor.min.x).max(1.0);
     let (line, held) = (theme.border, theme.focus);
-    new.left += qnc_board::drag_edge(ui, id.with("left"), Rect::from_x_y_ranges(left.max.x..=left.max.x, top..=bottom), false, line, held) / width;
-    new.right -= qnc_board::drag_edge(ui, id.with("right"), Rect::from_x_y_ranges(right.min.x..=right.min.x, top..=bottom), false, line, held) / width;
-    new.monitor += qnc_board::drag_edge(ui, id.with("monitor"), Rect::from_x_y_ranges(monitor.min.x..=monitor.max.x, monitor.max.y..=monitor.max.y), true, line, held) / height;
-    let new = new.held();
+    let mut new = sizes;
+    let x = (monitor.max.x + panel.min.x) / 2.0;
+    let moved = qnc_board::drag_edge(ui, id.with("left"), Rect::from_x_y_ranges(x..=x, top..=bottom), false, line, held);
+    if moved != 0.0 {
+        new.left = Some(((monitor.max.x - monitor.min.x + moved) / width).clamp(0.15, 0.8));
+    }
+    let moved = qnc_board::drag_edge(ui, id.with("monitor"), Rect::from_x_y_ranges(monitor.min.x..=monitor.max.x, monitor.max.y..=monitor.max.y), true, line, held);
+    if moved != 0.0 {
+        new.monitor = Some((monitor.height() + moved).max(80.0));
+    }
+    if let (Some(head), Some(cards)) = statements {
+        let moved = qnc_board::drag_edge(ui, id.with("statements"), Rect::from_x_y_ranges(cards.min.x..=cards.min.x, head.min.y..=cards.max.y), false, line, held);
+        if moved != 0.0 {
+            new.statements = Some((cards.width() - moved).max(160.0));
+        }
+    }
     if new != sizes {
         ui.ctx().data_mut(|data| data.insert_temp(id, new));
         ui.ctx().request_repaint();
