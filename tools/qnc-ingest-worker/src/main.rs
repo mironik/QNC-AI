@@ -280,8 +280,11 @@ fn run_once(root: &Path) -> Result<bool, String> {
         // shots know which clips are statements (user 2026-11-12).
         let heard = scope.spawn(|| transcribe::run(root, &running, stops.flag(qnc_stopped_work::TRANSCRIPTS)));
         let mut looks = Vec::new();
+        // The shots and what they show (SigLIP) beside the copy; the captions (Florence) only at
+        // the end of the run: they teach SigLIP, nobody waits for them (user 2026-11-14:
+        // "SigLIP, pa tek zatim opisi; opisi nam više služe za treniranje SigLIP-a").
         if copying {
-            for look in [Look::Shots, Look::Captions] {
+            for look in [Look::Shots] {
                 let (running, closed, config, lease, stops) = (&running, &closed, &config, &lease, &stops);
                 looks.push(scope.spawn(move || {
                     while running.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {

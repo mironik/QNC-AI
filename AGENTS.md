@@ -658,3 +658,11 @@ prijepis svakog klipa i zavrsili 7,5 min iza njega, jedan klip po jedan. (1) `qn
 serije od 16 slika odjednom (`MOST_DECODERS`, najvise pola niti racunala), svaka u svojoj mapi; isti klip 27 s -> 13,5-16 s,
 isti kadrovi i dijelovi. (2) `tools/qnc-ingest-worker` `ai_takes`: AI kadrovi uzimaju svaki kopirani klip, ne cekaju prijepis
 (pregled sadrzaja i dalje ceka, za izjave). Uzivo nije provjereno.
+Izmjena 2026-11-14 (korisnik: "15 minuta cekanja za prijepis je neupotrebljivo, montaza ne moze poceti bez prijepisa";
+"prijepis mora biti u priblizno vrijeme filmstripa i vala"; "SigLIP, pa tek zatim opisi; opisi nam vise sluze za treniranje
+SigLIP-a"): log: prijepis (Parakeet, ispod normalnog prioriteta) radio je 2,6-3x stvarnog vremena, a sam na racunalu oko 8x,
+jer su AI dekoderi slika (do 4 ffmpega, normalni prioritet), SigLIP i Florence (ispod normalnog, kao prijepis) dijelili
+procesor s njim. Redoslijed prioriteta sada: player, sucelje, prijepis (ispod normalnog), a pozadinske slike najnize (idle):
+dekoder slika filmstripa i AI kadrova (`qnc-ffmpeg-decode` `run_filmstrip_command` `background`, QNC-shared; slike zooma reza
+ostaju normalne), SigLIP i Florence (`tools/qnc-shot-content-siglip`, `tools/qnc-shot-caption-florence`). Opisi (Florence) ne
+rade vise usporedno s uvozom, nego tek na kraju rada pozadinskog procesa, poslije SigLIP-a. Uzivo nije provjereno.

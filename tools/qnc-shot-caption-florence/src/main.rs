@@ -49,10 +49,12 @@ impl qnc_shot_caption::Engine for Engine {
 
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-shot-caption-florence");
+    // The lowest priority: below the transcription the user waits for (user 2026-11-14:
+    // "montaža ne može početi bez prijepisa"), the player and the desktop.
     #[cfg(windows)]
     unsafe {
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
-        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, IDLE_PRIORITY_CLASS};
+        SetPriorityClass(GetCurrentProcess(), IDLE_PRIORITY_CLASS);
     }
     let mut engine = Engine::default();
     if let Err(error) = qnc_shot_caption::serve("qnc.shot-caption.florence2", env!("CARGO_PKG_VERSION"), "florence-2 (onnx runtime)", &mut engine) {

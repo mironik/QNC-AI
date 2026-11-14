@@ -44,10 +44,12 @@ impl qnc_shot_content::Engine for Engine {
 
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-shot-content-siglip");
+    // The lowest priority: below the transcription the user waits for (user 2026-11-14:
+    // "montaža ne može početi bez prijepisa"), the player and the desktop.
     #[cfg(windows)]
     unsafe {
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
-        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, IDLE_PRIORITY_CLASS};
+        SetPriorityClass(GetCurrentProcess(), IDLE_PRIORITY_CLASS);
     }
     let mut engine = Engine::default();
     if let Err(error) = qnc_shot_content::serve("qnc.shot-content.siglip", env!("CARGO_PKG_VERSION"), "siglip (candle)", &mut engine) {
