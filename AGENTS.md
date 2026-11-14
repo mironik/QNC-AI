@@ -666,3 +666,7 @@ procesor s njim. Redoslijed prioriteta sada: player, sucelje, prijepis (ispod no
 dekoder slika filmstripa i AI kadrova (`qnc-ffmpeg-decode` `run_filmstrip_command` `background`, QNC-shared; slike zooma reza
 ostaju normalne), SigLIP i Florence (`tools/qnc-shot-content-siglip`, `tools/qnc-shot-caption-florence`). Opisi (Florence) ne
 rade vise usporedno s uvozom, nego tek na kraju rada pozadinskog procesa, poslije SigLIP-a. Uzivo nije provjereno.
+Popravak 2026-11-14 (korisnik: "ne da brisati bazu ni izbaciti karticu ni iskljuciti tray"; log: pozadinski proces radio je
+opise za bazu u brisanju): nit koja prati bazu (zatvorena, drugi najam, baza se brise) radila je samo dok traje uvoz, pa zadnji
+AI krug poslije uvoza nitko nije zaustavio; brisanje je cekalo bazu, a Izlaz traya brisanje. `tools/qnc-ingest-worker` prati
+bazu cijeli rad (`watching`). Tray napredak baza cita svake 10 s (svake 2 s trosio je oko cetvrtine jezgre).
