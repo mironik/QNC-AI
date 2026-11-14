@@ -32,6 +32,9 @@ const EJECT: u32 = 100;
 const DELETE_BASE_OF: u32 = 1000;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
+/// How often what the bases being ingested have done is read (live 2026-11-14: every 2 s took
+/// about a quarter of a core).
+const PROGRESS_AGAIN: Duration = Duration::from_secs(10);
 /// How often a missing camera catalog is read again.
 const CATALOG_AGAIN: Duration = Duration::from_secs(60);
 /// How many looks a card that cannot be read yet gets (a card waking up).
@@ -162,7 +165,7 @@ fn main() {
             }
         }
         // What the bases being ingested have done, read on a thread (it reads their databases).
-        if !reading_progress && !ingest.ingesting.is_empty() && progress_read.is_none_or(|at| at.elapsed() >= LOOK) {
+        if !reading_progress && !ingest.ingesting.is_empty() && progress_read.is_none_or(|at| at.elapsed() >= PROGRESS_AGAIN) {
             progress_read = Some(Instant::now());
             reading_progress = true;
             let (root, ids, send) = (root.clone(), ingest.ingesting.clone(), progress_news.0.clone());

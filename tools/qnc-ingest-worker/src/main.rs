@@ -174,6 +174,10 @@ fn run_once(root: &Path) -> Result<bool, String> {
     // this run started for (closed, or another opened), the run stops and lets its
     // database go, so the closed project can be deleted.
     let closed = std::sync::atomic::AtomicBool::new(false);
+    // The watch of the base lasts the whole run, also the last AI turn after the import (live
+    // 2026-11-14: a base deleted during the captions at the end was never let go; the delete and
+    // the tray's Quit waited).
+    let watching = std::sync::atomic::AtomicBool::new(true);
     // The import belongs to this run: its project, its lease, its cancel.
     // Its cancel is the import's stop: the user's X, or the project closed.
     let run = qnc_ingest_import_worker::ImportRun { project_id: &started, lease: &lease, cancel: stops.flag(qnc_stopped_work::IMPORT) };
@@ -259,7 +263,7 @@ fn run_once(root: &Path) -> Result<bool, String> {
         };
     std::thread::scope(|scope| {
         scope.spawn(|| {
-            while running.load(std::sync::atomic::Ordering::Relaxed) {
+            while watching.load(std::sync::atomic::Ordering::Relaxed) {
                 // Its base being deleted ends it too (a base per card: closing the active
                 // project no longer reaches a worker given its base, user 2026-11-14).
                 if !still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
@@ -333,6 +337,7 @@ fn run_once(root: &Path) -> Result<bool, String> {
         if closed.load(std::sync::atomic::Ordering::Relaxed) {
             running.store(false, std::sync::atomic::Ordering::Relaxed);
             let _ = import.join();
+            watching.store(false, std::sync::atomic::Ordering::Relaxed);
             eprintln!("projekt je zatvoren: pozadinski proces staje");
             return Ok(false);
         }
@@ -341,7 +346,13 @@ fn run_once(root: &Path) -> Result<bool, String> {
         let artifacts =
             artifacts.and_then(|()| run_artifacts(root, &lease, &closed, &std::sync::atomic::AtomicBool::new(false), &stops));
         running.store(false, std::sync::atomic::Ordering::Relaxed);
-        let import = import.join().map_err(|_| qnc_ui_text::text("worker.import_crashed").to_string())?;
+        let import = match import.join() {
+            Ok(import) => import,
+            Err(_) => {
+                watching.store(false, std::sync::atomic::Ordering::Relaxed);
+                return Err(qnc_ui_text::text("worker.import_crashed").to_string());
+            }
+        };
         // The AI threads end their turn before the last one: two turns on the same clip at once
         // share its temporary folder (live 2026-11-12: "Error opening input file ...000.h264").
         for look in looks.drain(..) {
@@ -357,6 +368,7 @@ fn run_once(root: &Path) -> Result<bool, String> {
             // its own, lower than the player).
             make_shots(root, &config, &lease, &stops, Look::All);
         }
+        watching.store(false, std::sync::atomic::Ordering::Relaxed);
         artifacts.and(import).map(|()| true)
     })
 }
