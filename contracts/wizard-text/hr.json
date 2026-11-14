@@ -33,6 +33,8 @@
     "tray.quit": "Izlaz",
     "tray.settings": "Postavke",
     "tray.delete_base": "Obriši Ingest bazu",
+    "tray.delete_base_of": "Obriši bazu: {base}",
+    "tray.delete_base_busy": "Jedna se baza već briše; pričekaj da završi.",
     "tray.delete_base_ask": "Obrisati Ingest bazu {base}?\n\nNestaju njezini klipovi, posteri, filmstripovi, valovi i analize. Kartica se ne dira.",
     "tray.delete_base_none": "Nema Ingest baze za brisanje.",
     "tray.delete_base_not_owner": "Ingest bazu {base} napravio je {user} na računalu {computer}.\n\nBaza je zajednička: brisati je smije samo onaj tko ju je napravio ili administrator (QNC AI pokrenut kao administrator).",

@@ -27,6 +27,9 @@ const INGEST_FOLDER: u32 = 8;
 const LAST_AGAIN: Duration = Duration::from_secs(10);
 /// "Eject" of the n-th card of the story is `EJECT + n`.
 const EJECT: u32 = 100;
+/// "Delete" of the n-th Ingest base is `DELETE_BASE_OF + n` (every base its own line: user
+/// 2026-11-14, the delete took only the active base and the others stayed).
+const DELETE_BASE_OF: u32 = 1000;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
 /// How often a missing camera catalog is read again.
@@ -39,7 +42,7 @@ fn log(line: String) {
 }
 
 /// The menu for where the story is: the status line (it only tells), "Eject" for each card, Go on, Quit.
-fn menu(status: Option<&Status>, last: Option<&str>, has_bases: bool, sources: &[String]) -> Vec<MenuItem> {
+fn menu(status: Option<&Status>, last: Option<&str>, bases: &[String], sources: &[String]) -> Vec<MenuItem> {
     let line = status.map_or_else(|| text("tray.waiting"), Status::line);
     let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
     // Where it imports from when a folder was picked (user 2026-11-14): lines that only tell.
@@ -65,7 +68,11 @@ fn menu(status: Option<&Status>, last: Option<&str>, has_bases: bool, sources: &
     items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
     // The Ingest base and its folder, after a question (user 2026-11-12); greyed when there is no
     // base (user 2026-11-13).
-    items.push(MenuItem { id: DELETE_BASE, text: text("tray.delete_base"), enabled: has_bases });
+    // Each base its own line (user 2026-11-14); none: one grey line.
+    if bases.is_empty() {
+        items.push(MenuItem { id: DELETE_BASE, text: text("tray.delete_base"), enabled: false });
+    }
+    items.extend(bases.iter().enumerate().map(|(index, base)| MenuItem { id: DELETE_BASE_OF + index as u32, text: fill("tray.delete_base_of", &[("base", base)]), enabled: true }));
     items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
     items
 }
@@ -84,7 +91,7 @@ fn main() {
         }
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None, false, &[]), Some(qnc_app_mark::qnc_mark)) {
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None, &[], &[]), Some(qnc_app_mark::qnc_mark)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -122,7 +129,7 @@ fn main() {
     let mut last: Option<(String, String)> = None;
     let mut last_read: Option<Instant> = None;
     // Whether there is an Ingest base to delete, read with the last project.
-    let mut has_bases = false;
+    let mut bases: Vec<qnc_ingest_base::IngestBase> = Vec::new();
     // The folders the base Ingest works in takes (user 2026-11-14), read every few seconds.
     let mut sources: Vec<String> = Vec::new();
     let mut sources_read: Option<Instant> = None;
@@ -140,15 +147,20 @@ fn main() {
                 None
             });
             // Not read is not greyed: the delete then says why.
-            has_bases = qnc_ingest_base::all(&root).map_or(true, |bases| !bases.is_empty());
+            // Bases not read keep the ones read before.
+            match qnc_ingest_base::all(&root) {
+                Ok(read) => bases = read,
+                Err(error) => log(format!("bases not read: {error}")),
+            }
         }
         // Without a card and without a project there is no story yet: the tray waits.
         let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
         let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
         let last_name = last.as_ref().map(|(_, name)| name.as_str());
-        let key = format!("{line}|{}|{has_bases}|{}", last_name.unwrap_or(""), sources.join("|"));
+        let base_labels: Vec<String> = bases.iter().map(|base| base.label().to_string()).collect();
+        let key = format!("{line}|{}|{}|{}", last_name.unwrap_or(""), base_labels.join("|"), sources.join("|"));
         if shown.as_ref() != Some(&key) {
-            tray.set_menu(menu(story, last_name, has_bases, &sources));
+            tray.set_menu(menu(story, last_name, &base_labels, &sources));
             let from = sources.iter().map(|source| format!("\n{}", fill("tray.source", &[("source", source)]))).collect::<String>();
             tray.set_tip(&format!("{}: {line}{from}", text("tray.title")));
             shown = Some(key);
@@ -171,13 +183,12 @@ fn main() {
                         open_last(&tray, &root, &id, &name);
                     }
                 }
-                // The active base, or, when none is active (a delete that failed closed it), the
-                // newest base (live 2026-11-12).
-                TrayEvent::Menu(DELETE_BASE) => match qnc_ingest_base::active(&root).and_then(|base| match base {
-                    Some(base) => Ok(Some(base)),
-                    None => qnc_ingest_base::all(&root).map(|bases| bases.into_iter().next()),
-                }) {
-                    Ok(Some(base)) => match qnc_ingest_base::may_delete(&root, &base.id) {
+                // The base the user picked from the list (user 2026-11-14: every base its own line).
+                TrayEvent::Menu(id) if id >= DELETE_BASE_OF => match bases.get((id - DELETE_BASE_OF) as usize).cloned() {
+                    _ if deleting.is_some() || removing => {
+                        tray.notify(&text("tray.title"), &text("tray.delete_base_busy"));
+                    }
+                    Some(base) => match qnc_ingest_base::may_delete(&root, &base.id) {
                         Ok(()) => {
                             let ask = fill("tray.delete_base_ask", &[("base", base.label())]);
                             log(format!("delete base asked {}", base.label()));
@@ -195,13 +206,9 @@ fn main() {
                             tray.alert("delete-base", &text("tray.title"), &why, &text("tray.ok"));
                         }
                     },
-                    Ok(None) => {
+                    None => {
                         log("delete base: there is none".into());
                         tray.info("delete-base", &text("tray.title"), &text("tray.delete_base_none"), &text("tray.ok"), Duration::from_secs(5));
-                    }
-                    Err(error) => {
-                        log(format!("delete base: bases not read: {error}"));
-                        tray.alert("delete-base", &text("tray.title"), &error, &text("tray.ok"));
                     }
                 },
                 // The form of the step: the card step is the import form; the forms of the steps

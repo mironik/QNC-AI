@@ -631,3 +631,8 @@ prozor i pozadinski proces te baze tada zavrse (`closing`). "Pokreni QNC" ne mij
 vidi kao kartice, tab Baze). Testovi `qnc-work-settings` (`a_reader_given_a_project_reads_it_whichever_the_database_marks_active`),
 `qnc-ingest-base`, `qnc-card-ingest`, `qnc-active-project-read`, release gradnja trayja. Uzivo nije provjereno. Nije izvedeno:
 `new_with_only_new` (nova baza samo s novim klipovima poznate kartice) jos cini bazu aktivnom.
+Popravak 2026-11-14 (korisnik: "iako sam brisao, stare baze nisu obrisane"; log: "Obrisi bazu" uzima aktivnu bazu, pa su
+baze koje nisu aktivne ostajale): izbornik trayja ima stavku "Obrisi bazu: <naziv>" za svaku Ingest bazu (`DELETE_BASE_OF`
++ redni broj), brise se izabrana; dok se jedna brise, druga ceka (`tray.delete_base_busy`). Bez baza ostaje siva stavka.
+Usput iz loga: drugi prozor se zatvarao jer je radio stari program prozora (nova gradnja nije mogla zamijeniti pokrenuti),
+pa je stari prozor obje kartice uzeo u istu bazu; s novim programom rade dva prozora i dva pozadinska procesa istodobno.
