@@ -3729,7 +3729,6 @@ name = "qnc-ai-card-ingest"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "qnc-ai-open",
  "qnc-card-ingest",
  "qnc-dev-diagnostics",
  "qnc-ingest-application",
@@ -3884,6 +3883,7 @@ dependencies = [
  "qnc-camera-patterns",
  "qnc-camera-profiles",
  "qnc-card-eject",
+ "qnc-card-ingest",
  "qnc-card-watch",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",

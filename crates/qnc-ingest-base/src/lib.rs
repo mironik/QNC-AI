@@ -540,7 +540,16 @@ pub fn not_taken(root: &Path) -> Result<std::collections::BTreeSet<String>, Stri
     let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) else {
         return Ok(Default::default());
     };
-    let (file, _) = store.project_db_binding(&active.project_id)?;
+    not_taken_in(&store, &active.project_id)
+}
+
+/// `not_taken` of the base `id` (the tray reads every base being ingested).
+pub fn not_taken_of(root: &Path, id: &str) -> Result<std::collections::BTreeSet<String>, String> {
+    not_taken_in(&ProjectStore::open(root)?, id)
+}
+
+fn not_taken_in(store: &ProjectStore, id: &str) -> Result<std::collections::BTreeSet<String>, String> {
+    let (file, _) = store.project_db_binding(id)?;
     let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
     let from: Option<String> = match conn.query_row("SELECT from_base FROM ingest_base_only_new WHERE one = 1", [], |row| row.get(0)) {
         Ok(from) => Some(from),
@@ -551,7 +560,7 @@ pub fn not_taken(root: &Path) -> Result<std::collections::BTreeSet<String>, Stri
     // The base it came from and the bases it links to: what they have is not taken again. A base
     // gone (deleted) takes nothing away.
     let mut had = std::collections::BTreeSet::new();
-    for base in from.into_iter().chain(links_in(&store, &active.project_id)?) {
+    for base in from.into_iter().chain(links_in(store, id)?) {
         let Ok((other, _)) = store.project_db_binding(&base) else { continue };
         had.extend(qnc_content_read::clip_originals_of_file(&other)?.into_iter().map(|clip| clip.original_uri));
     }

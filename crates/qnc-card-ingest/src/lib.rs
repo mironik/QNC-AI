@@ -16,6 +16,9 @@ use std::time::Duration;
 
 use qnc_ingest_application::{action_ids, IngestApplication, IngestIntent};
 
+mod start_ask;
+pub use start_ask::{Ask, StartAsk};
+
 /// How often what is done is read from the base.
 const READ: Duration = Duration::from_secs(1);
 
@@ -436,11 +439,24 @@ impl CardIngest {
 /// What is done in the active base of `root`, read from its database.
 fn progress(root: &PathBuf) -> Result<Progress, String> {
     let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|error| error.to_string())?;
+    let not_taken = qnc_ingest_base::not_taken(root)?;
+    progress_in(root, &active, &not_taken)
+}
+
+/// What is done in the base `id` of `root`, read from its database: for the tray, which asks once
+/// for every base being ingested whether QNC is started (user 2026-11-14). Read only.
+pub fn progress_of(root: &Path, id: &str) -> Result<Progress, String> {
+    let settings = qnc_work_settings::SettingsReader::from_root(root).map_err(|error| error.to_string())?.with_project(id);
+    let active = qnc_active_project_read::ActiveProjectReader::from_settings_reader(settings);
+    let not_taken = qnc_ingest_base::not_taken_of(root, id)?;
+    progress_in(&root.to_path_buf(), &active, &not_taken)
+}
+
+fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectReader, not_taken: &std::collections::BTreeSet<String>) -> Result<Progress, String> {
     let snapshot = active.read().map_err(|error| error.to_string())?;
     let content = qnc_content_read::ContentReader::for_project(active.settings_reader(), &snapshot.settings)?;
     let settings = &snapshot.settings;
     // A base that takes only the new clips counts only them (the rest stays in the catalog, not imported).
-    let not_taken = qnc_ingest_base::not_taken(root)?;
     let posters: Vec<_> = content.clip_posters()?.into_iter().filter(|(clip, _)| !not_taken.contains(clip)).collect();
     let target = qnc_db_broker::ProjectDbTarget::for_project(active.settings_reader(), settings)?;
     let mut artifacts = qnc_artifact_db::ArtifactReader::open(&target)?;

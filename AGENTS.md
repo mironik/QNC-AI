@@ -640,3 +640,13 @@ Popravak 2026-11-14 (korisnik: "klik na prozor tray ingesta taj prozor prebaci u
 gotov prozor ostao je iznad svih i skrio drugi): prozor koji je zavrsio i dosao naprijed vraca se na obicnu razinu i kad
 izgubi fokus (nakon 1 s), ne samo na klik u njega. Tray prozoru daje `--place <broj otvorenih>`, prozor se otvara 36 px
 dolje-desno po svakom (najvise 8 mjesta).
+Izmjena 2026-11-14 (korisnik: "na tray ingest prozoru ne treba biti dugme Pokreni QNC, nego info izbornik koji kaze sta je
+uvezeno, sta je jos u tijeku, s pitanjem zelite li da pokrenem QNC ili cekamo da kompletan Ingest zavrsi"): dugme uklonjeno
+iz prozora uvoza. Tray svake 2 s u pozadini cita napredak svake baze koju je otvorio (`qnc-card-ingest` `progress_of`,
+`qnc-ingest-base` `not_taken_of`; baza ostaje na popisu i kad je prozor zatvoren). Pravilo pitanja je kocka `StartAsk`
+(testovi): jedno pitanje za sve baze kad je prva spremna za montazu (uvezena i prepisana), a druga jos radi (Da: pokreni QNC,
+ostalo ide u pozadini; Ne: cekamo); ako korisnik ceka, ponovno kad je sve gotovo; nova kartica pocinje novi krug. Da otvara
+`qnc-ingest` (`qnc-ai-open`). Uz pitanje: popis baza s brojem uvezenih klipova i stanjem (sve gotovo, spremno za montazu, u
+tijeku). Uz to (korisnik: "kada su kartice uvezene ne treba vise javljati da su kartice potrebne"): kartica ciji su klipovi
+svi uvezeni, izvadena bez izbacivanja, vise ne javlja "vratite karticu"; ponovno ubacena provjerava se ima li novih klipova
+(postojeci `card_check`). Uzivo nije provjereno.

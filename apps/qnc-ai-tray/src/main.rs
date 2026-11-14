@@ -133,6 +133,14 @@ fn main() {
     // The folders the base Ingest works in takes (user 2026-11-14), read every few seconds.
     let mut sources: Vec<String> = Vec::new();
     let mut sources_read: Option<Instant> = None;
+    // One question for every base being ingested whether QNC is started (user 2026-11-14): what is
+    // done is read on a thread of its own every few seconds; the question waits for its answer.
+    let mut start_ask = qnc_card_ingest::StartAsk::new();
+    let mut asking: Option<(qnc_card_ingest::Ask, std::sync::mpsc::Receiver<bool>)> = None;
+    let progress_news = std::sync::mpsc::channel::<Vec<(String, qnc_card_ingest::Progress)>>();
+    let mut reading_progress = false;
+    let mut progress_read: Option<Instant> = None;
+    let mut last_progress: Vec<(String, qnc_card_ingest::Progress)> = Vec::new();
     loop {
         flow.poll();
         let status = flow.status();
@@ -151,6 +159,48 @@ fn main() {
             match qnc_ingest_base::all(&root) {
                 Ok(read) => bases = read,
                 Err(error) => log(format!("bases not read: {error}")),
+            }
+        }
+        // What the bases being ingested have done, read on a thread (it reads their databases).
+        if !reading_progress && !ingest.ingesting.is_empty() && progress_read.is_none_or(|at| at.elapsed() >= LOOK) {
+            progress_read = Some(Instant::now());
+            reading_progress = true;
+            let (root, ids, send) = (root.clone(), ingest.ingesting.clone(), progress_news.0.clone());
+            std::thread::spawn(move || {
+                let read = ids.into_iter().filter_map(|id| qnc_card_ingest::progress_of(&root, &id).ok().map(|progress| (id, progress))).collect();
+                let _ = send.send(read);
+            });
+        }
+        while let Ok(read) = progress_news.1.try_recv() {
+            reading_progress = false;
+            last_progress = read;
+            if asking.is_none() && !removing {
+                if let Some(ask) = start_ask.next(&last_progress) {
+                    let question = start_question(ask, &last_progress, &bases);
+                    log(format!("qnc asked {ask:?}"));
+                    asking = Some((ask, tray.confirm(&text("tray.title"), &question)));
+                }
+            }
+        }
+        if let Some((ask, answer)) = &asking {
+            if let Ok(start) = answer.try_recv() {
+                log(format!("qnc asked {ask:?} answered start={start}"));
+                start_ask.answered(start);
+                if start {
+                    match qnc_ai_open::open(&root, "qnc-ingest") {
+                        Ok(program) => log(format!("qnc opened {}", program.display())),
+                        Err(error) => {
+                            log(format!("qnc not opened: {error}"));
+                            tray.alert("qnc", &text("tray.title"), &fill("tray.qnc_failed", &[("error", &error)]), &text("tray.ok"));
+                        }
+                    }
+                }
+                // Done bases leave once their question is over: the next card starts a new round.
+                if start || *ask == qnc_card_ingest::Ask::AllDone {
+                    let done: Vec<&String> = last_progress.iter().filter(|(_, progress)| progress.complete()).map(|(id, _)| id).collect();
+                    ingest.ingesting.retain(|id| !done.contains(&id));
+                }
+                asking = None;
             }
         }
         // Without a card and without a project there is no story yet: the tray waits.
@@ -389,6 +439,8 @@ fn main() {
                                     Ok(None) => open_ingest(&tray, &root, &mut ingest, new_base, Some(&serial)),
                                     Ok(Some(card_known)) if card_known.new.is_empty() => {
                                         log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
+                                        // All of it imported: taken out, it is not asked back.
+                                        ingest.cards.push((card_known.base.id.clone(), serial.clone()));
                                         let said = fill("tray.card_known", &[("card", &named), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
                                         if offer.is_none() {
                                             offer = Some(tray.confirm(&text("tray.title"), &said));
@@ -430,7 +482,14 @@ fn main() {
                             let disk = volume.root.display().to_string();
                             log(format!("gone disk={disk} serial={}", volume.serial_number));
                             // A card of the story taken out without ejecting it: the story still uses it.
-                            if let Some(card) = flow.card_out(&volume.serial_number) {
+                            // A card whose clips are all imported is not needed any more: no word
+                            // about putting it back (user 2026-11-14); put in again, it is looked at
+                            // for new clips.
+                            let imported = ingest.card_imported(&volume.serial_number, &last_progress);
+                            if imported {
+                                log(format!("card out disk={disk}: its clips are imported"));
+                            }
+                            if let Some(card) = flow.card_out(&volume.serial_number).filter(|_| !imported) {
                                 tray.alert(&format!("put-back:{}", card.serial), &text("tray.title"), &fill("tray.put_back", &[("card", &card.name_with_camera())]), &text("tray.ok"));
                             }
                         }
@@ -456,6 +515,11 @@ fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
 #[derive(Default)]
 struct Windows {
     open: Vec<(String, Option<String>, std::process::Child)>,
+    /// The bases ingested since the tray asked about QNC last: their window may be closed, their
+    /// worker goes on (user 2026-11-14: one question for all, not a button per window).
+    ingesting: Vec<String>,
+    /// The base of each card opened (base id, volume serial).
+    cards: Vec<(String, String)>,
 }
 
 impl Windows {
@@ -476,12 +540,42 @@ impl Windows {
         self.open.iter().any(|(base, _, _)| base == id)
     }
 
+    /// Whether the clips of the card `serial` are all imported: its base finished its round (left
+    /// `ingesting` once done), or what was read last says so.
+    fn card_imported(&self, serial: &str, read: &[(String, qnc_card_ingest::Progress)]) -> bool {
+        let bases: Vec<&String> = self.cards.iter().filter(|(_, card)| card.eq_ignore_ascii_case(serial)).map(|(base, _)| base).collect();
+        !bases.is_empty()
+            && bases.iter().all(|base| {
+                !self.ingesting.contains(base) || read.iter().any(|(id, progress)| id == *base && progress.clips > 0 && progress.imported >= progress.clips)
+            })
+    }
+
     /// Ends the window of the base `id` (its base is deleted).
     fn end_base(&mut self, id: &str) {
         for (_, _, child) in self.open.iter_mut().filter(|(base, _, _)| base == id) {
             let _ = child.kill();
         }
+        self.ingesting.retain(|base| base != id);
         self.prune();
+    }
+}
+
+/// The question whether QNC is started: what each base has imported, what is ready for editing and
+/// what is still being done (user 2026-11-14).
+fn start_question(ask: qnc_card_ingest::Ask, read: &[(String, qnc_card_ingest::Progress)], bases: &[qnc_ingest_base::IngestBase]) -> String {
+    let line = |id: &str, progress: &qnc_card_ingest::Progress| {
+        let base = bases.iter().find(|base| base.id == id).map_or(id, |base| base.label());
+        let key = match () {
+            _ if progress.complete() => "tray.qnc_line_done",
+            _ if progress.ready_for_qnc() => "tray.qnc_line_ready",
+            _ => "tray.qnc_line_working",
+        };
+        fill(key, &[("base", base), ("imported", &progress.imported.to_string()), ("clips", &progress.clips.to_string())])
+    };
+    let lines = read.iter().map(|(id, progress)| line(id, progress)).collect::<Vec<_>>().join("\n");
+    match ask {
+        qnc_card_ingest::Ask::Ready => fill("tray.qnc_ask_ready", &[("lines", &lines)]),
+        qnc_card_ingest::Ask::AllDone => fill("tray.qnc_ask_done", &[("lines", &lines)]),
     }
 }
 
@@ -532,6 +626,12 @@ fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, bas
         Ok(child) => {
             log(format!("ingest opened {} base={}", program.display(), base.id));
             ingest.open.push((base.id.clone(), card.map(str::to_string), child));
+            if !ingest.ingesting.contains(&base.id) {
+                ingest.ingesting.push(base.id.clone());
+            }
+            if let Some(card) = card {
+                ingest.cards.push((base.id.clone(), card.to_string()));
+            }
         }
         Err(error) => {
             log(format!("ingest failed {}: {error}", program.display()));
