@@ -707,3 +707,6 @@ povlace misem: izmedju lijevog stupca i prijepisa, ispod monitora i pred stupcem
 boji ruba teme, u boji fokusa dok je mis na njoj); bez povlacenja raspored je kakav ugovor kaze. Velicine su izbor prozora dok
 radi (egui memorija), nikad u bazi. Vrijedi za sve forme ploce u QNC-AI (Story, S-Story, MA); klasicni QNC nepromijenjen.
 Uzivo nije provjereno.
+Dopuna 2026-11-15 (korisnik, AI Media Assist: "oznaceni tekst kompletan markiraj"): u prijepisu AI Media Assista tekst izmedju
+IN i OUT prikazanog klipa osvijetljen je cijeli, jednom bojom (boja fokusa teme, prozirna), i razmaci izmedju oznacenih rijeci;
+bez zagrada (`qnc-transcript-panel`). Uzivo nije provjereno.

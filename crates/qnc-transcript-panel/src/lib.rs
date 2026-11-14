@@ -20,8 +20,9 @@ pub const MODULE_ID: &str = "qnc.module.transcript-panel";
 /// source timecode (frames are shown without it).
 ///
 /// Only the title and the text (user 2026-11-09, AI Media Assist: "besides the name Transcript
-/// no other text is needed, nor IN/OUT"): no statements, no silent sound, no IN/OUT marks; at the
-/// bottom the search, how many it found, Next (when there are more) and Copy of the transcript.
+/// no other text is needed, nor IN/OUT"): no statements, no silent sound, no IN/OUT brackets; the
+/// text between IN and OUT lit whole (user 2026-11-15); at the bottom the search, how many it
+/// found, Next (when there are more) and Copy of the transcript.
 pub fn show(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Theme, timecode: Option<&SourceTimecode>) -> Option<ActionEvent> {
     let rect = ui.available_rect_before_wrap();
     let bar_height = theme.font_ui + 20.0;
@@ -99,7 +100,9 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
             while let Some((from, to)) = silences.next_if(|(from, _)| *from < line.from) {
                 paint_silence(ui, &at(*from), &at(*to), theme);
             }
-            let (word, rect) = paint_line(ui, line, view, ends, !clean, found.as_ref(), theme);
+            // The marked text is lit in AI Media Assist too, whole (user 2026-11-15: "označeni tekst
+            // kompletan markiraj"); its brackets only where they were.
+            let (word, rect) = paint_line(ui, line, view, ends, true, found.as_ref(), theme);
             if found.as_ref().is_some_and(|found| found.bring && line_words(line).iter().any(|w| found.current.first() == Some(&(w.1, w.2)))) {
                 ui.scroll_to_rect(rect, Some(egui::Align::Center));
             }
@@ -218,15 +221,22 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
     let bracket = |job: &mut egui::text::LayoutJob, mark: &str| {
         job.append(mark, 0.0, egui::TextFormat::simple(egui::FontId::proportional(theme.font_ui + 2.0), theme.danger));
     };
+    let is_marked = |from: u64, to: u64| show_marks && view.marks.is_some_and(|(a, b)| (a..b).contains(&((from + to) / 2)));
+    // The marked text in one colour, its spaces too (user 2026-11-15).
+    let mark_fill = theme.focus.gamma_multiply(0.35);
     for (at, (text, from, to)) in words.iter().enumerate() {
         if at > 0 {
-            job.append(" ", 0.0, egui::TextFormat::simple(font.clone(), base));
+            let mut space = egui::TextFormat::simple(font.clone(), base);
+            if is_marked(*from, *to) && is_marked(words[at - 1].1, words[at - 1].2) {
+                space.background = mark_fill;
+            }
+            job.append(" ", 0.0, space);
         }
         if ends.is_some_and(|(first, _)| first == (*from, *to)) {
             bracket(&mut job, "[ ");
         }
         let lit = said(view, *from, *to);
-        let marked = show_marks && view.marks.is_some_and(|(a, b)| (a..b).contains(&((from + to) / 2)));
+        let marked = is_marked(*from, *to);
         let mut format = egui::TextFormat::simple(font.clone(), if lit { theme.black } else { base });
         let current = found.is_some_and(|found| found.current.contains(&(*from, *to)));
         let hit = found.is_some_and(|found| found.lit.contains(&(*from, *to)));
@@ -238,9 +248,9 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
             format.color = theme.black;
             format.background = theme.accent;
         } else if marked {
-            // Between IN and OUT: what a statement takes (user 2026-10-26).
-            format.background = theme.surface_alt;
-            format.underline = egui::Stroke::new(1.0, theme.focus);
+            // Between IN and OUT: what a statement takes (user 2026-10-26), lit whole (2026-11-15).
+            format.color = theme.text;
+            format.background = mark_fill;
         }
         let start = job.text.chars().count();
         job.append(text, 0.0, format);
