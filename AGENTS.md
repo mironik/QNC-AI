@@ -695,6 +695,7 @@ izjavu, X je brise) i rucke. `qnc-editorial-application`: spremanje izjave preba
 provjereno.
 Popravak 2026-11-14 (korisnik: "i dalje otvara staru"): ugovor rasporeda ugradjen je u kocku (`include_str!`) iz repoa u kojem
 kocka zivi, pa je program citao QNC-shared ugovor. Po pravilu zajednickih kocki (original ostaje, aplikacija uzima kopiju u
-svoj direktorij) QNC-AI ima vlastitu kopiju `crates/qnc-ai-editorial-layout` (ime knjiznice isto, `qnc_editorial_layout`),
-koja ugradjuje QNC-AI ugovore; zajednicka `qnc-editorial-layout` vracena je na stanje prije tri stupca, pa je klasicni QNC
+svoj direktorij) QNC-AI ima vlastitu kopiju `qnc-ai-editorial-layout` (ime knjiznice isto, `qnc_editorial_layout`); korisnik:
+"stavi je u isti direktorij kao i ostale, u share, samo joj daj novi naziv": kocka je u `QNC-shared/crates/qnc-ai-editorial-layout`
+i ugradjuje svoj ugovor `QNC-shared/contracts/ui/ai-editorial.layout.json` (kopija QNC-AI `contracts/ui/editorial.layout.json`); zajednicka `qnc-editorial-layout` vracena je na stanje prije tri stupca, pa je klasicni QNC
 nepromijenjen. `qnc-board` `drag_edge` ostaje u zajednickoj kocki (opca, samo dodana).
