@@ -2,12 +2,14 @@
 name = "qnc-card-eject"
 version.workspace = true
 edition.workspace = true
-description = "QNC-AI block: a card taken out safely (the disk locked, unmounted and its medium ejected), never by force; an adapter per system (Windows first)"
+description = "QNC-AI block: a card taken out safely (the disk locked, unmounted, its medium ejected and its device removed as the system's Safely remove), never by force; an adapter per system (Windows first)"
 
 [dependencies]
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
+    "Win32_Devices",
+    "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Foundation",
     "Win32_Security",
     "Win32_Storage_FileSystem",

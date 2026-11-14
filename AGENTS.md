@@ -670,3 +670,8 @@ Popravak 2026-11-14 (korisnik: "ne da brisati bazu ni izbaciti karticu ni isklju
 opise za bazu u brisanju): nit koja prati bazu (zatvorena, drugi najam, baza se brise) radila je samo dok traje uvoz, pa zadnji
 AI krug poslije uvoza nitko nije zaustavio; brisanje je cekalo bazu, a Izlaz traya brisanje. `tools/qnc-ingest-worker` prati
 bazu cijeli rad (`watching`). Tray napredak baza cita svake 10 s (svake 2 s trosio je oko cetvrtine jezgre).
+Dopuna 2026-11-14 (korisnik: "aktivirati sistemsko izbacivanje kartice kada korisnik iz traya iskljucuje karticu"; log: citac
+je karticu nakon izbacivanja medija odmah ponovno spojio): `qnc-card-eject` poslije zakljucavanja, odmontiranja i izbacivanja
+medija pusti disk i zatrazi od sustava uklanjanje uredaja diska, a kad ga sustav ne pusti, uredaja na kojem visi (citac), kao
+"Sigurno ukloni hardver" (SetupDi po broju diska, `CM_Request_Device_EjectW`, razlog odbijanja u gresci). Uzivo nije
+provjereno: kartica izbacena tako vraca se tek kad se citac ili kartica ponovno utaknu.
