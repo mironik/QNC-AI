@@ -636,3 +636,7 @@ baze koje nisu aktivne ostajale): izbornik trayja ima stavku "Obrisi bazu: <nazi
 + redni broj), brise se izabrana; dok se jedna brise, druga ceka (`tray.delete_base_busy`). Bez baza ostaje siva stavka.
 Usput iz loga: drugi prozor se zatvarao jer je radio stari program prozora (nova gradnja nije mogla zamijeniti pokrenuti),
 pa je stari prozor obje kartice uzeo u istu bazu; s novim programom rade dva prozora i dva pozadinska procesa istodobno.
+Popravak 2026-11-14 (korisnik: "klik na prozor tray ingesta taj prozor prebaci u front; vise prozora s pomakom"; log: prvi
+gotov prozor ostao je iznad svih i skrio drugi): prozor koji je zavrsio i dosao naprijed vraca se na obicnu razinu i kad
+izgubi fokus (nakon 1 s), ne samo na klik u njega. Tray prozoru daje `--place <broj otvorenih>`, prozor se otvara 36 px
+dolje-desno po svakom (najvise 8 mjesta).

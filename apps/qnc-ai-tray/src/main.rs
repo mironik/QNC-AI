@@ -520,6 +520,9 @@ fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, bas
     if let Some(card) = card {
         command.arg("--card").arg(card);
     }
+    // Where it opens: after the windows open now, not behind them (user 2026-11-14).
+    ingest.prune();
+    command.arg("--place").arg(ingest.open.len().to_string());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
