@@ -493,22 +493,25 @@ fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectRe
     let mut statements = std::collections::BTreeSet::new();
     if feature("transcription") {
         let frames: std::collections::HashMap<String, u64> = content.summaries()?.into_iter().map(|clip| (clip.clip_id, clip.duration_frames)).collect();
-        let mut heard = 0;
+        // A clip is heard when its transcript is in the base, or its transcription failed. Not by
+        // the queue alone: AI Media Assist takes the done rows out of it (live 2026-11-15: the bar
+        // went back to 0 once it was opened).
+        let mut heard: std::collections::BTreeSet<String> = qnc_transcript_db::read_transcribed(&target)?.into_iter().collect();
         for entry in qnc_transcript_db::read_queue(&target)? {
-            match entry.state {
-                qnc_transcript_db::QueueState::Done => {
-                    heard += 1;
-                    let transcripts = qnc_transcript_db::read_clip(&target, &entry.clip_id)?;
-                    let to = frames.get(&entry.clip_id).copied().unwrap_or(entry.to_frame);
-                    if qnc_transcript_db::spoken_share(&transcripts, 0, to).is_some_and(|share| share >= qnc_transcript_db::SPOKEN) {
-                        statements.insert(entry.clip_id);
-                    }
-                }
-                qnc_transcript_db::QueueState::Failed => heard += 1,
-                _ => {}
+            if matches!(entry.state, qnc_transcript_db::QueueState::Done | qnc_transcript_db::QueueState::Failed) {
+                heard.insert(entry.clip_id);
             }
         }
-        progress.transcripts = Some(heard);
+        let clips: std::collections::BTreeSet<&String> = posters.iter().map(|(clip, _)| clip).collect();
+        heard.retain(|clip| clips.contains(clip));
+        for clip in &heard {
+            let transcripts = qnc_transcript_db::read_clip(&target, clip)?;
+            let to = frames.get(clip).copied().unwrap_or(0);
+            if qnc_transcript_db::spoken_share(&transcripts, 0, to).is_some_and(|share| share >= qnc_transcript_db::SPOKEN) {
+                statements.insert(clip.clone());
+            }
+        }
+        progress.transcripts = Some(heard.len());
         progress.statements = statements.len();
     }
     // The analyses the project's AI has on, counted per clip (user 2026-11-12).

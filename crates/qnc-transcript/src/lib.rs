@@ -446,7 +446,12 @@ impl Transcript {
         self.view.playhead = preview.view().timeline.playhead_frame;
         self.view.fast = self.quality == QueueQuality::Fast;
         self.view.ticked = self.ticks.len();
-        self.view.marks = timeline.visible_source_marks();
+        // Only the text the user marked is lit (user 2026-11-15): the whole clip an unmarked
+        // timeline shows as IN/OUT is not a selection.
+        self.view.marks = match (timeline.source_in_frame, timeline.source_out_frame) {
+            (Some(from), Some(to)) if to > from => Some((from, to)),
+            _ => None,
+        };
         // A repass (the Croatian model, Best) runs in the background and goes to the database only
         // (user 2026-11-08): its row is not in the panel's list, which would move the text below.
         self.view.queue = self.queue.iter().filter(|q| q.quality != QueueQuality::Best).map(|q| self.queue_row(q)).collect();
