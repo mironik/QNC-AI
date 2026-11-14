@@ -115,9 +115,7 @@ pub(crate) struct AiTakes {
     pub(crate) content: Box<dyn Fn(&str) -> bool>,
 }
 
-/// With transcription off every clip; with it on, a clip whose transcription is done or failed
-/// (nothing is known of its speech) is analysed, a clip still waiting is not taken yet. What
-/// the shots show is looked at for a clip that is no statement, and for a statement only when
+/// The shot analysis takes every clip. With transcription on, what the shots show is looked at for a clip that is no statement, and for a statement only when
 /// its analysis found more than one shot (user 2026-11-12: "ako se kadar potpuno promijeni to
 /// treba analizirati jer se iz toga mogu izvući pokrivalice"); its spoken shot stays whole.
 pub(crate) fn ai_takes(root: &Path, stopped: bool) -> Result<AiTakes, String> {
@@ -146,11 +144,12 @@ pub(crate) fn ai_takes(root: &Path, stopped: bool) -> Result<AiTakes, String> {
             known.insert(clip.clone(), (true, statement(&clip, to)?));
         }
     }
-    let known = std::rc::Rc::new(known);
-    let of_shots = known.clone();
     let db = transcription.db.clone();
     Ok(AiTakes {
-        shots: Box::new(move |clip| of_shots.get(clip).map_or(stopped, |(heard, _)| *heard)),
+        // The shots do not wait for the transcription (user 2026-11-14: the AI shots ended 7.5
+        // min after it): every clip is analysed once copied; a statement's analysis is only used
+        // to find a scene change in it.
+        shots: Box::new(|_| true),
         content: Box::new(move |clip| match known.get(clip) {
             None => stopped,
             Some((false, _)) => false,

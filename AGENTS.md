@@ -650,3 +650,11 @@ ostalo ide u pozadini; Ne: cekamo); ako korisnik ceka, ponovno kad je sve gotovo
 tijeku). Uz to (korisnik: "kada su kartice uvezene ne treba vise javljati da su kartice potrebne"): kartica ciji su klipovi
 svi uvezeni, izvadena bez izbacivanja, vise ne javlja "vratite karticu"; ponovno ubacena provjerava se ima li novih klipova
 (postojeci `card_check`). Uzivo nije provjereno.
+Izvedeno 2026-11-14 (korisnik: "istrazi moze li se u istom prolazu raditi AI kadrovi, filmstrip, val"; "bitno je ukupno
+vrijeme cekanja"; "da, kreni s 1 i 2"): mjereno na kopijama FX6V klipova (samo citanje): citanje zvuka za val 1 GB za 1,5 s,
+AI kadrovi jednog klipa 283 intra slike za 27 s (oko 95 ms po slici, dekodiranje 4:2:2 10-bit), 4 klipa istodobno 2,1x brze;
+zajednicki prolaz bi ustedio samo 13 slika filmstripa po klipu, pa nije izveden. U logu uvoza 103 klipa AI kadrovi su cekali
+prijepis svakog klipa i zavrsili 7,5 min iza njega, jedan klip po jedan. (1) `qnc-shot-analysis` (QNC-shared) dekodira do 4
+serije od 16 slika odjednom (`MOST_DECODERS`, najvise pola niti racunala), svaka u svojoj mapi; isti klip 27 s -> 13,5-16 s,
+isti kadrovi i dijelovi. (2) `tools/qnc-ingest-worker` `ai_takes`: AI kadrovi uzimaju svaki kopirani klip, ne cekaju prijepis
+(pregled sadrzaja i dalje ceka, za izjave). Uzivo nije provjereno.
