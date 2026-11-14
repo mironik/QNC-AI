@@ -3750,6 +3750,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-editorial-layout"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-bar-panel",
+ "qnc-board",
+ "qnc-contracts",
+ "qnc-desktop-theme",
+ "qnc-keyboard-shortcut",
+ "qnc-media-card",
+ "qnc-media-pool-panel",
+ "qnc-pool-tabs",
+ "qnc-segment-panel",
+ "qnc-ui-text",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-ai-engines"
 version = "0.1.0"
 dependencies = [
@@ -4647,11 +4666,11 @@ dependencies = [
  "eframe",
  "qnc-action-bar-panel",
  "qnc-action-event",
+ "qnc-ai-editorial-layout",
  "qnc-board",
  "qnc-clip-row",
  "qnc-dev-diagnostics",
  "qnc-editorial-application",
- "qnc-editorial-layout",
  "qnc-media-card",
  "qnc-media-overlay",
  "qnc-media-pool-panel",
@@ -4676,35 +4695,16 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-action-event",
+ "qnc-ai-editorial-layout",
  "qnc-board",
  "qnc-dev-diagnostics",
  "qnc-editorial-application",
  "qnc-editorial-blocks",
- "qnc-editorial-layout",
  "qnc-form-host",
  "qnc-keyboard-shortcut",
  "qnc-paint-pace",
  "qnc-status-line",
  "qnc-timeline",
-]
-
-[[package]]
-name = "qnc-editorial-layout"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "qnc-action-bar-panel",
- "qnc-board",
- "qnc-contracts",
- "qnc-desktop-theme",
- "qnc-keyboard-shortcut",
- "qnc-media-card",
- "qnc-media-pool-panel",
- "qnc-pool-tabs",
- "qnc-segment-panel",
- "qnc-ui-text",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -6641,10 +6641,10 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-action-event",
+ "qnc-ai-editorial-layout",
  "qnc-ai-features",
  "qnc-clip-shots",
  "qnc-desktop-theme",
- "qnc-editorial-layout",
  "qnc-pool-tabs-panel",
  "qnc-program-view",
  "qnc-script",

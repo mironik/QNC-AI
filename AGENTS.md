@@ -693,3 +693,8 @@ monitor, transport i desni panel grupe, tj. prijepis s tabovima Audio AI / Video
 (egui memorija), nikad u bazi; nijedan stupac ispod desetine sirine. `qnc-editorial-blocks` crta pool izjava (klik otvara
 izjavu, X je brise) i rucke. `qnc-editorial-application`: spremanje izjave prebacuje tab samo kad pool ima tab izjava. Uzivo nije
 provjereno.
+Popravak 2026-11-14 (korisnik: "i dalje otvara staru"): ugovor rasporeda ugradjen je u kocku (`include_str!`) iz repoa u kojem
+kocka zivi, pa je program citao QNC-shared ugovor. Po pravilu zajednickih kocki (original ostaje, aplikacija uzima kopiju u
+svoj direktorij) QNC-AI ima vlastitu kopiju `crates/qnc-ai-editorial-layout` (ime knjiznice isto, `qnc_editorial_layout`),
+koja ugradjuje QNC-AI ugovore; zajednicka `qnc-editorial-layout` vracena je na stanje prije tri stupca, pa je klasicni QNC
+nepromijenjen. `qnc-board` `drag_edge` ostaje u zajednickoj kocki (opca, samo dodana).

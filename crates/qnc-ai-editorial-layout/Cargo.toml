@@ -1,0 +1,23 @@
+[package]
+name = "qnc-ai-editorial-layout"
+version = "0.1.0"
+edition = "2021"
+description = "QNC-AI's own copy of qnc-editorial-layout (user 2026-11-14): the editorial layout contract of QNC-AI, with AI Media Assist in three columns over the timeline and borders the user drags; QNC keeps the shared one"
+
+[lib]
+name = "qnc_editorial_layout"
+
+[dependencies]
+qnc-action-bar-panel = { workspace = true }
+qnc-media-card = { workspace = true }
+qnc-media-pool-panel = { workspace = true }
+qnc-pool-tabs = { workspace = true }
+qnc-ui-text = { workspace = true }
+eframe = { workspace = true }
+qnc-board = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-contracts = { workspace = true }
+qnc-keyboard-shortcut = { workspace = true }
+qnc-segment-panel = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

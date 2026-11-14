@@ -279,7 +279,8 @@ qnc-edit-cut = { path = "../QNC-shared/crates/qnc-edit-cut" }
 qnc-editorial-application = { path = "crates/qnc-editorial-application" }
 qnc-editorial-blocks = { path = "crates/qnc-editorial-blocks" }
 qnc-editorial-desktop = { path = "crates/qnc-editorial-desktop" }
-qnc-editorial-layout = { path = "../QNC-shared/crates/qnc-editorial-layout" }
+# Its own copy (user 2026-11-14: AI Media Assist in three columns; QNC keeps the shared one).
+qnc-editorial-layout = { path = "crates/qnc-ai-editorial-layout", package = "qnc-ai-editorial-layout" }
 qnc-export-box = { path = "../QNC-shared/crates/qnc-export-box" }
 qnc-export-launch = { path = "../QNC-shared/crates/qnc-export-launch" }
 qnc-frame-interp = { path = "../QNC-shared/crates/qnc-frame-interp" }
