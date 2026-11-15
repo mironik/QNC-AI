@@ -29,6 +29,9 @@ pub struct IngestBase {
     pub project_name: Option<String>,
     /// The base Ingest works in now.
     pub active: bool,
+    /// Its name and description as the user wrote them (empty: none yet).
+    pub title: String,
+    pub description: String,
 }
 
 /// Whether `row` is the Ingest base this process works in: the one the process was given (the
@@ -108,9 +111,53 @@ fn story_bases(store: &ProjectStore, story_id: &str) -> Result<Vec<(String, Stri
     rows.collect::<Result<_, _>>().map_err(|error| error.to_string())
 }
 
-fn base_of(row: qnc_project_store::ProjectRow, takers: &Takers) -> IngestBase {
+/// The table of a base's own database with what the base is (user 2026-11-15: "bazi trebamo dodati
+/// pored datuma i vremena kreiranja i opis"; "polje koje smo koristili za naziv projekta koristit
+/// ćemo za naziv baze"): its name and description, as the user wrote them in the ingest window.
+/// They say what the card holds, nothing of a project.
+const INFO_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_info (
+    one INTEGER PRIMARY KEY CHECK (one = 1),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    written_at_utc TEXT NOT NULL
+)";
+
+/// The name and description of the base `id` (empty when none is written).
+fn info_in(store: &ProjectStore, id: &str) -> (String, String) {
+    let read = || -> Result<(String, String), String> {
+        let (file, _) = store.project_db_binding(id)?;
+        let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+        let has: bool = conn
+            .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_info')", [], |row| row.get(0))
+            .map_err(|error| error.to_string())?;
+        if !has {
+            return Ok(Default::default());
+        }
+        conn.query_row("SELECT title, description FROM ingest_base_info WHERE one = 1", [], |row| Ok((row.get(0)?, row.get(1)?))).map_err(|error| error.to_string())
+    };
+    read().unwrap_or_default()
+}
+
+/// Writes the name and description of the base `id` (the user's, in the ingest window).
+pub fn set_info(root: &Path, id: &str, title: &str, description: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    let (file, _) = store.project_db_binding(id)?;
+    let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    conn.execute_batch(INFO_TABLE).map_err(|error| error.to_string())?;
+    conn.execute(
+        "INSERT INTO ingest_base_info (one, title, description, written_at_utc) VALUES (1, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(one) DO UPDATE SET title = excluded.title, description = excluded.description, written_at_utc = excluded.written_at_utc",
+        [title.trim(), description.trim()],
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn base_of(row: qnc_project_store::ProjectRow, takers: &Takers, store: &ProjectStore) -> IngestBase {
     let project_name = takers.get(&row.project_id).map(|(_, name)| name.clone());
-    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active }
+    let (title, description) = info_in(store, &row.project_id);
+    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active, title, description }
 }
 
 /// Whether the project Ingest works in now is an Ingest base: a read only look at the registry
@@ -137,7 +184,7 @@ pub fn templates(root: &Path) -> Result<(Vec<(String, String)>, usize), String> 
 /// The base Ingest works in now (the active one), without making one.
 pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
     let store = ProjectStore::open(root)?;
-    Ok(store.list_projects()?.into_iter().find(|row| working(row)).map(|row| base_of(row, &takers(&store))))
+    Ok(store.list_projects()?.into_iter().find(|row| working(row)).map(|row| base_of(row, &takers(&store), &store)))
 }
 
 /// A story's project made with `name` that takes the base `base_id` as its Ingest base: the
@@ -269,14 +316,14 @@ pub fn continue_story(root: &Path, base_id: &str, story_id: &str) -> Result<Stri
 /// The base `id`, as it is (nothing is made active).
 pub fn by_id(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
-    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store))).ok_or_else(|| format!("no Ingest base {id}"))
+    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store), &store)).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
 /// Makes the base `id` the one Ingest works in.
 pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
     store.open_project(id)?;
-    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store))).ok_or_else(|| format!("no Ingest base {id}"))
+    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store), &store)).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
 /// Deletes the Ingest base `id` with its folder (the copied Project store lifts its protection
@@ -326,7 +373,7 @@ pub fn current_for(root: &Path, what: &str) -> Result<IngestBase, String> {
     let bases = folder(root)?;
     keep_apart(&mut store, root)?;
     if let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) {
-        let base = base_of(active, &takers(&store));
+        let base = base_of(active, &takers(&store), &store);
         if base.project_name.is_none() {
             return Ok(base);
         }
@@ -371,7 +418,7 @@ fn make(store: &mut ProjectStore, bases: &Path, what: &str) -> Result<IngestBase
     let back = store.set_projects_root(&projects);
     let made = made?;
     back?;
-    Ok(base_of(made, &Takers::new()))
+    Ok(base_of(made, &Takers::new(), store))
 }
 
 /// The table of a base's own database with the folders it was Selected from (not cards).
@@ -616,7 +663,7 @@ impl BaseBrowse {
 pub fn all(root: &Path) -> Result<Vec<IngestBase>, String> {
     let store = ProjectStore::open(root)?;
     let taken = takers(&store);
-    let mut bases: Vec<_> = store.list_projects()?.into_iter().filter(|row| row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &taken)).collect();
+    let mut bases: Vec<_> = store.list_projects()?.into_iter().filter(|row| row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &taken, &store)).collect();
     bases.sort_by(|a, b| b.name.cmp(&a.name));
     Ok(bases)
 }
@@ -633,6 +680,15 @@ impl IngestBase {
     /// The base as it is shown: its time and number, without the word every base's name starts with.
     pub fn label(&self) -> &str {
         self.name.strip_prefix(NAME_PREFIX).map_or(self.name.as_str(), str::trim)
+    }
+
+    /// The base as a list shows it: its name the user wrote, then its camera, date and time
+    /// (user 2026-11-15); without a name only the camera, date and time.
+    pub fn shown(&self) -> String {
+        match self.title.trim() {
+            "" => self.label().to_string(),
+            title => format!("{title} · {}", self.label()),
+        }
     }
 }
 
@@ -653,7 +709,7 @@ mod tests {
     #[test]
     fn a_base_is_shown_by_its_time_and_number_without_the_word_ingest() {
         let name = format!("{NAME_PREFIX} {}", stamp());
-        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false };
+        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false, title: String::new(), description: String::new() };
         let label = base.label();
         assert!(!label.contains(NAME_PREFIX), "{label}");
         let (time, number) = label.rsplit_once(' ').unwrap();
@@ -680,6 +736,10 @@ mod tests {
         assert!(base.name.starts_with(NAME_PREFIX));
         assert_eq!(current(&root).unwrap(), base, "the active base stays the current one");
         assert_eq!(base.project_name, None);
+        set_info(&root, &base.id, " Konavle ", "javna rasprava").unwrap();
+        let named = all(&root).unwrap().remove(0);
+        assert_eq!((named.title.as_str(), named.description.as_str()), ("Konavle", "javna rasprava"), "the base's own name and description");
+        assert_eq!(named.shown(), format!("Konavle · {}", named.label()));
         assert!(open(&root, &base.id).unwrap().active);
         let (templates, chosen) = templates(&root).unwrap();
         assert!(!templates.is_empty(), "the seed's templates");

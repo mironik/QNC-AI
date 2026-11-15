@@ -881,3 +881,10 @@ najnoviju bazu i bilježi je kao zadnji link. Popis Baze u Ingestu pokazuje bazu
 projekt" iz prozora Projekti otvara Ingest za novi projekt (`qnc-ai-open` `open_for_new_story`, `QNC_NEW_STORY`): Uvezi tada odmah
 otvara obrazac novog projekta, bez ponude postojećeg (`qnc-story-start`). Test u `qnc-ingest-base` (dva projekta iz iste baze, baza
 bez zapisa projekta). Uživo nije provjereno; tray nije ponovno izgrađen (bio je pokrenut).
+Izmjena 2026-11-15 (korisnik: "bazi trebamo dodati pored datuma i vremena kreiranja i opis... postojeće polje koje smo koristili za
+naziv projekta koristit ćemo za naziv baze; polje za upis naziva baze na tray-ingest vizardu koju korisnik treba upisati prije
+zatvaranja vizarda"): baza kartice ima svoj naziv i opis u vlastitoj bazi (tablica `ingest_base_info`; `qnc-ingest-base` `set_info`,
+`IngestBase.title`, `description`, `shown()` = "naziv · kamera datum vrijeme"). Tray Ingest prozor (`qnc-ai-card-ingest`) ima polja
+Naziv baze i Opis, zapisuje ih kad se polje napusti i pri zatvaranju; zatvaranje bez naziva se odbija uz crvenu poruku. Popis Baze u
+Ingestu i tray izbornik pokazuju naziv baze uz kameru, datum i vrijeme. Nije izvedeno: opis predložen iz analize kadrova. Test u
+`qnc-ingest-base`. Uživo nije provjereno.

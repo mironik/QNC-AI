@@ -223,7 +223,7 @@ fn main() {
         let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
         let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
         let last_name = last.as_ref().map(|(_, name)| name.as_str());
-        let base_labels: Vec<String> = bases.iter().map(|base| base.label().to_string()).collect();
+        let base_labels: Vec<String> = bases.iter().map(|base| base.shown()).collect();
         let key = format!("{line}|{}|{}|{}", last_name.unwrap_or(""), base_labels.join("|"), sources.join("|"));
         if shown.as_ref() != Some(&key) {
             tray.set_menu(menu(story, last_name, &base_labels, &sources));
@@ -256,7 +256,7 @@ fn main() {
                     }
                     Some(base) => match qnc_ingest_base::may_delete(&root, &base.id) {
                         Ok(()) => {
-                            let ask = fill("tray.delete_base_ask", &[("base", base.label())]);
+                            let ask = fill("tray.delete_base_ask", &[("base", &base.shown())]);
                             log(format!("delete base asked {}", base.label()));
                             deleting = Some((base, tray.confirm(&text("tray.title"), &ask)));
                         }

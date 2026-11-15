@@ -59,7 +59,7 @@ impl IngestApplication {
 /// "baza je zamjena za karticu, projekti se linkuju na baze"), not a project; the one Ingest works
 /// in now is marked.
 fn entry(base: &IngestBase) -> qnc_source_browse::BrowseLocationEntry {
-    let card = base.label().to_string();
+    let card = base.shown();
     qnc_source_browse::BrowseLocationEntry {
         name: if base.active { format!("● {card}") } else { card },
         qnc_uri: base.uri.clone(),

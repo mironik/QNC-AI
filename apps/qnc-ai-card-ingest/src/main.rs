@@ -30,6 +30,49 @@ struct Window {
     on_top: qnc_window_front::WindowFront,
     /// A second copy started for a folder asks this one to show the browser.
     folder_asked: Option<qnc_tray::Signal>,
+    /// The base this window ingests into, its name and description as typed, and as written
+    /// (user 2026-11-15: "polje za upis naziva baze koju korisnik treba upisati prije zatvaranja").
+    base: String,
+    info: BaseInfo,
+}
+
+/// The name and description of the base, typed and written.
+#[derive(Default)]
+struct BaseInfo {
+    title: String,
+    description: String,
+    written: (String, String),
+    /// Closing was asked while the name was empty.
+    needed: bool,
+}
+
+impl BaseInfo {
+    /// Writes what was typed when it differs from what is written.
+    fn keep(&mut self, root: &std::path::Path, base: &str) {
+        let now = (self.title.trim().to_string(), self.description.trim().to_string());
+        if base.is_empty() || now == self.written {
+            return;
+        }
+        match qnc_ingest_base::set_info(root, base, &now.0, &now.1) {
+            Ok(()) => self.written = now,
+            Err(error) => log(format!("ai-card-ingest base name not written: {error}")),
+        }
+    }
+
+    /// The name and the description fields, the name's need said when closing waited for it.
+    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme) -> bool {
+        let mut left = false;
+        ui.label(RichText::new(text("card_ingest.base_name")).color(theme.text));
+        let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_name_hint")));
+        if self.needed && self.title.trim().is_empty() {
+            ui.label(RichText::new(text("card_ingest.base_name_needed")).color(theme.danger));
+        }
+        ui.add_space(4.0);
+        ui.label(RichText::new(text("card_ingest.base_description")).color(theme.text));
+        let description = ui.add(qnc_ui_kit::text_area(&mut self.description).desired_width(f32::INFINITY).desired_rows(2).hint_text(text("card_ingest.base_description_hint")));
+        left |= name.lost_focus() || description.lost_focus();
+        left
+    }
 }
 
 /// The signal a copy started for a folder gives the copy that runs.
@@ -63,6 +106,16 @@ impl eframe::App for Window {
             log("ai-card-ingest its base is no longer active: the window closes".into());
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             return;
+        }
+        // The window closes only once the base has its name (user 2026-11-15); what was typed is
+        // written as it closes.
+        if ctx.input(|input| input.viewport().close_requested()) {
+            if self.info.title.trim().is_empty() && !self.base.is_empty() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                self.info.needed = true;
+            } else {
+                self.info.keep(&self.root, &self.base);
+            }
         }
         if self.last != Some(status.phase) {
             log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
@@ -124,6 +177,10 @@ impl eframe::App for Window {
             ui.label(RichText::new(title).size(theme.font_ui + 6.0).color(theme.text).strong());
             if let Some(time) = self.took.or(elapsed) {
                 ui.label(RichText::new(fill("card_ingest.elapsed", &[("time", &clock(time))])).color(theme.text));
+            }
+            ui.add_space(12.0);
+            if !self.base.is_empty() && self.info.show(ui, &theme) {
+                self.info.keep(&self.root, &self.base);
             }
             ui.add_space(12.0);
             // Each card on its line; one an earlier base already has says so (it is not imported again).
@@ -220,19 +277,20 @@ fn main() -> eframe::Result<()> {
         }
     };
     // Each window says its base (a window per base, user 2026-11-14).
-    let label = qnc_ingest_base::all(&root).ok().and_then(|bases| bases.into_iter().find(|known| known.id == base)).map(|known| known.label().to_string());
-    let title = match label {
-        Some(label) => format!("{}: {label}", text("card_ingest.title")),
+    let known = qnc_ingest_base::all(&root).ok().and_then(|bases| bases.into_iter().find(|known| known.id == base));
+    let title = match &known {
+        Some(known) => format!("{}: {}", text("card_ingest.title"), known.label()),
         None => text("card_ingest.title").to_string(),
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked };
+    let info = known.map_or_else(BaseInfo::default, |known| BaseInfo { written: (known.title.clone(), known.description.clone()), title: known.title, description: known.description, needed: false });
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
     let step = 36.0 * place as f32;
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(title).with_inner_size([540.0, 570.0]).with_position([120.0 + step, 80.0 + step]).with_resizable(false),
+        viewport: egui::ViewportBuilder::default().with_title(title).with_inner_size([540.0, 700.0]).with_position([120.0 + step, 80.0 + step]).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

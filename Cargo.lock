@@ -3745,6 +3745,7 @@ dependencies = [
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
  "qnc-tray",
+ "qnc-ui-kit",
  "qnc-window-front",
  "qnc-wizard-text",
  "qnc-work-settings",
