@@ -1256,12 +1256,14 @@
         "navigate_prev_object": [
           {
             "code": "ArrowLeft",
+            "ctrl": true,
             "alt": true
           }
         ],
         "navigate_next_object": [
           {
             "code": "ArrowRight",
+            "ctrl": true,
             "alt": true
           }
         ],
@@ -1430,12 +1432,14 @@
         "navigate_prev_object": [
           {
             "code": "ArrowLeft",
+            "ctrl": true,
             "alt": true
           }
         ],
         "navigate_next_object": [
           {
             "code": "ArrowRight",
+            "ctrl": true,
             "alt": true
           }
         ],
