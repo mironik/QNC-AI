@@ -727,3 +727,6 @@ Testovi, release gradnja AI Media Assista. Uzivo nije provjereno.
 Popravak 2026-11-15 (korisnik: "marker treba postaviti kad se napravi dvoklik, ne cekati da se odabere drugi"): prvi dvoklik na
 rijec prijepisa (postavljen samo IN) odmah oznaci tu rijec zagradama i podlogom; drugi dvoklik prosiri oznaku do OUT-a
 (`qnc-transcript`). Uzivo nije provjereno.
+Ispravak 2026-11-15 (korisnik: "fokus se ne smije prebacivati na desni panel Izjave kad korisnik klikne na Dodaj izjavu; fokus
+mora ostati na zadnjem kliknutom panelu"): Dodaj izjavu ne mijenja panel tipkovnice; nova izjava je samo izabrana u stupcu.
+Klik na izjavu i dalje stavlja tipkovnicu na stupac Izjave (zadnji kliknuti panel).
