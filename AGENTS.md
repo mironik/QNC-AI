@@ -837,3 +837,8 @@ pa se tihi govor čita jednako kao glasan; dio jači od -9 dBFS je u drugoj boji
 (`Mirrored`, `Amplitude`), `paint_wave_shape`, `paint_level_marks_shape`, `height_of`; `TimelineTheme.wave_shape`;
 `MediaColors.wave_amplitude` (zadano false: klasični QNC zadržava zrcalni val i linije razina). Test
 `the_amplitude_stands_on_a_db_scale_from_the_bottom`. Uživo nije provjereno.
+Popravak 2026-11-15 (korisnik: "kada se podešava nivo tona wave ne prati povećanje ili smanjenje"; log: uzeta linija razine A1 i A2
+na source timelineu, strelice gore/dolje): val source timelinea (traka i prošireni prikaz) sada se množi linijom razine te trake na
+svakoj slici (QNC-shared `qnc-timeline` `level_lines::with_curves`, nacrt uzete linije odmah); Wrap redovi već imaju krivulju u svom
+valu i ne množe se još jednom. Vrijedi i za klasični QNC (do sada je tamo val pratio samo razinu trake). Test
+`a_curve_raises_and_lowers_the_wave_under_it_only`. Uživo nije provjereno.
