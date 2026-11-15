@@ -724,3 +724,6 @@ Assista tekst izmedju korisnikova IN-a i OUT-a ima crvene zagrade na pocetku i k
 iza poola): nova izjava i klik na izjavu stavljaju tipkovnicu na stupac (okvir fokusa), kartica nove izjave je u fokusu i
 dovodi se u pogled (`qnc-media-card`: kad se izabrana kartica promijeni, fokus ide na nju), strelice biraju, Enter otvara.
 Testovi, release gradnja AI Media Assista. Uzivo nije provjereno.
+Popravak 2026-11-15 (korisnik: "marker treba postaviti kad se napravi dvoklik, ne cekati da se odabere drugi"): prvi dvoklik na
+rijec prijepisa (postavljen samo IN) odmah oznaci tu rijec zagradama i podlogom; drugi dvoklik prosiri oznaku do OUT-a
+(`qnc-transcript`). Uzivo nije provjereno.
