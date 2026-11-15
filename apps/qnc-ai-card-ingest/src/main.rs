@@ -303,9 +303,10 @@ fn main() -> eframe::Result<()> {
     let step = 36.0 * place as f32;
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(title).with_inner_size([540.0, 700.0]).with_position([120.0 + step, 80.0 + step]).with_resizable(false),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(title.clone()).with_inner_size([540.0, 700.0 + qnc_title_bar::HEIGHT]).with_position([120.0 + step, 80.0 + step])).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };
-    eframe::run_native("QNC AI Card ingest", options, Box::new(move |_| Ok(Box::new(app))))
+    let bar = qnc_title_bar::TitleBar::new(title.to_string(), app.root.clone());
+    eframe::run_native("QNC AI Card ingest", options, Box::new(move |_| Ok(Box::new(qnc_title_bar::Framed { bar, app }))))
 }

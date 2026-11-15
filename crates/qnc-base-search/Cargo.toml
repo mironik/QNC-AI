@@ -1,0 +1,8 @@
+[package]
+name = "qnc-base-search"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: finds card bases in the archive by their name, place, description and what their shot analysis says they hold; read only, off the caller's thread, no GUI"
+
+[dependencies]
+qnc-ingest-base = { workspace = true }

@@ -242,6 +242,9 @@ qnc-still-locator = { path = "crates/qnc-still-locator" }
 qnc-store-jobs = { path = "../QNC-shared/crates/qnc-store-jobs" }
 qnc-story-start = { path = "crates/qnc-story-start" }
 qnc-base-contents = { path = "crates/qnc-base-contents" }
+qnc-base-search = { path = "crates/qnc-base-search" }
+qnc-base-search-view = { path = "crates/qnc-base-search-view" }
+qnc-title-bar = { path = "crates/qnc-title-bar" }
 qnc-theme-styles = { path = "../QNC-shared/crates/qnc-theme-styles" }
 qnc-timeline = { path = "../QNC-shared/crates/qnc-timeline" }
 qnc-timeline-artifacts = { path = "../QNC-shared/crates/qnc-timeline-artifacts" }

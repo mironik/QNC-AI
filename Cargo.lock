@@ -3744,6 +3744,7 @@ dependencies = [
  "qnc-ingest-base",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
+ "qnc-title-bar",
  "qnc-tray",
  "qnc-ui-kit",
  "qnc-window-front",
@@ -3847,6 +3848,7 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-project-desktop",
+ "qnc-title-bar",
  "qnc-tray",
  "qnc-window-front",
  "qnc-wizard-text",
@@ -3872,6 +3874,7 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-project-desktop",
+ "qnc-title-bar",
  "qnc-tray",
  "qnc-wizard-text",
 ]
@@ -4095,6 +4098,22 @@ dependencies = [
  "qnc-shot-captions",
  "qnc-shot-content-db",
  "qnc-shot-vocabulary",
+ "qnc-wizard-text",
+]
+
+[[package]]
+name = "qnc-base-search"
+version = "0.1.0"
+dependencies = [
+ "qnc-ingest-base",
+]
+
+[[package]]
+name = "qnc-base-search-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-base-search",
  "qnc-wizard-text",
 ]
 
@@ -4941,6 +4960,8 @@ name = "qnc-form-window"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-title-bar",
  "windows-sys 0.59.0",
 ]
 
@@ -7796,6 +7817,17 @@ dependencies = [
  "qnc-action-event",
  "qnc-edit-step",
  "qnc-mouse-map",
+]
+
+[[package]]
+name = "qnc-title-bar"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-open",
+ "qnc-base-search-view",
+ "qnc-dev-diagnostics",
+ "qnc-wizard-text",
 ]
 
 [[package]]

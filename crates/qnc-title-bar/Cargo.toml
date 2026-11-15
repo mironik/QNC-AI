@@ -1,0 +1,12 @@
+[package]
+name = "qnc-title-bar"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the title bar of every QNC-AI window, drawn by QNC (the window has no system frame): its title, the archive search, the settings (gear), minimize, maximize and close; moving, maximizing and resizing as a system window"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-ai-open = { workspace = true }
+qnc-base-search-view = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-wizard-text = { workspace = true }

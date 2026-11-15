@@ -1,0 +1,10 @@
+[package]
+name = "qnc-base-search-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the overlay window of the archive search of card bases (qnc-base-search): a field, the bases found with their place, description and the shots they hold of what was asked"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-base-search = { workspace = true }
+qnc-wizard-text = { workspace = true }

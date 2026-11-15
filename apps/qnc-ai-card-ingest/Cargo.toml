@@ -5,6 +5,7 @@ edition.workspace = true
 description = "QNC-AI card ingest: the background ingest of a card into its own Ingest base with a small window that says how far it is; the tray asks once for all bases whether QNC is started"
 
 [dependencies]
+qnc-title-bar = { workspace = true }
 eframe = { workspace = true }
 qnc-card-ingest = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }

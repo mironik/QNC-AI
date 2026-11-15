@@ -15,7 +15,8 @@ use eframe::egui;
 
 /// The options of a form's window titled `title`.
 pub fn options(title: &str) -> eframe::NativeOptions {
-    let viewport = egui::ViewportBuilder::default().with_title(title).with_min_inner_size([1100.0, 700.0]);
+    // QNC's own title bar (`qnc-title-bar`), with the archive search and the settings: no system frame.
+    let viewport = qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(title).with_min_inner_size([1100.0, 700.0]));
     let viewport = match maximized_place() {
         Some((left, top, width, height)) => viewport.with_position([left, top]).with_inner_size([width, height]),
         // Where the work area is not known the window is made maximized.
@@ -26,7 +27,9 @@ pub fn options(title: &str) -> eframe::NativeOptions {
 
 /// Runs the form's app `app` in its window titled `title`.
 pub fn run<A: eframe::App + 'static>(title: &str, app: A) -> eframe::Result<()> {
-    eframe::run_native(title, options(title), Box::new(|_| Ok(Box::new(Maximized { app, frames: 0 }))))
+    let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_default();
+    let framed = qnc_title_bar::Framed { bar: qnc_title_bar::TitleBar::new(title, root), app };
+    eframe::run_native(title, options(title), Box::new(|_| Ok(Box::new(Maximized { app: framed, frames: 0 }))))
 }
 
 /// The frame after which the window, shown by eframe after its first frame, is maximized.
@@ -53,41 +56,36 @@ impl<A: eframe::App> eframe::App for Maximized<A> {
 }
 
 /// The place of the window as Windows gives it when maximized (user 2026-11-13: "uskladi normalni
-/// prozor s maksimiziranim"): its outer top-left and its inner size. Maximized, a window's frame
-/// lies just outside the work area (the screen without the taskbar) and its inner part is the work
-/// area under the caption; the normal window is given the same, so maximizing it changes nothing
-/// seen. The frame and caption are read at the screen's real scale, in its pixels, as Windows sizes
-/// them (measured: at 125 % the frame is 9 pixels, not 8 points times 1.25), then given in points.
-/// `None` where it is not known.
+/// prozor s maksimiziranim"): its outer top-left and its inner size. The window has no system
+/// frame (QNC's own title bar, 2026-11-15), so maximized it is the work area (the screen without
+/// the taskbar) itself; the normal window is given the same, so maximizing it changes nothing seen.
+/// The work area is read at the screen's real scale, in its pixels, then given in points. `None`
+/// where it is not known.
 #[cfg(windows)]
 fn maximized_place() -> Option<(f32, f32, f32, f32)> {
     use windows_sys::Win32::{
         Foundation::RECT,
         UI::{
-            HiDpi::{AdjustWindowRectExForDpi, GetDpiForSystem, SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
-            WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA, WS_OVERLAPPEDWINDOW},
+            HiDpi::{GetDpiForSystem, SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
+            WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA},
         },
     };
     let mut area = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-    let mut frame = RECT { left: 0, top: 0, right: 0, bottom: 0 };
     // SAFETY: this thread reads in the screen's pixels for these calls only and is put back; the
-    // calls write one RECT each into the buffers given.
-    let (read, adjusted, dpi) = unsafe {
+    // call writes one RECT into the buffer given.
+    let (read, dpi) = unsafe {
         let before = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         let dpi = GetDpiForSystem();
         let read = SystemParametersInfoW(SPI_GETWORKAREA, 0, (&mut area as *mut RECT).cast(), 0);
-        let adjusted = AdjustWindowRectExForDpi(&mut frame, WS_OVERLAPPEDWINDOW, 0, 0, dpi);
         SetThreadDpiAwarenessContext(before);
-        (read, adjusted, dpi)
+        (read, dpi)
     };
-    // The frame beside the window (`-left`) and the caption above it with the frame (`-top`).
-    let (side, above) = (-frame.left, -frame.top);
-    let (width, height) = (area.right - area.left, area.bottom - area.top - (above - side));
-    if read == 0 || adjusted == 0 || dpi == 0 || width <= 0 || height <= 0 {
+    let (width, height) = (area.right - area.left, area.bottom - area.top);
+    if read == 0 || dpi == 0 || width <= 0 || height <= 0 {
         return None;
     }
     let points = |pixels: i32| pixels as f32 * 96.0 / dpi as f32;
-    Some((points(area.left - side), points(area.top - side), points(width), points(height)))
+    Some((points(area.left), points(area.top), points(width), points(height)))
 }
 
 #[cfg(not(windows))]

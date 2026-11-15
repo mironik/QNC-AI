@@ -11,6 +11,7 @@ fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-settings");
     let Ok(Some(_one)) = qnc_tray::OneCopy::take("QNC-AI-settings") else { return Ok(()) };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    let bar = qnc_title_bar::TitleBar::new(qnc_wizard_text::text("settings.title"), root.clone());
     // The projects' folder shown is never the bases' folder.
     if let Err(error) = qnc_ingest_base::keep_projects_apart(&root) {
         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-settings projects folder: {error}"));
@@ -24,7 +25,7 @@ fn main() -> eframe::Result<()> {
     };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("settings.title")).with_inner_size([900.0, 800.0]).with_min_inner_size([700.0, 500.0]),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("settings.title")).with_inner_size([900.0, 800.0]).with_min_inner_size([700.0, 500.0])),
         persist_window: false,
         ..Default::default()
     };
@@ -33,7 +34,7 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let _ = qnc_project_desktop::apply_project_style(&cc.egui_ctx);
-            Ok(Box::new(app))
+            Ok(Box::new(qnc_title_bar::Framed { bar, app }))
         }),
     )
 }

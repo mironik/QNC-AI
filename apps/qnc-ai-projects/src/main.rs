@@ -37,7 +37,7 @@ impl eframe::App for Projects {
             self.new_project(ctx);
             return;
         }
-        let height = self.app.content_height().ceil();
+        let height = (self.app.content_height() + qnc_title_bar::HEIGHT).ceil();
         if height > 0.0 && (height - self.height).abs() > 1.0 {
             self.height = height;
             let width = ctx.input(|input| input.viewport().inner_rect.map_or(640.0, |rect| rect.width()));
@@ -102,7 +102,7 @@ fn main() -> eframe::Result<()> {
     };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("projects.title")).with_inner_size([640.0, 360.0]).with_min_inner_size([480.0, 160.0]),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("projects.title")).with_inner_size([640.0, 360.0]).with_min_inner_size([480.0, 160.0])),
         persist_window: false,
         ..Default::default()
     };
@@ -111,7 +111,8 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let _ = qnc_project_desktop::apply_project_style(&cc.egui_ctx);
-            Ok(Box::new(Projects { root, app, front: Default::default(), shown: false, height: 0.0 }))
+            let bar = qnc_title_bar::TitleBar::new(qnc_wizard_text::text("projects.title"), root.clone());
+            Ok(Box::new(qnc_title_bar::Framed { bar, app: Projects { root, app, front: Default::default(), shown: false, height: 0.0 } }))
         }),
     )
 }
