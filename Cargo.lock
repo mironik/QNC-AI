@@ -7857,6 +7857,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-source-preview",
  "qnc-source-timecode",
+ "qnc-text-cursor",
  "qnc-timeline-model",
  "qnc-transcribe-queue",
  "qnc-transcript-db",

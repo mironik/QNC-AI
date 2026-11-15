@@ -21,6 +21,8 @@ use qnc_transcribe_queue::{Heard, Progress, QueueRunner, Queued};
 pub use qnc_transcribe_queue::{QueueQuality, QueueState};
 pub use qnc_transcript_db::{ClipTranscript, Line, Quote, Word};
 mod search;
+mod sentences;
+pub use sentences::sentences;
 pub use search::{finds, line_words, SearchView, SEARCH_NEXT, SEARCH_TERM};
 use qnc_source_timecode::SourceTimecode;
 
@@ -91,6 +93,9 @@ pub struct TranscriptView {
     /// The lines of the shown clip in the order of their frames: those kept and those of a
     /// transcription still running.
     pub lines: Arc<Vec<Line>>,
+    /// The rows the panel shows the lines in (piece `qnc-text-cursor`): the keyboard cursor
+    /// moves by them.
+    pub rows: qnc_text_cursor::ShownRows,
     /// Clip frames `[from, to)` of transcribed sound in which no word was heard, of two
     /// seconds or more (user 2026-10-26: "audio without text from TC to TC" in red).
     pub silences: Arc<Vec<(u64, u64)>>,

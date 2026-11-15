@@ -744,3 +744,9 @@ uzivo nije provjereno.
 Dopuna 2026-11-15 (korisnik: "panel prijepis nemas u tab putanji"): tekst prijepisa je panel tipki `Panel::Transcript` u krugu
 Taba grupe e (iza dugmadi source timelinea) s okvirom fokusa; klik na tekst ili Tab ga uzima. Strelice i Shift+strelice idu
 kursoru teksta, ostale tipke (Space, I, O, Esc...) su tipke source timelinea, a tipkovnica ostaje na tekstu.
+Popravak 2026-11-15 (korisnik: "kursor preskace redove teksta u prikazu"; "treba formatirati po recenicama s razmakom izmedju
+recenica, nova recenica novi red"): prijepis se prikazuje po recenicama: rijeci teku preko redaka zapisa, recenica zavrsava na
+rijeci koja zavrsava s . ? ! ili …, svaka recenica je svoj odlomak s razmakom izmedju (`qnc-transcript` `sentences`; rijeci
+zadrzavaju svoja vremena, pa oznake, pretraga i kursor rade isto). Kursor ide po redovima kakvi se vide na ekranu: panel pri
+crtanju zapisuje redove (`qnc-text-cursor` `ShownRows`, `TranscriptView.rows`), gore/dolje idu red po red; rijec kursora dovodi
+se u pogled kad se pomakne. Uzivo nije provjereno.

@@ -14,4 +14,5 @@ qnc-source-timecode = { workspace = true }
 qnc-timeline-model = { workspace = true }
 qnc-transcribe-queue = { workspace = true }
 qnc-transcript-db = { workspace = true }
+qnc-text-cursor = { workspace = true }
 qnc-ui-text = { workspace = true }

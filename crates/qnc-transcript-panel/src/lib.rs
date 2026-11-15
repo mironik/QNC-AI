@@ -98,13 +98,18 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(&mut ui, |ui| {
         // Lines and silences in the order of their frames.
         let mut silences = silences_shown.iter().peekable();
-        for line in view.lines.iter() {
+        // The rows the words are shown in, for the keyboard cursor (piece `qnc-text-cursor`).
+        let mut rows = Vec::new();
+        // By sentences, a space between them (user 2026-11-15).
+        let shown = qnc_transcript::sentences(&view.lines);
+        for line in shown.iter() {
             while let Some((from, to)) = silences.next_if(|(from, _)| *from < line.from) {
                 paint_silence(ui, &at(*from), &at(*to), theme);
             }
             // The marked text is lit in AI Media Assist too, whole (user 2026-11-15: "označeni tekst
             // kompletan markiraj") and in its brackets.
-            let (word, rect) = paint_line(ui, line, view, ends, true, found.as_ref(), theme);
+            let (word, rect, line_rows) = paint_line(ui, line, view, ends, true, found.as_ref(), theme);
+            rows.extend(line_rows);
             if found.as_ref().is_some_and(|found| found.bring && line_words(line).iter().any(|w| found.current.first() == Some(&(w.1, w.2)))) {
                 ui.scroll_to_rect(rect, Some(egui::Align::Center));
             }
@@ -114,8 +119,9 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
             if let Some(word) = word {
                 asked = Some(word);
             }
-            ui.add_space(4.0);
+            ui.add_space(theme.font_ui * 0.8); // a space between sentences
         }
+        view.rows.set(rows);
         for (from, to) in silences {
             paint_silence(ui, &at(*from), &at(*to), theme);
         }
@@ -211,7 +217,7 @@ fn clock(seconds: f64) -> String {
 /// One line as one text wrapped at the panel's width (user 2026-10-26: "sentences go out of the
 /// panel, they should wrap"), the word said at the playhead lit; returns the first frame of a
 /// clicked word.
-fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Option<((u64, u64), (u64, u64))>, show_marks: bool, found: Option<&search::Shown>, theme: &qnc_desktop_theme::Theme) -> (Option<(u64, u64, bool)>, egui::Rect) {
+fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Option<((u64, u64), (u64, u64))>, show_marks: bool, found: Option<&search::Shown>, theme: &qnc_desktop_theme::Theme) -> (Option<(u64, u64, bool)>, egui::Rect, Vec<Vec<(u64, u64)>>) {
     let running = view.running.is_some_and(|(from, to)| line.from >= from && line.to <= to);
     let base = if running { theme.text_muted } else { theme.text };
     let font = egui::FontId::proportional(theme.font_ui);
@@ -273,8 +279,31 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
     }
     let double = response.double_clicked();
     let clicked = if response.clicked() || double { response.interact_pointer_pos().and_then(word_at).map(|(from, to)| (from, to, double)) } else { None };
+    // The word of the playhead (the keyboard cursor) is brought into view when it moves.
+    let cursor = spans.iter().find(|(_, _, (from, to))| said(view, *from, *to)).map(|(start, _, _)| galley.pos_from_ccursor(egui::text::CCursor::new(*start)).translate(rect.min.to_vec2()));
+    let rows = shown_rows(&galley, &spans);
     ui.painter().galley(rect.min, galley, base);
-    (clicked, rect)
+    if let Some(cursor) = cursor {
+        let seen = egui::Id::new("qnc-transcript-panel-cursor");
+        if ui.ctx().memory_mut(|memory| memory.data.get_temp::<Option<u64>>(seen)) != Some(view.playhead) {
+            ui.ctx().memory_mut(|memory| memory.data.insert_temp(seen, view.playhead));
+            ui.scroll_to_rect(cursor, None);
+        }
+    }
+    (clicked, rect, rows)
+}
+
+/// The words of a laid out line by the rows they are shown in, top to bottom.
+fn shown_rows(galley: &egui::Galley, spans: &[(usize, usize, (u64, u64))]) -> Vec<Vec<(u64, u64)>> {
+    let mut rows: Vec<(f32, Vec<(u64, u64)>)> = Vec::new();
+    for (start, _, word) in spans {
+        let top = galley.pos_from_ccursor(egui::text::CCursor::new(*start)).min.y;
+        match rows.last_mut() {
+            Some((row_top, words)) if (*row_top - top).abs() < 1.0 => words.push(*word),
+            _ => rows.push((top, vec![*word])),
+        }
+    }
+    rows.into_iter().map(|(_, words)| words).collect()
 }
 
 /// The words of a line with their frames (a line without words is one word).

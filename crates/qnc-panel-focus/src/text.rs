@@ -34,8 +34,11 @@ impl PanelFocus {
         match step {
             // A taken IN/OUT keeps the arrows (as on the source timeline).
             Some((step, select)) if !self.taken(pieces.3) => {
-                // The text's words by lines, as the transcript shows them.
-                let lines: Vec<Vec<qnc_text_cursor::WordSpan>> = self.side.views().transcript.lines.iter().map(|line| line.words.iter().map(|word| (word.from, word.to)).collect()).collect();
+                // The text's words by the rows the panel shows them in (a line wraps into several,
+                // user 2026-11-15: the cursor skipped rows); before a paint, its lines.
+                let view = std::sync::Arc::clone(&self.side.views().transcript);
+                let shown = view.rows.get();
+                let lines: Vec<Vec<qnc_text_cursor::WordSpan>> = if shown.is_empty() { view.lines.iter().map(|line| line.words.iter().map(|word| (word.from, word.to)).collect()).collect() } else { shown };
                 let Some((to, selection)) = self.text_cursor.step(&lines, pieces.3.playhead_frame, step, select) else { return Some(Some(false)) };
                 if let Some((first, last)) = selection {
                     self.source.select_words(pieces.3, first, last);
