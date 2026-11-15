@@ -12,11 +12,15 @@ pub struct ProjectApp {
     /// QNC-AI: only the project list (the Projects form); the project a row opens.
     projects_only: bool,
     opened: Option<String>,
+    /// QNC-AI Projects: the label of the new-project row, a new project asked for, the content height.
+    new_label: String,
+    new_asked: bool,
+    height: f32,
 }
 
 impl ProjectApp {
     pub(crate) fn new(contracts: AppContracts, session: ProjectSession) -> Self {
-        Self { contracts, session, settings_only: false, projects_only: false, opened: None }
+        Self { contracts, session, settings_only: false, projects_only: false, opened: None, new_label: String::new(), new_asked: false, height: 0.0 }
     }
 
     /// QNC-AI: the project list on its own, only the projects `only`; a row opened is not opened
@@ -30,6 +34,22 @@ impl ProjectApp {
     /// The id of the project a row of the Projects form opened.
     pub fn take_opened(&mut self) -> Option<String> {
         self.opened.take()
+    }
+
+    /// QNC-AI Projects: the label of the row after the projects that makes a new one.
+    pub fn with_new_label(mut self, label: String) -> Self {
+        self.new_label = label;
+        self
+    }
+
+    /// Was the new-project row clicked since the last call.
+    pub fn take_new_asked(&mut self) -> bool {
+        std::mem::take(&mut self.new_asked)
+    }
+
+    /// How tall the Projects content was last drawn (the window is sized to it).
+    pub fn content_height(&self) -> f32 {
+        self.height
     }
 
     /// QNC-AI: the settings on their own, their advanced part open.
@@ -59,7 +79,10 @@ impl ProjectApp {
             ctx.request_repaint_after(std::time::Duration::from_millis(20));
         }
         if self.projects_only {
-            for intent in qnc_project_blocks::show_projects(ctx, ui, &self.contracts, &mut self.session) {
+            let (intents, alone) = qnc_project_blocks::show_projects(ctx, ui, &self.contracts, &mut self.session, &self.new_label);
+            self.new_asked |= alone.new_asked;
+            self.height = alone.height;
+            for intent in intents {
                 let row = match intent {
                     qnc_project_session::ProjectIntent::OpenProjectRow { index } => Some(index),
                     qnc_project_session::ProjectIntent::OpenSelectedProject => self.session.selected_project,

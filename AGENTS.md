@@ -809,3 +809,11 @@ Popravak 2026-11-15 (korisnik: "ovo nije premium stil, a dugme Novi projekt je n
 put sjeda za montazu"): cista paleta upisana je i u QNC-AI-jev vlastiti `contracts/ui/shell.layout.json` (isti kao
 `ai-shell.layout.json`), pa je imaju i prozori koji ga citaju: Projekti, Postavke, Ingest i prozor kartice, pitanja traya, tray i
 ljuska. "Novi projekt" je jedina primarna radnja prozora Projekti: svijetli gumb s tamnim tekstom (180x38). Uzivo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "bijelo dugme strši, položaj neprirodan, margine, paneli, dimenzije; ako imaju tri projekta, čemu
+prazni prostor ispod; logika čitanja od vrha prema dnu: ako u spisku ne nalazi projekt koji treba, šta iza toga slijedi"):
+prozor Projekti se čita odozgo: naslov s pretragom, projekti, a odmah ispod zadnjeg projekta red "+ Novi projekt" iste visine kao
+red projekta (tanki okvir u boji ruba, tekst u boji teksta, pod mišem ispuna izabranog reda), bez bijelog gumba na vrhu i bez
+statusa "Spremno.". Prozor je visok koliko sadržaj (do 8 projekata bez trake za listanje, više se lista na istom mjestu).
+`qnc-project-blocks` `show_projects` vraća i `ProjectsAlone` (red novog projekta kliknut, visina sadržaja); `qnc-project-desktop`
+`with_new_label`, `take_new_asked`, `content_height`; `qnc-ai-projects` mijenja visinu prozora kad se sadržaj promijeni.
+Uživo nije provjereno.

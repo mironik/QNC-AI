@@ -18,6 +18,8 @@ struct Projects {
     /// 2026-11-15: it opened minimised and was not seen; `qnc-window-front`).
     front: qnc_window_front::WindowFront,
     shown: bool,
+    /// The height the window was last given (that of its content).
+    height: f32,
 }
 
 impl eframe::App for Projects {
@@ -27,26 +29,20 @@ impl eframe::App for Projects {
             self.front.bring(ctx);
         }
         self.front.follow(ctx);
-        // A new project (user 2026-11-15: "nedostaje dugme Kreiraj novi projekt koji poziva
-        // Ingest"): Ingest opens on the newest base no story took yet (its Uvezi asks for the new
-        // project), or on a card or folder when every base has its story.
-        // The one primary action of the window, clear to someone at the desk for the first time
-        // (user 2026-11-15): a light button with dark text, in the window's own colours.
-        let visuals = ctx.style().visuals.clone();
-        let bar = egui::Frame::NONE.fill(visuals.panel_fill).inner_margin(egui::Margin { left: 24, right: 24, top: 20, bottom: 8 });
-        let new_asked = egui::TopBottomPanel::top("qnc-ai-projects-new").frame(bar).show_separator_line(false).show(ctx, |ui| {
-            let label = egui::RichText::new(qnc_wizard_text::text("projects.new")).size(15.0).color(visuals.panel_fill);
-            let button = ui.add(egui::Button::new(label).fill(visuals.strong_text_color()).stroke(egui::Stroke::NONE).corner_radius(4.0).min_size(egui::vec2(180.0, 38.0)));
-            if button.hovered() {
-                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-            }
-            button.clicked()
-        }).inner;
-        if new_asked {
+        // Read top to bottom (user 2026-11-15): the projects, and right after the last one the
+        // row of a new project (Ingest opens on the newest base no story took yet, or on a card or
+        // folder when every base has its story). The window is as tall as that, no empty space.
+        self.app.update(ctx, frame);
+        if self.app.take_new_asked() {
             self.new_project(ctx);
             return;
         }
-        self.app.update(ctx, frame);
+        let height = self.app.content_height().ceil();
+        if height > 0.0 && (height - self.height).abs() > 1.0 {
+            self.height = height;
+            let width = ctx.input(|input| input.viewport().inner_rect.map_or(640.0, |rect| rect.width()));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(width, height)));
+        }
         let Some(story) = self.app.take_opened() else { return };
         match qnc_ingest_base::open_story(&self.root, &story) {
             Ok(name) => {
@@ -98,7 +94,7 @@ fn main() -> eframe::Result<()> {
         }
     };
     let app = match qnc_project_desktop::create_project_app(root.clone()) {
-        Ok(app) => app.projects_only(mine),
+        Ok(app) => app.projects_only(mine).with_new_label(qnc_wizard_text::text("projects.new").to_string()),
         Err(error) => {
             log(format!("ai-projects not started: {error}"));
             return Ok(());
@@ -106,7 +102,7 @@ fn main() -> eframe::Result<()> {
     };
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("projects.title")).with_inner_size([700.0, 640.0]).with_min_inner_size([500.0, 400.0]),
+        viewport: egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("projects.title")).with_inner_size([640.0, 360.0]).with_min_inner_size([480.0, 160.0]),
         persist_window: false,
         ..Default::default()
     };
@@ -115,7 +111,7 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let _ = qnc_project_desktop::apply_project_style(&cc.egui_ctx);
-            Ok(Box::new(Projects { root, app, front: Default::default(), shown: false }))
+            Ok(Box::new(Projects { root, app, front: Default::default(), shown: false, height: 0.0 }))
         }),
     )
 }

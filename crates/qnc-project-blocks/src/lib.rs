@@ -42,8 +42,10 @@ pub fn show_settings(ctx: &egui::Context, ui: &mut egui::Ui, contracts: &AppCont
 /// QNC-AI: the project list of Project on its own over the whole window (user 2026-11-12: "iz
 /// stare QNC forme Projects preuzeti panel koji je prikazivao arhivu projekata, kako bi korisnik
 /// mogao nastaviti raditi na projektu ako je projekt bio zatvoren"): the rows, their search and
-/// the delete question; opening a row is the caller's (the Projects form).
-pub fn show_projects(ctx: &egui::Context, ui: &mut egui::Ui, contracts: &AppContracts, session: &mut ProjectSession) -> Vec<ProjectIntent> {
+/// the delete question; opening a row is the caller's (the Projects form). Read top to bottom:
+/// after the last project the row of a new one ([`ProjectsAlone`]: asked for, content height).
+pub use list::ProjectsAlone;
+pub fn show_projects(ctx: &egui::Context, ui: &mut egui::Ui, contracts: &AppContracts, session: &mut ProjectSession, new_label: &str) -> (Vec<ProjectIntent>, ProjectsAlone) {
     let actions: Vec<&str> = qnc_keyboard_shortcut::egui_shortcut_events(ctx)
         .iter()
         .flat_map(|event| contracts.shortcuts.action_ids_for_event("project", event))
@@ -51,10 +53,9 @@ pub fn show_projects(ctx: &egui::Context, ui: &mut egui::Ui, contracts: &AppCont
     let open = !ctx.wants_keyboard_input() && !session.keys_held() && actions.contains(&"project_open_selected");
     let intents = open.then_some(ProjectIntent::OpenSelectedProject).into_iter().collect();
     let mut blocks = Blocks { contracts, session, intents, settings_only: true };
-    let rect = ui.available_rect_before_wrap();
-    blocks.project_list(ui, rect.width(), rect.height());
+    let alone = blocks.projects_alone(ui, new_label);
     blocks.delete_questions(ctx);
-    blocks.intents
+    (blocks.intents, alone)
 }
 
 /// Draws Project on the desktop board and returns what its blocks and keys ask for.
