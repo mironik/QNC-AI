@@ -55,7 +55,7 @@
       "level_marks": [[0, 0, 0, 0], [0, 0, 0, 0], [214, 82, 74, 40]],
       "level_curve": [150, 152, 158],
       "wave_amplitude": true,
-      "lane_divider": [62, 65, 71]
+      "lane_divider": [6, 6, 7]
     }
   },
   "forbidden_changes_without_approval": [
