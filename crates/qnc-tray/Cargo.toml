@@ -5,6 +5,8 @@ edition.workspace = true
 description = "QNC-AI block: an icon in the system tray with its menu and notices, and one running copy of a program; an adapter per system (Windows first)"
 
 [dependencies]
+qnc-wizard-text = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [

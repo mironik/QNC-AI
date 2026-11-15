@@ -3698,6 +3698,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-ask"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-layout",
+]
+
+[[package]]
 name = "qnc-ai-broll"
 version = "0.1.0"
 dependencies = [
@@ -7942,6 +7951,8 @@ dependencies = [
 name = "qnc-tray"
 version = "0.1.0"
 dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-wizard-text",
  "windows-sys 0.59.0",
 ]
 

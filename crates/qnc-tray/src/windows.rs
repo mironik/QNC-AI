@@ -293,13 +293,39 @@ pub(crate) fn close_alert(key: &str) {
     crate::alert::close(key);
 }
 
+/// The question in QNC's look (program `qnc-ai-ask` beside the tray, above every window; user
+/// 2026-11-15: the system box looked like the system's and stayed behind): `buttons` are its
+/// answers in order, `enter` the one Enter gives. Its answer, or `None` when the program cannot run
+/// (the system box then asks, and the log says why).
+fn qnc_ask(title: &str, text: &str, buttons: &[&str], enter: &str) -> Option<String> {
+    let program = std::env::current_exe().ok()?.with_file_name("qnc-ai-ask.exe");
+    let labels: Vec<String> = buttons.iter().map(|answer| format!("{answer}={}", qnc_wizard_text::text(&format!("ask.{answer}")))).collect();
+    let output = std::process::Command::new(&program)
+        .args(["--title", title, "--text", text, "--buttons", &labels.join(","), "--enter", enter])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output();
+    match output {
+        Ok(output) => Some(String::from_utf8_lossy(&output.stdout).trim().to_string()),
+        Err(error) => {
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-tray question {} cannot run: {error}", program.display()));
+            None
+        }
+    }
+}
+
 /// A question with Yes and No, above every window, on its own thread; the answer comes back on
-/// the channel (Yes is `true`).
+/// the channel (Yes is `true`; Enter is No).
 pub(crate) fn confirm(title: &str, text: &str) -> std::sync::mpsc::Receiver<bool> {
     use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDYES, MB_DEFBUTTON2, MB_ICONWARNING, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO};
     let (send, answer) = std::sync::mpsc::channel();
-    let (title, text) = (wide(title), wide(text));
+    let (title, text) = (title.to_string(), text.to_string());
     std::thread::spawn(move || {
+        if let Some(chosen) = qnc_ask(&title, &text, &["yes", "no"], "no") {
+            let _ = send.send(chosen == "yes");
+            return;
+        }
+        let (title, text) = (wide(&title), wide(&text));
         // SAFETY: both texts are NUL-terminated UTF-16 that live until the box is closed.
         let chosen = unsafe {
             MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2 | MB_TOPMOST | MB_SETFOREGROUND)
@@ -314,8 +340,17 @@ pub(crate) fn confirm(title: &str, text: &str) -> std::sync::mpsc::Receiver<bool
 pub(crate) fn ask(title: &str, text: &str) -> std::sync::mpsc::Receiver<crate::Answer> {
     use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDNO, IDYES, MB_ICONQUESTION, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNOCANCEL};
     let (send, answer) = std::sync::mpsc::channel();
-    let (title, text) = (wide(title), wide(text));
+    let (title, text) = (title.to_string(), text.to_string());
     std::thread::spawn(move || {
+        if let Some(chosen) = qnc_ask(&title, &text, &["yes", "no", "cancel"], "yes") {
+            let _ = send.send(match chosen.as_str() {
+                "yes" => crate::Answer::Yes,
+                "no" => crate::Answer::No,
+                _ => crate::Answer::Cancel,
+            });
+            return;
+        }
+        let (title, text) = (wide(&title), wide(&text));
         // SAFETY: both texts are NUL-terminated UTF-16 that live until the box is closed.
         let chosen = unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_YESNOCANCEL | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND) };
         let _ = send.send(match chosen {

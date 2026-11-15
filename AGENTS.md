@@ -782,3 +782,9 @@ Prijepisi jer je njena glavna funkcija napraviti izjave iz prijepisa"): u novom 
 tabovi bili sivi (pravilo praznih tabova) i Sve je bio jedini. Ugovor rasporeda dobio je `opening_tab` (tab s kojim se forma
 otvara, uvijek dostupan; `qnc-ai-editorial-layout`, `FocusLayout.opening_tab`, `FocusView.opening_tab`); grupa e (AI Media Assist)
 se otvara na Prijepisima. Usput: ulazak u panel (Alt/Tab + strelica, klik) javlja i krugu tipki gdje je tipkovnica.
+Izmjena 2026-11-15 (korisnik: "prozor koji daje obavijest da je baza spremna izgleda kao sistemski i ne dolazi na vrh, pa se ne
+vidi"): pitanja traya (spremno za montazu / pokreni QNC, potvrde) vise nisu sistemski MessageBox nego program `qnc-ai-ask` uz
+tray (`apps/qnc-ai-ask`): prozor u QNC temi, uvijek na vrhu, trazi paznju; gumbi iz rjecnika (`ask.yes`, `ask.no`, `ask.cancel`
+u `contracts/wizard-text`), Enter daje zadani odgovor (kod potvrde Ne, kao prije), Esc zadnji, zatvaranje je Odustani; odgovor
+ide trayu na stdout (`qnc-tray` `qnc_ask`). Kad program ne moze krenuti, pita sistemski prozor i log kaze zasto. Uzivo nije
+provjereno (tray radi, pa nije izgradjen).

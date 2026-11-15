@@ -1,0 +1,10 @@
+[package]
+name = "qnc-ai-ask"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI question: a question of the tray in QNC's look, above every window, with its buttons; the answer is written to stdout"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-ingest-layout = { workspace = true }
