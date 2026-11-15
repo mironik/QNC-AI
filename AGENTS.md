@@ -730,3 +730,14 @@ rijec prijepisa (postavljen samo IN) odmah oznaci tu rijec zagradama i podlogom;
 Ispravak 2026-11-15 (korisnik: "fokus se ne smije prebacivati na desni panel Izjave kad korisnik klikne na Dodaj izjavu; fokus
 mora ostati na zadnjem kliknutom panelu"): Dodaj izjavu ne mijenja panel tipkovnice; nova izjava je samo izabrana u stupcu.
 Klik na izjavu i dalje stavlja tipkovnicu na stupac Izjave, a klik na tekst prijepisa na source timeline (tipke teksta su tipke source timelinea; zadnji kliknuti panel).
+Izvedeno 2026-11-15 (korisnik: "u tekst panelu nemamo kursora, pa ne mozemo selektirati tekst tipkovnicom"; "kocka treba biti
+univerzalna, treba moci raditi u bilo kojoj formi gdje ima teksta (npr. u skripti)"): nova javna kocka `QNC-shared/crates/qnc-text-cursor`
+(+ ugovor `contracts/modules/text-cursor.module.json`): kursor na bilo kojem tekstu rijeci s vremenima (retci rijeci `[from, to)`):
+kursor je rijec pod playheadom (ili zadnja na koju je postavljen dok playhead ne ode drugamo), strelice lijevo/desno za rijec,
+gore/dolje za redak, Shift+strelice oznacavaju od rijeci na kojoj je oznacavanje pocelo; sto oznaka znaci odlucuje pozivatelj.
+U AI Media Assistu: klik na tekst prijepisa stavlja tipkovnicu na tekst (tipke su i dalje tipke source timelinea), strelice
+pomicu kursor i playhead na rijec, Shift+strelice postavljaju IN/OUT od-do rijeci (`qnc-source-timeline` `select_words`), pa se
+vide zagrade i podloga; klik izvan teksta ili drugi panel vraca strelice playheadu (`qnc-panel-focus` `text.rs`). Katalog: radnje
+`transcript_select_left/right/up/down` (Shift+strelice) u opsegu source_timeline svih preseta, grupa pomoci "Prijepis".
+Popravak usput: klik na rijec nije mijenjao panel tipkovnice (rijec se obradivala prije). Skripta jos ne koristi kocku. Testovi;
+uzivo nije provjereno.

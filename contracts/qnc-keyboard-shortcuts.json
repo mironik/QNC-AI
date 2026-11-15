@@ -774,6 +774,18 @@
     },
     "go_to_mark_in": {
       "label": "Playhead na IN (početak SubClipa)"
+    },
+    "transcript_select_left": {
+      "label": "Prijepis: označi do prethodne riječi"
+    },
+    "transcript_select_right": {
+      "label": "Prijepis: označi do sljedeće riječi"
+    },
+    "transcript_select_up": {
+      "label": "Prijepis: označi do retka iznad"
+    },
+    "transcript_select_down": {
+      "label": "Prijepis: označi do retka ispod"
     }
   },
   "help": {
@@ -796,11 +808,13 @@
       { "keys": "Esc", "meaning": "Odustani od onoga što nije zapisano, jedno po pritisku: pusti uzeto, odbaci nacrt Synca, zatvori uređivanje segmenta, zatvori uvećani slot." },
       { "keys": "Delete", "meaning": "Briše objekt, jedan po pritisku, samo ono uzeto (Ctrl ili desni klik): uzeti M marker, uzeti B-roll ili B-roll odabranog slota. Ctrl+Delete trajno briše isključeni segment." },
       { "keys": "Backspace", "meaning": "Briše zadnju radnju (Undo); Shift+Backspace je vraća (Redo). Ctrl+Backspace poništava zadnju izmjenu odabranog objekta bez obzira kad je bila (Undo selected), Ctrl+Shift+Backspace je vraća. U polju za upis teksta briše slovo; u pregledniku lokacija Ingesta znači Gore." },
-      { "keys": "Tab / klik", "meaning": "Tipke djeluju samo na panel u fokusu; Tab ili klik mijenja panel." }
+      { "keys": "Tab / klik", "meaning": "Tipke djeluju samo na panel u fokusu; Tab ili klik mijenja panel." },
+      { "keys": "Tekst prijepisa", "meaning": "Klik na tekst stavlja tipkovnicu na tekst: kursor je riječ pod playheadom. Strelice lijevo/desno pomiču kursor za riječ, gore/dolje za redak; Shift + strelice označavaju tekst od riječi na kojoj je označavanje počelo (označeno je IN/OUT)." }
     ],
     "groups": [
       { "title": "Reprodukcija i playhead", "actions": ["play_pause", "shuttle_back", "shuttle_stop", "shuttle_forward", "trim_play_around", "step_back_frame", "step_forward_frame", "playlist_input_start", "go_to_mark_in", "match_frame"] },
       { "title": "IN / OUT", "actions": ["mark_in", "mark_out", "select_mark_in", "select_mark_out", "mark_in_fit_duration", "save_virtual_shot"] },
+      { "title": "Prijepis", "actions": ["transcript_select_left", "transcript_select_right", "transcript_select_up", "transcript_select_down"] },
       { "title": "Audio A1 / A2", "actions": ["select_audio_a1", "select_audio_a2", "lane_level_down", "lane_level_up", "select_level_a1", "select_level_a2", "toggle_loudness_normalize", "toggle_sound_assist", "sound_assist_keep"] },
       { "title": "Segmenti", "actions": ["add_ton_segment", "add_off_segment", "step_prev_part", "step_next_part", "select_segment_start", "select_segment_end", "select_slip", "wrap_zoom", "segment_purge"] },
       { "title": "Markeri i slotovi", "actions": ["add_marker", "add_marker_continue", "select_marker", "delete_marker", "select_current_marker_slot", "select_mark_in", "select_mark_out", "navigate_prev_object", "navigate_next_object"] },
@@ -959,7 +973,11 @@
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
-        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }]
+        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }],
+        "transcript_select_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "shift": true }],
+        "transcript_select_right": [{ "code": "ArrowRight", "key": "ArrowRight", "shift": true }],
+        "transcript_select_up": [{ "key": "ArrowUp", "shift": true }],
+        "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
         "play_pause": [
@@ -1513,7 +1531,11 @@
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
-        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }]
+        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }],
+        "transcript_select_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "shift": true }],
+        "transcript_select_right": [{ "code": "ArrowRight", "key": "ArrowRight", "shift": true }],
+        "transcript_select_up": [{ "key": "ArrowUp", "shift": true }],
+        "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
         "play_pause": [
@@ -1971,7 +1993,11 @@
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
-        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }]
+        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }],
+        "transcript_select_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "shift": true }],
+        "transcript_select_right": [{ "code": "ArrowRight", "key": "ArrowRight", "shift": true }],
+        "transcript_select_up": [{ "key": "ArrowUp", "shift": true }],
+        "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
         "play_pause": [
@@ -2412,7 +2438,11 @@
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
-        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }]
+        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }],
+        "transcript_select_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "shift": true }],
+        "transcript_select_right": [{ "code": "ArrowRight", "key": "ArrowRight", "shift": true }],
+        "transcript_select_up": [{ "key": "ArrowUp", "shift": true }],
+        "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
         "play_pause": [
@@ -2853,7 +2883,11 @@
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
-        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }]
+        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }],
+        "transcript_select_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "shift": true }],
+        "transcript_select_right": [{ "code": "ArrowRight", "key": "ArrowRight", "shift": true }],
+        "transcript_select_up": [{ "key": "ArrowUp", "shift": true }],
+        "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
         "play_pause": [
@@ -3311,7 +3345,11 @@
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
-        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }]
+        "lane_level_up": [{ "code": "ArrowRight", "key": "ArrowRight", "ctrl": true, "shift": false }],
+        "transcript_select_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "shift": true }],
+        "transcript_select_right": [{ "code": "ArrowRight", "key": "ArrowRight", "shift": true }],
+        "transcript_select_up": [{ "key": "ArrowUp", "shift": true }],
+        "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
         "play_pause": [

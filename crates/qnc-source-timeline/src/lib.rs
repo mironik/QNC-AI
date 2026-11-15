@@ -321,6 +321,19 @@ impl SourceTimeline {
         true
     }
 
+    /// The text selected with the keyboard (Shift + arrows on the transcript, user 2026-11-15):
+    /// IN at the start of the earlier word `first`, OUT at the end of the later `last`; a new
+    /// double click starts a new pair.
+    pub fn select_words(&mut self, timeline: &mut TimelineProjection, first: (u64, u64), last: (u64, u64)) -> bool {
+        self.keys.set_mark_taken(false);
+        qnc_source_mark_focus::release(timeline);
+        self.first_cut = None;
+        self.first_word = qnc_edit_words::WordPair::default();
+        self.marked_by_text = Some((first.0, last.1));
+        *timeline = timeline.clone().with_second_cut(first.0, last.1);
+        true
+    }
+
     /// The IN/OUT the last pair of words of the transcript marked, once (user 2026-11-08: the
     /// text chosen is heard again with the Croatian model at once).
     pub fn take_marked_by_text(&mut self) -> Option<(u64, u64)> {

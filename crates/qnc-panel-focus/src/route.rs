@@ -16,6 +16,10 @@ impl PanelFocus {
     ) -> Option<bool> {
         let event = event.into();
         let action_id = event.action_id.as_str();
+        // The keyboard on the transcript text: its cursor and selection (user 2026-11-15).
+        if let Some(done) = self.text_key(&event, pieces.0, pieces.3) {
+            return Some(done);
+        }
         let panel = self.panel;
         // J, K, L: the shuttle (`qnc-shuttle`, docs/98 1.1), whatever the panel; any other
         // transport (Space, a click on a timeline) ends its own movement.
@@ -210,13 +214,6 @@ impl PanelFocus {
                 }
                 command => Some(Some(segments.apply(command))),
             };
-        }
-        // A click on the transcript text: its keys are the source timeline's, and the keyboard
-        // stays there (user 2026-11-15: "fokus mora ostati na zadnjem kliknutom panelu, na tekstu
-        // ili source timeline").
-        if event.is_at(qnc_transcript::PANEL) {
-            self.panel = Panel::SourceTimeline;
-            return None;
         }
         if !event.is_at(qnc_source_timeline::PANEL) {
             return None;

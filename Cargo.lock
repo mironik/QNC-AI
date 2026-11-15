@@ -6001,6 +6001,7 @@ dependencies = [
  "qnc-source-preview",
  "qnc-source-timeline",
  "qnc-sync-session",
+ "qnc-text-cursor",
  "qnc-timeline-model",
  "qnc-transcript",
  "qnc-wrap-session",
@@ -7652,6 +7653,10 @@ dependencies = [
  "qnc-voice-record",
  "qnc-voice-take",
 ]
+
+[[package]]
+name = "qnc-text-cursor"
+version = "0.1.0"
 
 [[package]]
 name = "qnc-text-source-editor"
