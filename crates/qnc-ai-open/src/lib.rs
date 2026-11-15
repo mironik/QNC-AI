@@ -47,3 +47,19 @@ mod tests {
         assert!(program.file_name().unwrap().to_string_lossy().starts_with("qnc-next"));
     }
 }
+
+
+/// Opens the tray's ingest window for the folder or card `uri`, working in the base `base_id`, as
+/// the tray's "Import from a folder" does once the folder is picked (user 2026-11-16).
+pub fn open_card_ingest(root: &Path, base_id: &str, uri: &str) -> Result<PathBuf, String> {
+    let program = beside("qnc-ai-card-ingest")?;
+    std::process::Command::new(&program)
+        .current_dir(root)
+        .env("QNC_ROOT", root)
+        .env(qnc_work_settings::PINNED_PROJECT_ENV, base_id)
+        .arg("--folder-uri")
+        .arg(uri)
+        .spawn()
+        .map(|_| program.clone())
+        .map_err(|error| format!("{}: {error}", program.display()))
+}

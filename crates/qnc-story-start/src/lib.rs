@@ -235,3 +235,21 @@ impl StoryStart {
         self.job.is_some()
     }
 }
+
+/// The folder or card of `uri` chosen in the Ingest form goes to the tray's import from a folder
+/// (user 2026-11-16: "kada se bira kartica unutar ingest forme, ona bi trebala koristiti proces
+/// tray-direktorij ingest, kao da si u trayu pokrenuo Uvoz iz direktorija"): a base of its own and
+/// the ingest window for it; nothing is Selected into the base the form works in. Off the caller's
+/// thread; the outcome goes to the log.
+pub fn hand_folder(root: &Path, uri: &str) {
+    let (root, uri) = (root.to_path_buf(), uri.to_string());
+    std::thread::spawn(move || {
+        let opened = qnc_ingest_base::new_base(&root, &qnc_wizard_text::text("tray.folder_base"))
+            .and_then(|base| qnc_ai_open::open_card_ingest(&root, &base.id, &uri).map(|_| base.id));
+        let line = match opened {
+            Ok(base) => format!("ingest folder {uri} handed to the import of base {base}"),
+            Err(error) => format!("ingest folder {uri} not handed over: {error}"),
+        };
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+    });
+}

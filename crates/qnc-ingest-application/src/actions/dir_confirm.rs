@@ -26,6 +26,12 @@ impl IngestApplication {
             self.view.message = error.clone();
             return IngestDispatchResult::rejected(error);
         }
+        // QNC-AI: the form hands a card or folder to the tray's import from a folder (2026-11-16);
+        // only the import's own window (pinned to its base) Selects it.
+        if let Some(root) = self.root.clone().filter(|_| qnc_work_settings::pinned_project().is_none()) {
+            qnc_story_start::hand_folder(&root, &uri);
+            return IngestDispatchResult::accepted(None, true);
+        }
         self.load_work_settings(Some(uri))
     }
 

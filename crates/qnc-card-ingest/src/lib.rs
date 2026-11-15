@@ -179,6 +179,10 @@ pub struct CardIngest {
     looked: bool,
     /// A folder the user picks (user 2026-11-13), as the source or beside the cards.
     folder: Option<FolderPick>,
+    /// The folder or card the user chose in the Ingest form (user 2026-11-16: "kada se bira kartica
+    /// unutar ingest forme, ona bi trebala koristiti proces tray-direktorij ingest"): Selected as
+    /// soon as the browser is ready, without being picked again.
+    preset: Option<String>,
     /// The cards attached are ingested too (not when the window was started for a folder alone).
     cards_too: bool,
     /// The camera of each card attached, by its volume serial (lower case).
@@ -208,6 +212,14 @@ impl CardIngest {
         ingest.folder = Some(FolderPick::Choosing { listed: false });
         ingest.cards_too = false;
         ingest.looked = true;
+        Ok(ingest)
+    }
+
+    /// The source is the folder (or card) of `uri` the Ingest form chose: as `start_folder`, the
+    /// folder Selected once the browser is ready.
+    pub fn start_folder_at(root: &Path, uri: &str) -> Result<Self, String> {
+        let mut ingest = Self::start_folder(root)?;
+        ingest.preset = Some(uri.to_string());
         Ok(ingest)
     }
 
@@ -273,6 +285,14 @@ impl CardIngest {
 
     /// The folder's Select, step by step: taken, running, ended (then the clips go to the import).
     fn folder_step(&mut self) {
+        // The folder the Ingest form chose, once the browser is ready: Selected as if picked.
+        let ready = |view: &qnc_ingest_application::IngestViewModel| !view.command_busy && !view.browser.busy && !view.work_settings_loading;
+        if matches!(self.folder, Some(FolderPick::Choosing { listed: true })) && ready(self.application.view()) {
+            if let Some(uri) = self.preset.take() {
+                self.choose(IngestIntent::new(action_ids::INGEST_DIR_CONFIRM, qnc_ingest_application::IngestPayload::LocationUri(uri)));
+                return;
+            }
+        }
         let view = self.application.view();
         let next = match &self.folder {
             // The browser is Ingest's: it is taken once no card is being gone to.
@@ -343,6 +363,7 @@ impl CardIngest {
             read,
             looked: false,
             folder: None,
+            preset: None,
             cards_too: true,
             card_cameras: Default::default(),
             only_card: None,

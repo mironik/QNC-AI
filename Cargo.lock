@@ -3816,6 +3816,9 @@ dependencies = [
 [[package]]
 name = "qnc-ai-open"
 version = "0.1.0"
+dependencies = [
+ "qnc-work-settings",
+]
 
 [[package]]
 name = "qnc-ai-pack"
@@ -7648,8 +7651,10 @@ version = "0.1.0"
 dependencies = [
  "qnc-ai-open",
  "qnc-clip-row",
+ "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-newsroom-sheet-model",
+ "qnc-wizard-text",
  "serde_json",
 ]
 

@@ -34,6 +34,8 @@ struct Window {
     /// (user 2026-11-15: "polje za upis naziva baze koju korisnik treba upisati prije zatvaranja").
     base: String,
     info: BaseInfo,
+    /// The base's card (its camera and time), said in the window, not in its title (user 2026-11-16).
+    label: String,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -188,12 +190,11 @@ impl eframe::App for Window {
                 Phase::Selecting | Phase::Making => text("card_ingest.running"),
             };
             ui.label(RichText::new(title).size(theme.font_ui + 6.0).color(theme.text).strong());
+            if !self.label.is_empty() {
+                ui.label(RichText::new(&self.label).color(theme.text));
+            }
             if let Some(time) = self.took.or(elapsed) {
                 ui.label(RichText::new(fill("card_ingest.elapsed", &[("time", &clock(time))])).color(theme.text));
-            }
-            ui.add_space(12.0);
-            if !self.base.is_empty() && self.info.show(ui, &theme) {
-                self.info.keep(&self.root, &self.base);
             }
             ui.add_space(12.0);
             // Each card on its line; one an earlier base already has says so (it is not imported again).
@@ -240,6 +241,11 @@ impl eframe::App for Window {
                     }
                 });
             }
+            // The base's name, place and description, under the bars (user 2026-11-16).
+            ui.add_space(12.0);
+            if !self.base.is_empty() && self.info.show(ui, &theme) {
+                self.info.keep(&self.root, &self.base);
+            }
             if progress.statements > 0 {
                 ui.add_space(6.0);
                 ui.label(RichText::new(fill("card_ingest.statements", &[("statements", &progress.statements.to_string())])).color(theme.text));
@@ -259,6 +265,8 @@ fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-card-ingest");
     // `--folder`: the source is a folder the user picks (the tray's "Import from a folder").
     let folder = std::env::args().any(|arg| arg == "--folder");
+    // `--folder-uri <uri>`: the folder or card the Ingest form chose (user 2026-11-16).
+    let folder_uri = std::env::args().skip_while(|arg| arg != "--folder-uri").nth(1);
     // `--card <serial>`: the one card this window ingests, in the base the tray gave it
     // (`QNC_WORK_PROJECT`); one window per base (user 2026-11-14).
     let card = std::env::args().skip_while(|arg| arg != "--card").nth(1);
@@ -275,7 +283,12 @@ fn main() -> eframe::Result<()> {
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     let folder_asked = qnc_tray::Signal::listen(&signal_name).map_err(|error| log(format!("ai-card-ingest folder signal: {error}"))).ok();
     let started = qnc_ingest_layout::IngestContracts::load().and_then(|contracts| {
-        let ingest = if folder { CardIngest::start_folder(&root)? } else { CardIngest::start(&root)? };
+        let ingest = match &folder_uri {
+            // A card or folder the Ingest form chose: Selected without being picked again.
+            Some(uri) => CardIngest::start_folder_at(&root, uri)?,
+            None if folder => CardIngest::start_folder(&root)?,
+            None => CardIngest::start(&root)?,
+        };
         Ok((contracts, match &card {
             Some(serial) => ingest.only_card(serial),
             None => ingest,
@@ -291,12 +304,11 @@ fn main() -> eframe::Result<()> {
     };
     // Each window says its base (a window per base, user 2026-11-14).
     let known = qnc_ingest_base::all(&root).ok().and_then(|bases| bases.into_iter().find(|known| known.id == base));
-    let title = match &known {
-        Some(known) => format!("{}: {}", text("card_ingest.title"), known.label()),
-        None => text("card_ingest.title").to_string(),
-    };
+    // The title says only what the window is; the card is said in the window (user 2026-11-16).
+    let title = text("card_ingest.title").to_string();
+    let label = known.as_ref().map(|known| known.label().to_string()).unwrap_or_default();
     let info = known.map_or_else(BaseInfo::default, BaseInfo::of);
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
