@@ -4212,6 +4212,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-camera-qnc-base"
+version = "0.1.0"
+dependencies = [
+ "qnc-camera-adapter",
+ "qnc-media-metadata",
+ "qnc-source-contract",
+ "qnc-source-groups",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-card-autoselect"
 version = "0.1.0"
 dependencies = [
@@ -5049,8 +5061,10 @@ dependencies = [
  "chrono",
  "qnc-application-catalog",
  "qnc-base-cards",
+ "qnc-camera-qnc-base",
  "qnc-content-read",
  "qnc-project-store",
+ "qnc-source-contract",
  "qnc-work-settings",
  "qnc-workstation-identity",
  "rusqlite",
@@ -5088,6 +5102,7 @@ dependencies = [
  "qnc-camera-generic-file",
  "qnc-camera-profile-adapter",
  "qnc-camera-profiles",
+ "qnc-camera-qnc-base",
  "qnc-dev-diagnostics",
  "qnc-plugin-process",
  "qnc-record-format-plugin",
@@ -7314,6 +7329,7 @@ dependencies = [
 name = "qnc-source-bindings"
 version = "0.1.0"
 dependencies = [
+ "qnc-base-cards",
  "qnc-contracts",
  "qnc-source-reader",
  "qnc-source-volumes",
@@ -7597,6 +7613,7 @@ dependencies = [
  "qnc-ai-open",
  "qnc-ingest-base",
  "qnc-newsroom-sheet-model",
+ "serde_json",
 ]
 
 [[package]]

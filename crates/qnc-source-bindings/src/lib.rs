@@ -183,7 +183,24 @@ pub fn load(root: &Path) -> Result<TransportBindings, String> {
         .ok_or(qnc_ui_text::text("source.source_configuration_folder"))?;
     let mut bindings = parse(&bytes, base)?;
     with_attached(&mut bindings, &qnc_source_volumes::mounted());
+    with_card_bases(&mut bindings, root);
     Ok(bindings)
+}
+
+/// The card bases of this computer as sources (user 2026-11-15: "baza je zamjena za karticu;
+/// projekti se linkuju na baze"): the media the tray copied into a base's folder is read through
+/// `qnc://local/source/project-<base>`, the base's folder, by every project linked to it, as a card
+/// is. A base's folder is named by its id. Without the setting of the bases' folder none is added.
+pub fn with_card_bases(bindings: &mut TransportBindings, root: &Path) {
+    let Ok(folder) = qnc_base_cards::folder(root) else { return };
+    let Ok(entries) = std::fs::read_dir(&folder) else { return };
+    for entry in entries.flatten().filter(|entry| entry.path().join("project.db").is_file()) {
+        let Some(id) = entry.file_name().to_str().map(str::to_owned) else { continue };
+        let uri = format!("qnc://local/source/project-{id}");
+        if !bindings.sources.iter().any(|binding| binding.uri == uri) {
+            bindings.sources.push(SourceBinding { uri, file: Some(entry.path()), endpoint: None, token_env: None });
+        }
+    }
 }
 
 /// The disks attached now are sources without being added by hand (user 2026-10-16): a

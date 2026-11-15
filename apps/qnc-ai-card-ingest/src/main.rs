@@ -130,6 +130,12 @@ impl eframe::App for Window {
             if let Some(took) = elapsed {
                 log(format!("ai-card-ingest done after {}", clock(took)));
             }
+            // The base gets its card index: QNC reads it as a card (user 2026-11-15).
+            let (root, base) = (self.root.clone(), self.base.clone());
+            std::thread::spawn(move || match qnc_ingest_base::write_card_index(&root, &base) {
+                Ok(clips) => log(format!("ai-card-ingest card index of {base}: {clips} clips")),
+                Err(error) => log(format!("ai-card-ingest card index of {base} not written: {error}")),
+            });
             // The user worked on something else meanwhile (mail, the web): the window, minimised
             // or behind, comes back above the other applications so the end is seen (user
             // 2026-11-13). It stays on top until the user clicks or types in it (`qnc-window-front`).

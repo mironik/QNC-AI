@@ -10,8 +10,12 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+
 use qnc_application_catalog::{SelectedApplication, SelectionSnapshot};
 use qnc_project_store::ProjectStore;
+
+mod card_index;
+pub use card_index::{write_card_index, write_card_index_in};
 
 /// The name every Ingest base starts with.
 pub const NAME_PREFIX: &str = "Ingest";
@@ -189,9 +193,9 @@ pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
 
 /// A story's project made with `name` that takes the base `base_id` as its Ingest base: the
 /// project is made by the Project block where Settings put the projects (its database in its own
-/// folder, as in QNC), the base gets the project's name, the project the base it took
-/// (`story_ingest_base` in its own database); the base stays the one Ingest works in. Returns the
-/// project's id.
+/// folder, as in QNC) and links the base (`story_ingest_bases` in its own database). The project is
+/// the active one from now on: everything made in it goes into its own database, the base keeps
+/// only what its import made (user 2026-11-15). Returns the project's id.
 pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str) -> Result<String, String> {
     let name = name.trim();
     if name.starts_with(NAME_PREFIX) {
@@ -199,11 +203,7 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str)
     }
     let store = ProjectStore::open(root)?;
     let base = store.list_projects()?.into_iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
-    let made = store.create_project(name, template_id, None, &selection());
-    // The base comes back as the one Ingest works in, whatever happened.
-    let back = store.open_project(base_id);
-    let made = made?;
-    back?;
+    let made = store.create_project(name, template_id, None, &selection())?;
     write_story_base(&store, &made.project_id, &base)?;
     Ok(made.project_id)
 }
@@ -301,15 +301,16 @@ pub fn last_story(root: &Path, but: &str) -> Result<Option<(String, String)>, St
 }
 
 /// The base `base_id` goes on the story `story_id` (the user chose the project that exists): the
-/// story takes the base (again: the base is the one it took last); the base stays the one Ingest
-/// works in and writes nothing of the story.
+/// story links the base (again: the base it linked last) and becomes the active project; the base
+/// writes nothing of the story.
 pub fn continue_story(root: &Path, base_id: &str, story_id: &str) -> Result<String, String> {
     let store = ProjectStore::open(root)?;
     let rows = store.list_projects()?;
     let base = rows.iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
     let story = rows.iter().find(|row| row.project_id == story_id).ok_or_else(|| format!("no project {story_id}"))?;
     write_story_base(&store, story_id, base)?;
-
+    // The project is the active one: what is made in it goes into its own database.
+    store.open_project(story_id)?;
     Ok(story.name.clone())
 }
 
@@ -744,33 +745,37 @@ mod tests {
         let (templates, chosen) = templates(&root).unwrap();
         assert!(!templates.is_empty(), "the seed's templates");
         let story = take_for_story(&root, &base.id, "2026/11/11 Luka", &templates[chosen].0).unwrap();
-        let after = active(&root).unwrap().unwrap();
-        assert_eq!((after.id.as_str(), after.project_name.as_deref()), (base.id.as_str(), Some("2026/11/11 Luka")), "the base stays Ingest's and knows its project");
+        let active_id = || ProjectStore::open(&root).unwrap().list_projects().unwrap().into_iter().find(|row| row.active).map(|row| row.project_id);
+        assert_eq!(active_id().as_deref(), Some(story.as_str()), "the new project is the active one, with its own database (user 2026-11-15)");
+        assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("2026/11/11 Luka"), "the base read as linked by it");
         assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");
-        assert!(!story.is_empty());
         std::thread::sleep(std::time::Duration::from_millis(1100));
         let next = current(&root).unwrap();
         assert_ne!(next.id, base.id, "a base a story took is not the next Ingest's");
         assert_eq!(next.project_name, None);
         assert_eq!(last_story(&root, &next.id).unwrap(), Some((story.clone(), "2026/11/11 Luka".to_string())), "the story worked on last");
+        let store = ProjectStore::open(&root).unwrap();
+        let (next_db, _) = store.project_db_binding(&next.id).unwrap();
         assert_eq!(continue_story(&root, &next.id, &story).unwrap(), "2026/11/11 Luka");
-        assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/11 Luka"), "the next card goes on the same story");
+        assert_eq!(active_id().as_deref(), Some(story.as_str()), "going on, the project is the active one");
         take_clips(&root, &story, &next.id, &["c1".into(), "c2".into()]).unwrap();
         take_clips(&root, &story, &next.id, &["c2".into()]).unwrap();
         assert_eq!(story_clips(&root, &story).unwrap(), vec![(next.id.clone(), "c1".into()), (next.id.clone(), "c2".into())], "the clips the story took, once each");
         assert_eq!(story_id(&root, "2026/11/11 Luka").unwrap().as_deref(), Some(story.as_str()));
-        // A base gives several stories and writes nothing of them (user 2026-11-15).
+        // A base gives several projects and writes nothing of them.
         let second = take_for_story(&root, &next.id, "2026/11/15 Druga", &templates[chosen].0).unwrap();
-        assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/15 Druga"), "the story that took it last");
+        assert_eq!(active_id().as_deref(), Some(second.as_str()));
         assert_eq!(last_story(&root, "").unwrap(), Some((second.clone(), "2026/11/15 Druga".to_string())));
         assert_eq!(open_story(&root, &story).unwrap(), "2026/11/11 Luka");
-        assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/11 Luka"), "opened, the story took the base last");
+        assert_eq!(active_id().as_deref(), Some(story.as_str()), "a project opened is itself the active one");
         {
-            let store = ProjectStore::open(&root).unwrap();
-            let (next_db, _) = store.project_db_binding(&next.id).unwrap();
-            let conn = rusqlite::Connection::open(next_db).unwrap();
-            let written: i64 = conn.query_row("SELECT count(*) FROM sqlite_master WHERE name = 'ingest_base_project'", [], |row| row.get(0)).unwrap();
-            assert_eq!(written, 0, "the base keeps no project");
+            let conn = rusqlite::Connection::open(&next_db).unwrap();
+            let written: i64 = conn.query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('ingest_base_project', 'story_clips', 'story_ingest_bases')", [], |row| row.get(0)).unwrap();
+            assert_eq!(written, 0, "the base keeps nothing of a project");
+            let (story_db, _) = store.project_db_binding(&story).unwrap();
+            let conn = rusqlite::Connection::open(&story_db).unwrap();
+            let linked: i64 = conn.query_row("SELECT count(*) FROM story_ingest_bases", [], |row| row.get(0)).unwrap();
+            assert_eq!(linked, 2, "the story links both bases");
         }
         let store = ProjectStore::open(&root).unwrap();
         let (base_db, _) = store.project_db_binding(&base.id).unwrap();
@@ -915,19 +920,14 @@ pub fn my_stories(root: &Path) -> Result<std::collections::BTreeSet<String>, Str
     Ok(mine)
 }
 
-/// The story `story_id` is worked on again: the newest base it took becomes the one Ingest and AI
-/// Media Assist work in (they work in the base, the story is its name); a story with no base is
-/// made active itself. Gives the story's name.
+/// The story `story_id` is worked on again: it becomes the active project (its own database, as
+/// in QNC); the card bases it links stay as they are. Gives the story's name.
 pub fn open_story(root: &Path, story_id: &str) -> Result<String, String> {
+    // The project itself is opened: its own database holds what was made in it, the card bases
+    // it links only what their import made (user 2026-11-15).
     let store = ProjectStore::open(root)?;
     let story = store.list_projects()?.into_iter().find(|row| row.project_id == story_id).ok_or_else(|| format!("no project {story_id}"))?;
-    let rows = store.list_projects()?;
-    let newest = story_bases(&store, story_id)?.into_iter().find_map(|(base, _)| rows.iter().find(|row| row.project_id == base && row.name.starts_with(NAME_PREFIX)).cloned());
-    match newest {
-        // The story took this base last (a base may give several stories, user 2026-11-15).
-        Some(base) => write_one_story_base(&store, story_id, &base).and_then(|()| open(root, &base.project_id)).map(|_| ()),
-        None => store.open_project(story_id).map(|_| ()),
-    }?;
+    store.open_project(story_id)?;
     Ok(story.name)
 }
 

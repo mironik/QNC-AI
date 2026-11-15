@@ -49,7 +49,22 @@ pub struct StoryStart {
     confirm_label: String,
     /// The clips the user chose in the Ingest form: the story takes them.
     clips: Vec<String>,
+    /// The choice kept until a project is made (user 2026-11-15: "ono što korisnik označi treba
+    /// zapisati u privremenu json; taj zapis se koristi kao podatak koji će se zapisati u bazu kad
+    /// se kreira projekt; ako se ne kreira projekt, taj privremeni zapis se briše").
+    pending: Option<PathBuf>,
     job: Option<Receiver<Job>>,
+}
+
+impl Drop for StoryStart {
+    fn drop(&mut self) {
+        self.forget_choice();
+    }
+}
+
+/// The temporary file of this form's choice: in the system's temporary folder, one per process.
+fn choice_file() -> PathBuf {
+    std::env::temp_dir().join(format!("qnc-ai-ingest-choice-{}.json", std::process::id()))
 }
 
 impl std::fmt::Debug for StoryStart {
@@ -67,6 +82,23 @@ impl StoryStart {
         self.job = Some(receive);
     }
 
+    /// The choice written to its temporary file (the base, once known, and the clips).
+    fn keep_choice(&mut self) {
+        let file = choice_file();
+        let json = serde_json::json!({ "base_id": self.base_id, "clips": self.clips });
+        match std::fs::write(&file, json.to_string()) {
+            Ok(()) => self.pending = Some(file),
+            Err(_) => self.pending = None,
+        }
+    }
+
+    /// No project was made, or it was and took the clips: the temporary choice is gone.
+    fn forget_choice(&mut self) {
+        if let Some(file) = self.pending.take() {
+            let _ = std::fs::remove_file(file);
+        }
+    }
+
     /// Uvezi with `clips` chosen: looks whether the base of `root` has its story (the answer comes
     /// in `poll`); a base that has one gives it the clips at once.
     pub fn import_asked(&mut self, root: &Path, clips: Vec<String>) {
@@ -74,6 +106,7 @@ impl StoryStart {
             return;
         }
         self.clips = clips.clone();
+        self.keep_choice();
         let root = root.to_path_buf();
         self.run(move || {
             Job::Checked(qnc_ingest_base::active(&root).and_then(|base| {
@@ -107,6 +140,7 @@ impl StoryStart {
     /// The user cancels the choice: nothing is taken.
     pub fn cancel(&mut self) {
         (self.offer, self.sheet, self.base_id) = (None, None, None);
+        self.forget_choice();
     }
 
     /// The user makes a new story: the sheet opens.
@@ -120,7 +154,10 @@ impl StoryStart {
     /// The sheet's answer.
     pub fn answer(&mut self, root: &Path, answer: Answer) {
         match answer {
-            Answer::Cancel => (self.sheet, self.base_id) = (None, None),
+            Answer::Cancel => {
+                (self.sheet, self.base_id) = (None, None);
+                self.forget_choice();
+            }
             Answer::Confirm => {
                 let (Some(sheet), Some(base_id)) = (self.sheet.as_ref(), self.base_id.clone()) else { return };
                 let name = sheet.name.trim().to_string();
@@ -143,6 +180,7 @@ impl StoryStart {
             Job::Checked(Ok(Found { base: None, .. })) => Some(Next::Import),
             Job::Checked(Ok(Found { base: Some((base_id, _)), last, templates })) => {
                 (self.base_id, self.templates, self.confirm_label) = (Some(base_id), templates, confirm_label.to_string());
+                self.keep_choice();
                 // Ingest opened by "Novi projekt" of the Projects form offers no story to go on with.
                 match last.filter(|_| std::env::var_os(qnc_ai_open::NEW_STORY).is_none()) {
                     Some(last) => self.offer = Some(last),
@@ -153,6 +191,7 @@ impl StoryStart {
             Job::Checked(Err(error)) => Some(Next::Say(error)),
             Job::Taken(Ok(_name)) => {
                 (self.sheet, self.base_id) = (None, None);
+                self.forget_choice();
                 Some(Next::Import)
             }
             Job::Taken(Err(error)) => {

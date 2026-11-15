@@ -1,0 +1,89 @@
+{
+  "base_version": "2026.10.22.1",
+  "dataset_version": "2026.11.15.1",
+  "changed_on": "2026-11-15",
+  "sources": [
+    {
+      "id": "qnc-base-card-format",
+      "kind": "manufacturer_document",
+      "publisher": "QNC",
+      "title": "QNC card base format qnc-base-card 1",
+      "locator": "https://github.com/mironik/QNC-shared/blob/main/crates/qnc-camera-qnc-base/src/lib.rs",
+      "section": "QNCCARD.JSON (format, version, clips: id, name, original, proxy, poster, record) and QNCCARD/<clip>.json (QNC clip metadata).",
+      "reviewed_on": "2026-11-15"
+    },
+    {
+      "id": "qnc-base-card-standard",
+      "kind": "card_observation",
+      "publisher": "QNC",
+      "title": "QNC card base (the quasi card of the tray's ingest)",
+      "locator": "crates/qnc-camera-qnc-base",
+      "section": "A base folder made by QNC-AI's tray: QNCCARD.JSON at its root lists the clips (original, proxy, poster, record); QNCCARD/<clip>.json is each clip's finished record; original/ and products/ hold the copied media and posters.",
+      "reviewed_on": "2026-11-15"
+    }
+  ],
+  "changes": [
+    {
+      "operation": "add",
+      "pattern": {
+        "id": "qnc-base-card",
+        "manufacturer": "QNC",
+        "family": "QNC card base",
+        "applicability": "A base the tray's ingest of QNC-AI made from a card: the standardized quasi card QNC reads as any card (user 2026-11-15).",
+        "naming_rule": "QNCCARD.JSON lists every clip with paths relative to the base folder; the index overrides any name.",
+        "evidence_level": "observed",
+        "status": "enabled",
+        "status_reason": "Written by QNC itself to its own standard (format qnc-base-card 1).",
+        "root_scope": "card_relative",
+        "roots": [
+          "."
+        ],
+        "grouping_method": "manifest_references",
+        "grouping_notes": "QNCCARD.JSON gives each clip's id (its recording identity), original, proxy, poster and record.",
+        "limitations": "A base is read only; a project never writes it. Media paths come only from the index.",
+        "files": [
+          {
+            "path": "QNCCARD.JSON",
+            "role": "index",
+            "condition": "QNC card base index."
+          },
+          {
+            "path": "original/*",
+            "role": "original_candidate",
+            "condition": "Referenced by the index."
+          },
+          {
+            "path": "QNCCARD/*.json",
+            "role": "metadata",
+            "condition": "The clip's finished record."
+          }
+        ],
+        "metadata": [
+          {
+            "document": "QNCCARD.JSON",
+            "namespace": "urn:qnc:base-card:1",
+            "selector": "clips[]/original",
+            "meaning": "Original relative to the base folder; never an OS absolute path."
+          },
+          {
+            "document": "QNCCARD.JSON",
+            "namespace": "urn:qnc:base-card:1",
+            "selector": "clips[]/record",
+            "meaning": "The clip's finished record (QNC clip metadata)."
+          }
+        ],
+        "evidence": [
+          {
+            "source": "qnc-base-card-format",
+            "supports": "The format of the index and the records."
+          },
+          {
+            "source": "qnc-base-card-standard",
+            "supports": "Index, record and media layout of a base."
+          }
+        ]
+      },
+      "reason": "A base is a standardized quasi QNC card (user 2026-11-15: \"možeš kreirati u katalogu kamera kocku za import baze\"): Select reads it as any card through the adapter camera.qnc.base-card."
+    }
+  ]
+}
