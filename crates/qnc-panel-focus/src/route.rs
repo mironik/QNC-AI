@@ -211,6 +211,13 @@ impl PanelFocus {
                 command => Some(Some(segments.apply(command))),
             };
         }
+        // A click on the transcript text: its keys are the source timeline's, and the keyboard
+        // stays there (user 2026-11-15: "fokus mora ostati na zadnjem kliknutom panelu, na tekstu
+        // ili source timeline").
+        if event.is_at(qnc_transcript::PANEL) {
+            self.panel = Panel::SourceTimeline;
+            return None;
+        }
         if !event.is_at(qnc_source_timeline::PANEL) {
             return None;
         }

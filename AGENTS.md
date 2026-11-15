@@ -729,4 +729,4 @@ rijec prijepisa (postavljen samo IN) odmah oznaci tu rijec zagradama i podlogom;
 (`qnc-transcript`). Uzivo nije provjereno.
 Ispravak 2026-11-15 (korisnik: "fokus se ne smije prebacivati na desni panel Izjave kad korisnik klikne na Dodaj izjavu; fokus
 mora ostati na zadnjem kliknutom panelu"): Dodaj izjavu ne mijenja panel tipkovnice; nova izjava je samo izabrana u stupcu.
-Klik na izjavu i dalje stavlja tipkovnicu na stupac Izjave (zadnji kliknuti panel).
+Klik na izjavu i dalje stavlja tipkovnicu na stupac Izjave, a klik na tekst prijepisa na source timeline (tipke teksta su tipke source timelinea; zadnji kliknuti panel).
