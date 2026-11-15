@@ -852,3 +852,8 @@ slici, a val trake stoji uz nju, nikad ispod nje (prije ju je val A1, koji raste
 sistemski bijeli: crta ga sam tray (`crates/qnc-tray/src/menu_look.rs`, owner-draw, WM_MEASUREITEM/WM_DRAWITEM): podloga [23,24,27],
 red pod mišem [38,40,44], tekst [237,237,237], stavka koja nije izbor prigušena, Segoe UI 12 pt (prije sistemskih 9 pt), redovi 26 pt.
 Tray poruke (`alert.rs`) u istoj sivoj paleti. Uživo nije provjereno.
+Popravak 2026-11-15 (korisnik: "prekrio si i dugmad A1 i A2, to ne smiješ"; "samo boja odabranog A1 ili A2 treba biti svijetla,
+inače malo prigušena, jedino tako znamo koji wave je odabran za prikaz preko filmstripa"): linija između trake i slike ide samo preko
+trake, ne preko gumba A1/A2; gumb trake koja nije uzeta ima prigušeni tekst i okvir, uzeta (val preko slike) svijetli tekst i okvir
+(`MediaColors.lane_quiet`, `TimelineTheme.lane_quiet`, `LaneLook.quiet`; vrijedi i u trim zoomu). Klasični QNC bez promjene.
+Uživo nije provjereno.
