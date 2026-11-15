@@ -825,3 +825,7 @@ QNC-AI (`contracts/ui/shell.layout.json`, QNC-shared `ai-shell.layout.json`) daj
 uzeta traka bijelo-sivi, mjerač prigušeni zeleni/žuti/crveni, točkice sive (greška prigušeno crvena). Crveni IN/OUT, rez i greška
 ostaju. Test `qnc_ai_draws_its_media_in_graphite_not_in_qncs_colours`. AI Media Assist i ostale forme ponovno izgrađene. Uživo nije
 provjereno.
+Popravak 2026-11-15 (korisnik nakon probe: "timeline je kaotičan, crvene linije, sive linije, strši bijeli ton, grozno"; log: klik
+na A1 otvorio je prošireni prikaz trake): linije razina -18/-9/-1 dBFS i linija razine tona također su boje teme (`MediaColors`
+`level_marks`, `level_curve`; klasični QNC iste kao prije). QNC-AI: linije razina gotovo nevidljive (bijele 12/20 alfa, -1 dBFS
+prigušeno crvena 45), linija razine siva, trake [24,25,28], val [104,106,112], prošireni val [118,120,126]. Uživo nije provjereno.
