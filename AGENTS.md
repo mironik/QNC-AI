@@ -792,3 +792,10 @@ Popravak 2026-11-15 (korisnik: "projekt izbornik se otvori minimiziran, pa se ne
 (prozor doveden iznad ostalih: nije minimiziran, na vrhu, fokus, trazi paznju, dok korisnik ne klikne u njega ili ode na drugi
 prozor). Prozor Projekti (`qnc-ai-projects`, otvara ga tray) koristi je cim se otvori; prozor kartice (`qnc-ai-card-ingest`) je
 koristi na kraju uvoza umjesto vlastite kopije istog koda. Uzivo nije provjereno.
+Izvedeno 2026-11-15 (korisnik: "UI cijele aplikacije u minimalistickom premium stilu"; "ne zelim ukrase, cisto"; "kreni s temom
+za QNC-AI, s primjerom"): tema QNC-AI-ja je vlastita kopija ugovora ljuske `QNC-shared/contracts/ui/ai-shell.layout.json` s cistom
+grafitnom paletom (podloga 15,16,18; panel 23,24,27; aktivno 32,34,38; linija 38,40,44; tekst 237; sporedni 138,139,143; isticanje
+i fokus neutralne sive 200 / 154), jedina boja ostaje crvena za IN/OUT. Ucitava je `qnc-ai-editorial-layout`, pa vrijedi za forme
+ploce QNC-AI-ja (AI Media Assist kao primjer, MA, S-Story, Story); klasicni QNC i njegov `shell.layout.json` nisu dirani. Nije jos
+izvedeno: boje upisane u kockama (zeleni val i trake zvuka, mjerac razine, boje trajanja pokrivalica), ljuska QNC-AI-ja, prozori
+traya i kartice (`qnc-ingest-layout`), okvir fokusa jos je tanka siva crta, ne svjetlija nijansa panela. Uzivo nije provjereno.
