@@ -844,5 +844,5 @@ valu i ne množe se još jednom. Vrijedi i za klasični QNC (do sada je tamo val
 `a_curve_raises_and_lowers_the_wave_under_it_only`. Uživo nije provjereno.
 Izmjena 2026-11-15 (korisnik: "audio trakovima treba dodati pozadinu, ne smije biti crna jer se stapa s UI; između audio traka i
 filmstripa treba linija odvajanja"): QNC-AI trake A1/A2 imaju pozadinu [36,38,43] (svjetliju od podloge), val [128,130,137],
-prošireni [140,142,149], a između trake i slike je crna linija od 2 px [6,6,7] (korisnik: "ne vidim crnu liniju"; svijetlosiva 1 px se uz sliku nije vidjela) (`MediaColors.lane_divider`, `TimelineTheme.lane_divider`;
+prošireni [140,142,149], a između trake i slike je linija od 2 px u boji video trake timelinea [23,24,27] (korisnik: "ne vidim crnu liniju"; svijetlosiva 1 px se uz sliku nije vidjela) (`MediaColors.lane_divider`, `TimelineTheme.lane_divider`;
 A1 iznad slike, ostale ispod). Klasični QNC bez linije, kao prije. Uživo nije provjereno.
