@@ -26,7 +26,7 @@ pub enum Next {
 struct Found {
     /// The base Ingest works in: its id and the project it has.
     base: Option<(String, Option<String>)>,
-    /// The story worked on last (its id and name), when the base has none.
+    /// The story offered (its id and name): the base's own, else the one worked on last.
     last: Option<(String, String)>,
     /// The project templates and the one chosen.
     templates: (Vec<(String, String)>, usize),
@@ -77,15 +77,15 @@ impl StoryStart {
         let root = root.to_path_buf();
         self.run(move || {
             Job::Checked(qnc_ingest_base::active(&root).and_then(|base| {
-                let base = base.map(|base| (base.id, base.project_name));
-                if let Some((id, Some(name))) = &base {
-                    if let Some(story) = qnc_ingest_base::story_id(&root, name)? {
-                        qnc_ingest_base::take_clips(&root, &story, id, &clips)?;
-                    }
-                }
-                let Some((id, None)) = &base else { return Ok(Found { base, last: None, templates: (Vec::new(), 0) }) };
-                let last = qnc_ingest_base::last_story(&root, id)?;
-                Ok(Found { last, templates: qnc_ingest_base::templates(&root)?, base })
+                let Some(base) = base else { return Ok(Found { base: None, last: None, templates: (Vec::new(), 0) }) };
+                // A base whose story exists is not given to it silently (user 2026-11-15: "nije mi
+                // ponudio upis podataka; od iste baze se mora moći kreirati više projekata"): its
+                // story is offered to go on with, or a new one is made; else the last story.
+                let last = match &base.project_name {
+                    Some(name) => qnc_ingest_base::story_id(&root, name)?.map(|id| (id, name.clone())),
+                    None => qnc_ingest_base::last_story(&root, &base.id)?,
+                };
+                Ok(Found { last, templates: qnc_ingest_base::templates(&root)?, base: Some((base.id, base.project_name)) })
             }))
         });
     }
@@ -138,9 +138,10 @@ impl StoryStart {
         let job = self.job.as_ref()?.try_recv().ok()?;
         self.job = None;
         match job {
-            // A base with its story, or no base (a story's project is active): nothing to start.
-            Job::Checked(Ok(Found { base: Some((_, Some(_))) | None, .. })) => Some(Next::Import),
-            Job::Checked(Ok(Found { base: Some((base_id, None)), last, templates })) => {
+            // No base (a story's project is active): nothing to start. A base, with its story or
+            // none: its story (else the last one) is offered, or the sheet of a new one opens.
+            Job::Checked(Ok(Found { base: None, .. })) => Some(Next::Import),
+            Job::Checked(Ok(Found { base: Some((base_id, _)), last, templates })) => {
                 (self.base_id, self.templates, self.confirm_label) = (Some(base_id), templates, confirm_label.to_string());
                 match last {
                     Some(last) => self.offer = Some(last),

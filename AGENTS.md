@@ -865,3 +865,9 @@ gumbi forme, gumbi docka i reda ispod monitora). Uključuje ga tema (`MediaColor
 dok se zapis piše u pozadini (AGENTS §5: klip se smije prikazati dok se sprema); red iz baze je zamijeni i zadrži tu sliku dok se
 ne pročita vlastita slika izjave; neuspjeli zapis je uklanja (QNC-shared `qnc-virtual-short-cards` `saving`, `drop_saving`;
 `qnc-shot-stills` `poster_now`). Aplikacijski sloj nije narastao. Testovi. Uživo nije provjereno.
+Popravak 2026-11-15 (korisnik: "kreirao sam novi projekt, nije mi ponudio upis podataka o nazivu, odmah je otišao s Ingesta na Media
+Assist... od iste baze se mora moći kreirati više projekata"): Uvezi iz baze koja već ima svoj projekt više ne dodaje klipove tom
+projektu bez pitanja. Kao i za bazu bez projekta, nudi se nastavak projekta baze (inače zadnjeg projekta) ili novi projekt s obrascem
+(`qnc-story-start` `import_asked`, `poll`). Novi projekt iste baze dobiva bazu kao jednu od svojih (`story_ingest_bases`), a baza
+pamti zadnji projekt. Uz to Ingest zapisuje trajanje svakog koraka pokretanja u player log (`start-*`, `ingest-start app made`).
+Uživo nije provjereno.
