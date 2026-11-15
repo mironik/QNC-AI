@@ -18,6 +18,9 @@ use qnc_newsroom_sheet_model::{Answer, SheetOverlay};
 pub enum Next {
     /// The base has its story: what comes next (AI Media Assist) opens.
     Import,
+    /// The story's project is made and active: Ingest Selects the base's card (this source) into
+    /// it as any card, then [`StoryStart::mark`] ticks the chosen clips for Uvezi (Link).
+    SelectBase(String),
     /// Shown to the user (a failure, the sheet's text).
     Say(String),
 }
@@ -34,8 +37,8 @@ struct Found {
 
 enum Job {
     Checked(Result<Found, String>),
-    /// The base has its story (made or gone on with).
-    Taken(Result<String, String>),
+    /// The base has its story (made or gone on with): the base's card and the chosen clips' files.
+    Taken(Result<(String, Vec<String>), String>),
 }
 
 /// The start of a story.
@@ -53,6 +56,8 @@ pub struct StoryStart {
     /// zapisati u privremenu json; taj zapis se koristi kao podatak koji će se zapisati u bazu kad
     /// se kreira projekt; ako se ne kreira projekt, taj privremeni zapis se briše").
     pending: Option<PathBuf>,
+    /// The files of the chosen clips on the base's card, ticked once its Select is done.
+    marks: Option<Vec<String>>,
     job: Option<Receiver<Job>>,
 }
 
@@ -133,7 +138,11 @@ impl StoryStart {
         let (Some((story_id, _)), Some(base_id)) = (self.offer.take(), self.base_id.clone()) else { return };
         let (root, clips) = (root.to_path_buf(), self.clips.clone());
         self.run(move || {
-            Job::Taken(qnc_ingest_base::continue_story(&root, &base_id, &story_id).and_then(|name| qnc_ingest_base::take_clips(&root, &story_id, &base_id, &clips).map(|_| name)))
+            Job::Taken(
+                qnc_ingest_base::continue_story(&root, &base_id, &story_id)
+                    .and_then(|_| qnc_ingest_base::take_clips(&root, &story_id, &base_id, &clips))
+                    .and_then(|_| qnc_ingest_base::card_of(&root, &base_id, &clips)),
+            )
         });
     }
 
@@ -164,7 +173,11 @@ impl StoryStart {
                 let template = sheet.template_id().unwrap_or_default().to_string();
                 let (root, clips): (PathBuf, _) = (root.to_path_buf(), self.clips.clone());
                 self.run(move || {
-                    Job::Taken(qnc_ingest_base::take_for_story(&root, &base_id, &name, &template).and_then(|story| qnc_ingest_base::take_clips(&root, &story, &base_id, &clips)).map(|_| name))
+                    Job::Taken(
+                        qnc_ingest_base::take_for_story(&root, &base_id, &name, &template)
+                            .and_then(|story| qnc_ingest_base::take_clips(&root, &story, &base_id, &clips))
+                            .and_then(|_| qnc_ingest_base::card_of(&root, &base_id, &clips)),
+                    )
                 });
             }
         }
@@ -189,10 +202,9 @@ impl StoryStart {
                 None
             }
             Job::Checked(Err(error)) => Some(Next::Say(error)),
-            Job::Taken(Ok(_name)) => {
-                (self.sheet, self.base_id) = (None, None);
-                self.forget_choice();
-                Some(Next::Import)
+            Job::Taken(Ok((card, files))) => {
+                (self.sheet, self.base_id, self.marks) = (None, None, Some(files));
+                Some(Next::SelectBase(card))
             }
             Job::Taken(Err(error)) => {
                 if let Some(sheet) = self.sheet.as_mut() {
@@ -201,6 +213,17 @@ impl StoryStart {
                 Some(Next::Say(error))
             }
         }
+    }
+
+    /// The base's card is Selected into the project: its chosen clips are ticked for Uvezi, the
+    /// others not, and the temporary choice is gone. False when nothing waits to be ticked.
+    pub fn mark(&mut self, clips: &mut [qnc_clip_row::ClipRow]) -> bool {
+        let Some(files) = self.marks.take() else { return false };
+        for clip in clips.iter_mut() {
+            clip.selected = files.contains(&clip.name);
+        }
+        self.forget_choice();
+        true
     }
 
     /// The sheet shown now, for the form to draw.

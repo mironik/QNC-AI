@@ -9,3 +9,4 @@ qnc-ingest-base = { workspace = true }
 qnc-newsroom-sheet-model = { workspace = true }
 qnc-ai-open = { workspace = true }
 serde_json = { workspace = true }
+qnc-clip-row = { workspace = true }

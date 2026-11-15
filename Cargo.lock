@@ -7611,6 +7611,7 @@ name = "qnc-story-start"
 version = "0.1.0"
 dependencies = [
  "qnc-ai-open",
+ "qnc-clip-row",
  "qnc-ingest-base",
  "qnc-newsroom-sheet-model",
  "serde_json",

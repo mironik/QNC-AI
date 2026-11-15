@@ -49,6 +49,9 @@ impl IngestApplication {
                 // The background completes the card records playback still lacks (v5)
                 // and makes the filmstrip and wave: one generator.
                 self.view.message = self.begin_import().err().unwrap_or_default();
+                if self.story.mark(&mut self.view.clips) {
+                    self.start_import(); // the clips chosen on the base: Uvezi as on any card
+                }
             }
         }
         changed

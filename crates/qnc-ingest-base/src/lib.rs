@@ -15,7 +15,7 @@ use qnc_application_catalog::{SelectedApplication, SelectionSnapshot};
 use qnc_project_store::ProjectStore;
 
 mod card_index;
-pub use card_index::{write_card_index, write_card_index_in};
+pub use card_index::{card_of, write_card_index, write_card_index_in};
 
 /// The name every Ingest base starts with.
 pub const NAME_PREFIX: &str = "Ingest";

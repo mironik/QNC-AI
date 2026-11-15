@@ -53,6 +53,26 @@ pub fn write_card_index_in(folder: &Path) -> Result<usize, String> {
     Ok(count)
 }
 
+/// The base `base_id` as the card a project Selects: its source (its folder,
+/// `qnc://local/source/project-<folder>`) and the file names of `clips` there, as Select names the
+/// clips of that card. A base made before it had an index gets one first.
+pub fn card_of(root: &Path, base_id: &str, clips: &[String]) -> Result<(String, Vec<String>), String> {
+    let store = ProjectStore::open(root)?;
+    let (file, _) = store.project_db_binding(base_id)?;
+    let folder = file.parent().ok_or("the base has no folder")?;
+    if !folder.join(INDEX_FILE).is_file() {
+        write_card_index_in(folder)?;
+    }
+    let name = folder.file_name().ok_or("the base has no folder")?.to_string_lossy().to_string();
+    let files = read_kept(&file)?
+        .into_iter()
+        .filter(|kept| clips.contains(&kept.id))
+        .filter_map(|kept| inside(folder, &kept.media_uri))
+        .filter_map(|relative| relative.rsplit('/').next().map(str::to_owned))
+        .collect();
+    Ok((format!("qnc://local/source/project-{name}"), files))
+}
+
 /// The clips of the base's database copied into the base, with their finished record.
 fn read_kept(file: &Path) -> Result<Vec<Kept>, String> {
     let conn = rusqlite::Connection::open_with_flags(file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;

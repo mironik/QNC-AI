@@ -45,6 +45,8 @@ impl IngestApplication {
                 self.request_navigation_after_import();
                 true
             }
+            // The project is made: its Ingest Selects the base's card as any card (QNC).
+            Some(Next::SelectBase(card)) => self.load_work_settings(Some(card)).request_repaint,
             Some(Next::Say(message)) => {
                 self.view.message = message;
                 true

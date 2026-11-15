@@ -187,18 +187,33 @@ pub fn load(root: &Path) -> Result<TransportBindings, String> {
     Ok(bindings)
 }
 
-/// The card bases of this computer as sources (user 2026-11-15: "baza je zamjena za karticu;
-/// projekti se linkuju na baze"): the media the tray copied into a base's folder is read through
-/// `qnc://local/source/project-<base>`, the base's folder, by every project linked to it, as a card
-/// is. A base's folder is named by its id. Without the setting of the bases' folder none is added.
+/// The card bases of this computer as sources (user 2026-11-15: "tray-ingest stvara kvazi karticu
+/// koju mi nazivamo baza"): a base's folder is a card, `qnc://local/source/project-<base>`, read by
+/// QNC's Select through its index (`qnc-camera-qnc-base`) as any card, its media linked from there.
+/// A base's folder is named by its id. Without the setting of the bases' folder none is added.
 pub fn with_card_bases(bindings: &mut TransportBindings, root: &Path) {
     let Ok(folder) = qnc_base_cards::folder(root) else { return };
     let Ok(entries) = std::fs::read_dir(&folder) else { return };
+    let probe = bindings
+        .registered_sources
+        .iter()
+        .find(|source| source.location.uri.starts_with("qnc://local/") && source.probe.is_some())
+        .and_then(|source| source.probe.clone());
     for entry in entries.flatten().filter(|entry| entry.path().join("project.db").is_file()) {
         let Some(id) = entry.file_name().to_str().map(str::to_owned) else { continue };
-        let uri = format!("qnc://local/source/project-{id}");
-        if !bindings.sources.iter().any(|binding| binding.uri == uri) {
-            bindings.sources.push(SourceBinding { uri, file: Some(entry.path()), endpoint: None, token_env: None });
+        let location = SourceBinding { uri: format!("qnc://local/source/project-{id}"), file: Some(entry.path()), endpoint: None, token_env: None };
+        if !bindings.sources.iter().any(|binding| binding.uri == location.uri) {
+            bindings.sources.push(location.clone());
+        }
+        if !bindings.registered_sources.iter().any(|source| source.location.uri == location.uri) {
+            bindings.registered_sources.push(RegisteredSource {
+                location,
+                name: Some(id),
+                serial_number: None,
+                volume_name: None,
+                scope: Some("card_relative".into()),
+                probe: probe.clone(),
+            });
         }
     }
 }
