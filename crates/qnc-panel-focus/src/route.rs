@@ -15,6 +15,49 @@ impl PanelFocus {
         ),
     ) -> Option<bool> {
         let event = event.into();
+        let panel = self.panel;
+        let routed = self.route_once(event.clone(), (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3));
+        // Every action of the story in the player log, whatever answered it (live 2026-10-16:
+        // IN/OUT not taken after some action; 2026-11-15: the choice of panel and the keys on the
+        // text were missing): the action, the panel it met, what came of it and the source
+        // marks and playhead after it.
+        if qnc_dev_diagnostics::player_diagnostics_enabled() {
+            let (preview, timeline) = (&*pieces.0, &*pieces.3);
+            qnc_dev_diagnostics::log_line(
+                qnc_dev_diagnostics::DiagnosticsStream::Player,
+                format!(
+                    "story-key action={} value={:?} target={:?} at={:?} panel={panel:?}->{:?} routed={routed:?} in={:?} out={:?} playhead={:?} program={} part_sound={} marker={} edge={} message={:?}",
+                    event.action_id,
+                    event.value,
+                    event.target,
+                    event.at,
+                    self.panel,
+                    timeline.source_in_frame,
+                    timeline.source_out_frame,
+                    timeline.playhead_frame,
+                    preview.in_program(),
+                    pieces.2.part_sound_taken(),
+                    pieces.2.editing_marker(),
+                    pieces.2.trimming_edge(),
+                    pieces.2.view().message,
+                ),
+            );
+        }
+        routed
+    }
+
+    /// The route of one action, before its line in the player log.
+    fn route_once(
+        &mut self,
+        event: impl Into<ActionEvent>,
+        pieces: (
+            &mut SourcePreview,
+            &mut WrapSession,
+            &mut ProgramSegments,
+            &mut TimelineProjection,
+        ),
+    ) -> Option<bool> {
+        let event = event.into();
         let action_id = event.action_id.as_str();
         // Alt + arrows and a click in a panel choose the panel (user 2026-11-15), whatever has it.
         if let Some(done) = self.choose_panel(&event, pieces.0, pieces.1, pieces.2) {
@@ -24,7 +67,6 @@ impl PanelFocus {
         if let Some(done) = self.text_key(&event, (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3)) {
             return done;
         }
-        let panel = self.panel;
         // J, K, L: the shuttle (`qnc-shuttle`, docs/98 1.1), whatever the panel; any other
         // transport (Space, a click on a timeline) ends its own movement.
         // Dynamic trim (docs/98 1.4): the play around a taken cut, and K brings the taken
@@ -156,30 +198,6 @@ impl PanelFocus {
             Some(answer) => answer,
             None => self.route_on_panel(action_id, (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3)),
         };
-        // Every key of the story in the player log (live 2026-10-16: IN/OUT not taken
-        // after some action): the action, the panel it met, what came of it and the source
-        // marks and playhead as the key found them.
-        if qnc_dev_diagnostics::player_diagnostics_enabled() {
-            let (preview, timeline) = (&*pieces.0, &*pieces.3);
-            qnc_dev_diagnostics::log_line(
-                qnc_dev_diagnostics::DiagnosticsStream::Player,
-                format!(
-                    "story-key action={action_id} value={:?} target={:?} at={:?} panel={panel:?}->{:?} routed={routed:?} in={:?} out={:?} playhead={:?} program={} part_sound={} marker={} edge={} message={:?}",
-                    event.value,
-                    event.target,
-                    event.at,
-                    self.panel,
-                    timeline.source_in_frame,
-                    timeline.source_out_frame,
-                    timeline.playhead_frame,
-                    preview.in_program(),
-                    pieces.2.part_sound_taken(),
-                    pieces.2.editing_marker(),
-                    pieces.2.trimming_edge(),
-                    pieces.2.view().message,
-                ),
-            );
-        }
         routed
     }
 
