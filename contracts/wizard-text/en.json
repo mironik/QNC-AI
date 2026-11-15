@@ -59,6 +59,7 @@
     "tray.last_project": "Last project: {name}",
     "tray.projects_failed": "The projects did not open: {error}",
     "tray.last_project_failed": "Project {name} did not open: {error}",
+    "projects.new": "New project",
     "projects.title": "QNC AI: Projects",
     "tray.card_known_ask": "Card {card} is already imported into Ingest base {base} ({had} clips), and it has {new} new clips.\n\nYes: add the new clips to base {base}.\nNo: a new Ingest base with only the new clips.\nCancel: nothing is imported.\n\nClips already imported are not imported again.",
     "settings.title": "QNC AI: Settings",

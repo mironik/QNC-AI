@@ -59,6 +59,7 @@
     "tray.last_project": "Zadnji projekt: {name}",
     "tray.projects_failed": "Projekti se nisu otvorili: {error}",
     "tray.last_project_failed": "Projekt {name} se nije otvorio: {error}",
+    "projects.new": "Novi projekt",
     "projects.title": "QNC AI: Projekti",
     "tray.card_known_ask": "Kartica {card} je već uvezena u Ingest bazu {base} ({had} klipova), a na njoj je {new} novih klipova.\n\nDa: dodaj nove klipove u bazu {base}.\nNe: nova Ingest baza samo s novim klipovima.\nOdustani: ništa se ne uvozi.\n\nVeć uvezeni klipovi se ne uvoze ponovno.",
     "settings.title": "QNC AI: Postavke",

@@ -799,3 +799,9 @@ i fokus neutralne sive 200 / 154), jedina boja ostaje crvena za IN/OUT. Ucitava 
 ploce QNC-AI-ja (AI Media Assist kao primjer, MA, S-Story, Story); klasicni QNC i njegov `shell.layout.json` nisu dirani. Nije jos
 izvedeno: boje upisane u kockama (zeleni val i trake zvuka, mjerac razine, boje trajanja pokrivalica), ljuska QNC-AI-ja, prozori
 traya i kartice (`qnc-ingest-layout`), okvir fokusa jos je tanka siva crta, ne svjetlija nijansa panela. Uzivo nije provjereno.
+Izvedeno 2026-11-15 (korisnik: "imamo bazu, nemamo projekt vezan za tu bazu; formi QNC AI Projekti nedostaje dugme Kreiraj novi
+projekt koji poziva Ingest"; "napravi odmah u premium stilu"): baza dobiva projekt tek na Uvezi u Ingestu; kad je pokretanje QNC-a
+odbijeno, baza sa 103 klipa ostala je bez projekta, a Projekti je nisu vidjeli. Prozor Projekti ima na vrhu "+ Novi projekt" (cist:
+samo tekst u bojama prozora, bez okvira i pozadine, svjetliji pod misem): Ingest se otvara na najnovijoj bazi bez projekta koja
+nije veza na drugu bazu (`qnc-ingest-base` `newest_without_story`), a Uvezi daje obrazac novog projekta; kad svaka baza ima
+projekt, Ingest se otvara za karticu ili mapu. Tekst `projects.new` u `contracts/wizard-text`. Uzivo nije provjereno.

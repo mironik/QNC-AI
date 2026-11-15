@@ -820,6 +820,21 @@ fn is_mine((user, computer): &(String, String)) -> bool {
         && me.workstation_name.as_deref().is_some_and(|name| !name.is_empty() && name.eq_ignore_ascii_case(computer))
 }
 
+/// The newest base that no story took yet and that is no link to another base (a card brought
+/// again only links its first base): what a new project starts from (user 2026-11-15: a base of
+/// 103 clips had no project after the start of QNC was declined, and the projects could not reach
+/// it). `None` when every base has its story.
+pub fn newest_without_story(root: &Path) -> Result<Option<IngestBase>, String> {
+    let mut free = Vec::new();
+    for base in all(root)? {
+        if base.project_name.is_none() && links(root, &base.id)?.is_empty() {
+            free.push(base);
+        }
+    }
+    // The ids carry the time they were made.
+    Ok(free.into_iter().max_by(|a, b| a.id.cmp(&b.id)))
+}
+
 /// The stories (projects that are no base) the user of this computer made, by their ids (user
 /// 2026-11-12: a closed project the user goes on with is picked from the projects of the user).
 pub fn my_stories(root: &Path) -> Result<std::collections::BTreeSet<String>, String> {
