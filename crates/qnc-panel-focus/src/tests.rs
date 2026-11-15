@@ -154,3 +154,18 @@ fn the_arrows_move_the_playhead_until_ctrl_i_or_ctrl_o_takes_a_mark() {
     focus.route("step_forward_frame", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     assert_eq!(timeline.source_in_frame, Some(11), "Escape gave the arrows back");
 }
+
+#[test]
+fn a_click_on_the_transcript_text_puts_the_keyboard_on_it_as_tab_does() {
+    let layout = FocusLayout::new((vec!["pool", "source_timeline", "source_buttons", "transcript"], vec![], vec!["save_virtual_shot"], vec!["transcript_panel"]));
+    let mut focus = PanelFocus::with_layout(layout);
+    let (mut preview, mut wrap, mut segments) = (SourcePreview::default(), WrapSession::new(), ProgramSegments::new());
+    let mut timeline = TimelineProjection { duration_frames: 100, playhead_frame: Some(0), ..Default::default() };
+    focus.set(Panel::SourceButtons);
+    focus.route(ActionEvent::key(qnc_transcript::CUE_WORD).with_value(5u64).with_target("9".to_string()).at(qnc_transcript::PANEL), (&mut preview, &mut wrap, &mut segments, &mut timeline));
+    assert_eq!(focus.panel(), Panel::Transcript, "a click on a word");
+    focus.route("play_pause", (&mut preview, &mut wrap, &mut segments, &mut timeline));
+    assert_eq!(focus.panel(), Panel::Transcript, "a key of the source timeline keeps the keyboard on the text");
+    focus.route("activate_focused_item", (&mut preview, &mut wrap, &mut segments, &mut timeline));
+    assert_eq!(focus.panel(), Panel::Pool, "Enter with nothing to confirm goes on round the walk from the text");
+}

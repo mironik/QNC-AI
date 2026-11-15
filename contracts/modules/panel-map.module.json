@@ -1,0 +1,37 @@
+{
+  "module_id": "qnc.module.panel-map",
+  "module_name": "Panel map",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "panel.map"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "media.decode",
+    "database.write",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "no_db_writes",
+  "runtime_crate": "qnc-panel-map",
+  "input": "The places of the panels of a form on screen (name and rectangle), the panel in focus and an arrow, or a point.",
+  "output": "The panel in the direction of the arrow (the nearest whose middle lies that way), or the panel under the point.",
+  "specification": "User 2026-11-15: Alt + arrows choose the panel, a click anywhere in a panel focuses it; no round walk."
+}

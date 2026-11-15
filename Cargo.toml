@@ -81,6 +81,7 @@ qnc-edit-step = { path = "../QNC-shared/crates/qnc-edit-step" }
 qnc-edit-verbs = { path = "../QNC-shared/crates/qnc-edit-verbs" }
 qnc-edit-words = { path = "../QNC-shared/crates/qnc-edit-words" }
 qnc-text-cursor = { path = "../QNC-shared/crates/qnc-text-cursor" }
+qnc-panel-map = { path = "../QNC-shared/crates/qnc-panel-map" }
 qnc-export-choice = { path = "../QNC-shared/crates/qnc-export-choice" }
 qnc-export-preset = { path = "../QNC-shared/crates/qnc-export-preset" }
 qnc-ffmpeg-decode = { path = "../QNC-shared/crates/qnc-ffmpeg-decode" }

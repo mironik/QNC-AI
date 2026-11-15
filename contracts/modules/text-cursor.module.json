@@ -31,7 +31,7 @@
   "state_policy": "session_local",
   "database_write_policy": "no_db_writes",
   "runtime_crate": "qnc-text-cursor",
-  "input": "A word said on an axis [from, to), what is taken (an IN, an OUT, a cut) and where it is; for a cut by text two words of one place.",
-  "output": "Where a taken thing goes when the word is clicked (IN to its start, OUT to its end, a cut to its nearer edge); the IN-OUT range of two words, whichever comes first. It keeps only the first word of a pair.",
-  "specification": "AGENTS 0.12, docs/97 step 6 (user 2026-11-04): one meaning of a word in the transcript, the script and the trim zoom, for the source timeline, a SubSegment and a story."
+  "input": "The rows of a text of timed words as shown on screen, where the playhead is, an arrow and whether Shift is held.",
+  "output": "The gap between words the cursor goes to and, with Shift, the frames selected from the gap the selection started in.",
+  "specification": "User 2026-11-15: a keyboard cursor on any text of timed words (transcript, script), from gap to gap; what a selection marks is the caller's."
 }

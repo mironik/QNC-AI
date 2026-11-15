@@ -6,6 +6,29 @@ impl PanelFocus {
         self.walk.reachable().into_iter().filter_map(Panel::from_name).collect()
     }
 
+    /// Alt + an arrow: the keyboard goes to the panel that way on screen (piece
+    /// `qnc-panel-map`, no round walk); a click anywhere in a panel (`focus_panel`, its target
+    /// the panel) puts it there, the same action (user 2026-11-15: the mouse calls the keyboard's
+    /// action). `None`: not a choice of panel.
+    pub(crate) fn choose_panel(&mut self, event: &ActionEvent, preview: &mut SourcePreview, wrap: &mut WrapSession, segments: &ProgramSegments) -> Option<bool> {
+        let action_id = event.action_id.as_str();
+        let to = if action_id == qnc_panel_map::FOCUS_PANEL {
+            event.target.clone()
+        } else {
+            let direction = qnc_panel_map::Direction::of_action(action_id)?;
+            // The source dock's buttons stand in the source timeline's place.
+            let from = if self.panel == Panel::SourceButtons { Panel::SourceTimeline } else { self.panel };
+            qnc_panel_map::beside(&self.places.get(), from.name(), direction)
+        };
+        let Some(panel) = to.as_deref().and_then(Panel::from_name).filter(|panel| self.walk().contains(panel)) else {
+            return Some(false);
+        };
+        if panel == self.panel || (panel == Panel::SourceTimeline && self.panel == Panel::SourceButtons && action_id == qnc_panel_map::FOCUS_PANEL) {
+            return Some(false);
+        }
+        Some(self.enter(panel, preview, wrap, segments))
+    }
+
     /// Enter with nothing to confirm: on to the next panel of the walk.
     pub(crate) fn advance(&mut self, preview: &mut SourcePreview, wrap: &mut WrapSession, segments: &ProgramSegments) -> bool {
         let next = cycle(self.panel, true, &self.walk());

@@ -23,6 +23,7 @@ qnc-timeline-model = { workspace = true }
 qnc-wrap-session = { workspace = true }
 qnc-transcript = { workspace = true }
 qnc-text-cursor = { workspace = true }
+qnc-panel-map = { workspace = true }
 qnc-side-pieces = { workspace = true }
 qnc-ai-broll = { workspace = true }
 qnc-ai-features = { workspace = true }

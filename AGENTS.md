@@ -755,3 +755,14 @@ teksta stoji na razmaku kao u editoru teksta: prije rijeci ili iza zadnje rijeci
 okomita crta (`qnc-transcript-panel`, `ShownRows` caret); strelice idu s razmaka na razmak (iza zadnje rijeci reda pa na pocetak
 sljedeceg), gore/dolje na isto mjesto u redu iznad/ispod, playhead ide na vrijeme razmaka; Shift+strelice oznacavaju rijeci
 izmedju razmaka gdje je oznacavanje pocelo i kursora (IN/OUT). Klik na rijec stavlja kursor ispred nje. Uzivo nije provjereno.
+Promjena pravila unosa 2026-11-15 (korisnik: "velika zbrka s tab tipkovnicom; Alt + strelice za izbor panela, strelice ostaju
+za setnju unutar panela; nema kruga, korisnik odredjuje gdje zeli"; "da, slazem se s prijedlozima"): mijenja zakljucano pravilo od
+2026-10-20 u dijelu "Alt+ skace". Alt + strelice biraju panel u tom smjeru na ekranu (nova javna kocka
+`QNC-shared/crates/qnc-panel-map` + ugovor `contracts/modules/panel-map.module.json`: najblizi panel cija je sredina u tom
+smjeru, uz vise preklapanja; nema kruga). Klik bilo gdje u panelu je ista radnja (`focus_panel`, cilj panel): ploca pri crtanju
+zapisuje mjesta panela (`qnc-board` `panel_places`; koja su mjesta paneli zna ugovor rasporeda, `focus_place`), a klik koji nista
+drugo ne napravi postaje `focus_panel`. Skok playheada na sljedeci objekt je Ctrl+Alt + strelice (katalog QNC preseta, opsezi
+source_timeline i ingest; pomoc F1). Tab i Shift+Tab ostaju kao dodatni nacin. Enter na tekstu prijepisa ide dalje od teksta, ne
+na dugmad source timelinea. Vrijedi za Story, S-Story, MA i AI Media Assist (`qnc-panel-focus` `choose_panel`); Ingest ima
+tipke u katalogu, ali ih njegov krug (`qnc-focus-walk`) jos ne obradjuje (sljedeci korak), a u MA Scriptu prozor medija nema mjesta
+panela. Testovi; uzivo nije provjereno.

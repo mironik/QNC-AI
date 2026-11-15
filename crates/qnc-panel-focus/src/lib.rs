@@ -74,6 +74,8 @@ pub struct PanelFocus {
     side: qnc_side_pieces::SidePieces,
     /// The cursor on the text and its selection (piece `qnc-text-cursor`).
     text_cursor: qnc_text_cursor::TextCursor,
+    /// Where the board drew the panels (piece `qnc-panel-map`).
+    places: qnc_panel_map::PanelPlaces,
 }
 
 /// The walk of a layout: its panels, the pool tabs row and the source dock buttons row.
@@ -199,7 +201,7 @@ impl PanelFocus {
         }
         let side = self.side.views().clone();
         self.show_text_caret(timeline);
-        FocusView { panel: self.panel, button, pool_step: self.walk.last_step(), transcript: side.transcript, shots: side.shots, script: side.script, versions: side.versions, ai_broll: side.ai_broll, ai: side.ai }
+        FocusView { panel: self.panel, button, pool_step: self.walk.last_step(), places: self.places.clone(), transcript: side.transcript, shots: side.shots, script: side.script, versions: side.versions, ai_broll: side.ai_broll, ai: side.ai }
     }
 
     /// Whether a key picture search runs (the caller repaints soon).

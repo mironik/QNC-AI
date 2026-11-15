@@ -49,11 +49,16 @@ pub fn render_desktop(
         place => qnc_action_bar_panel::show(ui, rect, theme, contracts.editorial.board.block_pad, contracts.action_bar(place), |id| view.action_enabled(id)).map(EditorialIntent::action),
     }) };
     let answer = qnc_board::show_in_frame(ui, frame, &board, |name| faces.named(name), &mut place);
+    let mut focus = None;
     if contracts.media_overlay().is_none() {
         let placed = placed.borrow().clone();
         resize_panels(ui, theme, sizes_id, sizes, &placed);
+        // Alt + the arrows read where the panels are; a click anywhere in a panel focuses it (user 2026-11-15).
+        let (places, clicked) = qnc_board::panel_places(ui, &placed, |block| contracts.focus_place(block));
+        view.focus.places.set(places);
+        focus = clicked.map(|panel| EditorialIntent::Action(qnc_action_event::ActionEvent::key(qnc_panel_map::FOCUS_PANEL).with_target(panel)));
     }
-    answer.or(qnc_media_overlay::show_board(ui.ctx(), theme, contracts.media_overlay().map(|overlay| overlay.title.as_str()), contracts.media_overlay_layout(|id| view.tab_selected(id)), |name| faces.named(name), place))
+    answer.or(focus).or(qnc_media_overlay::show_board(ui.ctx(), theme, contracts.media_overlay().map(|overlay| overlay.title.as_str()), contracts.media_overlay_layout(|id| view.tab_selected(id)), |name| faces.named(name), place))
 }
 
 /// The borders the user drags (user 2026-11-14: "mogucnost promjene dimenzija svih panela"):

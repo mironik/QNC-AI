@@ -46,9 +46,16 @@ impl PanelFocus {
             // The other keys of the text are the source timeline's; the keyboard stays on the text.
             _ => {
                 self.panel = Panel::SourceTimeline;
-                let done = self.route(event.clone(), pieces);
-                if self.panel == Panel::SourceTimeline {
-                    self.panel = Panel::Transcript;
+                let done = self.route(event.clone(), (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3));
+                match self.panel {
+                    Panel::SourceTimeline => self.panel = Panel::Transcript,
+                    // Enter with nothing to confirm walks on from the text, not from the
+                    // source timeline it stood in for (live 2026-11-15: it went to the buttons).
+                    Panel::SourceButtons if event.action_id == "activate_focused_item" => {
+                        let next = cycle(Panel::Transcript, true, &self.walk());
+                        self.enter(next, pieces.0, pieces.1, pieces.2);
+                    }
+                    _ => {}
                 }
                 Some(done)
             }

@@ -4077,6 +4077,7 @@ name = "qnc-board"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-panel-map",
  "serde",
 ]
 
@@ -4676,6 +4677,7 @@ dependencies = [
  "qnc-media-pool-panel",
  "qnc-monitor-panel",
  "qnc-panel-focus",
+ "qnc-panel-map",
  "qnc-pool-tabs-panel",
  "qnc-right-panel",
  "qnc-segment-panel",
@@ -5988,6 +5990,7 @@ dependencies = [
  "qnc-key-list",
  "qnc-keyframe-jump",
  "qnc-mouse-map",
+ "qnc-panel-map",
  "qnc-playhead-moves",
  "qnc-pool-tabs",
  "qnc-program-segments",
@@ -6006,6 +6009,10 @@ dependencies = [
  "qnc-transcript",
  "qnc-wrap-session",
 ]
+
+[[package]]
+name = "qnc-panel-map"
+version = "0.1.0"
 
 [[package]]
 name = "qnc-part-sound"

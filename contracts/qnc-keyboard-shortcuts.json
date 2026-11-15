@@ -786,7 +786,12 @@
     },
     "transcript_select_down": {
       "label": "Prijepis: označi do retka ispod"
-    }
+    },
+    "panel_left": { "label": "Panel lijevo" },
+    "panel_right": { "label": "Panel desno" },
+    "panel_up": { "label": "Panel iznad" },
+    "panel_down": { "label": "Panel ispod" },
+    "focus_panel": { "label": "Fokus na panel (klik u panel)" }
   },
   "help": {
     "rules": [
@@ -801,7 +806,8 @@
       { "keys": "Shift + lijevi klik", "meaning": "Kao Shift + M: dodaje M marker na mjesto klika." },
       { "keys": "Srednja tipka / kotačić", "meaning": "Srednja tipka reže (IN i OUT na source timelineu, M marker u segmentima). Kotačić je kao strelice lijevo/desno, Ctrl + kotačić kao Ctrl + strelice." },
       { "keys": "Shift + tipka", "meaning": "Dodaje nešto novo (segment, marker u nastavku, pokrivalica, IN i OUT po trajanju slota)." },
-      { "keys": "Alt + strelice", "meaning": "Playhead skače na sljedeći objekt i ništa ne uzima: M marker ili početak segmenta; na source timelineu početak, IN, OUT; u složenoj izjavi rubovi dijelova." },
+      { "keys": "Alt + strelice", "meaning": "Biraju panel: tipkovnica ide na panel lijevo, desno, iznad ili ispod trenutnog (nema kruga). Strelice rade unutar panela. Klik bilo gdje u panelu radi isto." },
+      { "keys": "Ctrl + Alt + strelice", "meaning": "Playhead skače na sljedeći objekt i ništa ne uzima: M marker ili početak segmenta; na source timelineu početak, IN, OUT; u složenoj izjavi rubovi dijelova." },
       { "keys": "Strelice", "meaning": "Lijevo/desno za jedan frame, a kad je nešto uzeto mijenjaju to; gore/dolje prethodni ili sljedeći blok, a dok je rez uzet skok na prethodnu ili sljedeću ključnu sliku." },
       { "keys": "J / K / L", "meaning": "J unazad, L naprijed (ponovno 2x, 4x, 8x), K stani. Shift+K: play oko uzetog reza ukrug; K tada zaustavlja i uzeti rub ide na playhead." },
       { "keys": "Enter", "meaning": "Potvrda, uvijek u panelu u fokusu." },
@@ -820,7 +826,7 @@
       { "title": "Markeri i slotovi", "actions": ["add_marker", "add_marker_continue", "select_marker", "delete_marker", "select_current_marker_slot", "select_mark_in", "select_mark_out", "navigate_prev_object", "navigate_next_object"] },
       { "title": "Pokrivalice", "actions": ["quick_overwrite_cover", "overwrite_cover", "cover_mode_covers", "cover_mode_sync"] },
       { "title": "Pool i tabovi", "actions": ["save_virtual_shot", "page_prev", "page_next", "toggle_focused_item", "editorial_tab_all", "editorial_tab_virtual", "editorial_tab_broll", "editorial_tab_segment", "editorial_tab_transcript"] },
-      { "title": "Općenito", "actions": ["undo_object", "redo_object", "undo_selected", "redo_selected", "toggle_snapping", "focus_next", "focus_prev", "toggle_cheatsheet"] }
+      { "title": "Općenito", "actions": ["undo_object", "redo_object", "undo_selected", "redo_selected", "toggle_snapping", "panel_left", "panel_right", "panel_up", "panel_down", "focus_next", "focus_prev", "toggle_cheatsheet"] }
     ]
   },
   "presets": {
@@ -849,6 +855,10 @@
         "transcript_search_next": [{ "key": "Enter" }]
       },
       "ingest": {
+        "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }],
+        "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }],
+        "panel_up": [{ "key": "ArrowUp", "alt": true }],
+        "panel_down": [{ "key": "ArrowDown", "alt": true }],
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
@@ -876,8 +886,8 @@
         "step_back_frame": [ { "code": "ArrowLeft", "key": "ArrowLeft" } ],
         "select_mark_in": [ { "code": "KeyI", "ctrl": true, "shift": false } ],
         "select_mark_out": [ { "code": "KeyO", "ctrl": true, "shift": false } ],
-        "navigate_prev_object": [ { "code": "ArrowLeft", "alt": true } ],
-        "navigate_next_object": [ { "code": "ArrowRight", "alt": true } ],
+        "navigate_prev_object": [ { "code": "ArrowLeft", "ctrl": true, "alt": true } ],
+        "navigate_next_object": [ { "code": "ArrowRight", "ctrl": true, "alt": true } ],
         "playlist_input_start": [ { "key": "Home", "code": "Home" } ],
         "focus_next": [
           { "key": "Tab", "shift": false }
@@ -955,8 +965,8 @@
         "mark_out": [{ "code": "KeyO", "shift": false }],
         "select_mark_in": [{ "code": "KeyI", "ctrl": true, "shift": false }],
         "select_mark_out": [{ "code": "KeyO", "ctrl": true, "shift": false }],
-        "navigate_prev_object": [{ "code": "ArrowLeft", "alt": true }],
-        "navigate_next_object": [{ "code": "ArrowRight", "alt": true }],
+        "navigate_prev_object": [{ "code": "ArrowLeft", "ctrl": true, "alt": true }],
+        "navigate_next_object": [{ "code": "ArrowRight", "ctrl": true, "alt": true }],
         "playlist_input_start": [{ "key": "Home", "code": "Home" }],
         "go_to_mark_in": [{ "code": "KeyI", "alt": true }],
         "shuttle_back": [{ "code": "KeyJ", "ctrl": false, "shift": false, "alt": false }],
@@ -980,6 +990,10 @@
         "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
+        "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }],
+        "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }],
+        "panel_up": [{ "key": "ArrowUp", "alt": true }],
+        "panel_down": [{ "key": "ArrowDown", "alt": true }],
         "play_pause": [
           {
             "code": "Space"

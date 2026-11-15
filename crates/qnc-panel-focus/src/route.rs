@@ -16,6 +16,10 @@ impl PanelFocus {
     ) -> Option<bool> {
         let event = event.into();
         let action_id = event.action_id.as_str();
+        // Alt + arrows and a click in a panel choose the panel (user 2026-11-15), whatever has it.
+        if let Some(done) = self.choose_panel(&event, pieces.0, pieces.1, pieces.2) {
+            return Some(done);
+        }
         // The keyboard on the transcript text: its cursor and selection (user 2026-11-15).
         if let Some(done) = self.text_key(&event, (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3)) {
             return done;

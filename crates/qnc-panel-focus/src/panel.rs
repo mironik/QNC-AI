@@ -86,6 +86,9 @@ pub struct FocusView {
     pub panel: Panel,
     pub button: Option<String>,
     pub pool_step: Option<(PoolStep, u64)>,
+    /// Where the board drew the panels (piece `qnc-panel-map`): the board writes them, Alt +
+    /// the arrows read them.
+    pub places: qnc_panel_map::PanelPlaces,
     /// The transcript of the clip on the preview.
     pub transcript: std::sync::Arc<qnc_transcript::TranscriptView>,
     /// The shots of the clip on the preview (Video AI).
