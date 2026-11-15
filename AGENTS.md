@@ -842,3 +842,7 @@ na source timelineu, strelice gore/dolje): val source timelinea (traka i prošir
 svakoj slici (QNC-shared `qnc-timeline` `level_lines::with_curves`, nacrt uzete linije odmah); Wrap redovi već imaju krivulju u svom
 valu i ne množe se još jednom. Vrijedi i za klasični QNC (do sada je tamo val pratio samo razinu trake). Test
 `a_curve_raises_and_lowers_the_wave_under_it_only`. Uživo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "audio trakovima treba dodati pozadinu, ne smije biti crna jer se stapa s UI; između audio traka i
+filmstripa treba linija odvajanja"): QNC-AI trake A1/A2 imaju pozadinu [36,38,43] (svjetliju od podloge), val [128,130,137],
+prošireni [140,142,149], a između trake i slike je linija [62,65,71] (`MediaColors.lane_divider`, `TimelineTheme.lane_divider`;
+A1 iznad slike, ostale ispod). Klasični QNC bez linije, kao prije. Uživo nije provjereno.
