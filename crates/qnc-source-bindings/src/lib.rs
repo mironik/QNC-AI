@@ -208,8 +208,9 @@ pub fn with_card_bases(bindings: &mut TransportBindings, root: &Path) {
         if !bindings.registered_sources.iter().any(|source| source.location.uri == location.uri) {
             bindings.registered_sources.push(RegisteredSource {
                 location,
-                name: Some(id),
-                serial_number: None,
+                name: Some(id.clone()),
+                // A base is its own card: its id stands for the serial of its volume.
+                serial_number: Some(id),
                 volume_name: None,
                 scope: Some("card_relative".into()),
                 probe: probe.clone(),
