@@ -22,6 +22,22 @@ pub fn open(root: &Path, name: &str) -> Result<PathBuf, String> {
         .map_err(|error| format!("{}: {error}", program.display()))
 }
 
+/// The environment variable a program opened for a new story carries (user 2026-11-15: "Novi
+/// projekt" of the Projects form: Uvezi of Ingest makes a new project, offering none to go on).
+pub const NEW_STORY: &str = "QNC_NEW_STORY";
+
+/// Opens `name` as [`open`] does, for a new story ([`NEW_STORY`]).
+pub fn open_for_new_story(root: &Path, name: &str) -> Result<PathBuf, String> {
+    let program = beside(name)?;
+    std::process::Command::new(&program)
+        .current_dir(root)
+        .env("QNC_ROOT", root)
+        .env(NEW_STORY, "1")
+        .spawn()
+        .map(|_| program.clone())
+        .map_err(|error| format!("{}: {error}", program.display()))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

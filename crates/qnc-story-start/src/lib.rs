@@ -143,7 +143,8 @@ impl StoryStart {
             Job::Checked(Ok(Found { base: None, .. })) => Some(Next::Import),
             Job::Checked(Ok(Found { base: Some((base_id, _)), last, templates })) => {
                 (self.base_id, self.templates, self.confirm_label) = (Some(base_id), templates, confirm_label.to_string());
-                match last {
+                // Ingest opened by "Novi projekt" of the Projects form offers no story to go on with.
+                match last.filter(|_| std::env::var_os(qnc_ai_open::NEW_STORY).is_none()) {
                     Some(last) => self.offer = Some(last),
                     None => self.new_story(root),
                 }

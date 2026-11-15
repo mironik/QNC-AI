@@ -871,3 +871,13 @@ projektu bez pitanja. Kao i za bazu bez projekta, nudi se nastavak projekta baze
 (`qnc-story-start` `import_asked`, `poll`). Novi projekt iste baze dobiva bazu kao jednu od svojih (`story_ingest_bases`), a baza
 pamti zadnji projekt. Uz to Ingest zapisuje trajanje svakog koraka pokretanja u player log (`start-*`, `ingest-start app made`).
 Uživo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "traje dugo i otvara postojeći projekt; baze kartica ne bi trebale biti vezane s projektima, nego projekti
+s bazom"; "status baze kartica je da je baza zamjena za karticu; projekti se linkuju na baze, kao u QNC-u opcija Link"): baza kartice
+više ništa ne zapisuje o projektu (tablica `ingest_base_project` i `set_project_name` uklonjeni iz koda; stari zapisi u bazama se ne
+čitaju). Projekt u svojoj bazi drži baze na koje je linkan (`story_ingest_bases`, uz vrijeme zadnjeg linka); jedna baza može biti
+link više projekata. `IngestBase.project_name` je projekt koji je bazu linkao zadnji, pročitan iz projekata (`qnc-ingest-base`
+`takers`, `story_bases`); `last_story` je projekt koji je zadnji linkao neku bazu; otvaranje projekta (`open_story`) otvara njegovu
+najnoviju bazu i bilježi je kao zadnji link. Popis Baze u Ingestu pokazuje bazu kao karticu (kamera i vrijeme), ne projekt. "Novi
+projekt" iz prozora Projekti otvara Ingest za novi projekt (`qnc-ai-open` `open_for_new_story`, `QNC_NEW_STORY`): Uvezi tada odmah
+otvara obrazac novog projekta, bez ponude postojećeg (`qnc-story-start`). Test u `qnc-ingest-base` (dva projekta iz iste baze, baza
+bez zapisa projekta). Uživo nije provjereno; tray nije ponovno izgrađen (bio je pokrenut).

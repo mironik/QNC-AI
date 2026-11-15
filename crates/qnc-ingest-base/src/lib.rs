@@ -22,18 +22,14 @@ pub struct IngestBase {
     pub id: String,
     pub name: String,
     pub uri: String,
-    /// The project that took this base as its Ingest base (written by the Project form).
+    /// The project that took this base last, read from the projects (user 2026-11-15: "baze
+    /// kartica ne bi trebale biti vezane s projektima, nego projekti s bazom"): a project keeps the
+    /// bases it took in its own database (`story_ingest_bases`); the base writes nothing of them,
+    /// and one base may give several projects.
     pub project_name: Option<String>,
     /// The base Ingest works in now.
     pub active: bool,
 }
-
-/// The table of a base's own database that says which project took it (one row).
-const PROJECT_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_project (
-    one INTEGER PRIMARY KEY CHECK (one = 1),
-    project_name TEXT NOT NULL,
-    written_at_utc TEXT NOT NULL
-)";
 
 /// Whether `row` is the Ingest base this process works in: the one the process was given (the
 /// ingest of one card in its own base, user 2026-11-14), else the active one.
@@ -79,43 +75,42 @@ pub fn closing(root: &Path, id: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn base_of(row: qnc_project_store::ProjectRow, store: &ProjectStore) -> IngestBase {
-    let project_name = project_name_in(store, &row.project_id).ok().flatten();
-    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active }
+/// Who took each base, read from the projects (a project knows its bases, a base knows none):
+/// base id -> (when it was taken last, the project's name). A project that cannot be read is left
+/// out.
+type Takers = std::collections::HashMap<String, (String, String)>;
+
+fn takers(store: &ProjectStore) -> Takers {
+    let mut takers = Takers::new();
+    let Ok(rows) = store.list_projects() else { return takers };
+    for row in rows.iter().filter(|row| !row.name.starts_with(NAME_PREFIX)) {
+        for (base, at) in story_bases(store, &row.project_id).unwrap_or_default() {
+            if takers.get(&base).is_none_or(|(known, _)| *known < at) {
+                takers.insert(base, (at, row.name.clone()));
+            }
+        }
+    }
+    takers
 }
 
-fn project_name_in(store: &ProjectStore, id: &str) -> Result<Option<String>, String> {
-    let (file, _) = store.project_db_binding(id)?;
+/// The bases the story `story_id` took, with when (its `story_ingest_bases`), newest first.
+fn story_bases(store: &ProjectStore, story_id: &str) -> Result<Vec<(String, String)>, String> {
+    let (file, _) = store.project_db_binding(story_id)?;
     let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
     let has: bool = conn
-        .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_project')", [], |row| row.get(0))
+        .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='story_ingest_bases')", [], |row| row.get(0))
         .map_err(|error| error.to_string())?;
     if !has {
-        return Ok(None);
+        return Ok(Vec::new());
     }
-    match conn.query_row("SELECT project_name FROM ingest_base_project WHERE one = 1", [], |row| row.get(0)) {
-        Ok(name) => Ok(Some(name)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(error) => Err(error.to_string()),
-    }
+    let mut statement = conn.prepare("SELECT base_id, taken_at_utc FROM story_ingest_bases ORDER BY taken_at_utc DESC").map_err(|error| error.to_string())?;
+    let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?))).map_err(|error| error.to_string())?;
+    rows.collect::<Result<_, _>>().map_err(|error| error.to_string())
 }
 
-/// Writes the name of the project that took the base `id` (the Project form calls it when a story's
-/// project takes this base); a later project name replaces the earlier.
-pub fn set_project_name(root: &Path, id: &str, project_name: &str) -> Result<(), String> {
-    let store = ProjectStore::open(root)?;
-    let (file, _) = store.project_db_binding(id)?;
-    let mut conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
-    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
-    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(|error| error.to_string())?;
-    tx.execute_batch(PROJECT_TABLE).map_err(|error| error.to_string())?;
-    tx.execute(
-        "INSERT INTO ingest_base_project (one, project_name, written_at_utc) VALUES (1, ?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-         ON CONFLICT(one) DO UPDATE SET project_name = excluded.project_name, written_at_utc = excluded.written_at_utc",
-        [project_name.trim()],
-    )
-    .map_err(|error| error.to_string())?;
-    tx.commit().map_err(|error| error.to_string())
+fn base_of(row: qnc_project_store::ProjectRow, takers: &Takers) -> IngestBase {
+    let project_name = takers.get(&row.project_id).map(|(_, name)| name.clone());
+    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active }
 }
 
 /// Whether the project Ingest works in now is an Ingest base: a read only look at the registry
@@ -142,7 +137,7 @@ pub fn templates(root: &Path) -> Result<(Vec<(String, String)>, usize), String> 
 /// The base Ingest works in now (the active one), without making one.
 pub fn active(root: &Path) -> Result<Option<IngestBase>, String> {
     let store = ProjectStore::open(root)?;
-    Ok(store.list_projects()?.into_iter().find(|row| working(row)).map(|row| base_of(row, &store)))
+    Ok(store.list_projects()?.into_iter().find(|row| working(row)).map(|row| base_of(row, &takers(&store))))
 }
 
 /// A story's project made with `name` that takes the base `base_id` as its Ingest base: the
@@ -163,7 +158,6 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str)
     let made = made?;
     back?;
     write_story_base(&store, &made.project_id, &base)?;
-    set_project_name(root, base_id, name)?;
     Ok(made.project_id)
 }
 
@@ -242,46 +236,47 @@ fn write_one_story_base(store: &ProjectStore, story_id: &str, base: &qnc_project
     .map_err(|error| error.to_string())?;
     conn.execute(
         "INSERT INTO story_ingest_bases (base_id, base_uri, taken_at_utc) VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-         ON CONFLICT(base_id) DO NOTHING",
+         ON CONFLICT(base_id) DO UPDATE SET taken_at_utc = excluded.taken_at_utc",
         [base.project_id.as_str(), base.project_uri.as_str()],
     )
     .map_err(|error| error.to_string())?;
     Ok(())
 }
 
-/// The story worked on last: the project that took the newest base taken, other than `but` (its
-/// id and name). User 2026-11-12: "ako projekt postoji onda korisnik može nastaviti dalje ili
-/// kreirati novi projekt".
+/// The story worked on last: the project that took a base last, a base other than `but` (its id
+/// and name), read from the projects. User 2026-11-12: "ako projekt postoji onda korisnik može
+/// nastaviti dalje ili kreirati novi projekt".
 pub fn last_story(root: &Path, but: &str) -> Result<Option<(String, String)>, String> {
     let store = ProjectStore::open(root)?;
     let rows = store.list_projects()?;
-    let Some(name) = all(root)?.into_iter().filter(|base| base.id != but).find_map(|base| base.project_name) else { return Ok(None) };
+    let Some((_, name)) = takers(&store).into_iter().filter(|(base, _)| base != but).map(|(_, taken)| taken).max() else { return Ok(None) };
     Ok(rows.into_iter().find(|row| row.name == name && !row.name.starts_with(NAME_PREFIX)).map(|row| (row.project_id, row.name)))
 }
 
 /// The base `base_id` goes on the story `story_id` (the user chose the project that exists): the
-/// base gets the story's name, the story the base; the base stays the one Ingest works in.
+/// story takes the base (again: the base is the one it took last); the base stays the one Ingest
+/// works in and writes nothing of the story.
 pub fn continue_story(root: &Path, base_id: &str, story_id: &str) -> Result<String, String> {
     let store = ProjectStore::open(root)?;
     let rows = store.list_projects()?;
     let base = rows.iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
     let story = rows.iter().find(|row| row.project_id == story_id).ok_or_else(|| format!("no project {story_id}"))?;
     write_story_base(&store, story_id, base)?;
-    set_project_name(root, base_id, &story.name)?;
+
     Ok(story.name.clone())
 }
 
 /// The base `id`, as it is (nothing is made active).
 pub fn by_id(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
-    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &store)).ok_or_else(|| format!("no Ingest base {id}"))
+    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store))).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
 /// Makes the base `id` the one Ingest works in.
 pub fn open(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
     store.open_project(id)?;
-    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &store)).ok_or_else(|| format!("no Ingest base {id}"))
+    store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store))).ok_or_else(|| format!("no Ingest base {id}"))
 }
 
 /// Deletes the Ingest base `id` with its folder (the copied Project store lifts its protection
@@ -331,7 +326,7 @@ pub fn current_for(root: &Path, what: &str) -> Result<IngestBase, String> {
     let bases = folder(root)?;
     keep_apart(&mut store, root)?;
     if let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) {
-        let base = base_of(active, &store);
+        let base = base_of(active, &takers(&store));
         if base.project_name.is_none() {
             return Ok(base);
         }
@@ -376,7 +371,7 @@ fn make(store: &mut ProjectStore, bases: &Path, what: &str) -> Result<IngestBase
     let back = store.set_projects_root(&projects);
     let made = made?;
     back?;
-    Ok(base_of(made, store))
+    Ok(base_of(made, &Takers::new()))
 }
 
 /// The table of a base's own database with the folders it was Selected from (not cards).
@@ -620,7 +615,8 @@ impl BaseBrowse {
 /// The Ingest bases of `root`, newest first.
 pub fn all(root: &Path) -> Result<Vec<IngestBase>, String> {
     let store = ProjectStore::open(root)?;
-    let mut bases: Vec<_> = store.list_projects()?.into_iter().filter(|row| row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &store)).collect();
+    let taken = takers(&store);
+    let mut bases: Vec<_> = store.list_projects()?.into_iter().filter(|row| row.name.starts_with(NAME_PREFIX)).map(|row| base_of(row, &taken)).collect();
     bases.sort_by(|a, b| b.name.cmp(&a.name));
     Ok(bases)
 }
@@ -684,8 +680,6 @@ mod tests {
         assert!(base.name.starts_with(NAME_PREFIX));
         assert_eq!(current(&root).unwrap(), base, "the active base stays the current one");
         assert_eq!(base.project_name, None);
-        set_project_name(&root, &base.id, "Prilog o luci").unwrap();
-        assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("Prilog o luci"), "the project that took it");
         assert!(open(&root, &base.id).unwrap().active);
         let (templates, chosen) = templates(&root).unwrap();
         assert!(!templates.is_empty(), "the seed's templates");
@@ -705,6 +699,19 @@ mod tests {
         take_clips(&root, &story, &next.id, &["c2".into()]).unwrap();
         assert_eq!(story_clips(&root, &story).unwrap(), vec![(next.id.clone(), "c1".into()), (next.id.clone(), "c2".into())], "the clips the story took, once each");
         assert_eq!(story_id(&root, "2026/11/11 Luka").unwrap().as_deref(), Some(story.as_str()));
+        // A base gives several stories and writes nothing of them (user 2026-11-15).
+        let second = take_for_story(&root, &next.id, "2026/11/15 Druga", &templates[chosen].0).unwrap();
+        assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/15 Druga"), "the story that took it last");
+        assert_eq!(last_story(&root, "").unwrap(), Some((second.clone(), "2026/11/15 Druga".to_string())));
+        assert_eq!(open_story(&root, &story).unwrap(), "2026/11/11 Luka");
+        assert_eq!(active(&root).unwrap().unwrap().project_name.as_deref(), Some("2026/11/11 Luka"), "opened, the story took the base last");
+        {
+            let store = ProjectStore::open(&root).unwrap();
+            let (next_db, _) = store.project_db_binding(&next.id).unwrap();
+            let conn = rusqlite::Connection::open(next_db).unwrap();
+            let written: i64 = conn.query_row("SELECT count(*) FROM sqlite_master WHERE name = 'ingest_base_project'", [], |row| row.get(0)).unwrap();
+            assert_eq!(written, 0, "the base keeps no project");
+        }
         let store = ProjectStore::open(&root).unwrap();
         let (base_db, _) = store.project_db_binding(&base.id).unwrap();
         let (story_db, _) = store.project_db_binding(&story).unwrap();
@@ -854,8 +861,11 @@ pub fn my_stories(root: &Path) -> Result<std::collections::BTreeSet<String>, Str
 pub fn open_story(root: &Path, story_id: &str) -> Result<String, String> {
     let store = ProjectStore::open(root)?;
     let story = store.list_projects()?.into_iter().find(|row| row.project_id == story_id).ok_or_else(|| format!("no project {story_id}"))?;
-    match all(root)?.into_iter().find(|base| base.project_name.as_deref() == Some(story.name.as_str())) {
-        Some(base) => open(root, &base.id).map(|_| ()),
+    let rows = store.list_projects()?;
+    let newest = story_bases(&store, story_id)?.into_iter().find_map(|(base, _)| rows.iter().find(|row| row.project_id == base && row.name.starts_with(NAME_PREFIX)).cloned());
+    match newest {
+        // The story took this base last (a base may give several stories, user 2026-11-15).
+        Some(base) => write_one_story_base(&store, story_id, &base).and_then(|()| open(root, &base.project_id)).map(|_| ()),
         None => store.open_project(story_id).map(|_| ()),
     }?;
     Ok(story.name)

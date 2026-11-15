@@ -7593,6 +7593,7 @@ dependencies = [
 name = "qnc-story-start"
 version = "0.1.0"
 dependencies = [
+ "qnc-ai-open",
  "qnc-ingest-base",
  "qnc-newsroom-sheet-model",
 ]

@@ -55,14 +55,15 @@ impl IngestApplication {
     }
 }
 
-/// A base as an entry of the browser (user 2026-11-11): the project that took it (or none), and of
-/// the base only its time and number; the one Ingest works in now is marked.
+/// A base as an entry of the browser: the card it stands for (its camera and time; user 2026-11-15:
+/// "baza je zamjena za karticu, projekti se linkuju na baze"), not a project; the one Ingest works
+/// in now is marked.
 fn entry(base: &IngestBase) -> qnc_source_browse::BrowseLocationEntry {
-    let project = base.project_name.clone().unwrap_or_else(|| qnc_ui_text::text("source.base_no_project").to_string());
+    let card = base.label().to_string();
     qnc_source_browse::BrowseLocationEntry {
-        name: if base.active { format!("● {project}") } else { project },
+        name: if base.active { format!("● {card}") } else { card },
         qnc_uri: base.uri.clone(),
         serial_number: String::new(),
-        volume_name: base.label().to_string(),
+        volume_name: String::new(),
     }
 }

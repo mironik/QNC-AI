@@ -7,3 +7,4 @@ description = "QNC-AI block: Uvezi of an Ingest base without a story opens the n
 [dependencies]
 qnc-ingest-base = { workspace = true }
 qnc-newsroom-sheet-model = { workspace = true }
+qnc-ai-open = { workspace = true }

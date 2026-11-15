@@ -69,7 +69,7 @@ impl Projects {
             Ok(None) => log("ai-projects new project: every base has its story, Ingest takes a card or folder".into()),
             Err(error) => log(format!("ai-projects bases not read: {error}")),
         }
-        match qnc_ai_open::open(&self.root, "qnc-ingest") {
+        match qnc_ai_open::open_for_new_story(&self.root, "qnc-ingest") {
             Ok(program) => {
                 log(format!("ai-projects handed over to {}", program.display()));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
