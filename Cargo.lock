@@ -4085,6 +4085,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-base-contents"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-db-broker",
+ "qnc-ingest-base",
+ "qnc-project-store",
+ "qnc-shot-captions",
+ "qnc-shot-content-db",
+ "qnc-shot-vocabulary",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-board"
 version = "0.1.0"
 dependencies = [
@@ -5365,6 +5379,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-active-project-read",
  "qnc-ai-features",
+ "qnc-base-contents",
  "qnc-content-artifacts",
  "qnc-content-read",
  "qnc-content-store",

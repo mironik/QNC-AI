@@ -617,6 +617,9 @@ fn make_shots(
                 qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-caption failed error={error}"));
             }
         }
+        // A card base: what the analysis says it holds, written beside its description (the
+        // archive of bases, user 2026-11-15).
+        describe_base(root, active.settings_reader(), &snapshot.settings);
         analysed
     })();
     match result {
@@ -709,4 +712,21 @@ enum Look {
     /// shots of 28 copied clips waited 2.5 min behind the captions).
     Captions,
     All,
+}
+
+/// The project worked on is a card base: what its shot analysis says it holds is written beside
+/// the user's description (`qnc-base-contents`); a story's project is left alone.
+fn describe_base(root: &std::path::Path, reader: &qnc_work_settings::SettingsReader, settings: &qnc_work_settings::WorkSettings) {
+    let log = |line: String| qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+    let is_base = qnc_ingest_base::all(root).is_ok_and(|bases| bases.iter().any(|base| base.id == settings.project_id));
+    if !is_base {
+        return;
+    }
+    let written = qnc_db_broker::ProjectDbTarget::for_project(reader, settings)
+        .and_then(|target| qnc_base_contents::describe(root, &target, target.uri()))
+        .and_then(|text| qnc_ingest_base::set_analysis(root, &settings.project_id, &text).map(|()| text.len()));
+    match written {
+        Ok(bytes) => log(format!("base-contents {} written ({bytes} bytes)", settings.project_id)),
+        Err(error) => log(format!("base-contents {} not written: {error}", settings.project_id)),
+    }
 }

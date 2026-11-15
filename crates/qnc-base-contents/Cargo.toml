@@ -1,0 +1,17 @@
+[package]
+name = "qnc-base-contents"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: what a card base holds, from its shot analysis (the vocabulary's terms of every shot and the captions of the shots, each once), written beside the user's description so the archive of bases can be read and searched"
+
+[dependencies]
+qnc-ai-catalog = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-shot-captions = { workspace = true }
+qnc-shot-content-db = { workspace = true }
+qnc-shot-vocabulary = { workspace = true }
+qnc-wizard-text = { workspace = true }
+
+[dev-dependencies]
+qnc-ingest-base = { workspace = true }
+qnc-project-store = { workspace = true }

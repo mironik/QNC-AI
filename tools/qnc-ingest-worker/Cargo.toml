@@ -21,6 +21,7 @@ serde_json = { workspace = true }
 qnc-work-settings = { workspace = true }
 qnc-ingest-import-worker = { workspace = true }
 qnc-ingest-base = { workspace = true }
+qnc-base-contents = { workspace = true }
 qnc-playback-activity = { workspace = true }
 qnc-record-completion = { workspace = true }
 qnc-ingest-select = { workspace = true }

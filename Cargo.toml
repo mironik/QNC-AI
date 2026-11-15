@@ -241,6 +241,7 @@ qnc-status-line = { path = "../QNC-shared/crates/qnc-status-line" }
 qnc-still-locator = { path = "crates/qnc-still-locator" }
 qnc-store-jobs = { path = "../QNC-shared/crates/qnc-store-jobs" }
 qnc-story-start = { path = "crates/qnc-story-start" }
+qnc-base-contents = { path = "crates/qnc-base-contents" }
 qnc-theme-styles = { path = "../QNC-shared/crates/qnc-theme-styles" }
 qnc-timeline = { path = "../QNC-shared/crates/qnc-timeline" }
 qnc-timeline-artifacts = { path = "../QNC-shared/crates/qnc-timeline-artifacts" }

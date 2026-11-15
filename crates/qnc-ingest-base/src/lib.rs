@@ -35,7 +35,11 @@ pub struct IngestBase {
     pub active: bool,
     /// Its name and description as the user wrote them (empty: none yet).
     pub title: String,
+    /// Where it was shot, as the user wrote it (a camera's GPS may fill it later).
+    pub location: String,
     pub description: String,
+    /// What the shot analysis says it holds (each term and caption once; empty: not yet).
+    pub analysis: String,
 }
 
 /// Whether `row` is the Ingest base this process works in: the one the process was given (the
@@ -126,42 +130,97 @@ const INFO_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_info (
     written_at_utc TEXT NOT NULL
 )";
 
-/// The name and description of the base `id` (empty when none is written).
-fn info_in(store: &ProjectStore, id: &str) -> (String, String) {
-    let read = || -> Result<(String, String), String> {
-        let (file, _) = store.project_db_binding(id)?;
-        let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
-        let has: bool = conn
-            .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='ingest_base_info')", [], |row| row.get(0))
-            .map_err(|error| error.to_string())?;
-        if !has {
-            return Ok(Default::default());
-        }
-        conn.query_row("SELECT title, description FROM ingest_base_info WHERE one = 1", [], |row| Ok((row.get(0)?, row.get(1)?))).map_err(|error| error.to_string())
-    };
-    read().unwrap_or_default()
-}
+/// What the shot analysis says the base holds (user 2026-11-15: "velike kuće ne brišu baze, one
+/// ostaju arhiva; u opis dodaj podatke koje kreira alat za analizu kadrova, bez ponavljanja istih
+/// pojmova i opisa"): a column of its own beside the user's description, so neither overwrites
+/// the other.
+const ANALYSIS_COLUMN: &str = "analysis";
+/// Where the card was shot (user 2026-11-15: "u bazu bi trebalo dodati još jedno polje, mjesto-
+/// lokacija; neke kamere imaju GPS"): typed by the user now, a camera's GPS may fill it later.
+const LOCATION_COLUMN: &str = "location";
+/// The columns added to the table after it was first made; a base made before gets each when it
+/// is first written, and reads as empty until then.
+const ADDED_COLUMNS: [&str; 2] = [ANALYSIS_COLUMN, LOCATION_COLUMN];
 
-/// Writes the name and description of the base `id` (the user's, in the ingest window).
-pub fn set_info(root: &Path, id: &str, title: &str, description: &str) -> Result<(), String> {
+/// The info table of a base's database open for writing, with every added column.
+fn info_writer(root: &Path, id: &str) -> Result<rusqlite::Connection, String> {
     let store = ProjectStore::open(root)?;
     let (file, _) = store.project_db_binding(id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
     conn.execute_batch(INFO_TABLE).map_err(|error| error.to_string())?;
-    conn.execute(
-        "INSERT INTO ingest_base_info (one, title, description, written_at_utc) VALUES (1, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-         ON CONFLICT(one) DO UPDATE SET title = excluded.title, description = excluded.description, written_at_utc = excluded.written_at_utc",
-        [title.trim(), description.trim()],
-    )
-    .map_err(|error| error.to_string())?;
-    Ok(())
+    for column in ADDED_COLUMNS {
+        let has: bool = conn
+            .query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('ingest_base_info') WHERE name = ?1)", [column], |row| row.get(0))
+            .map_err(|error| error.to_string())?;
+        if !has {
+            conn.execute_batch(&format!("ALTER TABLE ingest_base_info ADD COLUMN {column} TEXT")).map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(conn)
+}
+
+/// Writes what the shot analysis says the base `id` holds; what the user wrote stays.
+pub fn set_analysis(root: &Path, id: &str, analysis: &str) -> Result<(), String> {
+    info_writer(root, id)?
+        .execute(
+            "INSERT INTO ingest_base_info (one, title, description, written_at_utc, analysis) VALUES (1, '', '', strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?1)
+             ON CONFLICT(one) DO UPDATE SET analysis = excluded.analysis",
+            [analysis.trim()],
+        )
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+/// What a base's info table says (empty where nothing is written).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct Info {
+    title: String,
+    location: String,
+    description: String,
+    analysis: String,
+}
+
+/// The info of the base `id`, read only.
+fn info_in(store: &ProjectStore, id: &str) -> Info {
+    let read = || -> Result<Info, String> {
+        let (file, _) = store.project_db_binding(id)?;
+        let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+        let columns: Vec<String> = conn
+            .prepare("SELECT name FROM pragma_table_info('ingest_base_info')")
+            .and_then(|mut statement| statement.query_map([], |row| row.get(0))?.collect())
+            .map_err(|error| error.to_string())?;
+        if columns.is_empty() {
+            return Ok(Info::default());
+        }
+        let added = |column: &str| if columns.iter().any(|name| name == column) { format!("COALESCE({column}, '')") } else { "''".into() };
+        conn.query_row(
+            &format!("SELECT title, description, {}, {} FROM ingest_base_info WHERE one = 1", added(LOCATION_COLUMN), added(ANALYSIS_COLUMN)),
+            [],
+            |row| Ok(Info { title: row.get(0)?, description: row.get(1)?, location: row.get(2)?, analysis: row.get(3)? }),
+        )
+        .map_err(|error| error.to_string())
+    };
+    read().unwrap_or_default()
+}
+
+/// Writes the name, the place and the description of the base `id` (the user's, in the ingest
+/// window); the analysis stays.
+pub fn set_info(root: &Path, id: &str, title: &str, location: &str, description: &str) -> Result<(), String> {
+    info_writer(root, id)?
+        .execute(
+            "INSERT INTO ingest_base_info (one, title, description, written_at_utc, location) VALUES (1, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?3)
+             ON CONFLICT(one) DO UPDATE SET title = excluded.title, description = excluded.description, location = excluded.location, written_at_utc = excluded.written_at_utc",
+            [title.trim(), description.trim(), location.trim()],
+        )
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn base_of(row: qnc_project_store::ProjectRow, takers: &Takers, store: &ProjectStore) -> IngestBase {
     let project_name = takers.get(&row.project_id).map(|(_, name)| name.clone());
-    let (title, description) = info_in(store, &row.project_id);
-    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active, title, description }
+    let Info { title, location, description, analysis } = info_in(store, &row.project_id);
+    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active, title, location, description, analysis }
 }
 
 /// Whether the project Ingest works in now is an Ingest base: a read only look at the registry
@@ -710,7 +769,7 @@ mod tests {
     #[test]
     fn a_base_is_shown_by_its_time_and_number_without_the_word_ingest() {
         let name = format!("{NAME_PREFIX} {}", stamp());
-        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false, title: String::new(), description: String::new() };
+        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false, title: String::new(), location: String::new(), description: String::new(), analysis: String::new() };
         let label = base.label();
         assert!(!label.contains(NAME_PREFIX), "{label}");
         let (time, number) = label.rsplit_once(' ').unwrap();
@@ -737,9 +796,12 @@ mod tests {
         assert!(base.name.starts_with(NAME_PREFIX));
         assert_eq!(current(&root).unwrap(), base, "the active base stays the current one");
         assert_eq!(base.project_name, None);
-        set_info(&root, &base.id, " Konavle ", "javna rasprava").unwrap();
+        set_info(&root, &base.id, " Konavle ", " Cavtat ", "javna rasprava").unwrap();
         let named = all(&root).unwrap().remove(0);
-        assert_eq!((named.title.as_str(), named.description.as_str()), ("Konavle", "javna rasprava"), "the base's own name and description");
+        assert_eq!((named.title.as_str(), named.location.as_str(), named.description.as_str()), ("Konavle", "Cavtat", "javna rasprava"), "the base's own name, place and description");
+        set_analysis(&root, &base.id, "U kadrovima: Luka").unwrap();
+        let described = all(&root).unwrap().remove(0);
+        assert_eq!((described.analysis.as_str(), described.title.as_str()), ("U kadrovima: Luka", "Konavle"), "the analysis beside, the user's text kept");
         assert_eq!(named.shown(), format!("Konavle · {}", named.label()));
         assert!(open(&root, &base.id).unwrap().active);
         let (templates, chosen) = templates(&root).unwrap();

@@ -36,42 +36,49 @@ struct Window {
     info: BaseInfo,
 }
 
-/// The name and description of the base, typed and written.
+/// The name, place and description of the base, typed and written.
 #[derive(Default)]
 struct BaseInfo {
     title: String,
+    location: String,
     description: String,
-    written: (String, String),
+    written: (String, String, String),
     /// Closing was asked while the name was empty.
     needed: bool,
 }
 
 impl BaseInfo {
+    fn of(known: qnc_ingest_base::IngestBase) -> Self {
+        let written = (known.title.clone(), known.location.clone(), known.description.clone());
+        Self { title: known.title, location: known.location, description: known.description, written, needed: false }
+    }
+
     /// Writes what was typed when it differs from what is written.
     fn keep(&mut self, root: &std::path::Path, base: &str) {
-        let now = (self.title.trim().to_string(), self.description.trim().to_string());
+        let now = (self.title.trim().to_string(), self.location.trim().to_string(), self.description.trim().to_string());
         if base.is_empty() || now == self.written {
             return;
         }
-        match qnc_ingest_base::set_info(root, base, &now.0, &now.1) {
+        match qnc_ingest_base::set_info(root, base, &now.0, &now.1, &now.2) {
             Ok(()) => self.written = now,
             Err(error) => log(format!("ai-card-ingest base name not written: {error}")),
         }
     }
 
-    /// The name and the description fields, the name's need said when closing waited for it.
+    /// The name, the place and the description fields, the name's need said when closing waited for it.
     fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme) -> bool {
-        let mut left = false;
         ui.label(RichText::new(text("card_ingest.base_name")).color(theme.text));
         let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_name_hint")));
         if self.needed && self.title.trim().is_empty() {
             ui.label(RichText::new(text("card_ingest.base_name_needed")).color(theme.danger));
         }
         ui.add_space(4.0);
+        ui.label(RichText::new(text("card_ingest.base_location")).color(theme.text));
+        let location = ui.add(qnc_ui_kit::text_field(&mut self.location).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_location_hint")));
+        ui.add_space(4.0);
         ui.label(RichText::new(text("card_ingest.base_description")).color(theme.text));
         let description = ui.add(qnc_ui_kit::text_area(&mut self.description).desired_width(f32::INFINITY).desired_rows(2).hint_text(text("card_ingest.base_description_hint")));
-        left |= name.lost_focus() || description.lost_focus();
-        left
+        name.lost_focus() || location.lost_focus() || description.lost_focus()
     }
 }
 
@@ -288,7 +295,7 @@ fn main() -> eframe::Result<()> {
         Some(known) => format!("{}: {}", text("card_ingest.title"), known.label()),
         None => text("card_ingest.title").to_string(),
     };
-    let info = known.map_or_else(BaseInfo::default, |known| BaseInfo { written: (known.title.clone(), known.description.clone()), title: known.title, description: known.description, needed: false });
+    let info = known.map_or_else(BaseInfo::default, BaseInfo::of);
     let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
