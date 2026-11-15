@@ -805,3 +805,7 @@ odbijeno, baza sa 103 klipa ostala je bez projekta, a Projekti je nisu vidjeli. 
 samo tekst u bojama prozora, bez okvira i pozadine, svjetliji pod misem): Ingest se otvara na najnovijoj bazi bez projekta koja
 nije veza na drugu bazu (`qnc-ingest-base` `newest_without_story`), a Uvezi daje obrazac novog projekta; kad svaka baza ima
 projekt, Ingest se otvara za karticu ili mapu. Tekst `projects.new` u `contracts/wizard-text`. Uzivo nije provjereno.
+Popravak 2026-11-15 (korisnik: "ovo nije premium stil, a dugme Novi projekt je nevidljivo; forma mora biti jasna nekome tko prvi
+put sjeda za montazu"): cista paleta upisana je i u QNC-AI-jev vlastiti `contracts/ui/shell.layout.json` (isti kao
+`ai-shell.layout.json`), pa je imaju i prozori koji ga citaju: Projekti, Postavke, Ingest i prozor kartice, pitanja traya, tray i
+ljuska. "Novi projekt" je jedina primarna radnja prozora Projekti: svijetli gumb s tamnim tekstom (180x38). Uzivo nije provjereno.

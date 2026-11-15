@@ -30,16 +30,15 @@ impl eframe::App for Projects {
         // A new project (user 2026-11-15: "nedostaje dugme Kreiraj novi projekt koji poziva
         // Ingest"): Ingest opens on the newest base no story took yet (its Uvezi asks for the new
         // project), or on a card or folder when every base has its story.
-        // Clean (user 2026-11-15: "minimalisticki premium, bez ukrasa"): text only, no frame, no
-        // fill, in the window's own colours; brighter under the mouse.
+        // The one primary action of the window, clear to someone at the desk for the first time
+        // (user 2026-11-15): a light button with dark text, in the window's own colours.
         let visuals = ctx.style().visuals.clone();
-        let bar = egui::Frame::NONE.fill(visuals.panel_fill).inner_margin(egui::Margin { left: 20, right: 20, top: 14, bottom: 10 });
+        let bar = egui::Frame::NONE.fill(visuals.panel_fill).inner_margin(egui::Margin { left: 24, right: 24, top: 20, bottom: 8 });
         let new_asked = egui::TopBottomPanel::top("qnc-ai-projects-new").frame(bar).show_separator_line(false).show(ctx, |ui| {
-            let label = egui::RichText::new(format!("+  {}", qnc_wizard_text::text("projects.new"))).size(15.0);
-            let button = ui.add(egui::Button::new(label.color(visuals.text_color())).frame(false));
+            let label = egui::RichText::new(qnc_wizard_text::text("projects.new")).size(15.0).color(visuals.panel_fill);
+            let button = ui.add(egui::Button::new(label).fill(visuals.strong_text_color()).stroke(egui::Stroke::NONE).corner_radius(4.0).min_size(egui::vec2(180.0, 38.0)));
             if button.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                ui.painter().text(button.rect.left_center(), egui::Align2::LEFT_CENTER, format!("+  {}", qnc_wizard_text::text("projects.new")), egui::FontId::proportional(15.0), visuals.strong_text_color());
             }
             button.clicked()
         }).inner;
