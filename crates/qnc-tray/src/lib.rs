@@ -9,6 +9,8 @@ use std::sync::mpsc::Receiver;
 mod alert;
 #[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+mod menu_look;
 
 /// What the user did with the icon.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

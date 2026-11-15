@@ -846,3 +846,9 @@ Izmjena 2026-11-15 (korisnik: "audio trakovima treba dodati pozadinu, ne smije b
 filmstripa treba linija odvajanja"): QNC-AI trake A1/A2 imaju pozadinu [36,38,43] (svjetliju od podloge), val [128,130,137],
 prošireni [140,142,149], a između trake i slike je linija od 2 px u boji video trake timelinea [23,24,27] (korisnik: "ne vidim crnu liniju"; svijetlosiva 1 px se uz sliku nije vidjela) (`MediaColors.lane_divider`, `TimelineTheme.lane_divider`;
 A1 iznad slike, ostale ispod). Klasični QNC bez linije, kao prije. Uživo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "linija koja odvaja filmstrip od tona nije vidljiva na A1, proširi je"; "ide filmstrip, linija, A1 ton;
+ton se crta iznad linije"; "predi i tray u premium stilu, povećaj font"): (1) Linija između trake i slike je 3 px na rubu trake prema
+slici, a val trake stoji uz nju, nikad ispod nje (prije ju je val A1, koji raste od dna, prekrivao). (2) Tray izbornik više nije
+sistemski bijeli: crta ga sam tray (`crates/qnc-tray/src/menu_look.rs`, owner-draw, WM_MEASUREITEM/WM_DRAWITEM): podloga [23,24,27],
+red pod mišem [38,40,44], tekst [237,237,237], stavka koja nije izbor prigušena, Segoe UI 12 pt (prije sistemskih 9 pt), redovi 26 pt.
+Tray poruke (`alert.rs`) u istoj sivoj paleti. Uživo nije provjereno.

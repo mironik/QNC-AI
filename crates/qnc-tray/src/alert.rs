@@ -23,15 +23,15 @@ const MARGIN: i32 = 24;
 const BUTTON_W: i32 = 120;
 const BUTTON_H: i32 = 34;
 
-/// QNC shell colours (`contracts/ui/shell.layout.json` of QNC): surface, raised, border, text, and
+/// QNC-AI shell colours (`contracts/ui/shell.layout.json`, the clean palette): surface, raised, border, text, and
 /// QNC's danger red.
 fn rgb(r: u8, g: u8, b: u8) -> COLORREF {
     u32::from(r) | (u32::from(g) << 8) | (u32::from(b) << 16)
 }
-const SURFACE: (u8, u8, u8) = (17, 24, 39);
-const RAISED: (u8, u8, u8) = (31, 41, 55);
-const BORDER: (u8, u8, u8) = (55, 65, 81);
-const TEXT: (u8, u8, u8) = (229, 231, 235);
+const SURFACE: (u8, u8, u8) = (23, 24, 27);
+const RAISED: (u8, u8, u8) = (32, 34, 38);
+const BORDER: (u8, u8, u8) = (38, 40, 44);
+const TEXT: (u8, u8, u8) = (237, 237, 237);
 const DANGER: (u8, u8, u8) = (220, 38, 38);
 /// What went well: a notice, not an error.
 const DONE: (u8, u8, u8) = (34, 197, 94);

@@ -16,7 +16,7 @@ use windows_sys::Win32::UI::Shell::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconIndirect, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyMenu, DestroyWindow,
     DispatchMessageW, GetCursorPos, GetMessageW, GetSystemMetrics, HICON, ICONINFO, LoadIconW, SM_CXSMICON, PostMessageW, PostQuitMessage, RegisterClassW, SetForegroundWindow, TrackPopupMenu, TranslateMessage,
-    HWND_MESSAGE, IDI_APPLICATION, MF_GRAYED, MF_STRING, MSG, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CLOSE, WM_DESTROY,
+    HWND_MESSAGE, IDI_APPLICATION, MF_GRAYED, MF_OWNERDRAW, MSG, WM_DRAWITEM, WM_MEASUREITEM, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CLOSE, WM_DESTROY,
     WM_LBUTTONUP, WM_RBUTTONUP, WNDCLASSW,
 };
 
@@ -248,6 +248,14 @@ unsafe extern "system" fn procedure(window: HWND, message: u32, wparam: WPARAM, 
             Shell_NotifyIconW(NIM_MODIFY, &data);
             0
         }
+        WM_MEASUREITEM => {
+            crate::menu_look::measure(lparam as *mut _);
+            1
+        }
+        WM_DRAWITEM => {
+            crate::menu_look::draw(lparam as *const _);
+            1
+        }
         WM_CLOSE => {
             DestroyWindow(window);
             0
@@ -266,10 +274,12 @@ unsafe extern "system" fn procedure(window: HWND, message: u32, wparam: WPARAM, 
 unsafe fn menu(window: HWND) -> Option<u32> {
     let items = SHARED.lock().ok()?.as_ref()?.menu.clone();
     let popup = CreatePopupMenu();
-    for item in &items {
-        let text = wide(&item.text);
-        let flags = if item.enabled { MF_STRING } else { MF_STRING | MF_GRAYED };
-        AppendMenuW(popup, flags, item.id as usize, text.as_ptr());
+    // Drawn by the tray in QNC-AI's look (`menu_look`): the item's data is its index.
+    crate::menu_look::hold(items.iter().map(|item| item.text.encode_utf16().collect()).collect());
+    let ground = crate::menu_look::ground(popup);
+    for (at, item) in items.iter().enumerate() {
+        let flags = if item.enabled { MF_OWNERDRAW } else { MF_OWNERDRAW | MF_GRAYED };
+        AppendMenuW(popup, flags, item.id as usize, at as *const u16);
     }
     let mut at = POINT { x: 0, y: 0 };
     GetCursorPos(&mut at);
@@ -277,6 +287,7 @@ unsafe fn menu(window: HWND) -> Option<u32> {
     SetForegroundWindow(window);
     let chosen = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, at.x, at.y, 0, window, std::ptr::null());
     DestroyMenu(popup);
+    crate::menu_look::forget_ground(ground);
     (chosen > 0).then_some(chosen as u32)
 }
 
