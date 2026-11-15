@@ -817,3 +817,11 @@ statusa "Spremno.". Prozor je visok koliko sadržaj (do 8 projekata bez trake za
 `qnc-project-blocks` `show_projects` vraća i `ProjectsAlone` (red novog projekta kliknut, visina sadržaja); `qnc-project-desktop`
 `with_new_label`, `take_new_asked`, `content_height`; `qnc-ai-projects` mijenja visinu prozora kad se sadržaj promijeni.
 Uživo nije provjereno.
+Izmjena 2026-11-15 (korisnik: AI Media Assist "ne vidim da si išta promijenio"; "da" na prebacivanje boja u temu): boje medija više
+nisu upisane u zajedničke kocke nego su dio teme: trake i valovi A1/A2, uvećani val, fokus timelinea (narančasti NORM, trajanje,
+uzeta oznaka), uzeta traka, zone mjerača razine i točkice i kvačica kartice (QNC-shared `qnc-desktop-theme` `MediaColors`,
+`ShellColors.media`, `Theme.media`; `qnc-theme-styles` ih koristi). Ugovor ljuske bez `media` daje boje klasičnog QNC-a (nepromijenjeno);
+QNC-AI (`contracts/ui/shell.layout.json`, QNC-shared `ai-shell.layout.json`) daje sive: trake [28,30,34], val [150,152,158], fokus i
+uzeta traka bijelo-sivi, mjerač prigušeni zeleni/žuti/crveni, točkice sive (greška prigušeno crvena). Crveni IN/OUT, rez i greška
+ostaju. Test `qnc_ai_draws_its_media_in_graphite_not_in_qncs_colours`. AI Media Assist i ostale forme ponovno izgrađene. Uživo nije
+provjereno.

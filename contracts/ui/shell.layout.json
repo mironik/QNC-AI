@@ -39,7 +39,20 @@
     "text": [237, 237, 237],
     "muted": [138, 139, 143],
     "accent": [200, 201, 204],
-    "focus": [154, 155, 160]
+    "focus": [154, 155, 160],
+    "media": {
+      "lane": [28, 30, 34],
+      "wave": [150, 152, 158],
+      "wave_zoom": [200, 201, 204],
+      "timeline_focus": [237, 237, 237],
+      "lane_taken": [237, 237, 237],
+      "meter": [[128, 160, 140], [200, 184, 120], [214, 82, 74]],
+      "dot_ready": [138, 139, 143],
+      "dot_original_ready": [200, 201, 204],
+      "dot_pending": [70, 72, 76],
+      "dot_error": [214, 82, 74],
+      "check_on": [237, 237, 237]
+    }
   },
   "forbidden_changes_without_approval": [
     "redesign",
