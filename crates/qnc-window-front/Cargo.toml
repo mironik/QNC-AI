@@ -1,0 +1,8 @@
+[package]
+name = "qnc-window-front"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: a window brought above the other applications (not minimised, on top, focused, asking for attention) until the user is in it or goes elsewhere"
+
+[dependencies]
+eframe = { workspace = true }

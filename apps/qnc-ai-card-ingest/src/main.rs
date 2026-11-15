@@ -27,7 +27,7 @@ struct Window {
     /// Brought above the other applications when the ingest ended (when), until the user is in it
     /// or goes to another window (user 2026-11-14: a click on another ingest window brings that one
     /// to the front).
-    on_top: Option<std::time::Instant>,
+    on_top: qnc_window_front::WindowFront,
     /// A second copy started for a folder asks this one to show the browser.
     folder_asked: Option<qnc_tray::Signal>,
 }
@@ -79,21 +79,10 @@ impl eframe::App for Window {
             }
             // The user worked on something else meanwhile (mail, the web): the window, minimised
             // or behind, comes back above the other applications so the end is seen (user
-            // 2026-11-13). It stays on top until the user clicks or types in it.
-            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
-            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
-            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
-            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Critical));
-            self.on_top = Some(std::time::Instant::now());
-        } else if let Some(since) = self.on_top {
-            // In it (a click, a key), or another window taken (it lost the focus after a moment):
-            // it is an ordinary window again.
-            let (in_it, away) = ctx.input(|input| (input.pointer.any_pressed() || (input.focused && !input.keys_down.is_empty()), input.viewport().focused == Some(false)));
-            if in_it || (away && since.elapsed() >= std::time::Duration::from_secs(1)) {
-                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::Normal));
-                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Reset));
-                self.on_top = None;
-            }
+            // 2026-11-13). It stays on top until the user clicks or types in it (`qnc-window-front`).
+            self.on_top.bring(ctx);
+        } else {
+            self.on_top.follow(ctx);
         }
         for bar in status.progress.bars() {
             if status.progress.clips > 0 && bar.done >= status.progress.clips {
@@ -236,7 +225,7 @@ fn main() -> eframe::Result<()> {
         Some(label) => format!("{}: {label}", text("card_ingest.title")),
         None => text("card_ingest.title").to_string(),
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: None, folder_asked };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;

@@ -267,6 +267,7 @@ qnc-wizard-db = { path = "crates/qnc-wizard-db" }
 qnc-wizard-flow = { path = "crates/qnc-wizard-flow" }
 qnc-wizard-steps = { path = "crates/qnc-wizard-steps" }
 qnc-wizard-text = { path = "crates/qnc-wizard-text" }
+qnc-window-front = { path = "crates/qnc-window-front" }
 qnc-work-settings = { path = "../QNC-shared/crates/qnc-work-settings" }
 qnc-worker-wake = { path = "../QNC-shared/crates/qnc-worker-wake" }
 qnc-workstation-identity = { path = "../QNC-shared/crates/qnc-workstation-identity" }

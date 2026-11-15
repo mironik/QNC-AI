@@ -14,10 +14,19 @@ use qnc_project_desktop::ProjectApp;
 struct Projects {
     root: std::path::PathBuf,
     app: ProjectApp,
+    /// Started by the tray in the background: brought above the others at once (user
+    /// 2026-11-15: it opened minimised and was not seen; `qnc-window-front`).
+    front: qnc_window_front::WindowFront,
+    shown: bool,
 }
 
 impl eframe::App for Projects {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if !self.shown {
+            self.shown = true;
+            self.front.bring(ctx);
+        }
+        self.front.follow(ctx);
         self.app.update(ctx, frame);
         let Some(story) = self.app.take_opened() else { return };
         match qnc_ingest_base::open_story(&self.root, &story) {
@@ -66,7 +75,7 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let _ = qnc_project_desktop::apply_project_style(&cc.egui_ctx);
-            Ok(Box::new(Projects { root, app }))
+            Ok(Box::new(Projects { root, app, front: Default::default(), shown: false }))
         }),
     )
 }

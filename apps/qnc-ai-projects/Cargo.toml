@@ -11,4 +11,5 @@ qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-base = { workspace = true }
 qnc-project-desktop = { workspace = true }
 qnc-tray = { workspace = true }
+qnc-window-front = { workspace = true }
 qnc-wizard-text = { workspace = true }

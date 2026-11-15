@@ -14,4 +14,5 @@ qnc-work-settings = { workspace = true }
 qnc-ingest-blocks = { workspace = true }
 qnc-ingest-layout = { workspace = true }
 qnc-tray = { workspace = true }
+qnc-window-front = { workspace = true }
 qnc-wizard-text = { workspace = true }

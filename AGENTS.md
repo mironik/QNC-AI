@@ -788,3 +788,7 @@ tray (`apps/qnc-ai-ask`): prozor u QNC temi, uvijek na vrhu, trazi paznju; gumbi
 u `contracts/wizard-text`), Enter daje zadani odgovor (kod potvrde Ne, kao prije), Esc zadnji, zatvaranje je Odustani; odgovor
 ide trayu na stdout (`qnc-tray` `qnc_ask`). Kad program ne moze krenuti, pita sistemski prozor i log kaze zasto. Uzivo nije
 provjereno (tray radi, pa nije izgradjen).
+Popravak 2026-11-15 (korisnik: "projekt izbornik se otvori minimiziran, pa se ne vidi"): nova kocka `crates/qnc-window-front`
+(prozor doveden iznad ostalih: nije minimiziran, na vrhu, fokus, trazi paznju, dok korisnik ne klikne u njega ili ode na drugi
+prozor). Prozor Projekti (`qnc-ai-projects`, otvara ga tray) koristi je cim se otvori; prozor kartice (`qnc-ai-card-ingest`) je
+koristi na kraju uvoza umjesto vlastite kopije istog koda. Uzivo nije provjereno.

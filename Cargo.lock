@@ -3745,6 +3745,7 @@ dependencies = [
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
  "qnc-tray",
+ "qnc-window-front",
  "qnc-wizard-text",
  "qnc-work-settings",
 ]
@@ -3846,6 +3847,7 @@ dependencies = [
  "qnc-ingest-base",
  "qnc-project-desktop",
  "qnc-tray",
+ "qnc-window-front",
  "qnc-wizard-text",
 ]
 
@@ -8177,6 +8179,13 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-edit-step",
+]
+
+[[package]]
+name = "qnc-window-front"
+version = "0.1.0"
+dependencies = [
+ "eframe",
 ]
 
 [[package]]
