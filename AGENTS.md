@@ -710,3 +710,10 @@ Uzivo nije provjereno.
 Dopuna 2026-11-15 (korisnik, AI Media Assist: "oznaceni tekst kompletan markiraj"): u prijepisu AI Media Assista tekst izmedju
 IN i OUT prikazanog klipa osvijetljen je cijeli, jednom bojom (boja fokusa teme, prozirna), i razmaci izmedju oznacenih rijeci;
 bez zagrada (`qnc-transcript-panel`). Uzivo nije provjereno.
+Ispravak 2026-11-15 (korisnik: "samo tekst prijepisa koji korisnik odabere treba biti markiran"; "default sirinu taba
+Izjava suzi na sirinu jednog postera"; "zasto su se prijepisi i AI opisi vratili na 0"): u prijepisu je oznacen samo tekst
+izmedju IN-a i OUT-a koje je korisnik postavio; bez njegovih oznaka nista (`qnc-transcript`: `source_in_frame` /
+`source_out_frame` projekcije, ne `visible_source_marks`, koji bez oznaka daje cijeli klip). Stupac izjava je zadano siroko
+jedan poster (`statements_pool.width` 190 u oba ugovora rasporeda). Tray broji prepisane klipove baze iz baze projekta
+(`read_transcribed` i gotovi ili pali u redu), ne iz reda, koji AI Media Assist cisti kad se isprazni (`qnc-card-ingest`
+`progress_in`). AI opisi stoje na 0 dok SigLIP ne zavrsi, po redoslijedu. Testovi, release gradnja. Uzivo nije provjereno.
