@@ -7170,6 +7170,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
+ "qnc-image-assets",
  "qnc-source-preview",
  "qnc-still-locator",
  "qnc-ui-text",

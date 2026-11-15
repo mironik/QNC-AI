@@ -73,6 +73,14 @@ impl ShotStills {
         self.cache.follow(shown, marks);
     }
 
+    /// The picture the monitor showed at `frame` of `clip` as a card poster, at once (user
+    /// 2026-11-15: "dugo se čeka poster kreirane izjave, ne čekaj zapis u bazu").
+    pub fn poster_now(&self, clip: &str, frame: u64) -> Option<Arc<qnc_image_assets::RgbaImage>> {
+        let picture = self.cache.captured(clip, frame)?;
+        let size = [picture.width() as usize, picture.height() as usize];
+        let content_key = frame ^ clip.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |key, byte| (key ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3));
+        Some(Arc::new(qnc_image_assets::RgbaImage { size, pixels: picture.into_raw(), content_key }))
+    }
     /// The stills of a saved short (`Some`: shot, clip, IN/OUT) or the posters of the
     /// covers just saved (shot, clip, IN frame); written and published off this thread.
     pub fn store(&mut self, place: Place<'_>, short: Option<(&str, &str, (u64, u64))>, covers: Vec<(String, String, u64)>) {

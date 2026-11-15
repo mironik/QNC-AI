@@ -9,6 +9,7 @@ qnc-ui-text = { workspace = true }
 qnc-db-broker = { workspace = true }
 qnc-virtual-short-stills = { workspace = true }
 qnc-virtual-shots = { workspace = true }
+qnc-image-assets = { workspace = true }
 qnc-work-settings = { workspace = true }
 qnc-decoder-catalog = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }

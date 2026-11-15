@@ -857,3 +857,11 @@ inače malo prigušena, jedino tako znamo koji wave je odabran za prikaz preko f
 trake, ne preko gumba A1/A2; gumb trake koja nije uzeta ima prigušeni tekst i okvir, uzeta (val preko slike) svijetli tekst i okvir
 (`MediaColors.lane_quiet`, `TimelineTheme.lane_quiet`, `LaneLook.quiet`; vrijedi i u trim zoomu). Klasični QNC bez promjene.
 Uživo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "dugme Dodaj izjavu nema nikakav pokazatelj da je prihvatilo klik, provjeri i drugu dugmad"; "dugo se
+čeka da se prikaže poster kreirane izjave, ne čekaj zapis u bazu"): (1) Gumbi QNC-AI-ja odgovaraju: pod mišem malo svjetliji, dok
+se drže svjetliji, a nakon klika kratko (0,35 s) zasvijetle; pokazivač ruke (gui-kit `qnc_ui_kit::press_feedback`; chrome, jaki i
+gumbi forme, gumbi docka i reda ispod monitora). Uključuje ga tema (`MediaColors.press_feedback`, QNC-AI da; klasični QNC ne).
+(2) Dodaj izjavu odmah stavlja karticu izjave u stupac Izjave, sa slikom IN-a koju je monitor već prikazao (inače poster klipa),
+dok se zapis piše u pozadini (AGENTS §5: klip se smije prikazati dok se sprema); red iz baze je zamijeni i zadrži tu sliku dok se
+ne pročita vlastita slika izjave; neuspjeli zapis je uklanja (QNC-shared `qnc-virtual-short-cards` `saving`, `drop_saving`;
+`qnc-shot-stills` `poster_now`). Aplikacijski sloj nije narastao. Testovi. Uživo nije provjereno.

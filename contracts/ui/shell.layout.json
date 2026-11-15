@@ -56,7 +56,8 @@
       "level_curve": [150, 152, 158],
       "wave_amplitude": true,
       "lane_divider": [23, 24, 27],
-      "lane_quiet": true
+      "lane_quiet": true,
+      "press_feedback": true
     }
   },
   "forbidden_changes_without_approval": [
