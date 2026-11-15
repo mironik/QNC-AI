@@ -829,3 +829,11 @@ Popravak 2026-11-15 (korisnik nakon probe: "timeline je kaotičan, crvene linije
 na A1 otvorio je prošireni prikaz trake): linije razina -18/-9/-1 dBFS i linija razine tona također su boje teme (`MediaColors`
 `level_marks`, `level_curve`; klasični QNC iste kao prije). QNC-AI: linije razina gotovo nevidljive (bijele 12/20 alfa, -1 dBFS
 prigušeno crvena 45), linija razine siva, trake [24,25,28], val [104,106,112], prošireni val [118,120,126]. Uživo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "val je u ovom obliku neprecizan i nije lako čitljiv; bolje samo amplitudu kao Premiere i Final Cut,
+manje linija"; "ne trebaš pokazivati linije nivoa, nego signal koji je viši bojaj u odgovarajućoj boji"; "ostaje samo jedna linija,
+za podešavanje nivoa tona"): QNC-AI crta val kao amplitudu od dna trake prema gore u dB mjerilu (-54 dBFS dno, puna skala vrh),
+pa se tihi govor čita jednako kao glasan; dio jači od -9 dBFS je u drugoj boji mjerača (prigušeno žuto), jači od -1 dBFS u trećoj
+(prigušeno crveno); linije razina -18/-9/-1 se ne crtaju, ostaje samo linija razine tona. QNC-shared `qnc-wave-view` `WaveShape`
+(`Mirrored`, `Amplitude`), `paint_wave_shape`, `paint_level_marks_shape`, `height_of`; `TimelineTheme.wave_shape`;
+`MediaColors.wave_amplitude` (zadano false: klasični QNC zadržava zrcalni val i linije razina). Test
+`the_amplitude_stands_on_a_db_scale_from_the_bottom`. Uživo nije provjereno.
