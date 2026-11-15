@@ -766,3 +766,11 @@ source_timeline i ingest; pomoc F1). Tab i Shift+Tab ostaju kao dodatni nacin. E
 na dugmad source timelinea. Vrijedi za Story, S-Story, MA i AI Media Assist (`qnc-panel-focus` `choose_panel`); Ingest ima
 tipke u katalogu, ali ih njegov krug (`qnc-focus-walk`) jos ne obradjuje (sljedeci korak), a u MA Scriptu prozor medija nema mjesta
 panela. Testovi; uzivo nije provjereno.
+Dopuna 2026-11-15 (korisnik: "Alt+ je u redu, ali polozaj Alt tipke nije povoljan za brzi rad; Tab + strelica mi se cini
+elegantniji, a ako korisnik u brzini pogrijesi manja je steta"): Tab drzan je modifikator kao Ctrl i Alt (`qnc-keyboard-shortcut`:
+`"tab": true` u vezi tipke, `ShortcutEvent.tab`): Tab + strelica bira panel u tom smjeru (iste radnje `panel_*` kao Alt +
+strelice, koje ostaju). Tab pritisnut sam vrijedi kad se pusti, ako uz njega nije pritisnuta druga tipka, pa i dalje ide na
+sljedeci panel (Shift+Tab na prethodni). Posljedica i u klasicnom QNC-u (dijeli kocku): Tab djeluje pri pustanju, ne pri pritisku.
+Popravci iz loga istog dana: Alt+lijevo s teksta islo je na source timeline (panel ispod cijele sirine racunao se "lijevo");
+panel u smjeru mora biti cijeli s te strane (`qnc-panel-map`). Skok na objekt bio je jos u dva opsega na Alt; sada svugdje
+Ctrl+Alt. Testovi (Tab drzan i Tab sam kroz egui okvire); uzivo nije provjereno.

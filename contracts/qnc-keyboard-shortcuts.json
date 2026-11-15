@@ -806,7 +806,7 @@
       { "keys": "Shift + lijevi klik", "meaning": "Kao Shift + M: dodaje M marker na mjesto klika." },
       { "keys": "Srednja tipka / kotačić", "meaning": "Srednja tipka reže (IN i OUT na source timelineu, M marker u segmentima). Kotačić je kao strelice lijevo/desno, Ctrl + kotačić kao Ctrl + strelice." },
       { "keys": "Shift + tipka", "meaning": "Dodaje nešto novo (segment, marker u nastavku, pokrivalica, IN i OUT po trajanju slota)." },
-      { "keys": "Alt + strelice", "meaning": "Biraju panel: tipkovnica ide na panel lijevo, desno, iznad ili ispod trenutnog (nema kruga). Strelice rade unutar panela. Klik bilo gdje u panelu radi isto." },
+      { "keys": "Tab + strelice", "meaning": "Drži Tab i pritisni strelicu: tipkovnica ide na panel lijevo, desno, iznad ili ispod trenutnog (nema kruga). Isto Alt + strelice. Tab pritisnut sam ide na sljedeći panel. Strelice rade unutar panela. Klik bilo gdje u panelu radi isto." },
       { "keys": "Ctrl + Alt + strelice", "meaning": "Playhead skače na sljedeći objekt i ništa ne uzima: M marker ili početak segmenta; na source timelineu početak, IN, OUT; u složenoj izjavi rubovi dijelova." },
       { "keys": "Strelice", "meaning": "Lijevo/desno za jedan frame, a kad je nešto uzeto mijenjaju to; gore/dolje prethodni ili sljedeći blok, a dok je rez uzet skok na prethodnu ili sljedeću ključnu sliku." },
       { "keys": "J / K / L", "meaning": "J unazad, L naprijed (ponovno 2x, 4x, 8x), K stani. Shift+K: play oko uzetog reza ukrug; K tada zaustavlja i uzeti rub ide na playhead." },
@@ -855,10 +855,10 @@
         "transcript_search_next": [{ "key": "Enter" }]
       },
       "ingest": {
-        "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }],
-        "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }],
-        "panel_up": [{ "key": "ArrowUp", "alt": true }],
-        "panel_down": [{ "key": "ArrowDown", "alt": true }],
+        "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }, { "code": "ArrowLeft", "key": "ArrowLeft", "tab": true }],
+        "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }, { "code": "ArrowRight", "key": "ArrowRight", "tab": true }],
+        "panel_up": [{ "key": "ArrowUp", "alt": true }, { "key": "ArrowUp", "tab": true }],
+        "panel_down": [{ "key": "ArrowDown", "alt": true }, { "key": "ArrowDown", "tab": true }],
         "select_audio_a1": [{ "code": "Digit1", "ctrl": true, "shift": false }],
         "select_audio_a2": [{ "code": "Digit2", "ctrl": true, "shift": false }],
         "lane_level_down": [{ "code": "ArrowLeft", "key": "ArrowLeft", "ctrl": true, "shift": false }],
@@ -990,10 +990,10 @@
         "transcript_select_down": [{ "key": "ArrowDown", "shift": true }]
       },
       "storyboard": {
-        "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }],
-        "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }],
-        "panel_up": [{ "key": "ArrowUp", "alt": true }],
-        "panel_down": [{ "key": "ArrowDown", "alt": true }],
+        "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }, { "code": "ArrowLeft", "key": "ArrowLeft", "tab": true }],
+        "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }, { "code": "ArrowRight", "key": "ArrowRight", "tab": true }],
+        "panel_up": [{ "key": "ArrowUp", "alt": true }, { "key": "ArrowUp", "tab": true }],
+        "panel_down": [{ "key": "ArrowDown", "alt": true }, { "key": "ArrowDown", "tab": true }],
         "play_pause": [
           {
             "code": "Space"
