@@ -774,3 +774,6 @@ sljedeci panel (Shift+Tab na prethodni). Posljedica i u klasicnom QNC-u (dijeli 
 Popravci iz loga istog dana: Alt+lijevo s teksta islo je na source timeline (panel ispod cijele sirine racunao se "lijevo");
 panel u smjeru mora biti cijeli s te strane (`qnc-panel-map`). Skok na objekt bio je jos u dva opsega na Alt; sada svugdje
 Ctrl+Alt. Testovi (Tab drzan i Tab sam kroz egui okvire); uzivo nije provjereno.
+Ispravak 2026-11-15 (korisnik: "kursor u tekstu koji je izmedju rijeci je indikator polozaja; ne rijeci markirati dok ne postoje
+dva markera in/out"): ukida ispravak "prvi dvoklik odmah oznaci rijec": rijeci su oznacene (zagrade, podloga) tek kad postoje i IN
+i OUT; polozaj pokazuje kursor teksta.

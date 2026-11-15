@@ -453,11 +453,10 @@ impl Transcript {
         self.view.ticked = self.ticks.len();
         // Only the text the user marked is lit (user 2026-11-15): the whole clip an unmarked
         // timeline shows as IN/OUT is not a selection.
-        // The first double click (an IN alone) marks its word at once (user 2026-11-15: "marker
-        // je potreban da se odmah vidi je li dvoklik prihvaćen").
+        // The words are marked only once IN and OUT are both set (user 2026-11-15: "kursor u tekstu
+        // je indikator položaja, ne riječi markirati dok ne postoje dva markera in/out").
         self.view.marks = match (timeline.source_in_frame, timeline.source_out_frame) {
             (Some(from), Some(to)) if to > from => Some((from, to)),
-            (Some(from), None) => self.view.lines.iter().flat_map(|line| line.words.iter()).find(|word| word.to > from).map(|word| (word.from, word.to)),
             _ => None,
         };
         // A repass (the Croatian model, Best) runs in the background and goes to the database only
