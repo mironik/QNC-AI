@@ -282,7 +282,21 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
     // The word of the playhead (the keyboard cursor) is brought into view when it moves.
     let cursor = spans.iter().find(|(_, _, (from, to))| said(view, *from, *to)).map(|(start, _, _)| galley.pos_from_ccursor(egui::text::CCursor::new(*start)).translate(rect.min.to_vec2()));
     let rows = shown_rows(&galley, &spans);
+    // The keyboard cursor in its gap, as in a text editor (piece `qnc-text-cursor`): before its
+    // word, or after the last word of a row; half a space off the word.
+    let caret = view.rows.caret().and_then(|gap| {
+        spans.iter().find_map(|(start, end, (from, to))| match gap.end {
+            false if *from == gap.frame => Some((*start, -1.0)),
+            true if *to == gap.frame => Some((*end, 1.0)),
+            _ => None,
+        })
+    });
+    let caret = caret.map(|(at, side)| (galley.pos_from_ccursor(egui::text::CCursor::new(at)).translate(rect.min.to_vec2()), side));
     ui.painter().galley(rect.min, galley, base);
+    if let Some((place, side)) = caret {
+        let x = place.min.x + side * theme.font_ui * 0.15;
+        ui.painter().line_segment([egui::pos2(x, place.min.y), egui::pos2(x, place.max.y)], egui::Stroke::new(2.0, theme.text));
+    }
     if let Some(cursor) = cursor {
         let seen = egui::Id::new("qnc-transcript-panel-cursor");
         if ui.ctx().memory_mut(|memory| memory.data.get_temp::<Option<u64>>(seen)) != Some(view.playhead) {

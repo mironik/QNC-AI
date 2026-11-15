@@ -750,3 +750,8 @@ rijeci koja zavrsava s . ? ! ili …, svaka recenica je svoj odlomak s razmakom 
 zadrzavaju svoja vremena, pa oznake, pretraga i kursor rade isto). Kursor ide po redovima kakvi se vide na ekranu: panel pri
 crtanju zapisuje redove (`qnc-text-cursor` `ShownRows`, `TranscriptView.rows`), gore/dolje idu red po red; rijec kursora dovodi
 se u pogled kad se pomakne. Uzivo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "kursor bi unutar recenice trebao skakati s razmaka na razmak, ne s rijeci na rijec"): kursor
+teksta stoji na razmaku kao u editoru teksta: prije rijeci ili iza zadnje rijeci reda (`qnc-text-cursor` `Gap`), crta se kao
+okomita crta (`qnc-transcript-panel`, `ShownRows` caret); strelice idu s razmaka na razmak (iza zadnje rijeci reda pa na pocetak
+sljedeceg), gore/dolje na isto mjesto u redu iznad/ispod, playhead ide na vrijeme razmaka; Shift+strelice oznacavaju rijeci
+izmedju razmaka gdje je oznacavanje pocelo i kursora (IN/OUT). Klik na rijec stavlja kursor ispred nje. Uzivo nije provjereno.

@@ -1,18 +1,19 @@
 use super::*;
-use qnc_text_cursor::TextStep;
+use qnc_text_cursor::{Gap, TextStep};
 
 impl PanelFocus {
     /// The keyboard on the transcript text (user 2026-11-15: "u tekst panelu nemamo kursora";
-    /// the panel is in the Tab walk): a click on the text or Tab puts it there; the arrows move
-    /// the cursor (piece `qnc-text-cursor`, the same for any text of timed words) and the
-    /// playhead to its word, Shift with the arrows selects the text, its IN/OUT on the source
-    /// timeline; the other keys are the source timeline's. `None`: not the text's; `Some`:
-    /// the answer of the route.
+    /// the panel is in the Tab walk): a click on the text or Tab puts it there; the cursor
+    /// stands in a gap between words (piece `qnc-text-cursor`, the same for any text of timed
+    /// words); the arrows move it and the playhead to it, Shift with the arrows selects the words
+    /// between, their IN/OUT on the source timeline; the other keys are the source timeline's.
+    /// `None`: not the text's; `Some`: the answer of the route.
     pub(crate) fn text_key(&mut self, event: &ActionEvent, pieces: (&mut SourcePreview, &mut WrapSession, &mut ProgramSegments, &mut TimelineProjection)) -> Option<Option<bool>> {
         if event.is_at(qnc_transcript::PANEL) {
             self.panel = Panel::Transcript;
-            if let Some(word) = event.unsigned().zip(event.target.as_deref().and_then(|to| to.parse().ok())) {
-                self.text_cursor.place(word, pieces.3.playhead_frame);
+            // A click on a word: the cursor before it.
+            if let Some(from) = event.unsigned() {
+                self.text_cursor.place(Gap { frame: from, end: false }, pieces.3.playhead_frame);
                 self.text_cursor.moved();
             }
             return None;
@@ -34,16 +35,13 @@ impl PanelFocus {
         match step {
             // A taken IN/OUT keeps the arrows (as on the source timeline).
             Some((step, select)) if !self.taken(pieces.3) => {
-                // The text's words by the rows the panel shows them in (a line wraps into several,
-                // user 2026-11-15: the cursor skipped rows); before a paint, its lines.
-                let view = std::sync::Arc::clone(&self.side.views().transcript);
-                let shown = view.rows.get();
-                let lines: Vec<Vec<qnc_text_cursor::WordSpan>> = if shown.is_empty() { view.lines.iter().map(|line| line.words.iter().map(|word| (word.from, word.to)).collect()).collect() } else { shown };
-                let Some((to, selection)) = self.text_cursor.step(&lines, pieces.3.playhead_frame, step, select) else { return Some(Some(false)) };
-                if let Some((first, last)) = selection {
-                    self.source.select_words(pieces.3, first, last);
+                let rows = self.text_rows();
+                let Some((to, selection)) = self.text_cursor.step(&rows, pieces.3.playhead_frame, step, select) else { return Some(Some(false)) };
+                if let Some((from, till)) = selection {
+                    self.source.select_words(pieces.3, (from, from), (till, till));
                 }
-                Some(Some(self.source.cue(&TimelineIntent::CueFrame(to.0), pieces.0) || selection.is_some()))
+                self.side.views().transcript.rows.set_caret(Some(to));
+                Some(Some(self.source.cue(&TimelineIntent::CueFrame(to.frame), pieces.0) || selection.is_some()))
             }
             // The other keys of the text are the source timeline's; the keyboard stays on the text.
             _ => {
@@ -55,5 +53,24 @@ impl PanelFocus {
                 Some(done)
             }
         }
+    }
+
+    /// The text's words by the rows the panel shows them in (a line wraps into several, user
+    /// 2026-11-15: the cursor skipped rows); before a paint, its lines.
+    fn text_rows(&self) -> Vec<Vec<qnc_text_cursor::WordSpan>> {
+        let view = &self.side.views().transcript;
+        let shown = view.rows.get();
+        if shown.is_empty() {
+            view.lines.iter().map(|line| line.words.iter().map(|word| (word.from, word.to)).collect()).collect()
+        } else {
+            shown
+        }
+    }
+
+    /// The cursor the transcript panel draws: while the keyboard is on the text, its gap (it
+    /// follows the playhead when that goes elsewhere); none otherwise.
+    pub(crate) fn show_text_caret(&self, timeline: &TimelineProjection) {
+        let caret = (self.panel == Panel::Transcript).then(|| self.text_cursor.gap(&self.text_rows(), timeline.playhead_frame)).flatten();
+        self.side.views().transcript.rows.set_caret(caret);
     }
 }

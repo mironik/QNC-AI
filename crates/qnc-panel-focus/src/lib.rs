@@ -198,6 +198,7 @@ impl PanelFocus {
             }
         }
         let side = self.side.views().clone();
+        self.show_text_caret(timeline);
         FocusView { panel: self.panel, button, pool_step: self.walk.last_step(), transcript: side.transcript, shots: side.shots, script: side.script, versions: side.versions, ai_broll: side.ai_broll, ai: side.ai }
     }
 
