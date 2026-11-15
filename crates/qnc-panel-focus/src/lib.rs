@@ -76,6 +76,8 @@ pub struct PanelFocus {
     text_cursor: qnc_text_cursor::TextCursor,
     /// Where the board drew the panels (piece `qnc-panel-map`).
     places: qnc_panel_map::PanelPlaces,
+    /// The pool tab the form opens on (its layout contract).
+    opening_tab: Option<String>,
 }
 
 /// The walk of a layout: its panels, the pool tabs row and the source dock buttons row.
@@ -93,7 +95,7 @@ impl PanelFocus {
     /// The focus of a form with its Tab walk; it starts on the first panel of the walk.
     pub fn with_layout(layout: FocusLayout) -> Self {
         let panel = layout.order.first().copied().unwrap_or_default();
-        Self { panel, walk: walk_of(&layout), side: qnc_side_pieces::SidePieces::for_panels(layout.right_panels.iter().map(String::as_str).chain(layout.tabs.iter().any(|tab| tab == qnc_pool_tabs::AI_BROLL).then_some(qnc_side_pieces::AI_BROLL_TAB))), ..Self::default() }
+        Self { panel, walk: walk_of(&layout), opening_tab: layout.opening_tab.clone(), side: qnc_side_pieces::SidePieces::for_panels(layout.right_panels.iter().map(String::as_str).chain(layout.tabs.iter().any(|tab| tab == qnc_pool_tabs::AI_BROLL).then_some(qnc_side_pieces::AI_BROLL_TAB))), ..Self::default() }
     }
 
     /// The story the form's segment panel shows in project database `target` (the draft story
@@ -201,7 +203,7 @@ impl PanelFocus {
         }
         let side = self.side.views().clone();
         self.show_text_caret(timeline);
-        FocusView { panel: self.panel, button, pool_step: self.walk.last_step(), places: self.places.clone(), transcript: side.transcript, shots: side.shots, script: side.script, versions: side.versions, ai_broll: side.ai_broll, ai: side.ai }
+        FocusView { panel: self.panel, button, pool_step: self.walk.last_step(), places: self.places.clone(), opening_tab: self.opening_tab.clone(), transcript: side.transcript, shots: side.shots, script: side.script, versions: side.versions, ai_broll: side.ai_broll, ai: side.ai }
     }
 
     /// Whether a key picture search runs (the caller repaints soon).

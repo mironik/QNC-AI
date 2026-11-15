@@ -777,3 +777,8 @@ Ctrl+Alt. Testovi (Tab drzan i Tab sam kroz egui okvire); uzivo nije provjereno.
 Ispravak 2026-11-15 (korisnik: "kursor u tekstu koji je izmedju rijeci je indikator polozaja; ne rijeci markirati dok ne postoje
 dva markera in/out"): ukida ispravak "prvi dvoklik odmah oznaci rijec": rijeci su oznacene (zagrade, podloga) tek kad postoje i IN
 i OUT; polozaj pokazuje kursor teksta.
+Izmjena 2026-11-15 (korisnik: "otvara se sa selektiranim tabom Sve, ali ne da se pomaknuti nigdje; trebao bi se otvarati s tabom
+Prijepisi jer je njena glavna funkcija napraviti izjave iz prijepisa"): u novom projektu prijepisa i izjava jos nema, pa su ti
+tabovi bili sivi (pravilo praznih tabova) i Sve je bio jedini. Ugovor rasporeda dobio je `opening_tab` (tab s kojim se forma
+otvara, uvijek dostupan; `qnc-ai-editorial-layout`, `FocusLayout.opening_tab`, `FocusView.opening_tab`); grupa e (AI Media Assist)
+se otvara na Prijepisima. Usput: ulazak u panel (Alt/Tab + strelica, klik) javlja i krugu tipki gdje je tipkovnica.

@@ -104,7 +104,9 @@ impl EditorialApplication {
     /// controlled error, never in an invented project.
     pub fn new(root: impl AsRef<Path>, focus: FocusLayout) -> Self {
         let statements_tab = focus.tabs.iter().any(|tab| tab == "editorial_tab_virtual");
+        let opening = focus.opening_tab.as_deref().and_then(LibraryTab::from_action).unwrap_or_default();
         let mut app = Self { focus: PanelFocus::with_layout(focus), statements_tab, ..Self::default() };
+        app.view.library_tab = opening; // the tab the form opens on (user 2026-11-15)
         app.bindings = qnc_source_bindings::load(root.as_ref());
         app.preview.wake_worker_from(root.as_ref());
         match ActiveProjectReader::from_root(root.as_ref()) {

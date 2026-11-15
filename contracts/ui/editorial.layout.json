@@ -131,6 +131,7 @@
   "groups": {
     "e": {
       "role": "media_assist_audio_ai",
+      "opening_tab": "editorial_tab_transcript",
       "pool_head": {
         "show_segment_tab": false,
         "show_cover_tab": true,

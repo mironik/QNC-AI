@@ -53,6 +53,8 @@ impl PanelFocus {
     /// the Wrap playhead.
     pub(crate) fn enter(&mut self, panel: Panel, preview: &mut SourcePreview, wrap: &mut WrapSession, segments: &ProgramSegments) -> bool {
         self.panel = panel;
+        // The walk keeps where the keyboard is, whichever way it came (Alt/Tab + arrow, a click).
+        self.walk.go_to(panel.name());
         match panel {
             Panel::SourceTimeline if wrap.is_active() => {
                 wrap.leave();

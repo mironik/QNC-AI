@@ -58,19 +58,27 @@ pub struct FocusLayout {
     /// The kinds of the right panels the form has (its panel and its tabs): only their pieces
     /// are made.
     pub right_panels: Vec<String>,
+    /// The pool tab the form opens on, always open to choose (its layout contract).
+    pub opening_tab: Option<String>,
 }
 
 impl FocusLayout {
     pub fn new((order, tabs, buttons, right_panels): (Vec<&str>, Vec<&str>, Vec<&str>, Vec<&str>)) -> Self {
         let owned = |names: Vec<&str>| names.into_iter().map(str::to_string).collect();
-        Self { order: order.into_iter().filter_map(Panel::from_name).collect(), tabs: owned(tabs), buttons: owned(buttons), right_panels: owned(right_panels) }
+        Self { order: order.into_iter().filter_map(Panel::from_name).collect(), tabs: owned(tabs), buttons: owned(buttons), right_panels: owned(right_panels), opening_tab: None }
+    }
+
+    /// The pool tab the form opens on.
+    pub fn with_opening_tab(mut self, tab: Option<&str>) -> Self {
+        self.opening_tab = tab.map(str::to_string);
+        self
     }
 }
 
 impl Default for FocusLayout {
     /// The walk without a layout: pool, source timeline, segments.
     fn default() -> Self {
-        Self { order: vec![Panel::Pool, Panel::SourceTimeline, Panel::Segments], tabs: Vec::new(), buttons: Vec::new(), right_panels: Vec::new() }
+        Self { order: vec![Panel::Pool, Panel::SourceTimeline, Panel::Segments], tabs: Vec::new(), buttons: Vec::new(), right_panels: Vec::new(), opening_tab: None }
     }
 }
 
@@ -89,6 +97,8 @@ pub struct FocusView {
     /// Where the board drew the panels (piece `qnc-panel-map`): the board writes them, Alt +
     /// the arrows read them.
     pub places: qnc_panel_map::PanelPlaces,
+    /// The pool tab the form opens on, always open to choose.
+    pub opening_tab: Option<String>,
     /// The transcript of the clip on the preview.
     pub transcript: std::sync::Arc<qnc_transcript::TranscriptView>,
     /// The shots of the clip on the preview (Video AI).

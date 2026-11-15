@@ -31,7 +31,7 @@ impl EditorialForm {
 
     /// The Tab walk of this group's form (its layout contract).
     pub(crate) fn focus_layout(&self) -> qnc_editorial_application::FocusLayout {
-        qnc_editorial_application::FocusLayout::new(self.contracts.focus_names())
+        qnc_editorial_application::FocusLayout::new(self.contracts.focus_names()).with_opening_tab(self.contracts.opening_tab())
     }
 
     pub(crate) fn shortcuts(&self) -> &qnc_keyboard_shortcut::ShortcutCatalog {
