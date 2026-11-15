@@ -20,8 +20,10 @@ fn main() -> eframe::Result<()> {
         eprintln!("{}", qnc_ui_text::text("shell.root_not_found"));
         std::process::exit(2);
     });
+    let started = std::time::Instant::now();
     let app = qnc_ingest_desktop::create_ingest_app(qnc_root)
         .unwrap_or_else(|error| panic!("failed to create Ingest app: {error}"));
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ingest-start app made ms={}", started.elapsed().as_millis()));
     // Maximized, shown only once it is (block `qnc-form-window`).
     qnc_form_window::run("QNC Ingest", app)
 }

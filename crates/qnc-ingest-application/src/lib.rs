@@ -102,20 +102,20 @@ impl IngestApplication {
     }
 
     pub fn with_store_root(root: impl AsRef<Path>) -> Result<Self, String> {
-        let mut component = Self::new().with_camera_registry(qnc_ingest_cameras::registry(root.as_ref())?);
+        let mut component = Self::new().with_camera_registry(qnc_dev_diagnostics::timed_block("start-cameras", || qnc_ingest_cameras::registry(root.as_ref()))?);
         component.root = Some(root.as_ref().to_path_buf());
-        component.preview.source_preview_mut().wake_worker_from(root.as_ref());
-        component.store = Some(IngestStore::open(root.as_ref())?);
-        if let Some(mut browser) = component.refresh_sources() {
-            let state = browser.roots("local").map(Into::into);
+        qnc_dev_diagnostics::timed_block("start-wake", || component.preview.source_preview_mut().wake_worker_from(root.as_ref()));
+        component.store = Some(qnc_dev_diagnostics::timed_block("start-store", || IngestStore::open(root.as_ref()))?);
+        if let Some(mut browser) = qnc_dev_diagnostics::timed_block("start-sources", || component.refresh_sources()) {
+            let state = qnc_dev_diagnostics::timed_block("start-roots", || browser.roots("local").map(Into::into));
             component.browse.connect(browser);
             component.apply_source_browser_result(state);
         }
         // Active project comes from the DB, not from a disk scan or Project call.
-        component.project = qnc_ingest_project::IngestProject::from_root(root.as_ref());
+        component.project = qnc_dev_diagnostics::timed_block("start-project", || qnc_ingest_project::IngestProject::from_root(root.as_ref()));
         match component.project.status().error.clone() {
             Some(error) => component.settings_failed(error),
-            None => _ = component.load_work_settings(None),
+            None => _ = qnc_dev_diagnostics::timed_block("start-settings", || component.load_work_settings(None)),
         }
         Ok(component)
     }
