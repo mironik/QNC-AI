@@ -717,3 +717,10 @@ izmedju IN-a i OUT-a koje je korisnik postavio; bez njegovih oznaka nista (`qnc-
 jedan poster (`statements_pool.width` 190 u oba ugovora rasporeda). Tray broji prepisane klipove baze iz baze projekta
 (`read_transcribed` i gotovi ili pali u redu), ne iz reda, koji AI Media Assist cisti kad se isprazni (`qnc-card-ingest`
 `progress_in`). AI opisi stoje na 0 dok SigLIP ne zavrsi, po redoslijedu. Testovi, release gradnja. Uzivo nije provjereno.
+Izmjena 2026-11-15 (korisnik: "dodaj oznaku (zagradu) na pocetku i kraju selektiranog teksta, jer ne postoji indikacija je li
+dvoklik prihvacen"; "nakon kreiranja izjave fokus ostaje na tekstu, ne prelazi na kreiranu izjavu"): u prijepisu AI Media
+Assista tekst izmedju korisnikova IN-a i OUT-a ima crvene zagrade na pocetku i kraju uz osvijetljenu podlogu
+(`qnc-transcript-panel`). Stupac Izjave je panel tipki (`Panel::Statements`, `qnc-focus-walk` `STATEMENTS`, `tab_order` grupe e
+iza poola): nova izjava i klik na izjavu stavljaju tipkovnicu na stupac (okvir fokusa), kartica nove izjave je u fokusu i
+dovodi se u pogled (`qnc-media-card`: kad se izabrana kartica promijeni, fokus ide na nju), strelice biraju, Enter otvara.
+Testovi, release gradnja AI Media Assista. Uzivo nije provjereno.

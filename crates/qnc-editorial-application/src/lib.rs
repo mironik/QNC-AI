@@ -354,7 +354,7 @@ impl EditorialApplication {
                 }
             }
             // The short opens with its IN/OUT, then the keyboard is where the choice left it.
-            EditorialIntent::PreviewShort(shot_id) => self.open_short(&shot_id) && self.focus.chose_clip(&mut self.wrap),
+            EditorialIntent::PreviewShort(shot_id) => self.open_short(&shot_id) && self.focus.chose_statement(&mut self.wrap, !self.statements_tab),
             EditorialIntent::Action(event) => {
                 let pieces = (&mut self.preview, &mut self.wrap, &mut self.segments, &mut self.view.preview.timeline);
                 let (action_id, target) = (event.action_id.clone(), event.target.clone());
@@ -400,7 +400,7 @@ impl EditorialApplication {
         };
         self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks)));
         self.reload_shorts();
-        if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // from the transcript more statements follow (user 2026-11-01)
+        if !self.statements_tab { self.focus.set(Panel::Statements) } else if self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // the new statement takes the focus (user 2026-11-15); from the transcript more follow (2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);
         self.view.chosen_shot_id = Some(saved.shot_id);
     }

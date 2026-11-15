@@ -11,6 +11,8 @@ pub enum Panel {
     /// The action buttons in the head of the source dock.
     SourceButtons,
     Segments,
+    /// The column of the statements made (AI Media Assist): a new statement takes the focus.
+    Statements,
 }
 
 impl Panel {
@@ -22,6 +24,7 @@ impl Panel {
             Self::SourceTimeline => qnc_focus_walk::SOURCE_TIMELINE,
             Self::SourceButtons => qnc_focus_walk::SOURCE_BUTTONS,
             Self::Segments => "segments",
+            Self::Statements => qnc_focus_walk::STATEMENTS,
         }
     }
 
@@ -33,6 +36,7 @@ impl Panel {
             "source_timeline" => Self::SourceTimeline,
             "source_buttons" => Self::SourceButtons,
             "segments" => Self::Segments,
+            "statements" => Self::Statements,
             _ => return None,
         })
     }

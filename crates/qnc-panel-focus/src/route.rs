@@ -455,7 +455,7 @@ impl PanelFocus {
                 // The pool has no arrow keys: they step the source playhead (user rule
                 // 2026-10-01: the arrows move the playhead one frame, no other key needed).
                 Panel::SourceTimeline => return self.source.route(action_id, preview, timeline),
-                Panel::Pool | Panel::PoolTabs | Panel::SourceButtons => false, // the keys act on the panel in focus only
+                Panel::Pool | Panel::PoolTabs | Panel::SourceButtons | Panel::Statements => false, // the keys act on the panel in focus only
             },
             // Delete on any panel while a Sync draft waits says Esc drops it (live 2026-10-30:
             // Delete in the pool did nothing and said nothing).
@@ -515,6 +515,11 @@ impl PanelFocus {
             // clip chosen puts the keyboard on its source timeline). The tick key is Ingest's.
             (Panel::Pool, key) if qnc_key_list::step_of(key).is_some_and(|step| step != PoolStep::Toggle) => {
                 self.walk.press_list(qnc_focus_walk::CARDS, qnc_key_list::step_of(key).unwrap_or(PoolStep::Open), true);
+                Some(true)
+            }
+            // The statements' column: the arrows move the card focus, Enter opens the statement.
+            (Panel::Statements, key) if qnc_key_list::step_of(key).is_some_and(|step| step != PoolStep::Toggle) => {
+                self.walk.press_list(qnc_focus_walk::STATEMENTS, qnc_key_list::step_of(key).unwrap_or(PoolStep::Open), false);
                 Some(true)
             }
             (Panel::PoolTabs | Panel::SourceButtons, "step_prev_part" | "step_next_part") => Some(false),

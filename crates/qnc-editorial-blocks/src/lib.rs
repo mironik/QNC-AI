@@ -39,7 +39,7 @@ pub fn render_desktop(
             let title = contracts.statements_pool().map_or("", |pool| pool.title.as_str());
             qnc_pool_tabs_panel::show(ui, rect, (theme, contracts.tab_gap()), &[qnc_pool_tabs_panel::PoolTab { label: title, action_id: None }], |_| true, |_| true).map(EditorialIntent::action)
         }
-        qnc_editorial_layout::STATEMENT_CARDS => statements(ui, contracts, theme, view),
+        qnc_editorial_layout::STATEMENT_CARDS => framed(statements(ui, contracts, theme, view), ui, rect, &[Panel::Statements]),
         // The group's panels by its layout contract (Segmenti for Story, the transcript for Audio AI and in the MA Script media window).
         block if contracts.panel_at(block).is_some() => {
             let (answer, segments) = qnc_right_panel::show_tabbed(ui, contracts.panel_at(block)?.0, contracts.panel_at(block)?.1, theme, &qnc_right_panel::Shown { segments: &view.segments, cover_lengths: &contracts.editorial.cover_lengths, transcript: &view.focus.transcript, shots: &view.focus.shots, script: &view.focus.script, timecode: view.source_timeline.timecode.as_ref(), ai: &view.focus.ai });
@@ -129,8 +129,8 @@ fn statements(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view: 
     let spec = contracts.pool_spec();
     let now = qnc_media_pool_panel::PoolNow {
         chosen_id: view.chosen_shot_id.as_deref().unwrap_or(""),
-        panel_focused: false,
-        step: None,
+        panel_focused: view.focus.panel == Panel::Statements,
+        step: (view.focus.panel == Panel::Statements).then_some(view.focus.pool_step).flatten(),
         empty_message: contracts.editorial.media_card.empty_message(LibraryTab::Virtual, view.loading, &view.message),
         id_salt: "editorial_statement_grid",
     };

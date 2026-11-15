@@ -20,7 +20,7 @@ pub const MODULE_ID: &str = "qnc.module.transcript-panel";
 /// source timecode (frames are shown without it).
 ///
 /// Only the title and the text (user 2026-11-09, AI Media Assist: "besides the name Transcript
-/// no other text is needed, nor IN/OUT"): no statements, no silent sound, no IN/OUT brackets; the
+/// no other text is needed, nor IN/OUT"): no statements, no silent sound; the IN/OUT brackets and the
 /// text between IN and OUT lit whole (user 2026-11-15); at the bottom the search, how many it
 /// found, Next (when there are more) and Copy of the transcript.
 pub fn show(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Theme, timecode: Option<&SourceTimecode>) -> Option<ActionEvent> {
@@ -87,7 +87,9 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
     }
     let mut asked = None;
     let at = |frame: u64| timecode.map_or_else(|| frame.to_string(), |tc| tc.label(frame));
-    let ends = if clean { None } else { marked_ends(view) };
+    // The IN and OUT brackets in AI Media Assist too: they show the double click was taken (user
+    // 2026-11-15: "dodaj oznaku (zagradu) na početku i kraju selektiranog teksta").
+    let ends = marked_ends(view);
     let found = Some(search::shown(ui.ctx(), &view.search));
     // New IN/OUT (a statement opened, a cut made): its text is brought into view once.
     let seen = egui::Id::new("qnc-transcript-panel-marks");
@@ -101,7 +103,7 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
                 paint_silence(ui, &at(*from), &at(*to), theme);
             }
             // The marked text is lit in AI Media Assist too, whole (user 2026-11-15: "označeni tekst
-            // kompletan markiraj"); its brackets only where they were.
+            // kompletan markiraj") and in its brackets.
             let (word, rect) = paint_line(ui, line, view, ends, true, found.as_ref(), theme);
             if found.as_ref().is_some_and(|found| found.bring && line_words(line).iter().any(|w| found.current.first() == Some(&(w.1, w.2)))) {
                 ui.scroll_to_rect(rect, Some(egui::Align::Center));

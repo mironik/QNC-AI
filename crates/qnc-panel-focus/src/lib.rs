@@ -240,6 +240,16 @@ impl PanelFocus {
         self.panel = panel;
     }
 
+    /// A statement chosen: as a clip chosen; with the statements in a column of their own
+    /// (`column`) the keyboard goes to that column (user 2026-11-15).
+    pub fn chose_statement(&mut self, wrap: &mut WrapSession, column: bool) -> bool {
+        self.chose_clip(wrap);
+        if column {
+            self.panel = Panel::Statements;
+        }
+        true
+    }
+
 }
 
 /// The passive mark of the focused panel: a thin frame on top of it (user

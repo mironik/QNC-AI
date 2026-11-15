@@ -167,6 +167,7 @@
       "tab_order": [
         "pool_tabs",
         "pool",
+        "statements",
         "source_timeline",
         "source_buttons"
       ],
