@@ -169,7 +169,8 @@
         "pool",
         "statements",
         "source_timeline",
-        "source_buttons"
+        "source_buttons",
+        "transcript"
       ],
       "source_dock": {
         "show": true,

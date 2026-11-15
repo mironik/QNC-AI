@@ -17,8 +17,8 @@ impl PanelFocus {
         let event = event.into();
         let action_id = event.action_id.as_str();
         // The keyboard on the transcript text: its cursor and selection (user 2026-11-15).
-        if let Some(done) = self.text_key(&event, pieces.0, pieces.3) {
-            return Some(done);
+        if let Some(done) = self.text_key(&event, (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3)) {
+            return done;
         }
         let panel = self.panel;
         // J, K, L: the shuttle (`qnc-shuttle`, docs/98 1.1), whatever the panel; any other
@@ -459,7 +459,7 @@ impl PanelFocus {
                 // The pool has no arrow keys: they step the source playhead (user rule
                 // 2026-10-01: the arrows move the playhead one frame, no other key needed).
                 Panel::SourceTimeline => return self.source.route(action_id, preview, timeline),
-                Panel::Pool | Panel::PoolTabs | Panel::SourceButtons | Panel::Statements => false, // the keys act on the panel in focus only
+                Panel::Pool | Panel::PoolTabs | Panel::SourceButtons | Panel::Statements | Panel::Transcript => false, // the keys act on the panel in focus only
             },
             // Delete on any panel while a Sync draft waits says Esc drops it (live 2026-10-30:
             // Delete in the pool did nothing and said nothing).

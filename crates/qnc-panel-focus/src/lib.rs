@@ -72,8 +72,6 @@ pub struct PanelFocus {
     /// The pieces of the right panels this form has (module `qnc-side-pieces`): the transcript,
     /// the Video AI shots, the script; none for a form without them.
     side: qnc_side_pieces::SidePieces,
-    /// The keyboard is on the transcript text (its last click): the arrows move its cursor.
-    on_text: bool,
     /// The cursor on the text and its selection (piece `qnc-text-cursor`).
     text_cursor: qnc_text_cursor::TextCursor,
 }

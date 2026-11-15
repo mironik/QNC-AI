@@ -43,7 +43,7 @@ pub fn render_desktop(
         // The group's panels by its layout contract (Segmenti for Story, the transcript for Audio AI and in the MA Script media window).
         block if contracts.panel_at(block).is_some() => {
             let (answer, segments) = qnc_right_panel::show_tabbed(ui, contracts.panel_at(block)?.0, contracts.panel_at(block)?.1, theme, &qnc_right_panel::Shown { segments: &view.segments, cover_lengths: &contracts.editorial.cover_lengths, transcript: &view.focus.transcript, shots: &view.focus.shots, script: &view.focus.script, timecode: view.source_timeline.timecode.as_ref(), ai: &view.focus.ai });
-            framed(answer.map(EditorialIntent::Action), ui, rect, if segments { &[Panel::Segments] } else { &[] })
+            framed(answer.map(EditorialIntent::Action), ui, rect, if segments { &[Panel::Segments] } else { &[Panel::Transcript] })
         }
         "source-dock" => framed(source_dock(ui, contracts, theme, view), ui, rect, if view.segments.zoom.is_some() { &[Panel::Segments, Panel::SourceButtons] } else { &[Panel::SourceTimeline, Panel::SourceButtons] }),
         place => qnc_action_bar_panel::show(ui, rect, theme, contracts.editorial.board.block_pad, contracts.action_bar(place), |id| view.action_enabled(id)).map(EditorialIntent::action),

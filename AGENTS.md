@@ -741,3 +741,6 @@ vide zagrade i podloga; klik izvan teksta ili drugi panel vraca strelice playhea
 `transcript_select_left/right/up/down` (Shift+strelice) u opsegu source_timeline svih preseta, grupa pomoci "Prijepis".
 Popravak usput: klik na rijec nije mijenjao panel tipkovnice (rijec se obradivala prije). Skripta jos ne koristi kocku. Testovi;
 uzivo nije provjereno.
+Dopuna 2026-11-15 (korisnik: "panel prijepis nemas u tab putanji"): tekst prijepisa je panel tipki `Panel::Transcript` u krugu
+Taba grupe e (iza dugmadi source timelinea) s okvirom fokusa; klik na tekst ili Tab ga uzima. Strelice i Shift+strelice idu
+kursoru teksta, ostale tipke (Space, I, O, Esc...) su tipke source timelinea, a tipkovnica ostaje na tekstu.

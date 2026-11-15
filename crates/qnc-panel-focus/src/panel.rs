@@ -13,6 +13,9 @@ pub enum Panel {
     Segments,
     /// The column of the statements made (AI Media Assist): a new statement takes the focus.
     Statements,
+    /// The transcript text (AI Media Assist): the arrows move its cursor, its other keys are the
+    /// source timeline's (user 2026-11-15: in the Tab walk).
+    Transcript,
 }
 
 impl Panel {
@@ -25,6 +28,7 @@ impl Panel {
             Self::SourceButtons => qnc_focus_walk::SOURCE_BUTTONS,
             Self::Segments => "segments",
             Self::Statements => qnc_focus_walk::STATEMENTS,
+            Self::Transcript => qnc_transcript::PANEL,
         }
     }
 
@@ -37,6 +41,7 @@ impl Panel {
             "source_buttons" => Self::SourceButtons,
             "segments" => Self::Segments,
             "statements" => Self::Statements,
+            "transcript" => Self::Transcript,
             _ => return None,
         })
     }
@@ -120,6 +125,6 @@ impl FocusView {
     /// The catalog scope that reads the keys first: the source timeline's own while it (or
     /// its buttons) has the keyboard (piece `qnc-source-timeline`).
     pub fn key_scope(&self) -> Option<&'static str> {
-        matches!(self.panel, Panel::SourceTimeline | Panel::SourceButtons).then_some(qnc_source_timeline::KEY_SCOPE)
+        matches!(self.panel, Panel::SourceTimeline | Panel::SourceButtons | Panel::Transcript).then_some(qnc_source_timeline::KEY_SCOPE)
     }
 }
