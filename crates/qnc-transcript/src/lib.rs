@@ -55,7 +55,7 @@ pub const DELETE_QUOTE: &str = "transcript_delete_quote";
 pub const FORGET_CLIP: &str = "transcript_forget_clip";
 /// The panel the transcript is shown on.
 pub const PANEL: &str = "transcript";
-/// The least a play heard again with the Croatian model (frames).
+/// The least part the fine pass asks of the Croatian model (frames).
 const LEAST_PLAYED: u64 = 25;
 /// How often the queue is read again.
 const QUEUE_EVERY: Duration = Duration::from_secs(1);
@@ -212,8 +212,8 @@ pub struct Transcript {
     /// (live 2026-10-26: making them at every paint took a fifth of a core).
     rev: u64,
     built: Option<(u64, u64, Option<String>)>,
-    /// The clip and the frame a play of the source timeline started at (its repass when it stops).
-    played: Option<(String, u64)>,
+    /// The streaming of what the source timeline plays.
+    stream: qnc_stream_transcript::StreamTranscript,
     /// What the name of the Croatian engine's model is (its transcripts are the fine pass), once.
     fine_mark: Option<Option<String>>,
 }
@@ -235,7 +235,7 @@ impl Default for Transcript {
             names: HashMap::new(),
             rev: 0,
             built: None,
-            played: None,
+            stream: Default::default(),
             fine_mark: None,
         }
     }
@@ -453,31 +453,15 @@ impl Transcript {
         }
     }
 
-    /// What the source timeline played is heard again with the Croatian model once the play stops
-    /// (user 2026-11-16: "ako korisnik ne koristi tekstualni nego pleja timeline, također pokreni u
-    /// pozadini pregled prepisa"): the frames from where the play started to where it stopped, of
-    /// half a second or more, when the project transcribes Croatian. A part a repass already heard is
-    /// not asked again. Nothing is said.
-    fn repass_played(&mut self, preview: &SourcePreview) {
+    /// While the source timeline plays, what it plays is transcribed as it goes (user 2026-11-16:
+    /// "striming je bitan, jer novinar neće zbog stiske s vremenom moći čekati AI agente";
+    /// "korisnik u timeline preslušava izjavu, ne u zoomu"; piece `qnc-stream-transcript`); the
+    /// pieces are read back from the database as any transcript.
+    fn stream_played(&mut self, preview: &SourcePreview) {
         let playing = preview.playing_at().filter(|(program, _, _)| !program);
         let clip = preview.view().clip_id.clone();
-        match (&self.played, playing, clip) {
-            (None, Some((_, frame, true)), Some(clip)) => self.played = Some((clip, frame)),
-            (Some((clip, from)), Some((_, to, false)), Some(shown)) if *clip == shown => {
-                let (clip, from) = (clip.clone(), *from);
-                self.played = None;
-                let settings = preview.still_locator().map(|locator| locator.settings().clone());
-                let croatian = settings.as_ref().is_some_and(|settings| {
-                    settings.ai_feature(qnc_ai_features::TRANSCRIPTION).unwrap_or(false) && settings.speech_language().is_ok_and(|language| language == "hr")
-                });
-                let heard = self.queue.iter().any(|q| q.clip_id == clip && q.quality == QueueQuality::Best && q.state != QueueState::Failed && q.from_frame <= from && to <= q.to_frame);
-                if let (true, false, Some(target)) = (croatian && to >= from + LEAST_PLAYED, heard, preview.project_target().cloned()) {
-                    self.queue_repass(target, clip, from, to);
-                }
-            }
-            (Some((clip, _)), _, shown) if Some(clip) != shown.as_ref() => self.played = None,
-            _ => {}
-        }
+        let locator = preview.still_locator();
+        self.stream.follow(locator.as_ref(), clip.as_deref(), playing.map(|(_, frame, _)| frame), playing.is_some_and(|(_, _, plays)| plays));
     }
 
     /// Ticks the clips on `clips`, takes what the runner heard, reads the queue again now and
@@ -494,7 +478,7 @@ impl Transcript {
         }
         let project = preview.project_target().cloned();
         let clip_id = preview.view().clip_id.clone();
-        self.repass_played(preview);
+        self.stream_played(preview);
         self.take_heard(transcripts);
         if let Some(done) = &self.asking {
             if let Ok(result) = done.try_recv() {

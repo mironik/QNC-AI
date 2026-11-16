@@ -7680,6 +7680,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-stream-transcript"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "qnc-ai-features",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-media-metadata",
+ "qnc-still-locator",
+ "qnc-transcribe-run",
+ "qnc-transcript-db",
+]
+
+[[package]]
 name = "qnc-subsegment-edit"
 version = "0.1.0"
 dependencies = [
@@ -7971,6 +7985,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-source-preview",
  "qnc-source-timecode",
+ "qnc-stream-transcript",
  "qnc-text-cursor",
  "qnc-timeline-model",
  "qnc-transcribe-queue",

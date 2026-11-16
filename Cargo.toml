@@ -277,6 +277,7 @@ qnc-wizard-text = { path = "crates/qnc-wizard-text" }
 qnc-work-progress = { path = "crates/qnc-work-progress" }
 qnc-work-progress-view = { path = "crates/qnc-work-progress-view" }
 qnc-work-info = { path = "crates/qnc-work-info" }
+qnc-stream-transcript = { path = "crates/qnc-stream-transcript" }
 qnc-window-front = { path = "crates/qnc-window-front" }
 qnc-work-settings = { path = "../QNC-shared/crates/qnc-work-settings" }
 qnc-worker-wake = { path = "../QNC-shared/crates/qnc-worker-wake" }

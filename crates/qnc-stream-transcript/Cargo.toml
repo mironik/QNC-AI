@@ -1,0 +1,15 @@
+[package]
+name = "qnc-stream-transcript"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: while the source timeline plays, what is played is transcribed piece by piece ahead of the playhead and kept in the project's database; no GUI"
+
+[dependencies]
+qnc-ai-features = { workspace = true }
+qnc-ai-catalog = { workspace = true }
+qnc-media-metadata = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-still-locator = { workspace = true }
+qnc-transcribe-run = { workspace = true }
+qnc-transcript-db = { workspace = true }
