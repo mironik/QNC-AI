@@ -125,8 +125,8 @@ const FOLDER_SIGNAL: &str = "QNC-AI-card-ingest-folder";
 const LOOK_KEYS: &[&str] = &[
     "window_width", "window_height", "margin_left", "margin_right", "margin_top", "margin_bottom", "browser_margin",
     "title_size", "subtitle_size", "header_gap", "card_gap", "card_padding", "card_corner", "card_frame", "card_title_size",
-    "card_title_gap", "line_gap", "bars_gap", "after_bars_gap", "bar_row", "bar_name", "bar_count", "bar_time", "bar_x",
-    "bar_col_gap", "bar_thickness", "field_label_size", "field_gap", "cancel_width",
+    "card_title_gap", "line_gap", "bars_gap", "after_bars_gap", "bar_row", "bar_name_at", "bar_track_from", "bar_track_to", "bar_count_at", "bar_time_at", "bar_x_at", "bar_x",
+    "bar_thickness", "field_label_size", "field_gap", "cancel_width",
 ];
 
 /// m:ss, or h:mm:ss past an hour.

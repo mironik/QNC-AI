@@ -162,42 +162,58 @@
       "step": 1.0
     },
     {
-      "key": "bar_name",
-      "label": "Traka: stupac naziva",
-      "value": 120.0,
-      "min": 40.0,
+      "key": "bar_name_at",
+      "label": "Stupac naziva: od lijevog ruba",
+      "value": 0.0,
+      "min": 0.0,
       "max": 400.0,
       "step": 1.0
     },
     {
-      "key": "bar_count",
-      "label": "Traka: stupac broja",
-      "value": 78.0,
-      "min": 30.0,
-      "max": 300.0,
+      "key": "bar_track_from",
+      "label": "Traka počinje: od lijevog ruba",
+      "value": 132.0,
+      "min": 0.0,
+      "max": 800.0,
       "step": 1.0
     },
     {
-      "key": "bar_time",
-      "label": "Traka: stupac vremena",
-      "value": 50.0,
-      "min": 20.0,
-      "max": 200.0,
+      "key": "bar_track_to",
+      "label": "Traka završava: od desnog ruba",
+      "value": 186.0,
+      "min": 0.0,
+      "max": 800.0,
+      "step": 1.0
+    },
+    {
+      "key": "bar_count_at",
+      "label": "Stupac broja: desni rub od desnog ruba",
+      "value": 96.0,
+      "min": 0.0,
+      "max": 800.0,
+      "step": 1.0
+    },
+    {
+      "key": "bar_time_at",
+      "label": "Stupac vremena: desni rub od desnog ruba",
+      "value": 34.0,
+      "min": 0.0,
+      "max": 800.0,
+      "step": 1.0
+    },
+    {
+      "key": "bar_x_at",
+      "label": "Stupac ×: od desnog ruba",
+      "value": 0.0,
+      "min": 0.0,
+      "max": 800.0,
       "step": 1.0
     },
     {
       "key": "bar_x",
-      "label": "Traka: stupac ×",
+      "label": "×: veličina",
       "value": 22.0,
       "min": 10.0,
-      "max": 60.0,
-      "step": 1.0
-    },
-    {
-      "key": "bar_col_gap",
-      "label": "Traka: razmak stupaca",
-      "value": 12.0,
-      "min": 0.0,
       "max": 60.0,
       "step": 1.0
     },
