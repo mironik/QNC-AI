@@ -26,10 +26,13 @@ impl IngestApplication {
             self.view.message = error.clone();
             return IngestDispatchResult::rejected(error);
         }
-        // QNC-AI: the form hands a card or folder to the tray's import from a folder (2026-11-16);
-        // only the import's own window (pinned to its base) Selects it.
-        if let Some(root) = self.root.clone().filter(|_| qnc_work_settings::pinned_project().is_none()) {
-            qnc_story_start::hand_folder(&root, &uri);
+        // QNC-AI: a card chosen in the form with no story's project active is breaking news
+        // (2026-11-16): its project is made by itself and the card is Selected into it
+        // (`Next::SelectBase`). A story's project active takes the card as in QNC; the import's
+        // own window (pinned to its base) Selects into the base.
+        let breaking = |root: &std::path::PathBuf| qnc_work_settings::pinned_project().is_none() && !qnc_ingest_base::active_is_story(root);
+        if let Some(root) = self.root.clone().filter(breaking) {
+            self.story.breaking_news(&root, &uri);
             return IngestDispatchResult::accepted(None, true);
         }
         self.load_work_settings(Some(uri))

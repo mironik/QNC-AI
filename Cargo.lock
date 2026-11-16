@@ -4130,6 +4130,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-breaking-news"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "qnc-ai-features",
+ "qnc-application-catalog",
+ "qnc-ingest-base",
+ "qnc-project-store",
+ "qnc-wizard-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-broadcast-engine"
 version = "0.1.0"
 dependencies = [
@@ -7656,11 +7669,11 @@ name = "qnc-story-start"
 version = "0.1.0"
 dependencies = [
  "qnc-ai-open",
+ "qnc-breaking-news",
  "qnc-clip-row",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-newsroom-sheet-model",
- "qnc-wizard-text",
  "serde_json",
 ]
 

@@ -102,6 +102,7 @@ qnc-gpu-raster = { path = "../QNC-shared/crates/qnc-gpu-raster" }
 qnc-image-assets = { path = "../QNC-shared/crates/qnc-image-assets" }
 qnc-import-fit = { path = "../QNC-shared/crates/qnc-import-fit" }
 qnc-ingest-application = { path = "crates/qnc-ingest-application" }
+qnc-breaking-news = { path = "crates/qnc-breaking-news" }
 qnc-ingest-base = { path = "crates/qnc-ingest-base" }
 qnc-ingest-blocks = { path = "crates/qnc-ingest-blocks" }
 qnc-ingest-cameras = { path = "../QNC-shared/crates/qnc-ingest-cameras" }

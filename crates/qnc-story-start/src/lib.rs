@@ -39,6 +39,8 @@ enum Job {
     Checked(Result<Found, String>),
     /// The base has its story (made or gone on with): the base's card and the chosen clips' files.
     Taken(Result<(String, Vec<String>), String>),
+    /// A breaking news project is made for this card (its uri), or not.
+    Breaking(String, Result<(String, String), String>),
 }
 
 /// The start of a story.
@@ -128,6 +130,18 @@ impl StoryStart {
         });
     }
 
+    /// A card (not a base) chosen in the Ingest form is breaking news (user 2026-11-16: the
+    /// application links the source card; "automatski kreiraš brejking news projekt, bez da
+    /// novinar bilo što piše"): its project is made and made active off the form's thread, then
+    /// `poll` gives [`Next::SelectBase`] with the card, which Ingest Selects into it.
+    pub fn breaking_news(&mut self, root: &Path, card: &str) {
+        if self.busy() {
+            return;
+        }
+        let (root, card) = (root.to_path_buf(), card.to_string());
+        self.run(move || Job::Breaking(card, qnc_breaking_news::make(&root)));
+    }
+
     /// The story the user may go on with, shown before the sheet (its name).
     pub fn offer(&self) -> Option<&str> {
         self.offer.as_ref().map(|(_, name)| name.as_str())
@@ -206,6 +220,15 @@ impl StoryStart {
                 (self.sheet, self.base_id, self.marks) = (None, None, Some(files));
                 Some(Next::SelectBase(card))
             }
+            // Its clips are not ticked: the user chooses them in Ingest.
+            Job::Breaking(card, Ok((_, name))) => {
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("breaking news project {name} made for {card}"));
+                Some(Next::SelectBase(card))
+            }
+            Job::Breaking(card, Err(error)) => {
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("breaking news project for {card} not made: {error}"));
+                Some(Next::Say(error))
+            }
             Job::Taken(Err(error)) => {
                 if let Some(sheet) = self.sheet.as_mut() {
                     sheet.message = error.clone();
@@ -236,20 +259,3 @@ impl StoryStart {
     }
 }
 
-/// The folder or card of `uri` chosen in the Ingest form goes to the tray's import from a folder
-/// (user 2026-11-16: "kada se bira kartica unutar ingest forme, ona bi trebala koristiti proces
-/// tray-direktorij ingest, kao da si u trayu pokrenuo Uvoz iz direktorija"): a base of its own and
-/// the ingest window for it; nothing is Selected into the base the form works in. Off the caller's
-/// thread; the outcome goes to the log.
-pub fn hand_folder(root: &Path, uri: &str) {
-    let (root, uri) = (root.to_path_buf(), uri.to_string());
-    std::thread::spawn(move || {
-        let opened = qnc_ingest_base::new_base(&root, &qnc_wizard_text::text("tray.folder_base"))
-            .and_then(|base| qnc_ai_open::open_card_ingest(&root, &base.id, &uri).map(|_| base.id));
-        let line = match opened {
-            Ok(base) => format!("ingest folder {uri} handed to the import of base {base}"),
-            Err(error) => format!("ingest folder {uri} not handed over: {error}"),
-        };
-        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
-    });
-}
