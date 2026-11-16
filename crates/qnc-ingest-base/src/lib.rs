@@ -237,6 +237,18 @@ pub fn active_is_base(root: &Path) -> bool {
     .is_ok_and(|name| name.starts_with(NAME_PREFIX))
 }
 
+/// Whether a story's project (a project, not an Ingest base) is active: the same read only look.
+pub fn active_is_story(root: &Path) -> bool {
+    let file = root.join("data").join("qnc-projects.db");
+    let Ok(conn) = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) else { return false };
+    conn.query_row(
+        "SELECT name FROM public_projects WHERE project_id = (SELECT value FROM public_app_settings WHERE key = 'active_project_id')",
+        [],
+        |row| row.get::<_, String>(0),
+    )
+    .is_ok_and(|name| !name.starts_with(NAME_PREFIX))
+}
+
 /// The project templates of `root` (id, name) and the index of the one selected.
 pub fn templates(root: &Path) -> Result<(Vec<(String, String)>, usize), String> {
     let rows = ProjectStore::open(root)?.list_project_templates()?;
@@ -459,6 +471,9 @@ pub fn new_base(root: &Path, what: &str) -> Result<IngestBase, String> {
     Ok(made)
 }
 
+/// How the wizard imports a card into its base: a verified copy of its originals.
+const WIZARD_COPIES: &str = "original";
+
 /// A new base made in the bases' folder and made active, named by `what` it takes (empty: the
 /// stamp alone). Its name keeps the prefix that makes it an Ingest base; what is shown is the label.
 fn make(store: &mut ProjectStore, bases: &Path, what: &str) -> Result<IngestBase, String> {
@@ -468,6 +483,10 @@ fn make(store: &mut ProjectStore, bases: &Path, what: &str) -> Result<IngestBase
     let mut settings = store.selected_template_settings()?.settings;
     if let Some(storage) = settings.get_mut("storage").and_then(serde_json::Value::as_object_mut) {
         storage.insert("projects_root".into(), serde_json::Value::String(bases.to_string_lossy().into_owned()));
+        // The wizard always copies the card to the disk, whatever the template says (user
+        // 2026-11-16: "wizard importira karticu na disk, a aplikacija se linka na tu kopiju; drugi
+        // put je aplikacija se linka na source karticu"): a link to the card is the Ingest form's.
+        storage.insert("ingest_media".into(), serde_json::Value::String(WIZARD_COPIES.into()));
     }
     let what = what.trim();
     let name = match what.is_empty() {
