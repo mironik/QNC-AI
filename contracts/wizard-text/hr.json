@@ -56,6 +56,8 @@
     "tray.folder_base": "Direktorij",
     "breaking.name": "Breaking news",
     "work.title": "Rad u pozadini",
+    "work.minimize": "Smanji",
+    "work.restore": "Pokaži sve korake",
     "tray.ingest_runs": "Uvoz je već u tijeku: novi izvor otvorite kad završi.",
     "card_ingest.choose_folder": "Izaberite direktorij za uvoz",
     "tray.last_project": "Zadnji projekt: {name}",

@@ -8003,6 +8003,7 @@ dependencies = [
  "qnc-ui-kit",
  "qnc-ui-text",
  "qnc-wizard-text",
+ "qnc-work-progress",
  "qnc-work-progress-view",
 ]
 

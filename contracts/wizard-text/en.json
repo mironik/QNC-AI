@@ -56,6 +56,8 @@
     "tray.folder_base": "Folder",
     "breaking.name": "Breaking news",
     "work.title": "Background work",
+    "work.minimize": "Minimize",
+    "work.restore": "Show all the steps",
     "tray.ingest_runs": "An import is running: open the new source when it is done.",
     "card_ingest.choose_folder": "Pick the folder to import",
     "tray.last_project": "Last project: {name}",

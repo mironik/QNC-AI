@@ -150,9 +150,16 @@ fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_the
     let progress = view.work.filter(|work| work.clips > 0 && !work.complete())?;
     let panel = ui.max_rect();
     let mut stop = None;
+    // Minimized (user 2026-11-16: "dodaj dugme minimize na overlay koji pokazuje import stanje"): a
+    // choice of this process' view, kept in egui's memory; it shows the title and how far the work
+    // is in all, and opens again with its button.
+    let minimized_id = egui::Id::new("qnc-transcript-work-info-minimized");
+    let minimized = ui.ctx().memory(|memory| memory.data.get_temp::<bool>(minimized_id).unwrap_or(false));
+    let width = if minimized { MINIMIZED_WIDTH } else { INFO_WIDTH };
+    let mut toggle = false;
     egui::Area::new(egui::Id::new("qnc-transcript-work-info"))
         .order(egui::Order::Foreground)
-        .fixed_pos(panel.right_top() + egui::vec2(-INFO_WIDTH - 4.0, 4.0))
+        .fixed_pos(panel.right_top() + egui::vec2(-width - 4.0, 4.0))
         .show(ui.ctx(), |ui| {
             egui::Frame::new()
                 .fill(theme.panel)
@@ -160,8 +167,23 @@ fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_the
                 .corner_radius(4.0)
                 .inner_margin(egui::Margin::same(12))
                 .show(ui, |ui| {
-                    ui.set_width(INFO_WIDTH - 24.0);
-                    ui.label(RichText::new(qnc_wizard_text::text("work.title")).color(theme.text).strong());
+                    ui.set_width(width - 24.0);
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(qnc_wizard_text::text("work.title")).color(theme.text).strong());
+                        if minimized {
+                            ui.label(RichText::new(format!("{:.0} %", share_done(&progress) * 100.0)).color(theme.text));
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let (sign, hint) = if minimized { ("+", "work.restore") } else { ("_", "work.minimize") };
+                            if ui.add(egui::Button::new(sign).min_size(egui::vec2(22.0, 20.0))).on_hover_text(qnc_wizard_text::text(hint)).clicked() {
+                                toggle = true;
+                            }
+                        });
+                    });
+                    if minimized {
+                        ui.add(egui::ProgressBar::new(share_done(&progress)).desired_height(6.0).fill(theme.focus));
+                        return;
+                    }
                     ui.label(RichText::new(qnc_wizard_text::fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(theme.text));
                     ui.add_space(8.0);
                     stop = qnc_work_progress_view::bars(ui, &progress, theme.text, &|_| None);
@@ -171,12 +193,27 @@ fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_the
                     }
                 });
         });
+    if toggle {
+        ui.ctx().memory_mut(|memory| memory.data.insert_temp(minimized_id, !minimized));
+    }
     ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
     stop.map(|function| ActionEvent::key(WORK_STOP).with_target(function.to_string()).at(PANEL))
 }
 
 /// How wide the info box of the background work is.
 const INFO_WIDTH: f32 = 470.0;
+
+/// How wide the info box is minimized.
+const MINIMIZED_WIDTH: f32 = 260.0;
+
+/// How much of the work is done in all: of every bar the project has on, the clips done (a stopped
+/// function counts as done).
+fn share_done(progress: &qnc_work_progress::Progress) -> f32 {
+    let bars = progress.bars();
+    let all = (bars.len() * progress.clips).max(1);
+    let done: usize = bars.iter().map(|bar| if bar.stopped { progress.clips } else { bar.done.min(progress.clips) }).sum();
+    done as f32 / all as f32
+}
 
 /// One line as one text wrapped at the panel's width (user 2026-10-26: "sentences go out of the
 /// panel, they should wrap"), the word said at the playhead lit; returns the first frame of a

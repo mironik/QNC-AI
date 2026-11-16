@@ -17,6 +17,9 @@ use qnc_wizard_text::text;
 
 /// The height of the bar.
 pub const HEIGHT: f32 = 34.0;
+
+/// The margin under what a window draws.
+pub const BOTTOM_MARGIN: f32 = 14.0;
 /// The width of each button of the bar.
 const BUTTON: f32 = 44.0;
 /// How far inside the window's edge a press resizes it.
@@ -187,6 +190,15 @@ pub struct Framed<A> {
 impl<A: eframe::App> eframe::App for Framed<A> {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.bar.show(ctx);
+        // A margin at the bottom of the window: what the form draws last (the timeline's A2) does
+        // not sit on the window's edge (user 2026-11-16: "A2 djelomično izlazi s ekrana, dodaj na
+        // dnu ekrana marginu tako da timeline nije na dnu").
+        egui::TopBottomPanel::bottom("qnc-window-bottom-margin")
+            .exact_height(BOTTOM_MARGIN)
+            .resizable(false)
+            .show_separator_line(false)
+            .frame(egui::Frame::NONE.fill(ctx.style().visuals.panel_fill))
+            .show(ctx, |_| {});
         self.app.update(ctx, frame);
     }
 }

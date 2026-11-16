@@ -26,7 +26,7 @@ pub fn bars(ui: &mut egui::Ui, progress: &Progress, ink: Color32, time_of: &dyn 
             };
             ui.add(egui::ProgressBar::new(bar.done.min(total) as f32 / total as f32).desired_width(260.0).text(label));
             let running = !bar.stopped && bar.done < progress.clips;
-            let x = ui.add_enabled(running, egui::Button::new("✕").min_size(egui::vec2(22.0, 20.0)));
+            let x = ui.add_enabled(running, egui::Button::new("X").min_size(egui::vec2(22.0, 20.0)));
             if x.on_hover_text(text("card_ingest.stop_hint")).clicked() {
                 stop = Some(bar.function);
             }

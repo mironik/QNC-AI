@@ -15,3 +15,4 @@ qnc-ui-kit = { workspace = true }
 qnc-ui-text = { workspace = true }
 qnc-wizard-text = { workspace = true }
 qnc-work-progress-view = { workspace = true }
+qnc-work-progress = { workspace = true }
