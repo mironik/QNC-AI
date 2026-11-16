@@ -95,6 +95,11 @@ fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, title: &str,
         .inner_margin(egui::Margin::same(18))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
+            // Fields and bar tracks on the card: the desktop's dark with a fine frame, not black.
+            let visuals = ui.visuals_mut();
+            visuals.extreme_bg_color = theme.bg;
+            visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, theme.border);
+            visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, theme.text_muted);
             ui.label(RichText::new(title.to_uppercase()).size(theme.font_ui - 2.0).color(theme.text_muted).strong());
             ui.add_space(10.0);
             contents(ui);
