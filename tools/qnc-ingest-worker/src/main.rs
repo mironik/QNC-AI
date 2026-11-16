@@ -5,13 +5,17 @@
 //! artifacts, then ends. Its lease, the pause while a
 //! player works and its result are kept in the project database, nowhere else.
 
+use qnc_ingest_plan::Step;
 use std::{
     path::{Path, PathBuf},
     process::ExitCode,
     time::Duration,
 };
 
+mod run;
 mod transcribe;
+
+use run::run_once;
 
 fn main() -> ExitCode {
     qnc_dev_diagnostics::log_panics("qnc-ingest-worker");
@@ -49,7 +53,7 @@ fn run_background(root: &Path) -> Result<(), String> {
 }
 
 /// The clips of the active project whose record still waits for its completion.
-fn records_waiting(root: &Path) -> Result<Vec<String>, String> {
+pub(crate) fn records_waiting(root: &Path) -> Result<Vec<String>, String> {
     let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
@@ -57,7 +61,7 @@ fn records_waiting(root: &Path) -> Result<Vec<String>, String> {
 }
 
 /// Whether clips wait in the import queue of the active project.
-fn import_waiting(root: &Path) -> Result<bool, String> {
+pub(crate) fn import_waiting(root: &Path) -> Result<bool, String> {
     let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
@@ -76,306 +80,9 @@ fn import_waiting(root: &Path) -> Result<bool, String> {
         .any(|clip| matches!(clip.import_status.as_str(), "queued" | "processing")))
 }
 
-/// Whether the import still has clips to copy (queued or being copied).
-fn import_busy(root: &Path) -> Result<bool, String> {
-    let active_project = crate::project(root).map_err(|error| error.to_string())?;
-    let snapshot = active_project.read().map_err(|error| error.to_string())?;
-    if import_stopped(&active_project, &snapshot.settings) {
-        return Ok(false);
-    }
-    let reader = qnc_content_read::ContentReader::for_project(active_project.settings_reader(), &snapshot.settings)?;
-    Ok(reader.summaries()?.iter().any(|clip| matches!(clip.import_status.as_str(), "queued" | "processing")))
-}
-
-/// The import queue as the project database has it, looked at every second while the
-/// other work of this run goes on (Uvezi may come at any time) and once more when it
-/// has ended; an import runs only when clips wait, so its result stays the last real one.
-fn import_while(
-    root: &Path,
-    running: &std::sync::atomic::AtomicBool,
-    closed: &std::sync::atomic::AtomicBool,
-    run: &qnc_ingest_import_worker::ImportRun<'_>,
-) -> Result<(), String> {
-    loop {
-        if closed.load(std::sync::atomic::Ordering::Relaxed) {
-            return Ok(());
-        }
-        let last = !running.load(std::sync::atomic::Ordering::Relaxed);
-        if import_waiting(root)? {
-            qnc_ingest_import_worker::run_import(root, &crate::project(root)?, run)?;
-        }
-        if last {
-            return Ok(());
-        }
-        std::thread::sleep(Duration::from_secs(1));
-    }
-}
-
-/// One run under the lease; false when another worker holds it.
-fn run_once(root: &Path) -> Result<bool, String> {
-    let active_project = crate::project(root)
-        .map_err(|error| error.to_string())?;
-    let snapshot = active_project.read().map_err(|error| error.to_string())?;
-    let started = snapshot.settings.project_id.clone();
-    // The template copies the clips: only the copy reads the card, the rest works from the copies.
-    let copying = snapshot.settings.ingest_copies();
-    let reader = active_project.settings_reader().clone();
-    let target = qnc_content_store::ContentTarget::for_project(&reader, &snapshot.settings)?;
-    // One worker per project: the lease covers the import and the artifacts, so a
-    // second start while the artifacts are still built finds it and ends at once.
-    let player_works = qnc_playback_activity::playback_pause(target.clone());
-    let stop_target = target.clone();
-    let stops = Stops::new();
-    stops.read(&stop_target);
-    // Taken in one statement with its owner (external audit 2026-10-17): two starts never
-    // both run; a run whose lease another took stops.
-    let Some(lease) =
-        qnc_playback_activity::Lease::claim(target, qnc_playback_activity::WORKER, qnc_playback_activity::WORKER_FRESH_SECONDS)?
-    else {
-        return Ok(false);
-    };
-    let running = std::sync::atomic::AtomicBool::new(true);
-    // v5 media probe job: a card record gets what playback lacks, once, in the
-    // background, so a preview of a clip not yet imported plays. Beside the artifacts
-    // only the clip a preview wants; the others after them, several at once.
-    let config = qnc_ingest_select::selection_config::SelectionConfig::load(root)
-        .map_err(|error| error.to_string())?;
-    let make_backend = |source_uri: &str, media: &[qnc_source_reader::SourceReference], copies: &[(String, PathBuf)]| {
-        // A card attached after the start is not among the sources read then: read them again.
-        let fresh;
-        let config = if config.sources.iter().any(|source| source.location.uri == source_uri) {
-            &config
-        } else {
-            fresh = sources_now(root, &config);
-            &fresh
-        };
-        let card = config.sources.iter().find(|source| source.location.uri == source_uri);
-        // Every medium probed has its copy in the project: the copy is read, never the card
-        // (user 2026-11-12); the probe of this computer is the card's, or any local one.
-        let copied: Option<Vec<(String, PathBuf)>> =
-            media.iter().map(|reference| copies.iter().find(|(uri, _)| *uri == reference.uri()).cloned()).collect();
-        if let Some(files) = copied.filter(|files| !files.is_empty()) {
-            let local = card.into_iter().chain(&config.sources).find(|source| matches!(source.probe, qnc_ingest_select::selection_config::ProbeConfig::Local { .. }));
-            return local
-                .ok_or_else(|| qnc_ui_text::text("worker.source_not_connected").to_string())?
-                .backend_with_files(&files)
-                .map_err(|error| error.to_string());
-        }
-        card.ok_or_else(|| qnc_ui_text::text("worker.source_not_connected").to_string())?
-            .backend(media)
-            .map_err(|error| error.to_string())
-    };
-    let cancel = std::sync::atomic::AtomicBool::new(false);
-    // The card sets the pace (user 2026-10-15: waves as soon as possible): first the
-    // records (a wave needs its clip's final record), each clip's wave as soon as its record
-    // is final, the filmstrip after them. The completion never gives way to the filmstrip.
-    let completing = std::sync::atomic::AtomicBool::new(true);
-    // The project database is the truth: once its active project is no longer the one
-    // this run started for (closed, or another opened), the run stops and lets its
-    // database go, so the closed project can be deleted.
-    let closed = std::sync::atomic::AtomicBool::new(false);
-    // The watch of the base lasts the whole run, also the last AI turn after the import (live
-    // 2026-11-14: a base deleted during the captions at the end was never let go; the delete and
-    // the tray's Quit waited).
-    let watching = std::sync::atomic::AtomicBool::new(true);
-    // The import belongs to this run: its project, its lease, its cancel.
-    // Its cancel is the import's stop: the user's X, or the project closed.
-    let run = qnc_ingest_import_worker::ImportRun { project_id: &started, lease: &lease, cancel: stops.flag(qnc_stopped_work::IMPORT) };
-    let artifacts_done = std::sync::atomic::AtomicBool::new(false);
-    // Kept across the phases of a run: the records a round left waiting, and whether the first
-    // round (posters and the AI look at them) is done.
-    let stuck_records = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
-    let first_round = std::sync::atomic::AtomicBool::new(true);
-        // The records are completed for as long as this run works: a Select made while it
-        // runs (or right after the worker was started for an opened project) adds clips
-        // whose records are completed at once (user 2026-10-18: they waited until the
-        // filmstrips were done, Play said NotFinal).
-        let completion_work = || {
-          // The records a round left waiting (its probe failed or was uncertain): only another
-          // clip starts a new round (audit 2026-10-25: they started one every second).
-          let mut stuck = stuck_records.lock().expect("stuck records");
-          let mut first = first_round.swap(false, std::sync::atomic::Ordering::Relaxed);
-          loop {
-            let done = crate::project(root).and_then(|project| qnc_record_completion::complete_project(
-                &project,
-                &make_backend,
-                PROBE_WORKERS,
-                &*player_works,
-                &cancel,
-                Some(lease.write_lease()),
-            ));
-            let mut completed = first;
-            match done {
-                Ok(done) => {
-                    completed |= !done.completed.is_empty();
-                    for (clip, error) in done.failed {
-                        eprintln!("zapis klipa {clip} nije dovrsen: {error}");
-                        // Also where the logs are read (live 2026-10-22: an FX3A record failed unseen).
-                        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("record-completion failed clip={clip} error={error}"));
-                        stuck.insert(clip);
-                    }
-                }
-                Err(error) => {
-                    eprintln!("dovrsetak zapisa nije uspio: {error}");
-                    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("record-completion failed error={error}"));
-                }
-            }
-            if completed {
-                trace("completion round completed records".into());
-            }
-            first = false;
-            // Once more now the records are final: a clip whose record had no timing at
-            // Select gets its poster from the start of the clip.
-            if completed && !closed.load(std::sync::atomic::Ordering::Relaxed) {
-                trace("completion: posters".into());
-                make_posters(root, &config, &lease, &stops);
-                // The AI looks at the posters right away (user 2026-11-10), before the waves,
-                // the filmstrips and the import.
-                // While the clips are copied the AI thread does it (live 2026-11-12: both looked
-                // at the same 30 posters at once, 27 s of work twice).
-                if !copying {
-                    trace("completion: shots of the posters".into());
-                    make_shots(root, &config, &lease, &stops, Look::Posters);
-                    trace("completion: shots of the posters done".into());
-                }
-            }
-            // While the clips are copied, every clip copied is worked on at once, from its copy
-            // (user 2026-11-12: "nema čekanja dok se kartica ingestira"): the artifacts keep
-            // taking the new clips and the records of the clips just copied are completed.
-            completing.store(copying && import_busy(root).unwrap_or(false), std::sync::atomic::Ordering::Relaxed);
-            // Until the artifacts are done, new records are looked for once a second.
-            loop {
-                let stop = closed.load(std::sync::atomic::Ordering::Relaxed)
-                    || artifacts_done.load(std::sync::atomic::Ordering::Relaxed);
-                if stop {
-                    return;
-                }
-                std::thread::sleep(Duration::from_secs(1));
-                let importing = copying && import_busy(root).unwrap_or(false);
-                completing.store(importing, std::sync::atomic::Ordering::Relaxed);
-                let waiting = records_waiting(root);
-                if waiting.is_ok_and(|waiting| waiting.iter().any(|clip| !stuck.contains(clip))) {
-                    completing.store(true, std::sync::atomic::Ordering::Relaxed);
-                    break;
-                }
-            }
-          }
-        };
-    std::thread::scope(|scope| {
-        scope.spawn(|| {
-            while watching.load(std::sync::atomic::Ordering::Relaxed) {
-                // Its base being deleted ends it too (a base per card: closing the active
-                // project no longer reaches a worker given its base, user 2026-11-14).
-                if !still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
-                    closed.store(true, std::sync::atomic::Ordering::Relaxed);
-                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-                    stops.all();
-                    return;
-                }
-                stops.read(&stop_target);
-                std::thread::sleep(Duration::from_secs(1));
-            }
-        });
-        let import = scope.spawn(|| import_while(root, &running, &closed, &run));
-        // The AI of each clip as soon as it is copied, from the copy, beside the copy and the
-        // artifacts (user 2026-11-12: "ne rade AI, šta čekaju"); what is left after the import
-        // is done once more at the end of the run.
-        // The first channel of each imported clip is heard (with transcription on), so the AI
-        // shots know which clips are statements (user 2026-11-12).
-        let heard = scope.spawn(|| transcribe::run(root, &running, stops.flag(qnc_stopped_work::TRANSCRIPTS)));
-        let mut looks = Vec::new();
-        // The shots and what they show (SigLIP) beside the copy; the captions (Florence) only at
-        // the end of the run: they teach SigLIP, nobody waits for them (user 2026-11-14:
-        // "SigLIP, pa tek zatim opisi; opisi nam više služe za treniranje SigLIP-a").
-        if copying {
-            for look in [Look::Shots] {
-                let (running, closed, config, lease, stops) = (&running, &closed, &config, &lease, &stops);
-                looks.push(scope.spawn(move || {
-                    while running.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
-                        make_shots(root, config, lease, stops, look);
-                        for _ in 0..5 {
-                            if !running.load(std::sync::atomic::Ordering::Relaxed) {
-                                break;
-                            }
-                            std::thread::sleep(Duration::from_secs(1));
-                        }
-                    }
-                }));
-            }
-        }
-        // The records first: every clip can play (and editing start) before the card is read
-        // for waves and filmstrips (user 2026-10-18: speed for editing comes first).
-        // When the clips are copied the artifacts start at once: they take each clip once it is
-        // copied and its record final, from the copy.
-        //
-        // While the clips are copied the records and artifacts go round again for as long as
-        // the import works (live 2026-11-12: the worker started at Select, before the import
-        // was queued; its records and artifacts found nothing copied and ended, and the run then
-        // only waited for the whole copy). The first seconds count as importing: the import is
-        // queued right after Select.
-        let grace = std::time::Instant::now() + Duration::from_secs(15);
-        let mut artifacts = Ok(());
-        loop {
-            completing.store(true, std::sync::atomic::Ordering::Relaxed);
-            artifacts_done.store(false, std::sync::atomic::Ordering::Relaxed);
-            let completion = scope.spawn(&completion_work);
-            while !copying && completing.load(std::sync::atomic::Ordering::Relaxed) && !closed.load(std::sync::atomic::Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            artifacts = artifacts.and(run_artifacts(root, &lease, &closed, &completing, &stops));
-            artifacts_done.store(true, std::sync::atomic::Ordering::Relaxed);
-            let _ = completion.join();
-            let importing = copying
-                && !stops.is(qnc_stopped_work::IMPORT)
-                && (std::time::Instant::now() < grace || import_busy(root).unwrap_or(false));
-            if closed.load(std::sync::atomic::Ordering::Relaxed) || artifacts.is_err() || !importing {
-                break;
-            }
-            trace("the import still copies: records and artifacts go round again".into());
-            std::thread::sleep(Duration::from_secs(1));
-        }
-        if closed.load(std::sync::atomic::Ordering::Relaxed) {
-            running.store(false, std::sync::atomic::Ordering::Relaxed);
-            let _ = import.join();
-            watching.store(false, std::sync::atomic::Ordering::Relaxed);
-            eprintln!("projekt je zatvoren: pozadinski proces staje");
-            return Ok(false);
-        }
-        // Wave needs the audio facts the completion has just written; the filmstrips are
-        // already made, so this pass only makes the waves the first one had to skip.
-        let artifacts =
-            artifacts.and_then(|()| run_artifacts(root, &lease, &closed, &std::sync::atomic::AtomicBool::new(false), &stops));
-        running.store(false, std::sync::atomic::Ordering::Relaxed);
-        let import = match import.join() {
-            Ok(import) => import,
-            Err(_) => {
-                watching.store(false, std::sync::atomic::Ordering::Relaxed);
-                return Err(qnc_ui_text::text("worker.import_crashed").to_string());
-            }
-        };
-        // The AI threads end their turn before the last one: two turns on the same clip at once
-        // share its temporary folder (live 2026-11-12: "Error opening input file ...000.h264").
-        for look in looks.drain(..) {
-            let _ = look.join();
-        }
-        // The last AI turn knows every statement: the transcription is heard out first.
-        let _ = heard.join();
-        // Once more after the import: a clip imported before its record was final could not
-        // get its poster at Uvezi (user 2026-10-18).
-        if !closed.load(std::sync::atomic::Ordering::Relaxed) {
-            make_posters(root, &config, &lease, &stops);
-            // The shots after the filmstrips and waves (user 2026-10-27: Video AI, a job of
-            // its own, lower than the player).
-            make_shots(root, &config, &lease, &stops, Look::All);
-        }
-        watching.store(false, std::sync::atomic::Ordering::Relaxed);
-        artifacts.and(import).map(|()| true)
-    })
-}
-
 /// The sources of this computer now (a card attached after the worker started is among them,
 /// live 2026-11-13); the ones read at the start when they cannot be read again.
-fn sources_now(
+pub(crate) fn sources_now(
     root: &Path,
     started: &qnc_ingest_select::selection_config::SelectionConfig,
 ) -> qnc_ingest_select::selection_config::SelectionConfig {
@@ -384,15 +91,15 @@ fn sources_now(
 
 /// Posters of the clips without one, by their block (`qnc-missing-posters`); where each
 /// medium is on this computer comes from the source bindings Select uses.
-fn make_posters(
+pub(crate) fn make_posters(
     root: &Path,
     config: &qnc_ingest_select::selection_config::SelectionConfig,
     lease: &qnc_playback_activity::Lease,
     stops: &Stops,
-) {
+) -> usize {
     let cancel = stops.flag(qnc_stopped_work::POSTERS);
     if stops.is(qnc_stopped_work::POSTERS) {
-        return;
+        return 0;
     }
     let config = &sources_now(root, config);
     let local_media = |uri: &str| {
@@ -403,30 +110,41 @@ fn make_posters(
     let stream_media = |uri: &str| qnc_ingest_select::selection_config::stream_of(&config.sources, uri);
     let project = match crate::project(root).and_then(|active| active.read().map(|snapshot| qnc_missing_posters::PosterProject::new(active.settings_reader().clone(), snapshot.settings)).map_err(|e| e.to_string())) {
         Ok(project) => project,
-        Err(error) => return eprintln!("posteri nisu napravljeni: {error}"),
+        Err(error) => {
+            eprintln!("posteri nisu napravljeni: {error}");
+            return 0;
+        }
     };
     match qnc_missing_posters::make_missing_posters(&project, &local_media, &stream_media, Some(lease.write_lease()), cancel) {
-        Ok(0) => {}
-        Ok(made) => eprintln!("posteri napravljeni: {made}"),
-        Err(error) => eprintln!("posteri nisu napravljeni: {error}"),
+        Ok(0) => 0,
+        Ok(made) => {
+            eprintln!("posteri napravljeni: {made}");
+            made
+        }
+        Err(error) => {
+            eprintln!("posteri nisu napravljeni: {error}");
+            0
+        }
     }
 }
 
 /// Whether the active project in the database is still the one a run started for.
-fn still_active(active_project: &qnc_active_project_read::ActiveProjectReader, started: &str) -> bool {
+pub(crate) fn still_active(active_project: &qnc_active_project_read::ActiveProjectReader, started: &str) -> bool {
     active_project
         .read()
         .is_ok_and(|snapshot| snapshot.settings.project_id == started)
 }
 
-/// Filmstrips and waves of the active project. While `completing`, records still become
-/// final: the waves of newly final clips are taken every few seconds and the filmstrip waits.
-fn run_artifacts(
+/// The filmstrips or the waves (`step`) of the run's project. While `going`, records still become
+/// final: the list is read again every few seconds; `idle` says no clip waits for it now.
+pub(crate) fn run_artifacts(
     root: &Path,
     lease: &qnc_playback_activity::Lease,
     closed: &std::sync::atomic::AtomicBool,
-    completing: &std::sync::atomic::AtomicBool,
+    going: &std::sync::atomic::AtomicBool,
     stops: &Stops,
+    step: qnc_ingest_plan::Step,
+    idle: &std::sync::atomic::AtomicBool,
 ) -> Result<(), String> {
     let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
@@ -434,7 +152,10 @@ fn run_artifacts(
     let reader = active_project.settings_reader().clone();
     // A filmstrip or wave the user stopped is made as one the settings leave off; this changes
     // only what this run makes, the project's settings stay as they are.
-    let stopped_now = || (stops.is(qnc_stopped_work::FILMSTRIPS), stops.is(qnc_stopped_work::WAVES));
+    // Only its own kind: the other is the step of its own thread.
+    let stopped_now = || {
+        (stops.is(qnc_stopped_work::FILMSTRIPS) || step != qnc_ingest_plan::Step::Filmstrips, stops.is(qnc_stopped_work::WAVES) || step != qnc_ingest_plan::Step::Waves)
+    };
     let without = |(filmstrips, waves): (bool, bool)| {
         let mut settings = snapshot.settings.clone();
         if let serde_json::Value::Object(artifacts) = &mut settings.artifacts {
@@ -481,7 +202,8 @@ fn run_artifacts(
     let mut shown_checked = std::time::Instant::now() - Duration::from_secs(1);
     let mut synced = std::time::Instant::now();
     loop {
-        let still_completing = completing.load(std::sync::atomic::Ordering::Relaxed);
+        let still_completing = going.load(std::sync::atomic::Ordering::Relaxed);
+        idle.store(!artifacts.has_pending_work(), std::sync::atomic::Ordering::Relaxed);
         if !still_completing && !artifacts.has_pending_work() {
             break;
         }
@@ -531,7 +253,7 @@ fn run_artifacts(
 /// working medium): there a probe is bound by the processor, and measured on a stick 8 at
 /// once took 0.22 s a clip, 2 at once 0.37 s. The records are done before the artifacts
 /// read the card, so the probes have it to themselves.
-const PROBE_WORKERS: usize = 6;
+pub(crate) const PROBE_WORKERS: usize = 6;
 
 fn root_argument() -> Option<PathBuf> {
     argument("--root").map(PathBuf::from)
@@ -562,15 +284,15 @@ pub(crate) fn project(root: &Path) -> Result<qnc_active_project_read::ActiveProj
 
 /// Shot analysis of the clips not analysed yet, by its block (`qnc-shot-analysis`); it waits
 /// while the player plays and takes the clip a preview has open first.
-fn make_shots(
+pub(crate) fn make_shots(
     root: &Path,
     config: &qnc_ingest_select::selection_config::SelectionConfig,
     lease: &qnc_playback_activity::Lease,
     stops: &Stops,
-    look: Look,
-) {
+    step: Step,
+) -> usize {
     let config = &sources_now(root, config);
-    let result = (|| {
+    let result = (|| -> Result<usize, String> {
         let project = crate::project(root).and_then(|active| active.read().map(|snapshot| qnc_shot_analysis::ShotProject::new(active.settings_reader().clone(), snapshot.settings)).map_err(|e| e.to_string()))?;
         let active = crate::project(root).map_err(|e| e.to_string())?;
         let snapshot = active.read().map_err(|e| e.to_string())?;
@@ -608,43 +330,26 @@ fn make_shots(
             let takes: &dyn Fn(&str) -> bool = if function == qnc_stopped_work::SHOTS { &*takes.shots } else { &*takes.content };
             qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes, cancel: stops.flag(function) }
         };
-        let (shots, content, captions) = (qnc_stopped_work::SHOTS, qnc_stopped_work::CONTENT, qnc_stopped_work::CAPTIONS);
-        // First the quickest sorting, from each clip's poster (user 2026-11-10), before any
-        // picture of a shot is read.
-        if look != Look::Captions && !stops.is(content) {
-            if let Err(error) = qnc_shot_content_run::look_posters(active.settings_reader(), &snapshot.settings, &local_media, Some(lease.write_lease()), &pace(content)) {
-                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-content posters failed error={error}"));
-            }
-        }
-        if look == Look::Posters {
-            return Ok(0);
-        }
-        let analysed = if look == Look::Captions || stops.is(shots) { Ok(0) } else { qnc_shot_analysis::analyse_missing(&project, &local_media, Some(lease.write_lease()), &pace(shots)) };
-        // What the usable parts show (user 2026-11-10: sorting the B-roll by content), right
-        // after their analysis, with the same pace.
-        if look != Look::Captions && !stops.is(content) {
-            if let Err(error) = qnc_shot_content_run::look_missing(active.settings_reader(), &snapshot.settings, &local_media, Some(lease.write_lease()), &pace(content)) {
-                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-content failed error={error}"));
-            }
-        }
-        // A sentence of what each looked-at shot shows, from its poster (user 2026-11-10:
-        // Florence-2 as the second AI engine), kept on this computer.
-        if matches!(look, Look::Captions | Look::All) && !stops.is(captions) {
-            if let Err(error) = qnc_shot_caption_run::caption_missing(root, active.settings_reader(), &snapshot.settings, &local_media, &pace(captions)) {
-                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-caption failed error={error}"));
-            }
-        }
-        // A card base: what the analysis says it holds, written beside its description (the
-        // archive of bases, user 2026-11-15).
-        describe_base(root, active.settings_reader(), &snapshot.settings);
-        analysed
+        let (reader, settings, lease) = (active.settings_reader(), &snapshot.settings, Some(lease.write_lease()));
+        // Only the step of the plan this turn is for (the order is the template's).
+        Ok(match step {
+            // The quickest sorting, from each clip's poster (user 2026-11-10), before any picture
+            // of a shot is read.
+            Step::PosterLook => qnc_shot_content_run::look_posters(reader, settings, &local_media, lease, &pace(qnc_stopped_work::CONTENT))?,
+            Step::Shots => qnc_shot_analysis::analyse_missing(&project, &local_media, lease, &pace(qnc_stopped_work::SHOTS))?,
+            // What the usable parts show (user 2026-11-10: sorting the B-roll by content).
+            Step::Content => qnc_shot_content_run::look_missing(reader, settings, &local_media, lease, &pace(qnc_stopped_work::CONTENT))?,
+            // A sentence of what each looked-at shot shows, from its poster (user 2026-11-10:
+            // Florence-2 as the second AI engine), kept on this computer.
+            Step::Captions => qnc_shot_caption_run::caption_missing(root, reader, settings, &local_media, &pace(qnc_stopped_work::CAPTIONS))?,
+            _ => 0,
+        })
     })();
     match result {
-        Ok(0) => {}
-        Ok(made) => eprintln!("kadrovi analizirani: {made}"),
+        Ok(made) => made,
         Err(error) => {
-            eprintln!("analiza kadrova nije uspjela: {error}");
-            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shot-analysis failed error={error}"));
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("{} failed error={error}", step.code()));
+            0
         }
     }
 }
@@ -668,24 +373,24 @@ fn transcription_running(target: qnc_content_store::ContentTarget) -> impl Fn() 
 /// 2026-11-12), read from the project database by the watch of a run once a second. A flag is
 /// the cancel of its function: it stops what runs and nothing of it starts again; the run's
 /// project closed sets every flag.
-struct Stops([std::sync::atomic::AtomicBool; qnc_stopped_work::ALL.len()]);
+pub(crate) struct Stops([std::sync::atomic::AtomicBool; qnc_stopped_work::ALL.len()]);
 
 impl Stops {
     fn new() -> Self {
         Self(std::array::from_fn(|_| std::sync::atomic::AtomicBool::new(false)))
     }
 
-    fn flag(&self, function: &str) -> &std::sync::atomic::AtomicBool {
+    pub(crate) fn flag(&self, function: &str) -> &std::sync::atomic::AtomicBool {
         let at = qnc_stopped_work::ALL.iter().position(|code| *code == function).expect("a function that can be stopped");
         &self.0[at]
     }
 
-    fn is(&self, function: &str) -> bool {
+    pub(crate) fn is(&self, function: &str) -> bool {
         self.flag(function).load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// The functions stopped in the database; a flag once set stays set for the run.
-    fn read(&self, target: &qnc_content_store::ContentTarget) {
+    pub(crate) fn read(&self, target: &qnc_content_store::ContentTarget) {
         for code in qnc_stopped_work::read(target) {
             if !self.is(&code) {
                 qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("worker stops {code} (the user)"));
@@ -694,7 +399,7 @@ impl Stops {
         }
     }
 
-    fn all(&self) {
+    pub(crate) fn all(&self) {
         for flag in &self.0 {
             flag.store(true, std::sync::atomic::Ordering::Relaxed);
         }
@@ -712,28 +417,13 @@ fn import_stopped(
 }
 
 /// One line of where the worker is, in the log (live 2026-11-12: the copy ran, nothing else).
-fn trace(line: String) {
+pub(crate) fn trace(line: String) {
     qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("worker {line}"));
-}
-
-/// What one turn of the AI does.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Look {
-    /// Only the first look, from the posters (right after Select: user 2026-11-10 "first the AI
-    /// look at the card's posters").
-    Posters,
-    /// The posters, the analysis of the shots and what they show.
-    Shots,
-    /// Only the sentences about the shots (Florence-2, seconds a shot): on a thread of their own
-    /// while the clips are copied, so the analysis never waits behind them (live 2026-11-12: the
-    /// shots of 28 copied clips waited 2.5 min behind the captions).
-    Captions,
-    All,
 }
 
 /// The project worked on is a card base: what its shot analysis says it holds is written beside
 /// the user's description (`qnc-base-contents`); a story's project is left alone.
-fn describe_base(root: &std::path::Path, reader: &qnc_work_settings::SettingsReader, settings: &qnc_work_settings::WorkSettings) {
+pub(crate) fn describe_base(root: &std::path::Path, reader: &qnc_work_settings::SettingsReader, settings: &qnc_work_settings::WorkSettings) {
     let log = |line: String| qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
     let is_base = qnc_ingest_base::all(root).is_ok_and(|bases| bases.iter().any(|base| base.id == settings.project_id));
     if !is_base {

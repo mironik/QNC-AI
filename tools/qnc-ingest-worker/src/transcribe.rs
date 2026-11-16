@@ -80,8 +80,8 @@ impl Transcription {
 }
 
 /// Queues the imported clips and keeps the queue's runner going while `running`; afterwards it
-/// waits until the queue is heard out (or `stop`).
-pub(crate) fn run(root: &Path, running: &std::sync::atomic::AtomicBool, stop: &std::sync::atomic::AtomicBool) {
+/// waits until the queue is heard out (or `stop`). `idle`: nothing waits to be heard now.
+pub(crate) fn run(root: &Path, running: &std::sync::atomic::AtomicBool, stop: &std::sync::atomic::AtomicBool, idle: &std::sync::atomic::AtomicBool) {
     let transcription = match Transcription::of_active(root) {
         Ok(Some(transcription)) => transcription,
         Ok(None) => return,
@@ -99,7 +99,9 @@ pub(crate) fn run(root: &Path, running: &std::sync::atomic::AtomicBool, stop: &s
             Ok(queued) => crate::trace(format!("transcription queued {queued} clips")),
             Err(error) => crate::trace(format!("transcription queue: {error}")),
         }
-        if transcription.busy() {
+        let busy = transcription.busy();
+        idle.store(!busy, std::sync::atomic::Ordering::Relaxed);
+        if busy {
             runner.ensure(&transcription.locator, &transcription.db);
         } else if !more {
             return;
