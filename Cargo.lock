@@ -7964,6 +7964,7 @@ dependencies = [
 name = "qnc-transcript"
 version = "0.1.0"
 dependencies = [
+ "qnc-ai-catalog",
  "qnc-ai-features",
  "qnc-clip-row",
  "qnc-clip-transcripts",
