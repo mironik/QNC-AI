@@ -21,7 +21,7 @@ pub(crate) struct Transcription {
 impl Transcription {
     /// The transcription of the active project; `None` when its AI has no transcription.
     pub(crate) fn of_active(root: &Path) -> Result<Option<Self>, String> {
-        let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|e| e.to_string())?;
+        let active = crate::project(root).map_err(|e| e.to_string())?;
         let snapshot = active.read().map_err(|e| e.to_string())?;
         if !snapshot.settings.ai_feature(qnc_ai_features::TRANSCRIPTION).unwrap_or(false) {
             return Ok(None);

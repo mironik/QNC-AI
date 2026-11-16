@@ -50,7 +50,7 @@ fn run_background(root: &Path) -> Result<(), String> {
 
 /// The clips of the active project whose record still waits for its completion.
 fn records_waiting(root: &Path) -> Result<Vec<String>, String> {
-    let active_project = qnc_active_project_read::ActiveProjectReader::from_root(root)
+    let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
     qnc_content_read::ContentReader::for_project(active_project.settings_reader(), &snapshot.settings)?.records_waiting()
@@ -58,7 +58,7 @@ fn records_waiting(root: &Path) -> Result<Vec<String>, String> {
 
 /// Whether clips wait in the import queue of the active project.
 fn import_waiting(root: &Path) -> Result<bool, String> {
-    let active_project = qnc_active_project_read::ActiveProjectReader::from_root(root)
+    let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
     if import_stopped(&active_project, &snapshot.settings) {
@@ -78,7 +78,7 @@ fn import_waiting(root: &Path) -> Result<bool, String> {
 
 /// Whether the import still has clips to copy (queued or being copied).
 fn import_busy(root: &Path) -> Result<bool, String> {
-    let active_project = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|error| error.to_string())?;
+    let active_project = crate::project(root).map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
     if import_stopped(&active_project, &snapshot.settings) {
         return Ok(false);
@@ -102,7 +102,7 @@ fn import_while(
         }
         let last = !running.load(std::sync::atomic::Ordering::Relaxed);
         if import_waiting(root)? {
-            qnc_ingest_import_worker::run_import(root, run)?;
+            qnc_ingest_import_worker::run_import(root, &crate::project(root)?, run)?;
         }
         if last {
             return Ok(());
@@ -113,7 +113,7 @@ fn import_while(
 
 /// One run under the lease; false when another worker holds it.
 fn run_once(root: &Path) -> Result<bool, String> {
-    let active_project = qnc_active_project_read::ActiveProjectReader::from_root(root)
+    let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
     let started = snapshot.settings.project_id.clone();
@@ -196,14 +196,14 @@ fn run_once(root: &Path) -> Result<bool, String> {
           let mut stuck = stuck_records.lock().expect("stuck records");
           let mut first = first_round.swap(false, std::sync::atomic::Ordering::Relaxed);
           loop {
-            let done = qnc_record_completion::complete_active_project(
-                root,
+            let done = crate::project(root).and_then(|project| qnc_record_completion::complete_project(
+                &project,
                 &make_backend,
                 PROBE_WORKERS,
                 &*player_works,
                 &cancel,
                 Some(lease.write_lease()),
-            );
+            ));
             let mut completed = first;
             match done {
                 Ok(done) => {
@@ -401,7 +401,7 @@ fn make_posters(
         source.local_media_path(uri).ok().flatten()
     };
     let stream_media = |uri: &str| qnc_ingest_select::selection_config::stream_of(&config.sources, uri);
-    let project = match qnc_missing_posters::PosterProject::active(root) {
+    let project = match crate::project(root).and_then(|active| active.read().map(|snapshot| qnc_missing_posters::PosterProject::new(active.settings_reader().clone(), snapshot.settings)).map_err(|e| e.to_string())) {
         Ok(project) => project,
         Err(error) => return eprintln!("posteri nisu napravljeni: {error}"),
     };
@@ -428,7 +428,7 @@ fn run_artifacts(
     completing: &std::sync::atomic::AtomicBool,
     stops: &Stops,
 ) -> Result<(), String> {
-    let active_project = qnc_active_project_read::ActiveProjectReader::from_root(root)
+    let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
     let snapshot = active_project.read().map_err(|error| error.to_string())?;
     let reader = active_project.settings_reader().clone();
@@ -534,13 +534,30 @@ fn run_artifacts(
 const PROBE_WORKERS: usize = 6;
 
 fn root_argument() -> Option<PathBuf> {
+    argument("--root").map(PathBuf::from)
+}
+
+fn argument(name: &str) -> Option<std::ffi::OsString> {
     let mut args = std::env::args_os().skip(1);
     while let Some(arg) = args.next() {
-        if arg == "--root" {
-            return args.next().map(PathBuf::from);
+        if arg == name {
+            return args.next();
         }
     }
     None
+}
+
+/// The project this run works in (user 2026-11-16: "gdje će se rezultati njihova rada snimati
+/// određuju Orkestratori"): the one the orchestrator gives with `--project`; without it, the
+/// project the database names (the active one, or the one pinned for this process).
+pub(crate) fn project(root: &Path) -> Result<qnc_active_project_read::ActiveProjectReader, String> {
+    match argument("--project").and_then(|id| id.into_string().ok()) {
+        Some(id) => {
+            let reader = qnc_work_settings::SettingsReader::from_root(root).map_err(|e| e.to_string())?.with_project(&id);
+            Ok(qnc_active_project_read::ActiveProjectReader::from_settings_reader(reader))
+        }
+        None => qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|e| e.to_string()),
+    }
 }
 
 /// Shot analysis of the clips not analysed yet, by its block (`qnc-shot-analysis`); it waits
@@ -554,8 +571,8 @@ fn make_shots(
 ) {
     let config = &sources_now(root, config);
     let result = (|| {
-        let project = qnc_shot_analysis::ShotProject::active(root)?;
-        let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|e| e.to_string())?;
+        let project = crate::project(root).and_then(|active| active.read().map(|snapshot| qnc_shot_analysis::ShotProject::new(active.settings_reader().clone(), snapshot.settings)).map_err(|e| e.to_string()))?;
+        let active = crate::project(root).map_err(|e| e.to_string())?;
         let snapshot = active.read().map_err(|e| e.to_string())?;
         let target = qnc_content_store::ContentTarget::for_project(active.settings_reader(), &snapshot.settings)?;
         // When the template copies the clips the AI reads the copies, never the card (user

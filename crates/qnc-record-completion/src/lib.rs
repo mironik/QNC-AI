@@ -77,18 +77,16 @@ pub struct Parts<'a> {
     pub copies: HashMap<String, Vec<(String, PathBuf)>>,
 }
 
-/// Completes every camera record of the active project under `root`. `player_works`
+/// Completes every camera record of the project `active` (the one the orchestrator gives). `player_works`
 /// says whether a player prepares or plays; this waits while it does.
-pub fn complete_active_project(
-    root: &Path,
+pub fn complete_project(
+    active: &qnc_active_project_read::ActiveProjectReader,
     make_backend: MakeBackend<'_>,
     workers: usize,
     player_works: &(dyn Fn() -> bool + Sync),
     cancel: &AtomicBool,
     lease: Option<qnc_content_store::WriteLease>,
 ) -> Result<Completion, String> {
-    let active = qnc_active_project_read::ActiveProjectReader::from_root(root)
-        .map_err(|e| e.to_string())?;
     let snapshot = active.read().map_err(|e| e.to_string())?;
     let reader = active.settings_reader();
     let content = ContentTarget::for_project(reader, &snapshot.settings)?;

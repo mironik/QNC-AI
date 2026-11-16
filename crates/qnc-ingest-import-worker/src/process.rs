@@ -73,7 +73,7 @@ pub fn run_service(root: &Path) -> Result<ImportSummary, String> {
             failed: 0,
         });
     };
-    run_import(root, &ImportRun { project_id: &snapshot.settings.project_id, lease: &lease, cancel: lease.lost() })
+    run_import(root, &active_project, &ImportRun { project_id: &snapshot.settings.project_id, lease: &lease, cancel: lease.lost() })
 }
 
 /// The run an import belongs to (external audit 2026-10-17): the project its lease was
@@ -144,8 +144,9 @@ impl ImportQueue for RunQueue<'_, '_> {
 
 /// The import of one Uvezi under the lease the caller holds (the background application
 /// also builds the artifacts under it), for the project the lease was taken for only.
-pub fn run_import(root: &Path, run: &ImportRun<'_>) -> Result<ImportSummary, String> {
-    let active_project = ActiveProjectReader::from_root(root).map_err(|e| e.to_string())?;
+/// `project` is the one the orchestrator gives; `root` only for this computer's settings.
+pub fn run_import(root: &Path, project: &ActiveProjectReader, run: &ImportRun<'_>) -> Result<ImportSummary, String> {
+    let active_project = project;
     let snapshot = active_project.read().map_err(|e| e.to_string())?;
     if snapshot.settings.project_id != run.project_id {
         return Ok(ImportSummary { imported: 0, failed: 0 }); // another project is active now
