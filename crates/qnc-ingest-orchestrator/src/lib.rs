@@ -132,6 +132,35 @@ impl Orchestrator {
             Writes::CardBase => Err(format!("orchestrator {} writes into a card's base: the tray's", self.id)),
         }
     }
+
+    /// The Ingest base a card's ingest writes in (the tray's orchestrator): the base that already
+    /// has clips of this card takes it again (Select adds only what is new), a new base named by
+    /// its camera takes a card no base has; `None` when a base has every clip of it already.
+    /// `originals` are the card's originals, `source_uri` its source.
+    pub fn card_base(&self, root: &Path, source_uri: &str, originals: &[String], camera: &str) -> Result<Option<qnc_ingest_base::IngestBase>, String> {
+        self.only(Writes::CardBase)?;
+        match qnc_ingest_base::known_card(root, source_uri, originals)? {
+            None => qnc_ingest_base::new_base(root, camera).map(Some),
+            // The base Ingest works in now, no story took it: the card back goes on there.
+            Some(known) if known.base.active && known.base.project_name.is_none() => Ok(Some(known.base)),
+            Some(known) if known.new.is_empty() => Ok(None),
+            Some(known) => Ok(Some(known.base)),
+        }
+    }
+
+    /// The Ingest base a folder's ingest writes in (the tray's orchestrator): a new one.
+    pub fn folder_base(&self, root: &Path, name: &str) -> Result<qnc_ingest_base::IngestBase, String> {
+        self.only(Writes::CardBase)?;
+        qnc_ingest_base::new_base(root, name)
+    }
+
+    fn only(&self, writes: Writes) -> Result<(), String> {
+        if self.writes == writes {
+            Ok(())
+        } else {
+            Err(format!("orchestrator {} does not write into a card's base", self.id))
+        }
+    }
 }
 
 #[cfg(test)]

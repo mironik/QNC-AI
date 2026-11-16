@@ -3916,20 +3916,15 @@ dependencies = [
 name = "qnc-ai-tray"
 version = "0.1.0"
 dependencies = [
- "qnc-ai-open",
  "qnc-app-mark",
  "qnc-autoplay-guard",
- "qnc-camera-patterns",
  "qnc-camera-profiles",
- "qnc-card-eject",
- "qnc-card-ingest",
  "qnc-card-watch",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
- "qnc-project-close",
+ "qnc-ingest-orchestrator",
  "qnc-source-volumes",
  "qnc-tray",
- "qnc-wizard-flow",
  "qnc-wizard-text",
  "qnc-work-settings",
 ]

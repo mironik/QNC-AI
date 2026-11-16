@@ -1,9 +1,10 @@
-//! The QNC AI wizard (docs/01-wizard-plan.md). It has no window of its own (user 2026-11-11:
-//! "ne zelim formu vizarda, vizard moze biti sastavni dio traya"): it waits in the tray, one
-//! copy, and looks at the attached disks every two seconds. A card of a camera QNC knows starts a
-//! story; where the story is shows in the tray's menu (a click on the icon) and tooltip, and "Go on"
-//! opens the form of that step. Any other new disk is only a notice. It loads no AI model and
-//! writes nothing itself.
+//! The QNC AI tray (user 2026-11-16: "traj ima samo postavke i automatsko pokretanje ingesta po
+//! poznatim karticama i uvoz iz direktorija, sve drugo više ne treba biti tamo"; the administration
+//! of the bases is an administrator's form, as in real ingests). It waits in the tray, one copy,
+//! and looks at the attached disks every two seconds: a card of a camera QNC knows starts its
+//! ingest window at once. Where a card's or a folder's ingest writes is the tray's orchestrator's
+//! (`qnc-ingest-orchestrator`, chosen in the settings); the order of the steps is the template's.
+//! It loads no AI model and writes nothing itself.
 
 #![windows_subsystem = "windows"]
 
@@ -12,29 +13,14 @@ use std::time::{Duration, Instant};
 use qnc_card_watch::{CardWatch, Found};
 use qnc_dev_diagnostics::{log_line, DiagnosticsStream};
 use qnc_tray::{MenuItem, OneCopy, Tray, TrayEvent};
-use qnc_wizard_flow::{Card, Flow, Status};
 use qnc_wizard_text::{fill, text};
 
 const STATUS: u32 = 1;
-const GO_ON: u32 = 2;
 const QUIT: u32 = 3;
 const SETTINGS: u32 = 4;
-const DELETE_BASE: u32 = 5;
-const PROJECTS: u32 = 6;
-const LAST_PROJECT: u32 = 7;
 const INGEST_FOLDER: u32 = 8;
-/// How often the last project is read again for the menu.
-const LAST_AGAIN: Duration = Duration::from_secs(10);
-/// "Eject" of the n-th card of the story is `EJECT + n`.
-const EJECT: u32 = 100;
-/// "Delete" of the n-th Ingest base is `DELETE_BASE_OF + n` (every base its own line: user
-/// 2026-11-14, the delete took only the active base and the others stayed).
-const DELETE_BASE_OF: u32 = 1000;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
-/// How often what the bases being ingested have done is read (live 2026-11-14: every 2 s took
-/// about a quarter of a core).
-const PROGRESS_AGAIN: Duration = Duration::from_secs(10);
 /// How often a missing camera catalog is read again.
 const CATALOG_AGAIN: Duration = Duration::from_secs(60);
 /// How many looks a card that cannot be read yet gets (a card waking up).
@@ -44,40 +30,17 @@ fn log(line: String) {
     log_line(DiagnosticsStream::Player, format!("ai-tray {line}"));
 }
 
-/// The menu for where the story is: the status line (it only tells), "Eject" for each card, Go on, Quit.
-fn menu(status: Option<&Status>, last: Option<&str>, bases: &[String], sources: &[String]) -> Vec<MenuItem> {
-    let line = status.map_or_else(|| text("tray.waiting"), Status::line);
-    let mut items = vec![MenuItem { id: STATUS, text: line, enabled: false }];
-    // Where it imports from when a folder was picked (user 2026-11-14): lines that only tell.
-    items.extend(sources.iter().map(|source| MenuItem { id: STATUS, text: fill("tray.source", &[("source", source)]), enabled: false }));
-    if let Some(status) = status {
-        // A card taken out is only a line (it cannot be ejected); a card in can be ejected.
-        items.extend(status.cards.iter().zip(&status.cards_out).enumerate().map(|(index, (card, out))| match out {
-            true => MenuItem { id: STATUS, text: format!("    {card}"), enabled: false },
-            false => MenuItem { id: EJECT + index as u32, text: fill("tray.eject", &[("card", card)]), enabled: true },
-        }));
-        items.push(MenuItem { id: GO_ON, text: fill("tray.continue", &[("step", &status.name)]), enabled: true });
-    }
-    // The project worked on last, and the user's projects, to go on with one that was closed
-    // (user 2026-11-12).
-    if let Some(name) = last {
-        items.push(MenuItem { id: LAST_PROJECT, text: fill("tray.last_project", &[("name", name)]), enabled: true });
-    }
-    items.push(MenuItem { id: PROJECTS, text: text("tray.projects"), enabled: true });
-    // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's browser
-    // (user 2026-11-13: "otvaranje izbornika direktorija, ako izvor nije kartica").
-    items.push(MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true });
-    // Settings are rarely used and apart from the wizard (user 2026-11-11).
-    items.push(MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true });
-    // The Ingest base and its folder, after a question (user 2026-11-12); greyed when there is no
-    // base (user 2026-11-13).
-    // Each base its own line (user 2026-11-14); none: one grey line.
-    if bases.is_empty() {
-        items.push(MenuItem { id: DELETE_BASE, text: text("tray.delete_base"), enabled: false });
-    }
-    items.extend(bases.iter().enumerate().map(|(index, base)| MenuItem { id: DELETE_BASE_OF + index as u32, text: fill("tray.delete_base_of", &[("base", base)]), enabled: true }));
-    items.push(MenuItem { id: QUIT, text: text("tray.quit"), enabled: true });
-    items
+/// The menu: what runs (a line that only tells), Import from a folder, Settings, Quit.
+fn menu(running: usize) -> Vec<MenuItem> {
+    let line = if running == 0 { text("tray.waiting") } else { fill("tray.ingesting", &[("count", &running.to_string())]) };
+    vec![
+        MenuItem { id: STATUS, text: line, enabled: false },
+        // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
+        // browser (user 2026-11-13).
+        MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true },
+        MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true },
+        MenuItem { id: QUIT, text: text("tray.quit"), enabled: true },
+    ]
 }
 
 fn main() {
@@ -94,7 +57,7 @@ fn main() {
         }
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(None, None, &[], &[]), Some(qnc_app_mark::qnc_mark)) {
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(0), Some(qnc_app_mark::qnc_mark)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -103,7 +66,7 @@ fn main() {
     };
     log("started".into());
     // A card of a camera the tray knows: the system does not open File Explorer for it, the
-    // tray's import opens (user 2026-11-14). Any other disk: AutoPlay as the user set it.
+    // tray's ingest opens (user 2026-11-14). Any other disk: AutoPlay as the user set it.
     let _autoplay = {
         let root = root.clone();
         qnc_autoplay_guard::guard(Box::new(move |disk, serial| {
@@ -118,286 +81,35 @@ fn main() {
     // The camera profiles, to name a card's camera by its model.
     let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));
-    let mut flow = Flow::new(root.clone());
     let mut ingest = Windows::default();
-    let mut shown: Option<String> = None;
+    let mut shown: Option<usize> = None;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
     let mut watch = CardWatch::new();
     let mut tries: std::collections::BTreeMap<String, u32> = Default::default();
     let mut looked: Option<Instant> = None;
-    // A card is ejected on its own thread (the lock may wait); its answer comes back here.
-    let ejected = std::sync::mpsc::channel::<(Card, Result<(), qnc_card_eject::EjectError>)>();
-    // A base being asked about, and the bases deleted (their label and the result).
-    let mut deleting: Option<(qnc_ingest_base::IngestBase, std::sync::mpsc::Receiver<bool>)> = None;
-    let deleted = std::sync::mpsc::channel::<(String, Result<(), String>)>();
-    // A base is being deleted: no card opens the ingest meanwhile.
-    let mut removing = false;
-    // Quit was chosen while a base is deleted: the tray ends once the delete is done (live
-    // 2026-11-13: Quit 8 s into a delete left the base; the card was then "already imported").
-    let mut quitting = false;
-    // A card a base already has, with new clips: the question where they go (user 2026-11-12).
-    // With the card's volume serial and camera.
-    let mut known: Option<(qnc_ingest_base::KnownCard, std::sync::mpsc::Receiver<qnc_tray::Answer>, String, String)> = None;
-    // A card already in a base, nothing new: "open your projects?" (user 2026-11-12).
-    let mut offer: Option<std::sync::mpsc::Receiver<bool>> = None;
-    // The project worked on last (id, name), read again now and then for the menu.
-    let mut last: Option<(String, String)> = None;
-    let mut last_read: Option<Instant> = None;
-    // Whether there is an Ingest base to delete, read with the last project.
-    let mut bases: Vec<qnc_ingest_base::IngestBase> = Vec::new();
-    // The folders the base Ingest works in takes (user 2026-11-14), read every few seconds.
-    let mut sources: Vec<String> = Vec::new();
-    let mut sources_read: Option<Instant> = None;
-    // One question for every base being ingested whether QNC is started (user 2026-11-14): what is
-    // done is read on a thread of its own every few seconds; the question waits for its answer.
-    let mut start_ask = qnc_card_ingest::StartAsk::new();
-    let mut asking: Option<(qnc_card_ingest::Ask, std::sync::mpsc::Receiver<bool>)> = None;
-    let progress_news = std::sync::mpsc::channel::<Vec<(String, qnc_card_ingest::Progress)>>();
-    let mut reading_progress = false;
-    let mut progress_read: Option<Instant> = None;
-    let mut last_progress: Vec<(String, qnc_card_ingest::Progress)> = Vec::new();
     loop {
-        flow.poll();
-        let status = flow.status();
-        if sources_read.is_none_or(|at| at.elapsed() >= LOOK) {
-            sources_read = Some(Instant::now());
-            sources = qnc_ingest_base::active_sources(&root).unwrap_or_default();
-        }
-        if last_read.is_none_or(|at| at.elapsed() >= LAST_AGAIN) {
-            last_read = Some(Instant::now());
-            last = qnc_ingest_base::last_story(&root, "").unwrap_or_else(|error| {
-                log(format!("last project not read: {error}"));
-                None
-            });
-            // Not read is not greyed: the delete then says why.
-            // Bases not read keep the ones read before.
-            match qnc_ingest_base::all(&root) {
-                Ok(read) => bases = read,
-                Err(error) => log(format!("bases not read: {error}")),
-            }
-        }
-        // What the bases being ingested have done, read on a thread (it reads their databases).
-        if !reading_progress && !ingest.ingesting.is_empty() && progress_read.is_none_or(|at| at.elapsed() >= PROGRESS_AGAIN) {
-            progress_read = Some(Instant::now());
-            reading_progress = true;
-            let (root, ids, send) = (root.clone(), ingest.ingesting.clone(), progress_news.0.clone());
-            std::thread::spawn(move || {
-                let read = ids.into_iter().filter_map(|id| qnc_card_ingest::progress_of(&root, &id).ok().map(|progress| (id, progress))).collect();
-                let _ = send.send(read);
-            });
-        }
-        while let Ok(read) = progress_news.1.try_recv() {
-            reading_progress = false;
-            last_progress = read;
-            if asking.is_none() && !removing {
-                if let Some(ask) = start_ask.next(&last_progress) {
-                    let question = start_question(ask, &last_progress, &bases);
-                    log(format!("qnc asked {ask:?}"));
-                    asking = Some((ask, tray.confirm(&text("tray.title"), &question)));
-                }
-            }
-        }
-        if let Some((ask, answer)) = &asking {
-            if let Ok(start) = answer.try_recv() {
-                log(format!("qnc asked {ask:?} answered start={start}"));
-                start_ask.answered(start);
-                if start {
-                    match qnc_ai_open::open(&root, "qnc-ingest") {
-                        Ok(program) => log(format!("qnc opened {}", program.display())),
-                        Err(error) => {
-                            log(format!("qnc not opened: {error}"));
-                            tray.alert("qnc", &text("tray.title"), &fill("tray.qnc_failed", &[("error", &error)]), &text("tray.ok"));
-                        }
-                    }
-                }
-                // Done bases leave once their question is over: the next card starts a new round.
-                if start || *ask == qnc_card_ingest::Ask::AllDone {
-                    let done: Vec<&String> = last_progress.iter().filter(|(_, progress)| progress.complete()).map(|(id, _)| id).collect();
-                    ingest.ingesting.retain(|id| !done.contains(&id));
-                }
-                asking = None;
-            }
-        }
-        // Without a card and without a project there is no story yet: the tray waits.
-        let story = (!flow.cards().is_empty() || status.project.is_some()).then_some(&status);
-        let line = story.map_or_else(|| text("tray.waiting"), |status| format!("{} {}", status.line(), status.cards.join(", ")));
-        let last_name = last.as_ref().map(|(_, name)| name.as_str());
-        let base_labels: Vec<String> = bases.iter().map(|base| base.shown()).collect();
-        let key = format!("{line}|{}|{}|{}", last_name.unwrap_or(""), base_labels.join("|"), sources.join("|"));
-        if shown.as_ref() != Some(&key) {
-            tray.set_menu(menu(story, last_name, &base_labels, &sources));
-            let from = sources.iter().map(|source| format!("\n{}", fill("tray.source", &[("source", source)]))).collect::<String>();
-            tray.set_tip(&format!("{}: {line}{from}", text("tray.title")));
-            shown = Some(key);
+        let running = ingest.running();
+        if shown != Some(running) {
+            tray.set_menu(menu(running));
+            let line = if running == 0 { text("tray.waiting") } else { fill("tray.ingesting", &[("count", &running.to_string())]) };
+            tray.set_tip(&format!("{}: {line}", text("tray.title")));
+            shown = Some(running);
         }
         while let Some(event) = tray.try_event() {
             match event {
-                TrayEvent::Menu(QUIT) if removing => {
-                    log("quit: waits for the base being deleted".into());
-                    tray.notify(&text("tray.title"), &text("tray.quit_after_delete"));
-                    quitting = true;
-                }
                 TrayEvent::Menu(QUIT) => {
                     log("quit".into());
                     return;
                 }
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
-                TrayEvent::Menu(PROJECTS) => open_projects(&tray, &root),
-                TrayEvent::Menu(LAST_PROJECT) => {
-                    if let Some((id, name)) = last.clone() {
-                        open_last(&tray, &root, &id, &name);
-                    }
-                }
-                // The base the user picked from the list (user 2026-11-14: every base its own line).
-                TrayEvent::Menu(id) if id >= DELETE_BASE_OF => match bases.get((id - DELETE_BASE_OF) as usize).cloned() {
-                    _ if deleting.is_some() || removing => {
-                        tray.notify(&text("tray.title"), &text("tray.delete_base_busy"));
-                    }
-                    Some(base) => match qnc_ingest_base::may_delete(&root, &base.id) {
-                        Ok(()) => {
-                            let ask = fill("tray.delete_base_ask", &[("base", &base.shown())]);
-                            log(format!("delete base asked {}", base.label()));
-                            deleting = Some((base, tray.confirm(&text("tray.title"), &ask)));
-                        }
-                        // The base is public: only who made it, or the administrator, deletes it
-                        // (user 2026-11-12).
-                        Err(refusal) => {
-                            log(format!("base not deleted {}: {refusal:?}", base.label()));
-                            let why = match refusal {
-                                qnc_ingest_base::Refusal::NotOwner { user, computer } => fill("tray.delete_base_not_owner", &[("base", base.label()), ("user", &user), ("computer", &computer)]),
-                                qnc_ingest_base::Refusal::NoOwner => fill("tray.delete_base_no_owner", &[("base", base.label())]),
-                                qnc_ingest_base::Refusal::Unread(error) => fill("tray.base_delete_failed", &[("base", base.label()), ("error", &error)]),
-                            };
-                            tray.alert("delete-base", &text("tray.title"), &why, &text("tray.ok"));
-                        }
-                    },
-                    None => {
-                        log("delete base: there is none".into());
-                        tray.info("delete-base", &text("tray.title"), &text("tray.delete_base_none"), &text("tray.ok"), Duration::from_secs(5));
-                    }
+                // A folder goes where the tray's orchestrator says, with its own window.
+                TrayEvent::Menu(INGEST_FOLDER) => match orchestrator(&tray, &root).map(|orchestrator| orchestrator.folder_base(&root, &text("tray.folder_base"))) {
+                    Some(Ok(base)) => open_window(&tray, &root, &mut ingest, base, None, true),
+                    Some(Err(error)) => fail(&tray, error),
+                    None => {}
                 },
-                // The form of the step: the card step is the import form; the forms of the steps
-                // after it come with W3 on (docs/01-wizard-plan.md).
-                TrayEvent::Menu(GO_ON) if status.code == qnc_wizard_flow::CARD_STEP => open_ingest(&tray, &root, &mut ingest, qnc_ingest_base::current, None),
-                // A folder goes into a base of its own, with its own window (user 2026-11-14).
-                TrayEvent::Menu(INGEST_FOLDER) => open_ingest_of(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_base(root, &text("tray.folder_base")), None, true),
-                TrayEvent::Menu(GO_ON) => tray.notify(&text("tray.title"), &fill("tray.no_form", &[("step", &status.name)])),
-                TrayEvent::Menu(id) if id >= EJECT => {
-                    if let Some(card) = flow.cards().get((id - EJECT) as usize).filter(|card| !card.out) {
-                        let card = card.clone();
-                        log(format!("eject disk={} serial={}", card.disk.display(), card.serial));
-                        let answer = ejected.0.clone();
-                        std::thread::spawn(move || {
-                            let result = qnc_card_eject::eject(&card.disk);
-                            let _ = answer.send((card, result));
-                        });
-                    }
-                }
                 TrayEvent::Menu(_) => {}
-            }
-        }
-        // The answer to "delete the base?": the ingest of it stops first (its window and worker
-        // let the base go), then the base and its folder are deleted on a thread of their own.
-        if let Some((base, answer)) = &deleting {
-            if let Ok(yes) = answer.try_recv() {
-                log(format!("delete base answered {}: {yes}", base.label()));
-                if yes {
-                    // Its window ends; its worker ends once the base says it closes.
-                    ingest.end_base(&base.id);
-                    if let Err(error) = qnc_ingest_base::mark_closing(&root, &base.id) {
-                        log(format!("base not marked closing {}: {error}", base.label()));
-                    }
-                    removing = true;
-                    // It can take some seconds (the worker ends its step first): the user is told.
-                    tray.notify(&text("tray.title"), &fill("tray.base_deleting", &[("base", base.label())]));
-                    let (root, base, send) = (root.clone(), base.clone(), deleted.0.clone());
-                    std::thread::spawn(move || {
-                        // The base is closed as the active project first: its worker stops within
-                        // a second once its base is no longer active and lets the database go
-                        // (live 2026-11-12: "the process cannot access the file").
-                        if base.active {
-                            if let Err(error) = qnc_project_close::CloseProjectComponent::from_root(&root).close_active_project() {
-                                log(format!("base not closed {}: {error}", base.label()));
-                            }
-                        }
-                        let mut result = Err(String::new());
-                        // A worker in the middle of an AI step ends it first (seconds).
-                        for _ in 0..60 {
-                            result = qnc_ingest_base::forget(&root, &base.id);
-                            if result.is_ok() {
-                                break;
-                            }
-                            std::thread::sleep(Duration::from_secs(1));
-                        }
-                        let _ = send.send((base.label().to_string(), result));
-                    });
-                }
-                deleting = None;
-            }
-        }
-        while let Ok((label, result)) = deleted.1.try_recv() {
-            removing = false;
-            // The menu says at once whether a base is left to delete.
-            last_read = None;
-            match result {
-                Ok(()) => {
-                    log(format!("base deleted {label}"));
-                    // An overlay in the middle of the screen that closes itself (user 2026-11-12).
-                    tray.info("base-deleted", &text("tray.title"), &fill("tray.base_deleted", &[("base", &label)]), &text("tray.ok"), Duration::from_secs(5));
-                }
-                Err(error) => {
-                    log(format!("base not deleted {label}: {error}"));
-                    tray.alert("delete-base", &text("tray.title"), &fill("tray.base_delete_failed", &[("base", &label), ("error", &error)]), &text("tray.ok"));
-                }
-            }
-        }
-        if quitting && !removing {
-            log("quit".into());
-            return;
-        }
-        // Nothing new on the card: the user's projects, to go on with one of them.
-        if let Some(yes) = offer.as_ref().and_then(|answer| answer.try_recv().ok()) {
-            offer = None;
-            log(format!("card known, projects offered: {yes}"));
-            if yes {
-                open_projects(&tray, &root);
-            }
-        }
-        // Where the new clips of a card a base has go: into that base, or into a new base that
-        // takes only them; what the base has is never imported again.
-        if let Some(answer) = known.as_ref().and_then(|(_, answer, _, _)| answer.try_recv().ok()) {
-            let (card_known, _, serial, camera) = known.take().expect("asked");
-            log(format!("card known answered base={}: {answer:?}", card_known.base.label()));
-            match answer {
-                qnc_tray::Answer::Yes => {
-                    let id = card_known.base.id.clone();
-                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::by_id(root, &id), Some(&serial));
-                }
-                qnc_tray::Answer::No => {
-                    let from = card_known.base.clone();
-                    open_ingest(&tray, &root, &mut ingest, |root| qnc_ingest_base::new_with_only_new(root, &from, &camera), Some(&serial));
-                }
-                qnc_tray::Answer::Cancel => {}
-            }
-        }
-        while let Ok((card, result)) = ejected.1.try_recv() {
-            let name = card.name_with_camera();
-            match result {
-                Ok(()) => {
-                    // Ejected on purpose: it leaves the story before its disk is gone, so no "put it back".
-                    flow.remove_card(&card.serial);
-                    log(format!("ejected disk={}", card.disk.display()));
-                    tray.notify(&text("tray.title"), &fill("tray.ejected", &[("card", &name)]));
-                }
-                Err(qnc_card_eject::EjectError::InUse) => {
-                    log(format!("eject refused disk={}: in use", card.disk.display()));
-                    tray.alert(&format!("eject:{}", card.serial), &text("tray.title"), &fill("tray.eject_in_use", &[("card", &name)]), &text("tray.ok"));
-                }
-                Err(error) => {
-                    log(format!("eject failed disk={}: {error}", card.disk.display()));
-                    tray.alert(&format!("eject:{}", card.serial), &text("tray.title"), &fill("tray.eject_failed", &[("card", &name), ("error", &error.to_string())]), &text("tray.ok"));
-                }
             }
         }
         if catalog.is_none() && catalog_read.is_none_or(|at| at.elapsed() >= CATALOG_AGAIN) {
@@ -412,7 +124,7 @@ fn main() {
         }
         if let Some(catalog) = &catalog {
             if looked.is_none_or(|at| at.elapsed() >= LOOK) {
-                // The first look takes the disks in as new: a card starts its story, the rest only logs.
+                // The first look takes the disks in as new: a card starts its ingest, the rest only logs.
                 let first = looked.is_none();
                 looked = Some(Instant::now());
                 for found in watch.look(catalog) {
@@ -420,60 +132,26 @@ fn main() {
                         Found::Card { volume, cameras, patterns } => {
                             let disk = volume.root.display().to_string();
                             // The model the camera profiles recognise ("Sony ILME-FX3A"), else the
-                            // camera families of the catalog (user 2026-11-13: numbers alone say little).
-                            let cameras = match qnc_card_watch::camera_of(catalog, &profiles, &volume) {
-                                Some(model) => vec![model],
-                                None => cameras,
-                            };
-                            log(format!("card disk={disk} serial={} camera={} patterns={patterns:?}", volume.serial_number, cameras.join(", ")));
-                            let card = Card { disk: volume.root.clone(), serial: volume.serial_number.clone(), label: volume.volume_name.clone(), cameras: cameras.clone(), out: false };
-                            let name = card.name();
-                            let named = card.name_with_camera();
-                            // The card is in: its "put the card back" is done, whatever happened before.
-                            tray.close_alert(&format!("put-back:{}", volume.serial_number));
-                            if flow.add_card(card) {
-                                log(format!("card back disk={disk}"));
-                                tray.notify(&text("tray.title"), &fill("tray.card_back", &[("card", &named)]));
-                            } else {
-                                let next = flow.status().name;
-                                tray.notify(&text("tray.title"), &fill("tray.card", &[("card", &name), ("camera", &cameras.join(", ")), ("step", &next)]));
+                            // camera families of the catalog (user 2026-11-13).
+                            let camera = qnc_card_watch::camera_of(catalog, &profiles, &volume).unwrap_or_else(|| cameras.join(", "));
+                            log(format!("card disk={disk} serial={} camera={camera} patterns={patterns:?}", volume.serial_number));
+                            if ingest.runs_card(&volume.serial_number) {
+                                continue; // its window takes the card back
                             }
-                            // The ingest of the card, started when it does not run: a card back
-                            // is Selected again, so a clip whose import failed while it was out
-                            // goes back to the queue (user 2026-11-12).
-                            // Not while a base is deleted: it would be made again at once.
-                            // A card a base already has is not imported again (user 2026-11-12):
-                            // nothing new is said; new clips are asked about.
-                            // Each card goes into a base of its own, named by its camera, with its own
-                            // window and worker (user 2026-11-14); a card back whose window runs is
-                            // taken by that window.
-                            let camera = cameras.join(", ");
-                            let serial = volume.serial_number.clone();
-                            let new_base = |root: &std::path::Path| qnc_ingest_base::new_base(root, &camera);
-                            if !removing && known.is_none() && !ingest.runs_card(&serial) {
-                                match card_check(&root, catalog, &volume) {
-                                    Ok(None) => open_ingest(&tray, &root, &mut ingest, new_base, Some(&serial)),
-                                    Ok(Some(card_known)) if card_known.new.is_empty() => {
-                                        log(format!("card known disk={disk} base={} had={}", card_known.base.label(), card_known.had));
-                                        // All of it imported: taken out, it is not asked back.
-                                        ingest.cards.push((card_known.base.id.clone(), serial.clone()));
-                                        let said = fill("tray.card_known", &[("card", &named), ("base", card_known.base.label()), ("had", &card_known.had.to_string())]);
-                                        if offer.is_none() {
-                                            offer = Some(tray.confirm(&text("tray.title"), &said));
-                                        }
-                                    }
-                                    Ok(Some(card_known)) => {
-                                        log(format!("card known disk={disk} base={} had={} new={}", card_known.base.label(), card_known.had, card_known.new.len()));
-                                        let base = card_known.base.label().to_string();
-                                        let ask = fill("tray.card_known_ask", &[("card", &named), ("base", &base), ("had", &card_known.had.to_string()), ("new", &card_known.new.len().to_string())]);
-                                        known = Some((card_known, tray.ask(&text("tray.title"), &ask), serial.clone(), camera.clone()));
-                                    }
-                                    Err(error) => {
-                                        // Not known for sure: a base of its own (Select reconciles).
-                                        log(format!("card check failed disk={disk}: {error}"));
-                                        open_ingest(&tray, &root, &mut ingest, new_base, Some(&serial));
-                                    }
+                            let card = volume.volume_name.clone().unwrap_or_else(|| disk.clone());
+                            let Some(orchestrator) = orchestrator(&tray, &root) else { continue };
+                            let base = qnc_card_watch::card_originals(catalog, &volume)
+                                .and_then(|originals| orchestrator.card_base(&root, &volume.source_uri(), &originals, &camera));
+                            match base {
+                                Ok(Some(base)) => {
+                                    tray.notify(&text("tray.title"), &fill("tray.card_ingest", &[("card", &card), ("camera", &camera), ("base", base.label())]));
+                                    open_window(&tray, &root, &mut ingest, base, Some(&volume.serial_number), false);
                                 }
+                                Ok(None) => {
+                                    log(format!("card disk={disk}: every clip is in a base already"));
+                                    tray.notify(&text("tray.title"), &fill("tray.card_done", &[("card", &card)]));
+                                }
+                                Err(error) => fail(&tray, error),
                             }
                         }
                         Found::Unknown { volume } => {
@@ -494,21 +172,7 @@ fn main() {
                                 tray.notify(&text("tray.title"), &fill("tray.unreadable", &[("disk", &disk), ("error", &error)]));
                             }
                         }
-                        Found::Gone { volume } => {
-                            let disk = volume.root.display().to_string();
-                            log(format!("gone disk={disk} serial={}", volume.serial_number));
-                            // A card of the story taken out without ejecting it: the story still uses it.
-                            // A card whose clips are all imported is not needed any more: no word
-                            // about putting it back (user 2026-11-14); put in again, it is looked at
-                            // for new clips.
-                            let imported = ingest.card_imported(&volume.serial_number, &last_progress);
-                            if imported {
-                                log(format!("card out disk={disk}: its clips are imported"));
-                            }
-                            if let Some(card) = flow.card_out(&volume.serial_number).filter(|_| !imported) {
-                                tray.alert(&format!("put-back:{}", card.serial), &text("tray.title"), &fill("tray.put_back", &[("card", &card.name_with_camera())]), &text("tray.ok"));
-                            }
-                        }
+                        Found::Gone { volume } => log(format!("gone disk={} serial={}", volume.root.display(), volume.serial_number)),
                     }
                 }
             }
@@ -517,31 +181,39 @@ fn main() {
     }
 }
 
-/// The background ingest of the cards into the global Ingest base (user 2026-11-12), beside this
-/// program, started when the one this tray started does not run any more; its window says it runs
-/// and, when it is done, starts QNC (the Ingest form). Its helper programs (player, worker,
-/// decoders) are console programs: they share one hidden console, so no window flashes.
-fn open_ingest(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, card: Option<&str>) {
-    open_ingest_of(tray, root, ingest, base, card, false);
+/// The orchestrator chosen for the tray on this computer; not chosen is told, nothing is ingested.
+fn orchestrator(tray: &Tray, root: &std::path::Path) -> Option<qnc_ingest_orchestrator::Orchestrator> {
+    match qnc_ingest_orchestrator::chosen(root, qnc_ingest_orchestrator::TRAY) {
+        Ok(orchestrator) => Some(orchestrator),
+        Err(error) => {
+            log(format!("no orchestrator: {error}"));
+            tray.alert("orchestrator", &text("tray.title"), &fill("tray.no_orchestrator", &[("error", &error)]), &text("tray.ok"));
+            None
+        }
+    }
+}
+
+fn fail(tray: &Tray, error: String) {
+    log(format!("ingest failed: {error}"));
+    tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));
 }
 
 /// The ingest windows this tray started: one per base, each with the card it ingests (user
-/// 2026-11-14: "različite kartice se trebaju uvoziti u svoje baze"; each base its own window and
-/// background worker, at the same time).
+/// 2026-11-14: each base its own window and background worker, at the same time).
 #[derive(Default)]
 struct Windows {
     open: Vec<(String, Option<String>, std::process::Child)>,
-    /// The bases ingested since the tray asked about QNC last: their window may be closed, their
-    /// worker goes on (user 2026-11-14: one question for all, not a button per window).
-    ingesting: Vec<String>,
-    /// The base of each card opened (base id, volume serial).
-    cards: Vec<(String, String)>,
 }
 
 impl Windows {
     /// The windows that ended are let go.
     fn prune(&mut self) {
         self.open.retain_mut(|(_, _, child)| matches!(child.try_wait(), Ok(None)));
+    }
+
+    fn running(&mut self) -> usize {
+        self.prune();
+        self.open.len()
     }
 
     /// Whether a window ingests the card of volume serial `serial`.
@@ -555,66 +227,13 @@ impl Windows {
         self.prune();
         self.open.iter().any(|(base, _, _)| base == id)
     }
-
-    /// Whether the clips of the card `serial` are all imported: its base finished its round (left
-    /// `ingesting` once done), or what was read last says so.
-    fn card_imported(&self, serial: &str, read: &[(String, qnc_card_ingest::Progress)]) -> bool {
-        let bases: Vec<&String> = self.cards.iter().filter(|(_, card)| card.eq_ignore_ascii_case(serial)).map(|(base, _)| base).collect();
-        !bases.is_empty()
-            && bases.iter().all(|base| {
-                !self.ingesting.contains(base) || read.iter().any(|(id, progress)| id == *base && progress.clips > 0 && progress.imported >= progress.clips)
-            })
-    }
-
-    /// Ends the window of the base `id` (its base is deleted).
-    fn end_base(&mut self, id: &str) {
-        for (_, _, child) in self.open.iter_mut().filter(|(base, _, _)| base == id) {
-            let _ = child.kill();
-        }
-        self.ingesting.retain(|base| base != id);
-        self.prune();
-    }
 }
 
-/// The question whether QNC is started: what each base has imported, what is ready for editing and
-/// what is still being done (user 2026-11-14).
-fn start_question(ask: qnc_card_ingest::Ask, read: &[(String, qnc_card_ingest::Progress)], bases: &[qnc_ingest_base::IngestBase]) -> String {
-    let line = |id: &str, progress: &qnc_card_ingest::Progress| {
-        let base = bases.iter().find(|base| base.id == id).map_or(id, |base| base.label());
-        let key = match () {
-            _ if progress.complete() => "tray.qnc_line_done",
-            _ if progress.ready_for_qnc() => "tray.qnc_line_ready",
-            _ => "tray.qnc_line_working",
-        };
-        fill(key, &[("base", base), ("imported", &progress.imported.to_string()), ("clips", &progress.clips.to_string())])
-    };
-    let lines = read.iter().map(|(id, progress)| line(id, progress)).collect::<Vec<_>>().join("\n");
-    match ask {
-        qnc_card_ingest::Ask::Ready => fill("tray.qnc_ask_ready", &[("lines", &lines)]),
-        qnc_card_ingest::Ask::AllDone => fill("tray.qnc_ask_done", &[("lines", &lines)]),
-    }
-}
-
-/// As `open_ingest`; with `folder` its window first shows Ingest's browser, the user picks the
-/// folder to import (a source that is no card), and the cards attached are left alone. `card`:
-/// the one card the window ingests. Each window works in its own base (`QNC_WORK_PROJECT`).
-fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: impl FnOnce(&std::path::Path) -> Result<qnc_ingest_base::IngestBase, String>, card: Option<&str>, folder: bool) {
-    if card.is_some_and(|card| ingest.runs_card(card)) {
-        return;
-    }
-    // The base the window works in (a new one for a new card or folder, the one a card is in, or a
-    // new one that takes only the new clips).
-    let base = match base(root) {
-        Ok(base) => {
-            log(format!("ingest base {} {} card={card:?} folder={folder}", base.name, base.uri));
-            base
-        }
-        Err(error) => {
-            log(format!("ingest base failed: {error}"));
-            tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error)]), &text("tray.ok"));
-            return;
-        }
-    };
+/// The ingest window of a base (beside this program), pinned to the base the orchestrator gave
+/// (`QNC_WORK_PROJECT`); with `folder` it first shows Ingest's browser. `card`: the one card it
+/// ingests. Its helper programs share one hidden console.
+fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: qnc_ingest_base::IngestBase, card: Option<&str>, folder: bool) {
+    log(format!("ingest base {} {} card={card:?} folder={folder}", base.name, base.uri));
     if ingest.runs_base(&base.id) {
         return;
     }
@@ -631,8 +250,7 @@ fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, bas
         command.arg("--card").arg(card);
     }
     // Where it opens: after the windows open now, not behind them (user 2026-11-14).
-    ingest.prune();
-    command.arg("--place").arg(ingest.open.len().to_string());
+    command.arg("--place").arg(ingest.running().to_string());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -642,55 +260,9 @@ fn open_ingest_of(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, bas
         Ok(child) => {
             log(format!("ingest opened {} base={}", program.display(), base.id));
             ingest.open.push((base.id.clone(), card.map(str::to_string), child));
-            if !ingest.ingesting.contains(&base.id) {
-                ingest.ingesting.push(base.id.clone());
-            }
-            if let Some(card) = card {
-                ingest.cards.push((base.id.clone(), card.to_string()));
-            }
         }
-        Err(error) => {
-            log(format!("ingest failed {}: {error}", program.display()));
-            tray.alert("ingest", &text("tray.title"), &fill("tray.ingest_failed", &[("error", &error.to_string())]), &text("tray.ok"));
-        }
+        Err(error) => fail(tray, error.to_string()),
     }
-}
-
-/// The Projects form, beside this program (it keeps one copy itself): the user's projects.
-fn open_projects(tray: &Tray, root: &std::path::Path) {
-    match qnc_ai_open::open(root, "qnc-ai-projects") {
-        Ok(program) => log(format!("projects opened {}", program.display())),
-        Err(error) => {
-            log(format!("projects failed: {error}"));
-            tray.alert("projects", &text("tray.title"), &fill("tray.projects_failed", &[("error", &error)]), &text("tray.ok"));
-        }
-    }
-}
-
-/// The project worked on last goes on: its newest base is made the one Ingest works in and AI
-/// Media Assist opens, as after Uvezi.
-fn open_last(tray: &Tray, root: &std::path::Path, id: &str, name: &str) {
-    let opened = qnc_ingest_base::open_story(root, id).and_then(|_| qnc_ai_open::open(root, "qnc-media-assist-audio-ai"));
-    match opened {
-        Ok(program) => log(format!("last project {name} opened in {}", program.display())),
-        Err(error) => {
-            log(format!("last project {name} not opened: {error}"));
-            tray.alert("last-project", &text("tray.title"), &fill("tray.last_project_failed", &[("name", name), ("error", &error)]), &text("tray.ok"));
-        }
-    }
-}
-
-
-/// The base that already has the card at `volume` and what is new on it (user 2026-11-12: the
-/// camera operator did not erase the card before the next shoot). `None` when no base has its
-/// clips, or the base Ingest works in now has them and no story took it (a card back goes on).
-fn card_check(root: &std::path::Path, catalog: &qnc_camera_patterns::Catalog, volume: &qnc_source_volumes::Volume) -> Result<Option<qnc_ingest_base::KnownCard>, String> {
-    let card = qnc_card_watch::card_originals(catalog, volume)?;
-    let Some(known) = qnc_ingest_base::known_card(root, &volume.source_uri(), &card)? else { return Ok(None) };
-    if known.base.active && known.base.project_name.is_none() {
-        return Ok(None);
-    }
-    Ok(Some(known))
 }
 
 /// The Settings form, beside this program (it keeps one copy itself).
