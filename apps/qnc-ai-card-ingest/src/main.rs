@@ -207,7 +207,10 @@ impl eframe::App for Window {
         }
         // One left edge for everything, the work and the base each a card of its own (user
         // 2026-11-16: "jedan dio forme ima lijevo poravnanje, jedan izvan; panelu daj premium izgled").
+        // The body scrolls inside the window's margin, so nothing runs past the bottom or the right
+        // edge (user 2026-11-16: "donja margina forme ne postoji").
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(24.0)).show(ctx, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
                 Phase::Waiting | Phase::Choosing => text("card_ingest.waiting"),
@@ -271,6 +274,7 @@ impl eframe::App for Window {
             }
             // No "Start QNC" here: the tray asks once for every base being ingested (user
             // 2026-11-14). Closing this window does not stop the work (the worker is its own program).
+            });
         });
         ctx.request_repaint_after(std::time::Duration::from_millis(200));
     }

@@ -29,12 +29,16 @@ pub fn bars(ui: &mut egui::Ui, progress: &Progress, ink: Color32, time_of: &dyn 
     let (muted, track, done_fill) = (ui.visuals().weak_text_color(), ui.visuals().extreme_bg_color, ui.visuals().selection.bg_fill);
     let font = egui::TextStyle::Body.resolve(ui.style());
     let width = ui.available_width();
+    // The X column is there only while some function runs; otherwise the time ends at the right
+    // edge (user 2026-11-16: "donje i desne margine").
+    let running = |bar: &Bar| !bar.stopped && bar.done < progress.clips;
+    let any_running = progress.bars().iter().any(running);
     for bar in progress.bars() {
         let (row, _) = ui.allocate_exact_size(egui::vec2(width, ROW), egui::Sense::hover());
         let painter = ui.painter_at(row);
         let mid = row.center().y;
         let x_rect = egui::Rect::from_center_size(egui::pos2(row.right() - X / 2.0, mid), egui::vec2(X, X));
-        let time_right = x_rect.left() - GAP;
+        let time_right = if any_running { x_rect.left() - GAP } else { row.right() };
         let count_right = time_right - TIME - GAP;
         let bar_left = row.left() + NAME + GAP;
         let bar_right = (count_right - COUNT - GAP).max(bar_left + 40.0);
@@ -55,7 +59,7 @@ pub fn bars(ui: &mut egui::Ui, progress: &Progress, ink: Color32, time_of: &dyn 
         if let Some(time) = time_of(&bar) {
             painter.text(egui::pos2(time_right, mid), egui::Align2::RIGHT_CENTER, clock(time), font.clone(), muted);
         }
-        if !bar.stopped && bar.done < progress.clips {
+        if running(&bar) {
             let x = ui.interact(x_rect, ui.id().with(("qnc-work-stop", bar.function)), egui::Sense::click()).on_hover_text(text("card_ingest.stop_hint"));
             let colour = if x.hovered() { ink } else { muted };
             if x.hovered() {
