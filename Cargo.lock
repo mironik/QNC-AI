@@ -3698,6 +3698,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-admin"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-base-admin-view",
+ "qnc-dev-diagnostics",
+ "qnc-project-desktop",
+ "qnc-title-bar",
+ "qnc-tray",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-ai-ask"
 version = "0.1.0"
 dependencies = [
@@ -4076,6 +4089,26 @@ dependencies = [
 [[package]]
 name = "qnc-background-jobs"
 version = "0.1.0"
+
+[[package]]
+name = "qnc-base-admin"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-ingest-base",
+ "qnc-project-close",
+ "qnc-work-progress",
+]
+
+[[package]]
+name = "qnc-base-admin-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-base-admin",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
+]
 
 [[package]]
 name = "qnc-base-cards"

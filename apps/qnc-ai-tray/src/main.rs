@@ -88,6 +88,8 @@ fn main() {
     let mut watch = CardWatch::new();
     let mut tries: std::collections::BTreeMap<String, u32> = Default::default();
     let mut looked: Option<Instant> = None;
+    // The question where a folder goes, and the base it would go into besides a new one.
+    let mut folder_asked: Option<(std::sync::mpsc::Receiver<qnc_tray::Answer>, String)> = None;
     loop {
         let running = ingest.running();
         if shown != Some(running) {
@@ -103,13 +105,27 @@ fn main() {
                     return;
                 }
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
-                // A folder goes where the tray's orchestrator says, with its own window.
-                TrayEvent::Menu(INGEST_FOLDER) => match orchestrator(&tray, &root).map(|orchestrator| orchestrator.folder_base(&root, &text("tray.folder_base"))) {
-                    Some(Ok(base)) => open_window(&tray, &root, &mut ingest, base, None, true),
+                // A folder goes where the tray's orchestrator says, with its own window; the user is
+                // asked whether into a new base or the one Ingest works in (user 2026-11-16).
+                TrayEvent::Menu(INGEST_FOLDER) if folder_asked.is_none() => match orchestrator(&tray, &root).map(|orchestrator| orchestrator.folder_choice(&root)) {
+                    Some(Ok(Some(base))) => {
+                        let ask = fill("tray.folder_ask", &[("base", &base.shown())]);
+                        folder_asked = Some((tray.ask(&text("tray.title"), &ask), base.id));
+                    }
+                    Some(Ok(None)) => open_folder(&tray, &root, &mut ingest, None),
                     Some(Err(error)) => fail(&tray, error),
                     None => {}
                 },
                 TrayEvent::Menu(_) => {}
+            }
+        }
+        if let Some(answer) = folder_asked.as_ref().and_then(|(answer, _)| answer.try_recv().ok()) {
+            let (_, base) = folder_asked.take().expect("asked");
+            log(format!("folder asked: {answer:?}"));
+            match answer {
+                qnc_tray::Answer::Yes => open_folder(&tray, &root, &mut ingest, None),
+                qnc_tray::Answer::No => open_folder(&tray, &root, &mut ingest, Some(&base)),
+                qnc_tray::Answer::Cancel => {}
             }
         }
         if catalog.is_none() && catalog_read.is_none_or(|at| at.elapsed() >= CATALOG_AGAIN) {
@@ -140,16 +156,10 @@ fn main() {
                             }
                             let card = volume.volume_name.clone().unwrap_or_else(|| disk.clone());
                             let Some(orchestrator) = orchestrator(&tray, &root) else { continue };
-                            let base = qnc_card_watch::card_originals(catalog, &volume)
-                                .and_then(|originals| orchestrator.card_base(&root, &volume.source_uri(), &originals, &camera));
-                            match base {
-                                Ok(Some(base)) => {
+                            match orchestrator.card_base(&root, &camera) {
+                                Ok(base) => {
                                     tray.notify(&text("tray.title"), &fill("tray.card_ingest", &[("card", &card), ("camera", &camera), ("base", base.label())]));
                                     open_window(&tray, &root, &mut ingest, base, Some(&volume.serial_number), false);
-                                }
-                                Ok(None) => {
-                                    log(format!("card disk={disk}: every clip is in a base already"));
-                                    tray.notify(&text("tray.title"), &fill("tray.card_done", &[("card", &card)]));
                                 }
                                 Err(error) => fail(&tray, error),
                             }
@@ -178,6 +188,15 @@ fn main() {
             }
         }
         std::thread::sleep(Duration::from_millis(150));
+    }
+}
+
+/// A folder's ingest window: in a new base, or in the base `into` (the user's answer).
+fn open_folder(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, into: Option<&str>) {
+    let Some(orchestrator) = orchestrator(tray, root) else { return };
+    match orchestrator.folder_base(root, &text("tray.folder_base"), into) {
+        Ok(base) => open_window(tray, root, ingest, base, None, true),
+        Err(error) => fail(tray, error),
     }
 }
 

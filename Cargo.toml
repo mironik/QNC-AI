@@ -32,6 +32,8 @@ qnc-stopped-work = { path = "crates/qnc-stopped-work" }
 qnc-ingest-plan = { path = "crates/qnc-ingest-plan" }
 qnc-ingest-orchestrator = { path = "crates/qnc-ingest-orchestrator" }
 qnc-ingest-orchestrator-view = { path = "crates/qnc-ingest-orchestrator-view" }
+qnc-base-admin = { path = "crates/qnc-base-admin" }
+qnc-base-admin-view = { path = "crates/qnc-base-admin-view" }
 qnc-story-overlay = { path = "crates/qnc-story-overlay" }
 qnc-ai-features-view = { path = "crates/qnc-ai-features-view" }
 qnc-ai-place = { path = "../QNC-shared/crates/qnc-ai-place" }

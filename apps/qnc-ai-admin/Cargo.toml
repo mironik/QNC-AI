@@ -1,0 +1,14 @@
+[package]
+name = "qnc-ai-admin"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI administrator's form: the Ingest bases"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-base-admin-view = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-project-desktop = { workspace = true }
+qnc-title-bar = { workspace = true }
+qnc-tray = { workspace = true }
+qnc-wizard-text = { workspace = true }

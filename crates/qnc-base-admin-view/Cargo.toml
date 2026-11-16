@@ -1,0 +1,11 @@
+[package]
+name = "qnc-base-admin-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the administrator's view of the Ingest bases (their table, the delete after a question)"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-base-admin = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-wizard-text = { workspace = true }

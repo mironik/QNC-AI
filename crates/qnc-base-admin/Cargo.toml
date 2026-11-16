@@ -1,0 +1,11 @@
+[package]
+name = "qnc-base-admin"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the administration of the Ingest bases (their list with what each holds and who may delete it, the delete off the form's thread); no GUI"
+
+[dependencies]
+qnc-ingest-base = { workspace = true }
+qnc-project-close = { workspace = true }
+qnc-work-progress = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
