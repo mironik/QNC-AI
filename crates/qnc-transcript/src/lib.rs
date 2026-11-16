@@ -8,6 +8,7 @@
 
 use std::{
     collections::{BTreeSet, HashMap},
+    path::PathBuf,
     sync::{mpsc, Arc},
     time::{Duration, Instant},
 };
@@ -55,6 +56,8 @@ pub const DELETE_QUOTE: &str = "transcript_delete_quote";
 pub const FORGET_CLIP: &str = "transcript_forget_clip";
 /// The panel the transcript is shown on.
 pub const PANEL: &str = "transcript";
+/// The X beside a bar of the background work (its target: the function, `qnc_stopped_work`).
+pub const WORK_STOP: &str = "work_stop";
 /// How often the queue is read again.
 const QUEUE_EVERY: Duration = Duration::from_secs(1);
 
@@ -121,6 +124,8 @@ pub struct TranscriptView {
     pub all_done: bool,
     /// The term searched in the lines and the find that is current (docs/99 step 4).
     pub search: SearchView,
+    /// What the background work of the project has done, function by function (the info box).
+    pub work: Option<qnc_work_progress::Progress>,
 }
 
 impl TranscriptView {
@@ -210,6 +215,9 @@ pub struct Transcript {
     /// (live 2026-10-26: making them at every paint took a fifth of a core).
     rev: u64,
     built: Option<(u64, u64, Option<String>)>,
+    /// The background work of the active project, read for the info box (user 2026-11-16: "treba
+    /// izgled kao wizard, da korisnik može isključiti neke korake koje ne treba"), and the QNC root.
+    work: Option<(PathBuf, qnc_work_progress::Follower)>,
 }
 
 impl Default for Transcript {
@@ -229,6 +237,7 @@ impl Default for Transcript {
             names: HashMap::new(),
             rev: 0,
             built: None,
+            work: None,
         }
     }
 }
@@ -263,6 +272,16 @@ impl Transcript {
     /// The transcript's own actions; `None` for any other.
     pub fn act(&mut self, action_id: &str, value: Option<i64>, target: Option<&str>, preview: &mut SourcePreview, timeline: &TimelineProjection, timecode: Option<&SourceTimecode>) -> Option<bool> {
         match action_id {
+            WORK_STOP => {
+                let function = target.and_then(|code| qnc_stopped_work::ALL.iter().find(|known| **known == code));
+                Some(match (&self.work, function) {
+                    (Some((root, _)), Some(function)) => {
+                        qnc_work_progress::stop(root, function);
+                        true
+                    }
+                    _ => false,
+                })
+            }
             OPEN_CLIP => Some(target.is_some_and(|clip| preview.open(clip))),
             ADD_QUOTE => Some(self.add_quote(preview, timeline, timecode)),
             OPEN_QUOTE => Some(target.and_then(|id| id.parse::<i64>().ok()).and_then(|id| self.view.quotes.iter().find(|q| q.id == id)).is_some_and(|q| {
@@ -425,6 +444,16 @@ impl Transcript {
         }
         let project = preview.project_target().cloned();
         let clip_id = preview.view().clip_id.clone();
+        if self.work.is_none() {
+            self.work = qnc_dev_diagnostics::resolve_qnc_root().map(|root| {
+                let follower = qnc_work_progress::Follower::start(&root);
+                (root, follower)
+            });
+        }
+        if let Some((_, follower)) = &mut self.work {
+            follower.poll();
+            self.view.work = follower.last().copied();
+        }
         self.take_heard(transcripts);
         if let Some(done) = &self.asking {
             if let Ok(result) = done.try_recv() {

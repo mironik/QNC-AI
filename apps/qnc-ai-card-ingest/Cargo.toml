@@ -8,6 +8,7 @@ description = "QNC-AI card ingest: the background ingest of a card into its own 
 qnc-title-bar = { workspace = true }
 eframe = { workspace = true }
 qnc-card-ingest = { workspace = true }
+qnc-work-progress-view = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-application = { workspace = true }
 qnc-ingest-base = { workspace = true }

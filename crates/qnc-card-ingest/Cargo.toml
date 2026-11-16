@@ -22,3 +22,4 @@ qnc-shot-content-db = { workspace = true }
 qnc-shot-captions = { workspace = true }
 qnc-ai-catalog = { workspace = true }
 qnc-ingest-application = { workspace = true }
+qnc-work-progress = { workspace = true }

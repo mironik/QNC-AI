@@ -3749,6 +3749,7 @@ dependencies = [
  "qnc-ui-kit",
  "qnc-window-front",
  "qnc-wizard-text",
+ "qnc-work-progress-view",
  "qnc-work-settings",
 ]
 
@@ -4306,6 +4307,7 @@ dependencies = [
  "qnc-shot-db",
  "qnc-stopped-work",
  "qnc-transcript-db",
+ "qnc-work-progress",
  "qnc-work-settings",
 ]
 
@@ -7965,13 +7967,16 @@ dependencies = [
  "qnc-clip-row",
  "qnc-clip-transcripts",
  "qnc-db-broker",
+ "qnc-dev-diagnostics",
  "qnc-source-preview",
  "qnc-source-timecode",
+ "qnc-stopped-work",
  "qnc-text-cursor",
  "qnc-timeline-model",
  "qnc-transcribe-queue",
  "qnc-transcript-db",
  "qnc-ui-text",
+ "qnc-work-progress",
 ]
 
 [[package]]
@@ -7997,6 +8002,8 @@ dependencies = [
  "qnc-transcript",
  "qnc-ui-kit",
  "qnc-ui-text",
+ "qnc-wizard-text",
+ "qnc-work-progress-view",
 ]
 
 [[package]]
@@ -8328,6 +8335,35 @@ dependencies = [
 [[package]]
 name = "qnc-word-align"
 version = "0.1.0"
+
+[[package]]
+name = "qnc-work-progress"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-ai-catalog",
+ "qnc-artifact-db",
+ "qnc-content-read",
+ "qnc-content-store",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-base",
+ "qnc-shot-captions",
+ "qnc-shot-content-db",
+ "qnc-shot-db",
+ "qnc-stopped-work",
+ "qnc-transcript-db",
+ "qnc-work-settings",
+]
+
+[[package]]
+name = "qnc-work-progress-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-wizard-text",
+ "qnc-work-progress",
+]
 
 [[package]]
 name = "qnc-work-settings"

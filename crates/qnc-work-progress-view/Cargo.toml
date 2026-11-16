@@ -1,0 +1,10 @@
+[package]
+name = "qnc-work-progress-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the bars of the background work, one per function, each with the X that stops it (the wizard's look); draws only"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-work-progress = { workspace = true }
+qnc-wizard-text = { workspace = true }

@@ -6,7 +6,7 @@
 use eframe::egui::{self, RichText, Sense};
 use qnc_action_event::ActionEvent;
 use qnc_source_timecode::SourceTimecode;
-use qnc_transcript::{line_words, Line, QueueState, TranscriptView, CUE_WORD, CUT_WORD, OPEN_CLIP, PANEL};
+use qnc_transcript::{line_words, Line, TranscriptView, CUE_WORD, CUT_WORD, PANEL, WORK_STOP};
 
 mod quotes;
 mod search;
@@ -141,22 +141,16 @@ fn paint_silence(ui: &mut egui::Ui, from: &str, to: &str, theme: &qnc_desktop_th
     ui.add_space(4.0);
 }
 
-/// The queue of the project as an info box over the panel, in the look of the wizard's import
-/// window (user 2026-11-16: "ne prikazuj u polju prijepisa fajlove, možeš kreirati info prozor kao
-/// što ima wizard"): how many clips are transcribed of how many with a bar, the clip being
-/// transcribed now with its own bar and how long it runs, and how many failed. The text stays free
-/// to read. The clip being transcribed is a link: its lines are shown as they are heard.
+/// The background work of the project as an info box over the panel, the wizard's import window in
+/// small (user 2026-11-16: "ne prikazuj u polju prijepisa fajlove, možeš kreirati info prozor kao
+/// što ima wizard"; "treba izgled kao wizard, da korisnik može isključiti neke korake koje ne
+/// treba"): how many clips, one bar per function the project has on, each with the X that stops
+/// it. Gone once everything is done; the text stays free to read.
 fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
-    if view.queue.iter().all(|row| row.state == QueueState::Done) {
-        return None;
-    }
-    let total = view.queue.len();
-    let done = view.queue.iter().filter(|row| row.state == QueueState::Done).count();
-    let failed: Vec<_> = view.queue.iter().filter(|row| row.state == QueueState::Failed).collect();
-    let running = view.queue.iter().find(|row| row.state == QueueState::Running);
+    let progress = view.work.filter(|work| work.clips > 0 && !work.complete())?;
     let panel = ui.max_rect();
-    let mut opened = None;
-    egui::Area::new(egui::Id::new("qnc-transcript-queue-info"))
+    let mut stop = None;
+    egui::Area::new(egui::Id::new("qnc-transcript-work-info"))
         .order(egui::Order::Foreground)
         .fixed_pos(panel.right_top() + egui::vec2(-INFO_WIDTH - 4.0, 4.0))
         .show(ui.ctx(), |ui| {
@@ -167,60 +161,22 @@ fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_the
                 .inner_margin(egui::Margin::same(12))
                 .show(ui, |ui| {
                     ui.set_width(INFO_WIDTH - 24.0);
-                    ui.label(RichText::new(qnc_ui_text::text("transcript.title")).color(theme.text).strong());
-                    ui.add_space(6.0);
-                    let all = total.max(1) as f32;
-                    ui.add(egui::ProgressBar::new(done as f32 / all).text(format!("{done} / {total}")).desired_height(theme.font_ui + 4.0).fill(theme.focus));
-                    if let Some(row) = running {
-                        ui.add_space(8.0);
-                        let mut name = RichText::new(&row.name).color(theme.text).size(theme.font_ui).underline();
-                        if view.clip_id.as_deref() == Some(row.clip_id.as_str()) {
-                            name = name.strong();
-                        }
-                        let label = ui.add(egui::Label::new(name).sense(Sense::click()));
-                        if label.hovered() {
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                        }
-                        if label.clicked() {
-                            opened = Some(ActionEvent::key(OPEN_CLIP).with_target(row.clip_id.clone()).at(PANEL));
-                        }
-                        let bar = match row.progress {
-                            Some(part) => egui::ProgressBar::new(part as f32).text(format!("{:.0} %", part * 100.0)),
-                            None => egui::ProgressBar::new(0.0).text(qnc_ui_text::text("transcript.reading")).animate(true),
-                        };
-                        ui.add(bar.desired_height(theme.font_ui + 4.0).fill(theme.focus));
-                        let length = clock(row.length_seconds);
-                        let line = match row.elapsed_seconds {
-                            Some(elapsed) => format!("{length}  ·  {}", qnc_ui_text::fill("transcript.running_for", &[("elapsed", &clock(elapsed))])),
-                            None => length,
-                        };
-                        ui.label(RichText::new(line).color(theme.text_muted).size(theme.font_ui));
-                    }
-                    if !failed.is_empty() {
+                    ui.label(RichText::new(qnc_wizard_text::text("work.title")).color(theme.text).strong());
+                    ui.label(RichText::new(qnc_wizard_text::fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(theme.text));
+                    ui.add_space(8.0);
+                    stop = qnc_work_progress_view::bars(ui, &progress, theme.text, &|_| None);
+                    if progress.failed > 0 {
                         ui.add_space(6.0);
-                        let line = format!("{}: {}", qnc_ui_text::text("transcript.failed"), failed.len());
-                        let errors: Vec<String> = failed.iter().map(|row| format!("{}: {}", row.name, row.error)).collect();
-                        ui.label(RichText::new(line).color(theme.danger).size(theme.font_ui)).on_hover_text(errors.join("\n"));
+                        ui.label(RichText::new(qnc_wizard_text::fill("card_ingest.failed", &[("failed", &progress.failed.to_string())])).color(theme.danger));
                     }
                 });
         });
     ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
-    opened
+    stop.map(|function| ActionEvent::key(WORK_STOP).with_target(function.to_string()).at(PANEL))
 }
 
-/// How wide the info box of the queue is.
-const INFO_WIDTH: f32 = 340.0;
-
-/// Seconds as m:ss (h:mm:ss from an hour on).
-fn clock(seconds: f64) -> String {
-    let whole = seconds.max(0.0).round() as u64;
-    let (hours, minutes, seconds) = (whole / 3600, whole / 60 % 60, whole % 60);
-    if hours > 0 {
-        format!("{hours}:{minutes:02}:{seconds:02}")
-    } else {
-        format!("{minutes}:{seconds:02}")
-    }
-}
+/// How wide the info box of the background work is.
+const INFO_WIDTH: f32 = 470.0;
 
 /// One line as one text wrapped at the panel's width (user 2026-10-26: "sentences go out of the
 /// panel, they should wrap"), the word said at the playhead lit; returns the first frame of a

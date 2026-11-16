@@ -121,6 +121,9 @@
     "statement_cancel": {
       "label": "Ista izjava vec postoji: odustani"
     },
+    "work_stop": {
+      "label": "Iskljuci korak rada u pozadini (X uz traku)"
+    },
     "transcript_open_clip": {
       "label": "Otvori transkribirani klip (iz popisa transkripta)"
     },

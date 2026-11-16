@@ -219,27 +219,10 @@ impl eframe::App for Window {
             ui.add_space(10.0);
             // The X beside a bar stops that function when the user does not need it (user
             // 2026-11-12); what is made stays.
-            for bar in progress.bars() {
-                let total = progress.clips.max(1);
-                ui.horizontal(|ui| {
-                    ui.add_sized([110.0, 20.0], egui::Label::new(RichText::new(text(bar.text)).color(theme.text)));
-                    let label = if bar.stopped {
-                        fill("card_ingest.stopped", &[("done", &bar.done.to_string()), ("clips", &progress.clips.to_string())])
-                    } else {
-                        format!("{} / {}", bar.done, progress.clips)
-                    };
-                    ui.add(egui::ProgressBar::new(bar.done.min(total) as f32 / total as f32).desired_width(260.0).text(label));
-                    let running = !bar.stopped && bar.done < progress.clips;
-                    let x = ui.add_enabled(running, egui::Button::new("✕").min_size(egui::vec2(22.0, 20.0)));
-                    if x.on_hover_text(text("card_ingest.stop_hint")).clicked() {
-                        qnc_card_ingest::stop(&self.root, bar.function);
-                    }
-                    // How long the function took; while it runs, how long it runs.
-                    let time = self.done_after.get(bar.function).copied().or(if bar.stopped { None } else { elapsed });
-                    if let Some(time) = time {
-                        ui.label(RichText::new(clock(time)).color(theme.text));
-                    }
-                });
+            // How long the function took; while it runs, how long it runs.
+            let time_of = |bar: &qnc_card_ingest::Bar| self.done_after.get(bar.function).copied().or(if bar.stopped { None } else { elapsed });
+            if let Some(function) = qnc_work_progress_view::bars(ui, &progress, theme.text, &time_of) {
+                qnc_card_ingest::stop(&self.root, function);
             }
             // The base's name, place and description, under the bars (user 2026-11-16).
             ui.add_space(12.0);

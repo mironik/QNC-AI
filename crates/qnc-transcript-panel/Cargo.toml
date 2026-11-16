@@ -13,3 +13,5 @@ qnc-source-timecode = { workspace = true }
 qnc-transcript = { workspace = true }
 qnc-ui-kit = { workspace = true }
 qnc-ui-text = { workspace = true }
+qnc-wizard-text = { workspace = true }
+qnc-work-progress-view = { workspace = true }

@@ -1,0 +1,21 @@
+[package]
+name = "qnc-work-progress"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: what the background work of a project has done, function by function, and the stop of a function the user does not need; read only, no GUI"
+
+[dependencies]
+qnc-active-project-read = { workspace = true }
+qnc-artifact-db = { workspace = true }
+qnc-content-read = { workspace = true }
+qnc-ingest-base = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-stopped-work = { workspace = true }
+qnc-work-settings = { workspace = true }
+qnc-shot-db = { workspace = true }
+qnc-transcript-db = { workspace = true }
+qnc-shot-content-db = { workspace = true }
+qnc-shot-captions = { workspace = true }
+qnc-ai-catalog = { workspace = true }
