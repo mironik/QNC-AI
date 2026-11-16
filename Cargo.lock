@@ -5334,7 +5334,9 @@ name = "qnc-ingest-orchestrator-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-desktop-theme",
  "qnc-ingest-orchestrator",
+ "qnc-settings-rows",
  "qnc-wizard-text",
 ]
 
@@ -8446,6 +8448,7 @@ name = "qnc-work-progress-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-ui-kit",
  "qnc-wizard-text",
  "qnc-work-progress",
 ]

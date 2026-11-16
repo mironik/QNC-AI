@@ -312,7 +312,7 @@ impl Blocks<'_> {
             self.path_row(ui, width, settings, LocationTarget::AiShare);
             // QNC-AI: the ingest orchestrator of each form, a setting of this computer.
             ui.add_space(8.0);
-            qnc_ingest_orchestrator_view::show(ui, &self.session.component.root);
+            qnc_ingest_orchestrator_view::show(ui, &self.session.component.root, width, settings, &self.contracts.theme);
         }
     }
 

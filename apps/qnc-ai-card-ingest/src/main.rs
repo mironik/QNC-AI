@@ -69,19 +69,36 @@ impl BaseInfo {
 
     /// The name, the place and the description fields, the name's need said when closing waited for it.
     fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme) -> bool {
-        ui.label(RichText::new(text("card_ingest.base_name")).color(theme.text));
+        let label = |ui: &mut egui::Ui, code: &str| ui.label(RichText::new(text(code)).size(theme.font_ui - 1.0).color(theme.text_muted));
+        label(ui, "card_ingest.base_name");
         let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_name_hint")));
         if self.needed && self.title.trim().is_empty() {
             ui.label(RichText::new(text("card_ingest.base_name_needed")).color(theme.danger));
         }
-        ui.add_space(4.0);
-        ui.label(RichText::new(text("card_ingest.base_location")).color(theme.text));
+        ui.add_space(10.0);
+        label(ui, "card_ingest.base_location");
         let location = ui.add(qnc_ui_kit::text_field(&mut self.location).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_location_hint")));
-        ui.add_space(4.0);
-        ui.label(RichText::new(text("card_ingest.base_description")).color(theme.text));
+        ui.add_space(10.0);
+        label(ui, "card_ingest.base_description");
         let description = ui.add(qnc_ui_kit::text_area(&mut self.description).desired_width(f32::INFINITY).desired_rows(2).hint_text(text("card_ingest.base_description_hint")));
         name.lost_focus() || location.lost_focus() || description.lost_focus()
     }
+}
+
+/// A card of the window: a slightly raised surface with a fine frame and round corners, its title
+/// in small capitals, its contents on the same left edge.
+fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
+    egui::Frame::new()
+        .fill(theme.surface)
+        .stroke(egui::Stroke::new(1.0, theme.border))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::same(18))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(RichText::new(title.to_uppercase()).size(theme.font_ui - 2.0).color(theme.text_muted).strong());
+            ui.add_space(10.0);
+            contents(ui);
+        });
 }
 
 /// The signal a copy started for a folder gives the copy that runs.
@@ -183,59 +200,69 @@ impl eframe::App for Window {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
             return;
         }
+        // One left edge for everything, the work and the base each a card of its own (user
+        // 2026-11-16: "jedan dio forme ima lijevo poravnanje, jedan izvan; panelu daj premium izgled").
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(24.0)).show(ctx, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
                 Phase::Waiting | Phase::Choosing => text("card_ingest.waiting"),
                 Phase::Selecting | Phase::Making => text("card_ingest.running"),
             };
-            ui.label(RichText::new(title).size(theme.font_ui + 6.0).color(theme.text).strong());
+            ui.label(RichText::new(title).size(theme.font_ui + 8.0).color(theme.text).strong());
+            let mut sub = Vec::new();
             if !self.label.is_empty() {
-                ui.label(RichText::new(&self.label).color(theme.text));
+                sub.push(self.label.clone());
             }
             if let Some(time) = self.took.or(elapsed) {
-                ui.label(RichText::new(fill("card_ingest.elapsed", &[("time", &clock(time))])).color(theme.text));
+                sub.push(fill("card_ingest.elapsed", &[("time", &clock(time))]));
             }
-            ui.add_space(12.0);
-            // Each card on its line; one an earlier base already has says so (it is not imported again).
-            for card in &status.cards {
-                let line = match (&card.known_in, card.new) {
-                    (None, _) => card.camera.clone(),
-                    (Some(base), 0) => fill("card_ingest.already_imported", &[("camera", &card.camera), ("base", base)]),
-                    (Some(base), new) => fill("card_ingest.already_imported_new", &[("camera", &card.camera), ("base", base), ("new", &new.to_string())]),
-                };
-                ui.label(RichText::new(line).color(theme.text));
+            if !sub.is_empty() {
+                ui.label(RichText::new(sub.join("   ·   ")).color(theme.text_muted));
             }
+            ui.add_space(16.0);
             let progress = status.progress;
-            ui.label(RichText::new(fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(theme.text));
-            if status.phase == Phase::Selecting {
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(RichText::new(text("card_ingest.selecting")).color(theme.text));
-                });
-            }
-            // One bar per function the project's settings have on (user 2026-11-12).
-            ui.add_space(10.0);
-            // The X beside a bar stops that function when the user does not need it (user
-            // 2026-11-12); what is made stays.
-            // How long the function took; while it runs, how long it runs.
-            let time_of = |bar: &qnc_card_ingest::Bar| self.done_after.get(bar.function).copied().or(if bar.stopped { None } else { elapsed });
-            if let Some(function) = qnc_work_progress_view::bars(ui, &progress, theme.text, &time_of) {
-                qnc_card_ingest::stop(&self.root, function);
-            }
-            // The base's name, place and description, under the bars (user 2026-11-16).
-            ui.add_space(12.0);
-            if !self.base.is_empty() && self.info.show(ui, &theme) {
-                self.info.keep(&self.root, &self.base);
-            }
-            if progress.statements > 0 {
-                ui.add_space(6.0);
-                ui.label(RichText::new(fill("card_ingest.statements", &[("statements", &progress.statements.to_string())])).color(theme.text));
-            }
-            if progress.failed > 0 {
-                ui.add_space(6.0);
-                ui.label(RichText::new(fill("card_ingest.failed", &[("failed", &progress.failed.to_string())])).color(theme.text));
+            card(ui, &theme, &text("work.title"), |ui| {
+                // Each card on its line; one an earlier base already has says so.
+                for card in &status.cards {
+                    let line = match (&card.known_in, card.new) {
+                        (None, _) => card.camera.clone(),
+                        (Some(base), 0) => fill("card_ingest.already_imported", &[("camera", &card.camera), ("base", base)]),
+                        (Some(base), new) => fill("card_ingest.already_imported_new", &[("camera", &card.camera), ("base", base), ("new", &new.to_string())]),
+                    };
+                    ui.label(RichText::new(line).color(theme.text).strong());
+                }
+                ui.label(RichText::new(fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(theme.text_muted));
+                if status.phase == Phase::Selecting {
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(RichText::new(text("card_ingest.selecting")).color(theme.text));
+                    });
+                }
+                // One bar per function the project's settings have on (user 2026-11-12); the X
+                // beside a bar stops that function, what is made stays.
+                ui.add_space(12.0);
+                let time_of = |bar: &qnc_card_ingest::Bar| self.done_after.get(bar.function).copied().or(if bar.stopped { None } else { elapsed });
+                if let Some(function) = qnc_work_progress_view::bars(ui, &progress, theme.text, &time_of) {
+                    qnc_card_ingest::stop(&self.root, function);
+                }
+                if progress.statements > 0 {
+                    ui.add_space(8.0);
+                    ui.label(RichText::new(fill("card_ingest.statements", &[("statements", &progress.statements.to_string())])).color(theme.text_muted));
+                }
+                if progress.failed > 0 {
+                    ui.add_space(8.0);
+                    ui.label(RichText::new(fill("card_ingest.failed", &[("failed", &progress.failed.to_string())])).color(theme.danger));
+                }
+            });
+            // The base's name, place and description (user 2026-11-16).
+            if !self.base.is_empty() {
+                ui.add_space(12.0);
+                let mut left = false;
+                card(ui, &theme, &text("admin.base"), |ui| left = self.info.show(ui, &theme));
+                if left {
+                    self.info.keep(&self.root, &self.base);
+                }
             }
             // No "Start QNC" here: the tray asks once for every base being ingested (user
             // 2026-11-14). Closing this window does not stop the work (the worker is its own program).

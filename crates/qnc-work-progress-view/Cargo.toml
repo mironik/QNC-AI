@@ -5,6 +5,7 @@ edition.workspace = true
 description = "QNC-AI block: the bars of the background work, one per function, each with the X that stops it (the wizard's look); draws only"
 
 [dependencies]
+qnc-ui-kit = { workspace = true }
 eframe = { workspace = true }
 qnc-work-progress = { workspace = true }
 qnc-wizard-text = { workspace = true }
