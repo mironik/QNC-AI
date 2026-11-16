@@ -6,7 +6,7 @@
 use eframe::egui::{self, RichText, Sense};
 use qnc_action_event::ActionEvent;
 use qnc_source_timecode::SourceTimecode;
-use qnc_transcript::{line_words, Line, QueueQuality, QueueState, TranscriptView, CUE_WORD, CUT_WORD, OPEN_CLIP, PANEL};
+use qnc_transcript::{line_words, Line, QueueState, TranscriptView, CUE_WORD, CUT_WORD, OPEN_CLIP, PANEL};
 
 mod quotes;
 mod search;
@@ -141,67 +141,75 @@ fn paint_silence(ui: &mut egui::Ui, from: &str, to: &str, theme: &qnc_desktop_th
     ui.add_space(4.0);
 }
 
-/// The queue of the project, one row a clip: its name, the length of its IN/OUT, Fast or
-/// Quality and where it is; the running one with a progress bar and how long it runs, a done
-/// one with how long it took and how many times faster than real time (user 2026-10-26).
+/// The queue of the project as an info box over the panel, in the look of the wizard's import
+/// window (user 2026-11-16: "ne prikazuj u polju prijepisa fajlove, možeš kreirati info prozor kao
+/// što ima wizard"): how many clips are transcribed of how many with a bar, the clip being
+/// transcribed now with its own bar and how long it runs, and how many failed. The text stays free
+/// to read. The clip being transcribed is a link: its lines are shown as they are heard.
 fn paint_queue(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
-    let mut opened = None;
     if view.queue.iter().all(|row| row.state == QueueState::Done) {
         return None;
     }
-    ui.add_space(4.0);
-    ui.label(RichText::new(qnc_ui_text::text("transcript.queue")).color(theme.text_muted).size(theme.font_ui));
-    // The clips done are not listed: they are in the pool's Transcript tab, and the ingest queues
-    // every clip of a card, whose rows hid the transcript (live 2026-11-12).
-    for row in view.queue.iter().filter(|row| row.state != QueueState::Done) {
-        let (state, color) = match row.state {
-            QueueState::Waiting => (qnc_ui_text::text("transcript.waiting").to_string(), theme.text_muted),
-            QueueState::Running => (
-                row.elapsed_seconds.map_or_else(|| qnc_ui_text::text("transcript.running").to_string(), |elapsed| qnc_ui_text::fill("transcript.running_for", &[("elapsed", &clock(elapsed))])),
-                theme.focus,
-            ),
-            QueueState::Failed => (qnc_ui_text::text("transcript.failed").to_string(), theme.danger),
-            QueueState::Done => (
-                row.speed().map_or_else(
-                    || qnc_ui_text::text("transcript.done").to_string(),
-                    |speed| qnc_ui_text::fill("transcript.done_in", &[("took", &clock(row.took_seconds)), ("speed", &format!("{speed:.1}"))]),
-                ),
-                theme.text_muted,
-            ),
-        };
-        let quality = if row.quality == QueueQuality::Fast { "transcript.fast" } else { "transcript.best" };
-        let text = format!("{}  ·  {}  ·  {}  ·  {}", row.name, clock(row.length_seconds), qnc_ui_text::text(quality), state);
-        // A done clip is a link: its text opens without looking for it in the pool (user 2026-10-26);
-        // so is the running one, its lines shown as they are heard (user 2026-11-08: "the
-        // transcript shown without waiting for the end").
-        let done = matches!(row.state, QueueState::Done | QueueState::Running);
-        let mut rich = RichText::new(text).color(color).size(theme.font_ui);
-        if done {
-            rich = rich.underline();
-        }
-        if view.clip_id.as_deref() == Some(row.clip_id.as_str()) {
-            rich = rich.strong().color(theme.text);
-        }
-        let label = ui.add(egui::Label::new(rich).sense(if done { Sense::click() } else { Sense::hover() }));
-        if done && label.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-        }
-        if done && label.clicked() {
-            opened = Some(ActionEvent::key(OPEN_CLIP).with_target(row.clip_id.clone()).at(PANEL));
-        }
-        if !row.error.is_empty() {
-            label.on_hover_text(&row.error);
-        }
-        if row.state == QueueState::Running {
-            let bar = match row.progress {
-                Some(done) => egui::ProgressBar::new(done as f32).text(format!("{:.0} %", done * 100.0)),
-                None => egui::ProgressBar::new(0.0).text(qnc_ui_text::text("transcript.reading")).animate(true),
-            };
-            ui.add(bar.desired_height(theme.font_ui + 4.0).fill(theme.focus));
-        }
-    }
+    let total = view.queue.len();
+    let done = view.queue.iter().filter(|row| row.state == QueueState::Done).count();
+    let failed: Vec<_> = view.queue.iter().filter(|row| row.state == QueueState::Failed).collect();
+    let running = view.queue.iter().find(|row| row.state == QueueState::Running);
+    let panel = ui.max_rect();
+    let mut opened = None;
+    egui::Area::new(egui::Id::new("qnc-transcript-queue-info"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(panel.right_top() + egui::vec2(-INFO_WIDTH - 4.0, 4.0))
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(theme.panel)
+                .stroke(egui::Stroke::new(1.0, theme.border))
+                .corner_radius(4.0)
+                .inner_margin(egui::Margin::same(12))
+                .show(ui, |ui| {
+                    ui.set_width(INFO_WIDTH - 24.0);
+                    ui.label(RichText::new(qnc_ui_text::text("transcript.title")).color(theme.text).strong());
+                    ui.add_space(6.0);
+                    let all = total.max(1) as f32;
+                    ui.add(egui::ProgressBar::new(done as f32 / all).text(format!("{done} / {total}")).desired_height(theme.font_ui + 4.0).fill(theme.focus));
+                    if let Some(row) = running {
+                        ui.add_space(8.0);
+                        let mut name = RichText::new(&row.name).color(theme.text).size(theme.font_ui).underline();
+                        if view.clip_id.as_deref() == Some(row.clip_id.as_str()) {
+                            name = name.strong();
+                        }
+                        let label = ui.add(egui::Label::new(name).sense(Sense::click()));
+                        if label.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if label.clicked() {
+                            opened = Some(ActionEvent::key(OPEN_CLIP).with_target(row.clip_id.clone()).at(PANEL));
+                        }
+                        let bar = match row.progress {
+                            Some(part) => egui::ProgressBar::new(part as f32).text(format!("{:.0} %", part * 100.0)),
+                            None => egui::ProgressBar::new(0.0).text(qnc_ui_text::text("transcript.reading")).animate(true),
+                        };
+                        ui.add(bar.desired_height(theme.font_ui + 4.0).fill(theme.focus));
+                        let length = clock(row.length_seconds);
+                        let line = match row.elapsed_seconds {
+                            Some(elapsed) => format!("{length}  ·  {}", qnc_ui_text::fill("transcript.running_for", &[("elapsed", &clock(elapsed))])),
+                            None => length,
+                        };
+                        ui.label(RichText::new(line).color(theme.text_muted).size(theme.font_ui));
+                    }
+                    if !failed.is_empty() {
+                        ui.add_space(6.0);
+                        let line = format!("{}: {}", qnc_ui_text::text("transcript.failed"), failed.len());
+                        let errors: Vec<String> = failed.iter().map(|row| format!("{}: {}", row.name, row.error)).collect();
+                        ui.label(RichText::new(line).color(theme.danger).size(theme.font_ui)).on_hover_text(errors.join("\n"));
+                    }
+                });
+        });
+    ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
     opened
 }
+
+/// How wide the info box of the queue is.
+const INFO_WIDTH: f32 = 340.0;
 
 /// Seconds as m:ss (h:mm:ss from an hour on).
 fn clock(seconds: f64) -> String {
