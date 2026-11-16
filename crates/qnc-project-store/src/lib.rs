@@ -1810,6 +1810,9 @@ fn complete_project_settings(settings: &mut Value) -> Result<(), String> {
     for field in ["filmstrip", "wave"] {
         artifacts.entry(field.to_string()).or_insert_with(|| json!("auto"));
     }
+    // The order of the ingest steps (user 2026-11-16: a setting of the template); a user
+    // template made before it gets the baseline of the system templates.
+    artifacts.entry("order".to_string()).or_insert_with(|| serde_json::from_str(qnc_ingest_plan::DEFAULT).expect("the default order is JSON"));
     // The audio crossfade on every A2 cut (user 2026-10-21: news practice, a few frames).
     if let Some(audio) = root.get_mut("audio").and_then(Value::as_object_mut) {
         audio.entry("crossfade_frames".to_string()).or_insert_with(|| json!(DEFAULT_CROSSFADE_FRAMES));
@@ -2131,10 +2134,11 @@ mod tests {
     fn a_new_project_states_whether_filmstrip_and_wave_are_made() {
         let mut from_user_template = json!({});
         complete_project_settings(&mut from_user_template).unwrap();
-        assert_eq!(from_user_template["artifacts"], json!({"filmstrip": "auto", "wave": "auto"}));
-        let mut switched_off = json!({"artifacts": {"filmstrip": "off"}});
+        let order: Value = serde_json::from_str(qnc_ingest_plan::DEFAULT).unwrap();
+        assert_eq!(from_user_template["artifacts"], json!({"filmstrip": "auto", "wave": "auto", "order": order}));
+        let mut switched_off = json!({"artifacts": {"filmstrip": "off", "order": [["records"]]}});
         complete_project_settings(&mut switched_off).unwrap();
-        assert_eq!(switched_off["artifacts"], json!({"filmstrip": "off", "wave": "auto"}));
+        assert_eq!(switched_off["artifacts"], json!({"filmstrip": "off", "wave": "auto", "order": [["records"]]}), "a template's own order stays");
     }
 
     #[test]

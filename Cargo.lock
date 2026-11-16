@@ -3849,6 +3849,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-open",
+ "qnc-breaking-news",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-project-desktop",
@@ -4442,6 +4443,7 @@ dependencies = [
 name = "qnc-content-artifacts"
 version = "0.1.0"
 dependencies = [
+ "qnc-active-project-read",
  "qnc-artifact-db",
  "qnc-content-store",
  "qnc-db-broker",
@@ -5291,6 +5293,13 @@ version = "0.1.0"
 dependencies = [
  "qnc-form-pieces",
  "qnc-pool-marks",
+]
+
+[[package]]
+name = "qnc-ingest-plan"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -6646,6 +6655,7 @@ dependencies = [
  "qnc-application-catalog",
  "qnc-contracts",
  "qnc-db-contract",
+ "qnc-ingest-plan",
  "qnc-transport-resolver",
  "qnc-ui-text",
  "qnc-workstation-identity",

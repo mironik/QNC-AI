@@ -1,0 +1,8 @@
+[package]
+name = "qnc-ingest-plan"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the order of the steps of an ingest (a setting of the template), as an orchestrator reads it; no work of its own"
+
+[dependencies]
+serde_json = { workspace = true }
