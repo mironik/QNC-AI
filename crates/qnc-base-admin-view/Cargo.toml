@@ -7,5 +7,6 @@ description = "QNC-AI block: the administrator's view of the Ingest bases (their
 [dependencies]
 eframe = { workspace = true }
 qnc-base-admin = { workspace = true }
+qnc-ai-open = { workspace = true }
 qnc-ui-kit = { workspace = true }
 qnc-wizard-text = { workspace = true }

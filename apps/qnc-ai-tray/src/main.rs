@@ -17,7 +17,7 @@ use qnc_wizard_text::{fill, text};
 
 const STATUS: u32 = 1;
 const QUIT: u32 = 3;
-const SETTINGS: u32 = 4;
+const ADMIN: u32 = 4;
 const INGEST_FOLDER: u32 = 8;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
@@ -38,7 +38,8 @@ fn menu(running: usize) -> Vec<MenuItem> {
         // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
         // browser (user 2026-11-13).
         MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true },
-        MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true },
+        // The administrator's way in: the bases and, from there, the settings (user 2026-11-16).
+        MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true },
         MenuItem { id: QUIT, text: text("tray.quit"), enabled: true },
     ]
 }
@@ -104,7 +105,7 @@ fn main() {
                     log("quit".into());
                     return;
                 }
-                TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
+                TrayEvent::Menu(ADMIN) => open_admin(&tray, &root),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
                 // asked whether into a new base or the one Ingest works in (user 2026-11-16).
                 TrayEvent::Menu(INGEST_FOLDER) if folder_asked.is_none() => match orchestrator(&tray, &root).map(|orchestrator| orchestrator.folder_choice(&root)) {
@@ -284,17 +285,17 @@ fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
     }
 }
 
-/// The Settings form, beside this program (it keeps one copy itself).
-fn open_settings(tray: &Tray, root: &std::path::Path) {
+/// The administrator's form, beside this program (it keeps one copy itself).
+fn open_admin(tray: &Tray, root: &std::path::Path) {
     let program = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-settings{}", std::env::consts::EXE_SUFFIX))))
+        .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-admin{}", std::env::consts::EXE_SUFFIX))))
         .unwrap_or_default();
     match std::process::Command::new(&program).current_dir(root).env("QNC_ROOT", root).spawn() {
-        Ok(_) => log("settings opened".into()),
+        Ok(_) => log("administration opened".into()),
         Err(error) => {
-            log(format!("settings failed {}: {error}", program.display()));
-            tray.alert("settings", &text("tray.title"), &fill("tray.settings_failed", &[("error", &error.to_string())]), &text("tray.ok"));
+            log(format!("administration failed {}: {error}", program.display()));
+            tray.alert("admin", &text("tray.title"), &fill("tray.admin_failed", &[("error", &error.to_string())]), &text("tray.ok"));
         }
     }
 }

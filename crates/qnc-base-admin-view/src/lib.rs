@@ -36,7 +36,17 @@ impl AdminView {
             });
         }
         ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
-        ui.heading(text("admin.title"));
+        ui.horizontal(|ui| {
+            ui.heading(text("admin.title"));
+            // The settings are the administrator's (user 2026-11-16: "admin upravlja postavkama").
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.add(qnc_ui_kit::sized_button(text("admin.settings"), BUTTON)).clicked() {
+                    if let Err(error) = qnc_ai_open::open(&self.root, "qnc-ai-settings") {
+                        self.said = Some((error, false));
+                    }
+                }
+            });
+        });
         ui.add_space(8.0);
         if let Some(delete) = &self.deleting {
             ui.label(fill("tray.base_deleting", &[("base", &delete.label)]));
