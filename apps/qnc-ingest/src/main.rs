@@ -1,3 +1,6 @@
+// A form window: no console of its own (user 2026-11-16: terminals were seen before it).
+#![windows_subsystem = "windows"]
+
 use std::env;
 
 fn main() -> eframe::Result<()> {

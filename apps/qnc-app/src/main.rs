@@ -1,6 +1,8 @@
 //! QNC desktop host: the desktop block and the public surfaces of the registered
 //! applications (`desktop_entry` -> public adapter).
 
+#![windows_subsystem = "windows"]
+
 use std::{collections::HashMap, env, process};
 
 use eframe::egui;

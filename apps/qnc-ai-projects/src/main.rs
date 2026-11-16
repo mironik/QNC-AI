@@ -18,6 +18,8 @@ struct Projects {
     /// 2026-11-15: it opened minimised and was not seen; `qnc-window-front`).
     front: qnc_window_front::WindowFront,
     shown: bool,
+    /// Ingest or AI Media Assist was opened and the window closes.
+    handed: bool,
     /// The height the window was last given (that of its content).
     height: f32,
 }
@@ -33,6 +35,11 @@ impl eframe::App for Projects {
         // row of a new project (Ingest opens on the newest base no story took yet, or on a card or
         // folder when every base has its story). The window is as tall as that, no empty space.
         self.app.update(ctx, frame);
+        if self.handed {
+            // Closing takes a frame or two; nothing is opened again meanwhile (user 2026-11-16:
+            // Ingest was started twice).
+            return;
+        }
         if self.app.take_new_asked() {
             self.new_project(ctx);
             return;
@@ -48,7 +55,10 @@ impl eframe::App for Projects {
             Ok(name) => {
                 log(format!("ai-projects opened {name}"));
                 match qnc_ai_open::open(&self.root, "qnc-media-assist-audio-ai") {
-                    Ok(program) => log(format!("ai-projects handed over to {}", program.display())),
+                    Ok(program) => {
+                        self.handed = true;
+                        log(format!("ai-projects handed over to {}", program.display()))
+                    }
                     Err(error) => log(format!("ai-projects AI Media Assist not opened: {error}")),
                 }
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -71,6 +81,7 @@ impl Projects {
         }
         match qnc_ai_open::open_for_new_story(&self.root, "qnc-ingest") {
             Ok(program) => {
+                self.handed = true;
                 log(format!("ai-projects handed over to {}", program.display()));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
@@ -112,7 +123,7 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             let _ = qnc_project_desktop::apply_project_style(&cc.egui_ctx);
             let bar = qnc_title_bar::TitleBar::new(qnc_wizard_text::text("projects.title"), root.clone());
-            Ok(Box::new(qnc_title_bar::Framed { bar, app: Projects { root, app, front: Default::default(), shown: false, height: 0.0 } }))
+            Ok(Box::new(qnc_title_bar::Framed { bar, app: Projects { root, app, front: Default::default(), shown: false, handed: false, height: 0.0 } }))
         }),
     )
 }

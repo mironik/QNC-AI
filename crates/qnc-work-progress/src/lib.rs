@@ -251,11 +251,29 @@ pub struct Follower {
 
 impl Follower {
     pub fn start(root: &Path) -> Self {
+        Self::start_for(root, false)
+    }
+
+    /// As [`start`](Self::start); for a window opened for a new story (`new_story`, user
+    /// 2026-11-16: "Novi projekt" showed the work of the project before it), the project active
+    /// when it started is not its own: nothing is read of it until another one is active.
+    pub fn start_for(root: &Path, new_story: bool) -> Self {
         let (send, read) = channel();
         let root = root.to_path_buf();
         let spawned = std::thread::Builder::new().name("qnc-work-progress".into()).spawn(move || {
             let mut said = String::new();
+            let active_id = |root: &PathBuf| {
+                qnc_active_project_read::ActiveProjectReader::from_root(root).ok().and_then(|active| active.read().ok()).map(|snapshot| snapshot.project_id)
+            };
+            let not_ours = if new_story { active_id(&root) } else { None };
             loop {
+                if not_ours.is_some() && active_id(&root) == not_ours {
+                    if send.send(Progress::default()).is_err() {
+                        return;
+                    }
+                    std::thread::sleep(READ);
+                    continue;
+                }
                 let read = progress(&root).unwrap_or_else(|error| {
                     if error != said {
                         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("work progress not read: {error}"));
