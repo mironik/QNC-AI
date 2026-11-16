@@ -30,10 +30,7 @@ impl IngestApplication {
         // (2026-11-16): its project is made by itself and the card is Selected into it
         // (`Next::SelectBase`). A story's project active takes the card as in QNC; the import's
         // own window (pinned to its base) Selects into the base.
-        // Opened for a new story ("Novi projekt"), the project active before is not this one's:
-        // the card makes a project of its own too.
-        let before = self.project.is_before_new_story();
-        let breaking = |root: &std::path::PathBuf| qnc_work_settings::pinned_project().is_none() && (before || !qnc_ingest_base::active_is_story(root));
+        let breaking = |root: &std::path::PathBuf| qnc_work_settings::pinned_project().is_none() && !qnc_ingest_base::active_is_story(root);
         if let Some(root) = self.root.clone().filter(breaking) {
             self.story.breaking_news(&root, &uri);
             return IngestDispatchResult::accepted(None, true);
