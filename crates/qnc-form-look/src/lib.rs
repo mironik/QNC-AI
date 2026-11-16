@@ -96,6 +96,16 @@ pub fn editor_on(root: &Path) -> bool {
     }
 }
 
+/// Asks the form of this window to open its look editor, or shut it when open (the hidden button
+/// before the title, `qnc-title-bar`). Read by [`FormLook::editor`] in the same or the next frame.
+pub fn ask_editor(ctx: &egui::Context) {
+    ctx.data_mut(|data| data.insert_temp(egui::Id::new("qnc-form-look-asked"), true));
+}
+
+fn take_asked(ctx: &egui::Context) -> bool {
+    ctx.data_mut(|data| data.remove_temp::<bool>(egui::Id::new("qnc-form-look-asked")).unwrap_or(false))
+}
+
 fn snap(value: &mut Value) {
     value.value = ((value.value / value.step).round() * value.step).clamp(value.min, value.max);
 }
@@ -213,6 +223,15 @@ impl FormLook {
         self.mark(ui, rect, key, Grows::Down);
     }
 
+    /// Opens the editor (its window, and parts of the form taken by click) or shuts both.
+    fn shut_or_open(&mut self, open: bool) {
+        self.window = open;
+        self.editing = open;
+        if !open {
+            *self.taken.borrow_mut() = None;
+        }
+    }
+
     fn save(&mut self) -> Result<(), String> {
         let file = File { form: self.form.clone(), values: self.values.borrow().clone() };
         let text = serde_json::to_string_pretty(&file).map_err(|error| error.to_string())?;
@@ -224,6 +243,10 @@ impl FormLook {
     /// The small window beside the form while editing: Save, Back, and every value as a number.
     /// Call once per frame.
     pub fn editor(&mut self, ctx: &egui::Context) {
+        if take_asked(ctx) {
+            let open = !self.window;
+            self.shut_or_open(open);
+        }
         if !self.window {
             return;
         }
@@ -231,16 +254,22 @@ impl FormLook {
         let builder = egui::ViewportBuilder::default().with_title(qnc_wizard_text::fill("form_look.title", &[("form", &self.form)])).with_inner_size([380.0, 640.0]);
         ctx.show_viewport_immediate(id, builder, |ctx, _| {
             if ctx.input(|input| input.viewport().close_requested()) {
-                self.window = false;
+                self.shut_or_open(false);
             }
             egui::TopBottomPanel::bottom("qnc-form-look-buttons").show(ctx, |ui| {
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     if ui.add_enabled(self.changed(), egui::Button::new(qnc_wizard_text::text("form_look.save"))).clicked() {
-                        self.note = match self.save() {
-                            Ok(()) => qnc_wizard_text::fill("form_look.saved", &[("file", &self.file.display().to_string())]),
-                            Err(error) => error,
-                        };
+                        // Save writes and shuts the editor (user 2026-11-16); a failed save keeps
+                        // it open and says why.
+                        match self.save() {
+                            Ok(()) => {
+                                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("form-look saved {}", self.file.display()));
+                                self.note.clear();
+                                self.shut_or_open(false);
+                            }
+                            Err(error) => self.note = error,
+                        }
                     }
                     if ui.add_enabled(self.changed(), egui::Button::new(qnc_wizard_text::text("form_look.back"))).clicked() {
                         *self.values.borrow_mut() = self.saved.clone();

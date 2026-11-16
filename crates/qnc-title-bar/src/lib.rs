@@ -83,6 +83,17 @@ impl TitleBar {
                     ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized));
                 }
                 let colour = ui.visuals().text_color();
+                // A hidden button before the title opens and shuts the form's look editor (user
+                // 2026-11-16: "skriveno dugme ispred naziva forme kojim bi se mogao pokrenuti editor");
+                // a faint dot shows it only under the mouse.
+                let hidden = Rect::from_min_size(bar.left_top(), Vec2::new(12.0, bar.height()));
+                let look = ui.interact(hidden, egui::Id::new("qnc-title-bar-look"), Sense::click());
+                if look.hovered() {
+                    ui.painter().circle_filled(hidden.center(), 2.5, ui.visuals().weak_text_color());
+                }
+                if look.clicked() {
+                    qnc_form_look::ask_editor(ctx);
+                }
                 ui.painter().text(Pos2::new(bar.left() + 14.0, bar.center().y), egui::Align2::LEFT_CENTER, &self.title, egui::FontId::proportional(14.0), colour);
                 let buttons = [
                     (Button::Close, "title.close"),

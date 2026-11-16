@@ -3752,6 +3752,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-card-ingest",
+ "qnc-confirm-dialog",
  "qnc-dev-diagnostics",
  "qnc-form-look",
  "qnc-ingest-application",
@@ -7944,6 +7945,7 @@ dependencies = [
  "qnc-ai-open",
  "qnc-base-search-view",
  "qnc-dev-diagnostics",
+ "qnc-form-look",
  "qnc-wizard-text",
  "qnc-work-info",
 ]

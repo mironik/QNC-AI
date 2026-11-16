@@ -39,6 +39,9 @@ struct Window {
     /// The window's measures (user 2026-11-16: the look editor), and the size last given to it.
     look: qnc_form_look::FormLook,
     size: egui::Vec2,
+    /// Cancel was pressed and waits for its answer; the ingest was cancelled (the window closes).
+    cancel_asked: bool,
+    cancelled: bool,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -123,7 +126,7 @@ const LOOK_KEYS: &[&str] = &[
     "window_width", "window_height", "margin_left", "margin_right", "margin_top", "margin_bottom", "browser_margin",
     "title_size", "subtitle_size", "header_gap", "card_gap", "card_padding", "card_corner", "card_frame", "card_title_size",
     "card_title_gap", "line_gap", "bars_gap", "after_bars_gap", "bar_row", "bar_name", "bar_count", "bar_time", "bar_x",
-    "bar_col_gap", "bar_thickness", "field_label_size", "field_gap",
+    "bar_col_gap", "bar_thickness", "field_label_size", "field_gap", "cancel_width",
 ];
 
 /// m:ss, or h:mm:ss past an hour.
@@ -165,7 +168,7 @@ impl eframe::App for Window {
         // The window closes only once the base has its name (user 2026-11-15); what was typed is
         // written as it closes.
         if ctx.input(|input| input.viewport().close_requested()) {
-            if self.info.title.trim().is_empty() && !self.base.is_empty() {
+            if !self.cancelled && self.info.title.trim().is_empty() && !self.base.is_empty() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.info.needed = true;
             } else {
@@ -309,10 +312,38 @@ impl eframe::App for Window {
                     self.info.keep(&self.root, &self.base);
                 }
             }
+            // Cancel while work still runs (user 2026-11-16: "dodaj odustani dugme ako korisnik hoće prekinut").
+            if status.phase != Phase::Done && !self.cancelled {
+                look.space(ui, "card_gap");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let size = egui::vec2(look.get("cancel_width"), theme.chrome_control_height);
+                    if ui.add(qnc_ui_kit::sized_button(text("card_ingest.cancel"), size)).clicked() {
+                        self.cancel_asked = true;
+                    }
+                });
+            }
             // No "Start QNC" here: the tray asks once for every base being ingested (user
             // 2026-11-14). Closing this window does not stop the work (the worker is its own program).
             });
         });
+        if self.cancel_asked {
+            let style = qnc_confirm_dialog::DialogStyle { surface: theme.surface, border: theme.border, text: theme.text, muted: theme.text_muted, accent: theme.accent, font_size: theme.font_ui, button_height: theme.chrome_control_height };
+            let (title, subject, no, yes) = (text("card_ingest.cancel_title"), text("card_ingest.cancel_subject"), text("card_ingest.cancel_no"), text("card_ingest.cancel_yes"));
+            match qnc_confirm_dialog::show(ctx, &style, qnc_confirm_dialog::Question { id: "card_ingest_cancel", title: &title, subject: &subject, no: &no, yes: &yes }) {
+                Some(true) => {
+                    // Every function that still runs stops; what is made stays, the window closes.
+                    let running: Vec<&'static str> = status.progress.bars().iter().filter(|bar| !bar.stopped && bar.done < status.progress.clips).map(|bar| bar.function).collect();
+                    log(format!("ai-card-ingest cancelled by the user: stops {running:?}"));
+                    qnc_card_ingest::stop_all(&self.root, running);
+                    self.info.keep(&self.root, &self.base);
+                    self.cancel_asked = false;
+                    self.cancelled = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                Some(false) => self.cancel_asked = false,
+                None => {}
+            }
+        }
         ctx.request_repaint_after(std::time::Duration::from_millis(200));
     }
 }
@@ -372,7 +403,7 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, size: egui::vec2(look.get("window_width"), look.get("window_height")), look };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, size: egui::vec2(look.get("window_width"), look.get("window_height")), look, cancel_asked: false, cancelled: false };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;

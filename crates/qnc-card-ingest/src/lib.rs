@@ -15,7 +15,7 @@ use std::sync::mpsc::{channel, Receiver};
 use std::time::Duration;
 
 use qnc_ingest_application::{action_ids, IngestApplication, IngestIntent};
-pub use qnc_work_progress::{progress_of, stop, Bar, Progress};
+pub use qnc_work_progress::{progress_of, stop, stop_all, Bar, Progress};
 use qnc_work_progress::progress;
 
 mod start_ask;

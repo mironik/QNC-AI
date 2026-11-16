@@ -97,19 +97,30 @@ impl Progress {
 /// Stops `function` in the active base of `root` (the X beside its bar), on a thread of its own;
 /// the next reading of the progress shows it stopped.
 pub fn stop(root: &Path, function: &'static str) {
+    stop_all(root, vec![function]);
+}
+
+/// Stops every function of `functions` in the active base of `root`, one after the other on a
+/// thread of its own (user 2026-11-16: Cancel of the wizard stops all that still runs).
+pub fn stop_all(root: &Path, functions: Vec<&'static str>) {
     let root = root.to_path_buf();
     std::thread::spawn(move || {
-        let result = (|| {
+        let target = (|| {
             let active = qnc_active_project_read::ActiveProjectReader::from_root(&root).map_err(|error| error.to_string())?;
             let snapshot = active.read().map_err(|error| error.to_string())?;
-            let target = qnc_content_store::ContentTarget::for_project(active.settings_reader(), &snapshot.settings)?;
-            qnc_stopped_work::stop(target, function)
+            qnc_content_store::ContentTarget::for_project(active.settings_reader(), &snapshot.settings)
         })();
-        let line = match result {
-            Ok(()) => format!("ai-card-ingest stopped {function}"),
-            Err(error) => format!("ai-card-ingest {function} not stopped: {error}"),
-        };
-        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+        for function in functions {
+            let result = match &target {
+                Ok(target) => qnc_stopped_work::stop(target.clone(), function),
+                Err(error) => Err(error.clone()),
+            };
+            let line = match result {
+                Ok(()) => format!("ai-card-ingest stopped {function}"),
+                Err(error) => format!("ai-card-ingest {function} not stopped: {error}"),
+            };
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+        }
     });
 }
 
