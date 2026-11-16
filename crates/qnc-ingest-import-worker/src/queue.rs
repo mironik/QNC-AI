@@ -16,6 +16,22 @@ pub trait ImportQueue {
         optimized: Option<MediaRepresentation>,
         error: Option<String>,
     ) -> Result<(), String>;
+
+    /// As `finish_import`, with the checksum the copy was proven by (2026-11-16); a queue that
+    /// keeps no checksum finishes the import without it.
+    #[allow(clippy::too_many_arguments)]
+    fn finish_import_checked(
+        &mut self,
+        clip_id: String,
+        media_uri: Option<String>,
+        thumbnail_uri: Option<String>,
+        copy_of: Option<ImportedCopy>,
+        optimized: Option<MediaRepresentation>,
+        _checksum: Option<String>,
+        error: Option<String>,
+    ) -> Result<(), String> {
+        self.finish_import(clip_id, media_uri, thumbnail_uri, copy_of, optimized, error)
+    }
 }
 
 impl ImportQueue for ContentClient {
@@ -38,6 +54,19 @@ impl ImportQueue for ContentClient {
     ) -> Result<(), String> {
         ContentClient::finish_import(self, clip_id, media_uri, thumbnail_uri, copy_of, optimized, error)
             .map_err(|e| e)
+    }
+
+    fn finish_import_checked(
+        &mut self,
+        clip_id: String,
+        media_uri: Option<String>,
+        thumbnail_uri: Option<String>,
+        copy_of: Option<ImportedCopy>,
+        optimized: Option<MediaRepresentation>,
+        checksum: Option<String>,
+        error: Option<String>,
+    ) -> Result<(), String> {
+        ContentClient::finish_import_checked(self, clip_id, media_uri, thumbnail_uri, copy_of, optimized, checksum, error)
     }
 }
 
@@ -134,10 +163,21 @@ impl ImportQueue for TransportQueue {
         optimized: Option<MediaRepresentation>,
         error: Option<String>,
     ) -> Result<(), String> {
+        self.finish_import_checked(clip_id, media_uri, thumbnail_uri, copy_of, optimized, None, error)
+    }
+
+    fn finish_import_checked(
+        &mut self,
+        clip_id: String,
+        media_uri: Option<String>,
+        thumbnail_uri: Option<String>,
+        copy_of: Option<ImportedCopy>,
+        optimized: Option<MediaRepresentation>,
+        checksum: Option<String>,
+        error: Option<String>,
+    ) -> Result<(), String> {
         let key = self.next_key("finish");
-        self.transport
-            .finish_import(key.clone(), clip_id, media_uri, thumbnail_uri, copy_of, optimized, error)
-            .map_err(|e| e)?;
+        self.transport.finish_import_checked(key.clone(), clip_id, media_uri, thumbnail_uri, copy_of, optimized, checksum, error)?;
         self.wait(&key).map(|_| ())
     }
 }

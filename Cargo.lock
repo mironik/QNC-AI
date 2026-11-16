@@ -5101,6 +5101,7 @@ dependencies = [
  "qnc-base-cards",
  "qnc-camera-qnc-base",
  "qnc-content-read",
+ "qnc-media-checksum",
  "qnc-project-store",
  "qnc-source-contract",
  "qnc-work-settings",
@@ -5237,6 +5238,7 @@ dependencies = [
  "qnc-import-fit",
  "qnc-ingest-select",
  "qnc-ingest-work-plan",
+ "qnc-media-checksum",
  "qnc-media-metadata",
  "qnc-media-optimize",
  "qnc-media-probe",
@@ -5761,6 +5763,10 @@ dependencies = [
  "qnc-pool-pointer",
  "qnc-ui-kit",
 ]
+
+[[package]]
+name = "qnc-media-checksum"
+version = "0.1.0"
 
 [[package]]
 name = "qnc-media-decode"

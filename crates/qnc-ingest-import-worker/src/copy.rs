@@ -20,7 +20,7 @@ pub(crate) fn copy_into(
     destination: &Path,
     cancel: &AtomicBool,
     beat: &mut dyn FnMut(),
-) -> Result<(), String> {
+) -> Result<String, String> {
     // A medium on this computer is read straight from its file (read only, large pieces); the
     // stream of the media transport checks the file at every read, which makes a card behind USB
     // crawl (user 2026-11-12: "3,5 gigabajta mora biti za čas"). It is checked once, at the end.
@@ -32,11 +32,38 @@ pub(crate) fn copy_into(
         Some(path) => file_pieces(path)?,
         None => pieces_of(Box::new(opener.open(source_uri)?)),
     };
-    let copied = copy_pieces(opener, source, destination, cancel, beat);
-    if copied.is_ok() && local.as_deref().and_then(stamp_of) != before {
+    let copied = copy_pieces(opener, source, destination, cancel, beat)?;
+    if local.as_deref().and_then(stamp_of) != before {
         return Err(qnc_ui_text::text("import.source_changed").into());
     }
-    copied
+    // The copy is the card's only when what was written reads back as what was read (user
+    // 2026-11-16: a verified copy, as a professional offload).
+    let written = checksum_of_file(destination)?;
+    if written != copied {
+        return Err(qnc_ui_text::fill("import.copy_differs", &[("copy", &written), ("card", &copied)]));
+    }
+    Ok(copied)
+}
+
+/// The kind of checksum a copy is proven by (`qnc-media-checksum`: the basic one).
+const CHECKSUM: &str = qnc_media_checksum::XXH64;
+
+fn new_checksum() -> Box<dyn qnc_media_checksum::Checksum> {
+    qnc_media_checksum::kind(CHECKSUM).expect("the basic checksum")
+}
+
+/// The checksum of a file as it reads back, `kind:hex`.
+fn checksum_of_file(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut checksum = new_checksum();
+    let mut buffer = vec![0_u8; CHUNK];
+    loop {
+        let read = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if read == 0 {
+            return Ok(qnc_media_checksum::label(&*checksum));
+        }
+        checksum.update(&buffer[..read]);
+    }
 }
 
 fn copy_pieces(
@@ -45,8 +72,10 @@ fn copy_pieces(
     destination: &Path,
     cancel: &AtomicBool,
     beat: &mut dyn FnMut(),
-) -> Result<(), String> {
+) -> Result<String, String> {
     let mut file = fs::File::create(destination).map_err(|e| e.to_string())?;
+    // The checksum of what the card gave, as it is written.
+    let mut checksum = new_checksum();
     // The card is read on a thread of its own, ahead of the writes. A read the card never answers
     // leaves that thread behind; the copy itself ends after `STALL`.
     let (send, pieces) = std::sync::mpsc::sync_channel::<Result<Vec<u8>, String>>(AHEAD);
@@ -84,8 +113,11 @@ fn copy_pieces(
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Err(qnc_ui_text::text("import.import_interrupted").into()),
         };
         if piece.is_empty() {
-            return Ok(());
+            // On the disk before it is read back.
+            file.sync_all().map_err(|e| e.to_string())?;
+            return Ok(qnc_media_checksum::label(&*checksum));
         }
+        checksum.update(&piece);
         file.write_all(&piece).map_err(|e| e.to_string())?;
         if last_beat.elapsed() >= HEARTBEAT_EVERY {
             beat();
@@ -202,6 +234,8 @@ pub(crate) struct Imported {
     pub(crate) media_uri: String,
     pub(crate) copy_of: Option<ImportedCopy>,
     pub(crate) optimized: Option<MediaRepresentation>,
+    /// The checksum the copy was proven by (`kind:hex`); none for a linked medium.
+    pub(crate) checksum: Option<String>,
 }
 
 pub(crate) fn import_media(
@@ -212,22 +246,22 @@ pub(crate) fn import_media(
     cancel: &AtomicBool,
     beat: &mut dyn FnMut(),
 ) -> Result<Imported, String> {
-    let plain = |media_uri, copy_of| Imported { media_uri, copy_of, optimized: None };
     match action_for(clip, plan)? {
-        Action::Link { media_uri } => Ok(plain(media_uri, None)),
+        Action::Link { media_uri } => Ok(Imported { media_uri, copy_of: None, optimized: None, checksum: None }),
         Action::Optimize { with_original } => {
             let original = clip.clip.snapshot.binding.original_uri.clone();
             let optimized = optimize::make(clip, plan, project_dir, opener, cancel)?;
-            let (media_uri, copy_of) = if with_original {
-                (copy_media(clip, plan, project_dir, opener, cancel, beat, &original, Folder::Original)?, Some(ImportedCopy::Original))
+            let (media_uri, copy_of, checksum) = if with_original {
+                let (uri, checksum) = copy_media(clip, plan, project_dir, opener, cancel, beat, &original, Folder::Original)?;
+                (uri, Some(ImportedCopy::Original), Some(checksum))
             } else {
-                (original, None)
+                (original, None, None)
             };
-            Ok(Imported { media_uri, copy_of, optimized: Some(optimized) })
+            Ok(Imported { media_uri, copy_of, optimized: Some(optimized), checksum })
         }
         Action::Copy { source_uri, folder } => {
-            copy_media(clip, plan, project_dir, opener, cancel, beat, &source_uri, folder)
-                .map(|uri| plain(uri, Some(folder.copy())))
+            let (media_uri, checksum) = copy_media(clip, plan, project_dir, opener, cancel, beat, &source_uri, folder)?;
+            Ok(Imported { media_uri, copy_of: Some(folder.copy()), optimized: None, checksum: Some(checksum) })
         }
     }
 }
@@ -243,14 +277,15 @@ pub(crate) fn copy_media(
     beat: &mut dyn FnMut(),
     source_uri: &str,
     folder: Folder,
-) -> Result<String, String> {
+) -> Result<(String, String), String> {
     {
         {
-            let name = safe_name(clip.clip.id(), source_uri);
-            let directory = project_dir.join(folder.name());
-            inside_project(project_dir, &directory.join(&name))?;
-            fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-            copy_into(opener, source_uri, &directory.join(&name), cancel, beat)?;
+            // Its path and name on the card (2026-11-16), under the folder of what it is.
+            let name = card_path(clip.clip.id(), source_uri);
+            let destination = name.split('/').fold(project_dir.join(folder.name()), |path, part| path.join(part));
+            inside_project(project_dir, &destination)?;
+            fs::create_dir_all(destination.parent().unwrap_or(project_dir)).map_err(|e| e.to_string())?;
+            let checksum = copy_into(opener, source_uri, &destination, cancel, beat)?;
             // The copy is read like media on a card: through the project folder as a source.
             let source = plan
                 .settings
@@ -261,7 +296,7 @@ pub(crate) fn copy_media(
                 &format!("{}/{name}", folder.name()),
             )
             .map_err(|e| e.to_string())?;
-            Ok(reference.uri())
+            Ok((reference.uri(), checksum))
         }
     }
 }
@@ -302,8 +337,8 @@ pub fn import_poster(
 }
 
 /// Copies a file of this computer as an import copies a medium of a card (diagnostic: the copy
-/// speed against the system copy).
-pub fn copy_local_file(source: &Path, destination: &Path) -> Result<(), String> {
+/// speed against the system copy); gives the checksum the copy was proven by.
+pub fn copy_local_file(source: &Path, destination: &Path) -> Result<String, String> {
     struct Local(std::path::PathBuf);
     impl MediaOpener for Local {
         fn open(&self, _: &str) -> Result<Box<dyn MediaRead>, String> {

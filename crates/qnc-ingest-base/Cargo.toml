@@ -10,6 +10,7 @@ qnc-application-catalog = { workspace = true }
 qnc-base-cards = { workspace = true }
 qnc-content-read = { workspace = true }
 qnc-camera-qnc-base = { workspace = true }
+qnc-media-checksum = { workspace = true }
 qnc-source-contract = { workspace = true }
 qnc-project-store = { workspace = true }
 qnc-work-settings = { workspace = true }

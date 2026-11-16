@@ -683,3 +683,18 @@ fn an_optimized_copy_must_be_the_original_frame_for_frame() {
     }
     assert!(crate::optimize::same_frames(&original, &copy).is_err());
 }
+
+/// A copy is proven by its checksum (user 2026-11-16: a verified offload): what is written reads
+/// back as what was read, and the checksum is the source's.
+#[test]
+fn a_copy_is_proven_by_the_checksum_of_its_source() {
+    let dir = tempfile::tempdir().unwrap();
+    let (source, copy) = (dir.path().join("card.mxf"), dir.path().join("copy.mxf"));
+    let bytes: Vec<u8> = (0..300_000u32).map(|n| (n * 31 % 251) as u8).collect();
+    std::fs::write(&source, &bytes).unwrap();
+    let checksum = copy_local_file(&source, &copy).unwrap();
+    let mut expected = qnc_media_checksum::XxHash64::new();
+    qnc_media_checksum::Checksum::update(&mut expected, &bytes);
+    assert_eq!(checksum, format!("xxh64:{:016x}", expected.digest()));
+    assert_eq!(std::fs::read(&copy).unwrap(), bytes);
+}

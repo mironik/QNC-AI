@@ -122,7 +122,23 @@ impl ImportQueue for RunQueue<'_, '_> {
         if !self.run.allowed() {
             return Err(qnc_ui_text::text("import.lease_lost").into());
         }
-        self.queue.finish_import(clip_id, media_uri, thumbnail_uri, copy_of, optimized, error)
+        self.finish_import_checked(clip_id, media_uri, thumbnail_uri, copy_of, optimized, None, error)
+    }
+
+    fn finish_import_checked(
+        &mut self,
+        clip_id: String,
+        media_uri: Option<String>,
+        thumbnail_uri: Option<String>,
+        copy_of: Option<ImportedCopy>,
+        optimized: Option<MediaRepresentation>,
+        checksum: Option<String>,
+        error: Option<String>,
+    ) -> Result<(), String> {
+        if !self.run.allowed() {
+            return Err(qnc_ui_text::text("import.lease_lost").into());
+        }
+        self.queue.finish_import_checked(clip_id, media_uri, thumbnail_uri, copy_of, optimized, checksum, error)
     }
 }
 

@@ -65,6 +65,18 @@ pub fn action_for(clip: &StoredClip, plan: &IngestWorkPlan) -> Result<Action, St
     }
 }
 
+/// Where a copy of a card's medium goes under its folder (`original`, `proxy`): its path on the card
+/// with its own name (user 2026-11-16: the copy of a card keeps the card's layout and names, as a
+/// professional offload does), e.g. `XDROOT/Clip/Mironik 3683.MXF`. A medium whose path cannot be
+/// read from its address keeps the clip's id in its name ([`safe_name`]).
+pub(crate) fn card_path(clip_id: &str, source_uri: &str) -> String {
+    qnc_source_reader::SourceReference::from_uri(source_uri)
+        .ok()
+        .map(|reference| reference.relative_path().trim_matches('/').to_owned())
+        .filter(|path| !path.is_empty() && path.split('/').all(|part| !part.is_empty() && part != "." && part != ".." && !part.contains(['\\', ':'])))
+        .unwrap_or_else(|| safe_name(clip_id, source_uri))
+}
+
 /// A file name that is safe on every operating system and inside a QNC URI.
 /// The name of the source file is kept readable (decoded from the URI) with its extension.
 pub(crate) fn safe_name(clip_id: &str, source_uri: &str) -> String {

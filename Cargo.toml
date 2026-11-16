@@ -49,6 +49,7 @@ qnc-camera-adapter = { path = "../QNC-shared/crates/qnc-camera-adapter" }
 qnc-camera-detector = { path = "../QNC-shared/crates/qnc-camera-detector" }
 qnc-camera-generic-file = { path = "../QNC-shared/crates/qnc-camera-generic-file" }
 qnc-camera-qnc-base = { path = "../QNC-shared/crates/qnc-camera-qnc-base" }
+qnc-media-checksum = { path = "../QNC-shared/crates/qnc-media-checksum" }
 qnc-camera-patterns = { path = "../QNC-shared/crates/qnc-camera-patterns" }
 qnc-camera-profile-adapter = { path = "../QNC-shared/crates/qnc-camera-profile-adapter" }
 qnc-camera-profiles = { path = "../QNC-shared/crates/qnc-camera-profiles" }

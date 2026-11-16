@@ -42,12 +42,13 @@ pub(crate) fn import_one(
     let result = match imported {
         Ok(imported) => {
             thumbnail_uri = import_poster(&clip, plan, project_dir, opener, cancel);
-            queue.finish_import(
+            queue.finish_import_checked(
                 clip_id.clone(),
                 Some(imported.media_uri.clone()),
                 thumbnail_uri.clone(),
                 imported.copy_of,
                 imported.optimized,
+                imported.checksum,
                 None,
             )?;
             Ok(imported.media_uri)

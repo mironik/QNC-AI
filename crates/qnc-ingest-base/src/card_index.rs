@@ -17,6 +17,17 @@ struct Kept {
     media_uri: String,
     poster_uri: Option<String>,
     record: String,
+    /// The checksum its copy was proven by (`kind:hex`), when copied (2026-11-16).
+    checksum: Option<String>,
+}
+
+/// The media hash list beside the index: every copy in the base with its checksum (user
+/// 2026-11-16: a verified offload, as DIT tools write it).
+pub const MHL_FILE: &str = "QNCCARD.mhl";
+
+/// `YYYY-MM-DDThh:mm:ssZ` of a time.
+fn utc(time: std::time::SystemTime) -> String {
+    chrono::DateTime::<chrono::Utc>::from(time).format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 /// Writes the card index of the base `base_id` from what its import made: every clip copied into
@@ -31,10 +42,19 @@ pub fn write_card_index(root: &Path, base_id: &str) -> Result<usize, String> {
 pub fn write_card_index_in(folder: &Path) -> Result<usize, String> {
     let kept = read_kept(&folder.join("project.db"))?;
     let mut clips = Vec::new();
+    let mut hashes = Vec::new();
     let records = folder.join(RECORD_FOLDER);
     std::fs::create_dir_all(&records).map_err(|error| format!("{}: {error}", records.display()))?;
+    let now = utc(std::time::SystemTime::now());
     for clip in kept {
         let Some(original) = inside(&folder, &clip.media_uri) else { continue };
+        if let Some(checksum) = &clip.checksum {
+            let meta = std::fs::metadata(original.split('/').fold(folder.to_path_buf(), |path, part| path.join(part)));
+            if let Ok(meta) = meta {
+                let modified = meta.modified().map(utc).unwrap_or_else(|_| now.clone());
+                hashes.push(qnc_media_checksum::mhl::Entry { file: original.clone(), size: meta.len(), modified, checksum: checksum.clone(), hashed: now.clone() });
+            }
+        }
         let record = record_path(&clip.id);
         let at = folder.join(&record);
         std::fs::write(&at, &clip.record).map_err(|error| format!("{}: {error}", at.display()))?;
@@ -50,6 +70,10 @@ pub fn write_card_index_in(folder: &Path) -> Result<usize, String> {
     let count = clips.len();
     let index = folder.join(INDEX_FILE);
     std::fs::write(&index, BaseCardIndex::new(clips).text()).map_err(|error| format!("{}: {error}", index.display()))?;
+    if !hashes.is_empty() {
+        let mhl = folder.join(MHL_FILE);
+        std::fs::write(&mhl, qnc_media_checksum::mhl::document("QNC-AI ingest", &now, &hashes)).map_err(|error| format!("{}: {error}", mhl.display()))?;
+    }
     Ok(count)
 }
 
@@ -77,16 +101,21 @@ pub fn card_of(root: &Path, base_id: &str, clips: &[String]) -> Result<(String, 
 fn read_kept(file: &Path) -> Result<Vec<Kept>, String> {
     let conn = rusqlite::Connection::open_with_flags(file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
+    // A base made before the checksum was kept reads it as none.
+    let has_checksum: bool = conn
+        .query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('clips') WHERE name = 'copy_checksum')", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    let checksum = if has_checksum { "c.copy_checksum" } else { "NULL" };
     let mut statement = conn
-        .prepare(
-            "SELECT c.clip_id, c.name, c.imported_media_uri, c.thumbnail_uri, p.probe_json
+        .prepare(&format!(
+            "SELECT c.clip_id, c.name, c.imported_media_uri, c.thumbnail_uri, p.probe_json, {checksum}
              FROM clips c JOIN probe_records p ON p.clip_id = c.clip_id
              WHERE c.final = 1 AND c.import_status = 'imported' AND c.imported_media_uri IS NOT NULL
-             ORDER BY c.name, c.clip_id",
-        )
+             ORDER BY c.name, c.clip_id"
+        ))
         .map_err(|error| error.to_string())?;
     let rows = statement
-        .query_map([], |row| Ok(Kept { id: row.get(0)?, name: row.get(1)?, media_uri: row.get(2)?, poster_uri: row.get(3)?, record: row.get(4)? }))
+        .query_map([], |row| Ok(Kept { id: row.get(0)?, name: row.get(1)?, media_uri: row.get(2)?, poster_uri: row.get(3)?, record: row.get(4)?, checksum: row.get(5)? }))
         .map_err(|error| error.to_string())?;
     rows.collect::<Result<_, _>>().map_err(|error| error.to_string())
 }
