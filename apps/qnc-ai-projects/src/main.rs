@@ -22,6 +22,7 @@ struct Projects {
     handed: bool,
     /// The height the window was last given (that of its content).
     height: f32,
+    width: f32,
 }
 
 impl eframe::App for Projects {
@@ -45,9 +46,10 @@ impl eframe::App for Projects {
             return;
         }
         let height = (self.app.content_height() + qnc_title_bar::HEIGHT).ceil();
-        if height > 0.0 && (height - self.height).abs() > 1.0 {
-            self.height = height;
-            let width = ctx.input(|input| input.viewport().inner_rect.map_or(640.0, |rect| rect.width()));
+        // The width is the look's (the look editor moves it).
+        let width = self.app.look().map_or(self.width, |look| look.get("window_width"));
+        if height > 0.0 && ((height - self.height).abs() > 1.0 || width != self.width) {
+            (self.height, self.width) = (height, width);
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(width, height)));
         }
         let Some(story) = self.app.take_opened() else { return };
@@ -111,9 +113,19 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
+    // The form's measures (its height is that of its content).
+    let look = match qnc_form_look::FormLook::load(&root, "projects", &["window_width"]) {
+        Ok(look) => look,
+        Err(error) => {
+            log(format!("ai-projects look not read: {error}"));
+            return Ok(());
+        }
+    };
+    let width = look.get("window_width");
+    let app = app.with_look(look, qnc_title_bar::HEIGHT);
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("projects.title")).with_inner_size([640.0, 360.0]).with_min_inner_size([480.0, 160.0])),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("projects.title")).with_inner_size([width, 360.0]).with_min_inner_size([480.0, 160.0])),
         persist_window: false,
         ..Default::default()
     };
@@ -123,7 +135,7 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             let _ = qnc_project_desktop::apply_project_style(&cc.egui_ctx);
             let bar = qnc_title_bar::TitleBar::new(qnc_wizard_text::text("projects.title"), root.clone());
-            Ok(Box::new(qnc_title_bar::Framed { bar, app: Projects { root, app, front: Default::default(), shown: false, handed: false, height: 0.0 } }))
+            Ok(Box::new(qnc_title_bar::Framed { bar, app: Projects { root, app, front: Default::default(), shown: false, handed: false, height: 0.0, width: 0.0 } }))
         }),
     )
 }

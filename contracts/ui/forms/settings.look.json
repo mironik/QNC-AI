@@ -1,0 +1,18 @@
+{
+  "form": "settings",
+  "values": [
+    { "key": "window_width", "label": "Prozor: širina", "value": 900.0, "min": 500.0, "max": 2400.0, "step": 1.0 },
+    { "key": "window_height", "label": "Prozor: visina", "value": 800.0, "min": 400.0, "max": 1600.0, "step": 1.0 },
+    { "key": "panel_pad", "label": "Margina panela", "value": 20.0, "min": 0.0, "max": 120.0, "step": 1.0, "pointer": "/right_settings_panel/panel_pad" },
+    { "key": "inner_pad_x", "label": "Unutarnja margina: vodoravno", "value": 8.0, "min": 0.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/inner_pad_x" },
+    { "key": "inner_pad_y", "label": "Unutarnja margina: okomito", "value": 8.0, "min": 0.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/inner_pad_y" },
+    { "key": "section_gap", "label": "Razmak između odjeljaka", "value": 8.0, "min": 0.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/section_gap" },
+    { "key": "inline_label_width", "label": "Stupac oznaka: širina", "value": 168.0, "min": 40.0, "max": 600.0, "step": 1.0, "pointer": "/right_settings_panel/inline_label_width" },
+    { "key": "inline_button_width", "label": "Stupac dugmadi: širina", "value": 120.0, "min": 40.0, "max": 400.0, "step": 1.0, "pointer": "/right_settings_panel/inline_button_width" },
+    { "key": "inline_column_gap", "label": "Razmak stupaca", "value": 8.0, "min": 0.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/inline_column_gap" },
+    { "key": "field_min_width", "label": "Polje: najmanja širina", "value": 160.0, "min": 40.0, "max": 800.0, "step": 1.0, "pointer": "/right_settings_panel/field_min_width" },
+    { "key": "label_font_size", "label": "Oznake: veličina slova", "value": 12.0, "min": 8.0, "max": 30.0, "step": 1.0, "pointer": "/right_settings_panel/label_font_size" },
+    { "key": "group_title_font_size", "label": "Naslov odjeljka: veličina slova", "value": 12.0, "min": 8.0, "max": 30.0, "step": 1.0, "pointer": "/right_settings_panel/group_title_font_size" },
+    { "key": "row_height", "label": "Visina reda", "value": 24.0, "min": 14.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/row_height" }
+  ]
+}

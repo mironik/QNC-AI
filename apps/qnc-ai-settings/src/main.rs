@@ -16,16 +16,27 @@ fn main() -> eframe::Result<()> {
     if let Err(error) = qnc_ingest_base::keep_projects_apart(&root) {
         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-settings projects folder: {error}"));
     }
-    let app =match qnc_project_desktop::create_project_app(root) {
+    let root_for_look = root.clone();
+    let app = match qnc_project_desktop::create_project_app(root) {
         Ok(app) => app.settings_only(),
         Err(error) => {
             qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-settings not started: {error}"));
             return Ok(());
         }
     };
+    // The form's measures: a missing one is an error, never a guess.
+    let look = match qnc_form_look::FormLook::load(&root_for_look, "settings", &["window_width", "window_height"]) {
+        Ok(look) => look,
+        Err(error) => {
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ai-settings look not read: {error}"));
+            return Ok(());
+        }
+    };
+    let size = [look.get("window_width"), look.get("window_height") + qnc_title_bar::HEIGHT];
+    let app = app.with_look(look, qnc_title_bar::HEIGHT);
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("settings.title")).with_inner_size([900.0, 800.0]).with_min_inner_size([700.0, 500.0])),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(qnc_wizard_text::text("settings.title")).with_inner_size(size).with_min_inner_size([700.0, 500.0])),
         persist_window: false,
         ..Default::default()
     };

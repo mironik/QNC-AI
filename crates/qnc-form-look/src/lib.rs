@@ -31,6 +31,10 @@ pub struct Value {
     pub max: f32,
     /// The step of the arrows and the slider (1 for pixels).
     pub step: f32,
+    /// For a form drawn from a layout contract: where the value goes in it (a JSON pointer, e.g.
+    /// `/right_settings_panel/row_height`); the form puts it there ([`FormLook::apply`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pointer: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -69,6 +73,7 @@ pub struct FormLook {
     window: bool,
     taken: RefCell<Option<String>>,
     note: String,
+    sized: std::cell::Cell<Option<egui::Vec2>>,
 }
 
 /// The look file of `form` under `root`.
@@ -137,6 +142,7 @@ impl FormLook {
             window: editing,
             taken: RefCell::new(None),
             note: String::new(),
+            sized: std::cell::Cell::new(None),
         })
     }
 
@@ -151,6 +157,27 @@ impl FormLook {
     }
 
     /// Whether the values differ from what is saved.
+    /// Whether the look has `key`.
+    pub fn has(&self, key: &str) -> bool {
+        self.values.borrow().iter().any(|value| value.key == key)
+    }
+
+    /// Every value as it is now, to see whether it moved since the form last took it.
+    pub fn stamp(&self) -> Vec<f32> {
+        self.values.borrow().iter().map(|value| value.value).collect()
+    }
+
+    /// Puts every value that has a pointer into `contract` (the form's layout contract as JSON);
+    /// a pointer the contract lacks is an error, never skipped.
+    pub fn apply(&self, contract: &mut serde_json::Value) -> Result<(), String> {
+        for value in self.values.borrow().iter() {
+            let Some(pointer) = &value.pointer else { continue };
+            let slot = contract.pointer_mut(pointer).ok_or_else(|| format!("look {}: the contract lacks {pointer}", self.form))?;
+            *slot = serde_json::json!(value.value);
+        }
+        Ok(())
+    }
+
     pub fn changed(&self) -> bool {
         *self.values.borrow() != self.saved
     }
@@ -213,6 +240,35 @@ impl FormLook {
         } else if response.hovered() {
             painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, red.gamma_multiply(0.7)), egui::StrokeKind::Inside);
         }
+    }
+
+    /// The window's size as the look says (`window_width`, `window_height`), given to the window
+    /// when it changed; `extra` is what the window adds above its content (a title bar).
+    pub fn window(&self, ctx: &egui::Context, extra: f32) {
+        let size = egui::vec2(self.get("window_width"), self.get("window_height"));
+        if self.sized.get() != Some(size) {
+            self.sized.set(Some(size));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size + egui::vec2(0.0, extra)));
+        }
+    }
+
+    /// The form's body in a panel of colour `fill` with the look's four margins (`margin_left`,
+    /// `margin_right`, `margin_top`, `margin_bottom`), each moved where it is.
+    pub fn panel<R>(&self, ctx: &egui::Context, fill: egui::Color32, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+        let (left, right, top, bottom) = (self.get("margin_left"), self.get("margin_right"), self.get("margin_top"), self.get("margin_bottom"));
+        let margin = egui::Margin { left: left.round() as i8, right: right.round() as i8, top: top.round() as i8, bottom: bottom.round() as i8 };
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE.fill(fill).inner_margin(margin))
+            .show(ctx, |ui| {
+                let inner = ui.max_rect();
+                let (xs, ys) = (inner.left() - left..=inner.right() + right, inner.top() - top..=inner.bottom() + bottom);
+                self.mark(ui, egui::Rect::from_x_y_ranges(inner.left() - left..=inner.left(), ys.clone()), "margin_left", Grows::Right);
+                self.mark(ui, egui::Rect::from_x_y_ranges(inner.right()..=inner.right() + right, ys), "margin_right", Grows::Left);
+                self.mark(ui, egui::Rect::from_x_y_ranges(xs.clone(), inner.top() - top..=inner.top()), "margin_top", Grows::Down);
+                self.mark(ui, egui::Rect::from_x_y_ranges(xs, inner.bottom()..=inner.bottom() + bottom), "margin_bottom", Grows::Up);
+                add(ui)
+            })
+            .inner
     }
 
     /// A gap of `key` (going down), marked.
@@ -314,7 +370,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("qnc-form-look-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("contracts/ui/forms")).unwrap();
-        let file = File { form: "probe".into(), values: vec![Value { key: "margin".into(), label: "Margin".into(), value: 24.0, min: 0.0, max: 80.0, step: 1.0 }] };
+        let file = File { form: "probe".into(), values: vec![Value { key: "margin".into(), label: "Margin".into(), value: 24.0, min: 0.0, max: 80.0, step: 1.0, pointer: Some("/panel/pad".into()) }] };
         std::fs::write(look_file(&root, "probe"), serde_json::to_string(&file).unwrap()).unwrap();
         let look = FormLook::load(&root, "probe", &["margin"]).unwrap();
         assert_eq!(look.get("margin"), 24.0);
@@ -323,6 +379,10 @@ mod tests {
         look.change("margin", 500.0, true);
         assert_eq!(look.get("margin"), 80.0, "never past the range");
         assert!(look.changed());
+        let mut contract = serde_json::json!({ "panel": { "pad": 10.0 } });
+        look.apply(&mut contract).unwrap();
+        assert_eq!(contract["panel"]["pad"], 80.0, "the value goes where its pointer says");
+        assert!(look.apply(&mut serde_json::json!({})).is_err(), "a pointer the contract lacks is an error");
         assert!(FormLook::load(&root, "probe", &["margin", "gap"]).is_err(), "a key the file lacks is an error");
         assert!(FormLook::load(&root, "other", &[]).is_err());
         let _ = std::fs::remove_dir_all(&root);

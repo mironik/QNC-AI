@@ -10,3 +10,5 @@ eframe = { workspace = true }
 qnc-project-application = { workspace = true }
 qnc-project-blocks = { workspace = true }
 qnc-project-session = { workspace = true }
+qnc-form-look = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }

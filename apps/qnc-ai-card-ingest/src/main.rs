@@ -38,7 +38,6 @@ struct Window {
     label: String,
     /// The window's measures (user 2026-11-16: the look editor), and the size last given to it.
     look: qnc_form_look::FormLook,
-    size: egui::Vec2,
     /// Cancel was pressed and waits for its answer; the ingest was cancelled (the window closes).
     cancel_asked: bool,
     cancelled: bool,
@@ -144,11 +143,7 @@ impl eframe::App for Window {
         qnc_ingest_layout::theme::apply(ctx, &theme);
         // The look editor beside the window, and the window's size as the look says.
         self.look.editor(ctx);
-        let size = egui::vec2(self.look.get("window_width"), self.look.get("window_height"));
-        if size != self.size {
-            self.size = size;
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size + egui::vec2(0.0, qnc_title_bar::HEIGHT)));
-        }
+        self.look.window(ctx, qnc_title_bar::HEIGHT);
         // The tray's "Import from a folder" while this window runs (a card being ingested): the
         // browser is shown here, the card's import goes on (user 2026-11-13).
         if self.folder_asked.as_ref().is_some_and(qnc_tray::Signal::fired) {
@@ -237,17 +232,8 @@ impl eframe::App for Window {
         // The body scrolls inside the window's margin, so nothing runs past the bottom or the right
         // edge (user 2026-11-16: "donja margina forme ne postoji").
         let look = &self.look;
-        let (left, right, top, bottom) = (look.get("margin_left"), look.get("margin_right"), look.get("margin_top"), look.get("margin_bottom"));
-        let margin = egui::Margin { left: left.round() as i8, right: right.round() as i8, top: top.round() as i8, bottom: bottom.round() as i8 };
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(margin)).show(ctx, |ui| {
-            // The four margins are moved where they are.
+        look.panel(ctx, theme.bg, |ui| {
             use qnc_form_look::Grows;
-            let inner = ui.max_rect();
-            let (xs, ys) = (inner.left() - left..=inner.right() + right, inner.top() - top..=inner.bottom() + bottom);
-            look.mark(ui, egui::Rect::from_x_y_ranges(inner.left() - left..=inner.left(), ys.clone()), "margin_left", Grows::Right);
-            look.mark(ui, egui::Rect::from_x_y_ranges(inner.right()..=inner.right() + right, ys), "margin_right", Grows::Left);
-            look.mark(ui, egui::Rect::from_x_y_ranges(xs.clone(), inner.top() - top..=inner.top()), "margin_top", Grows::Down);
-            look.mark(ui, egui::Rect::from_x_y_ranges(xs, inner.bottom()..=inner.bottom() + bottom), "margin_bottom", Grows::Up);
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
@@ -403,14 +389,14 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, size: egui::vec2(look.get("window_width"), look.get("window_height")), look, cancel_asked: false, cancelled: false };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
     let step = 36.0 * place as f32;
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(title.clone()).with_inner_size([app.size.x, app.size.y + qnc_title_bar::HEIGHT]).with_position([120.0 + step, 80.0 + step])).with_resizable(false),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(title.clone()).with_inner_size([app.look.get("window_width"), app.look.get("window_height") + qnc_title_bar::HEIGHT]).with_position([120.0 + step, 80.0 + step])).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

@@ -16,11 +16,16 @@ pub struct ProjectApp {
     new_label: String,
     new_asked: bool,
     height: f32,
+    /// The form's look (user 2026-11-16: the look editor of every form), the values the contracts
+    /// were last made with, and the height the window adds above the content (its title bar).
+    look: Option<qnc_form_look::FormLook>,
+    look_stamp: Vec<f32>,
+    look_extra: f32,
 }
 
 impl ProjectApp {
     pub(crate) fn new(contracts: AppContracts, session: ProjectSession) -> Self {
-        Self { contracts, session, settings_only: false, projects_only: false, opened: None, new_label: String::new(), new_asked: false, height: 0.0 }
+        Self { contracts, session, settings_only: false, projects_only: false, opened: None, new_label: String::new(), new_asked: false, height: 0.0, look: None, look_stamp: Vec::new(), look_extra: 0.0 }
     }
 
     /// QNC-AI: the project list on its own, only the projects `only`; a row opened is not opened
@@ -50,6 +55,19 @@ impl ProjectApp {
     /// How tall the Projects content was last drawn (the window is sized to it).
     pub fn content_height(&self) -> f32 {
         self.height
+    }
+
+    /// The form's look: its editor (the hidden button before the title), its measures put into
+    /// the project layout, and the window's size when the look has one (`extra`: what the window
+    /// adds above the content).
+    pub fn with_look(mut self, look: qnc_form_look::FormLook, extra: f32) -> Self {
+        (self.look, self.look_extra) = (Some(look), extra);
+        self
+    }
+
+    /// The form's look, when it has one.
+    pub fn look(&self) -> Option<&qnc_form_look::FormLook> {
+        self.look.as_ref()
     }
 
     /// QNC-AI: the settings on their own, their advanced part open.
@@ -110,6 +128,20 @@ impl ProjectApp {
 
 impl eframe::App for ProjectApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(look) = self.look.as_mut() {
+            look.editor(ctx);
+            if look.has("window_height") {
+                look.window(ctx, self.look_extra);
+            }
+            let stamp = look.stamp();
+            if stamp != self.look_stamp {
+                self.look_stamp = stamp;
+                match AppContracts::load_with(Some(look)) {
+                    Ok(contracts) => self.contracts = contracts,
+                    Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("project look not applied: {error}")),
+                }
+            }
+        }
         let t = Theme::from_contract(&self.contracts.shell.colors);
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE.fill(t.bg))

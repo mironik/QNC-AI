@@ -10,3 +10,4 @@ qnc-base-admin = { workspace = true }
 qnc-ai-open = { workspace = true }
 qnc-ui-kit = { workspace = true }
 qnc-wizard-text = { workspace = true }
+qnc-form-look = { workspace = true }

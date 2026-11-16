@@ -1,0 +1,18 @@
+{
+  "form": "admin",
+  "values": [
+    { "key": "window_width", "label": "Prozor: širina", "value": 900.0, "min": 600.0, "max": 2000.0, "step": 1.0 },
+    { "key": "window_height", "label": "Prozor: visina", "value": 600.0, "min": 300.0, "max": 1400.0, "step": 1.0 },
+    { "key": "margin_left", "label": "Margina lijevo", "value": 24.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "margin_right", "label": "Margina desno", "value": 24.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "margin_top", "label": "Margina gore", "value": 20.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "margin_bottom", "label": "Margina dolje", "value": 20.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "title_size", "label": "Naslov: veličina slova", "value": 20.0, "min": 10.0, "max": 40.0, "step": 1.0 },
+    { "key": "header_gap", "label": "Razmak ispod naslova", "value": 8.0, "min": 0.0, "max": 80.0, "step": 1.0 },
+    { "key": "message_gap", "label": "Razmak ispod poruke", "value": 8.0, "min": 0.0, "max": 60.0, "step": 1.0 },
+    { "key": "button_width", "label": "Dugmad: širina", "value": 90.0, "min": 40.0, "max": 300.0, "step": 1.0 },
+    { "key": "button_height", "label": "Dugmad: visina", "value": 24.0, "min": 16.0, "max": 60.0, "step": 1.0 },
+    { "key": "column_gap", "label": "Tablica: razmak stupaca", "value": 18.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "row_gap", "label": "Tablica: razmak redaka", "value": 8.0, "min": 0.0, "max": 60.0, "step": 1.0 }
+  ]
+}

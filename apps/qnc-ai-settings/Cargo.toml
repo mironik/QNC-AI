@@ -12,3 +12,4 @@ qnc-ingest-base = { workspace = true }
 qnc-project-desktop = { workspace = true }
 qnc-tray = { workspace = true }
 qnc-wizard-text = { workspace = true }
+qnc-form-look = { workspace = true }

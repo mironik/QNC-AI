@@ -14,3 +14,4 @@ qnc-project-desktop = { workspace = true }
 qnc-tray = { workspace = true }
 qnc-window-front = { workspace = true }
 qnc-wizard-text = { workspace = true }
+qnc-form-look = { workspace = true }

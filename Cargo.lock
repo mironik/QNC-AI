@@ -3704,6 +3704,7 @@ dependencies = [
  "eframe",
  "qnc-base-admin-view",
  "qnc-dev-diagnostics",
+ "qnc-form-look",
  "qnc-project-desktop",
  "qnc-title-bar",
  "qnc-tray",
@@ -3865,6 +3866,7 @@ dependencies = [
  "eframe",
  "qnc-ai-open",
  "qnc-dev-diagnostics",
+ "qnc-form-look",
  "qnc-ingest-base",
  "qnc-project-desktop",
  "qnc-title-bar",
@@ -3891,6 +3893,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
+ "qnc-form-look",
  "qnc-ingest-base",
  "qnc-project-desktop",
  "qnc-title-bar",
@@ -4109,6 +4112,7 @@ dependencies = [
  "eframe",
  "qnc-ai-open",
  "qnc-base-admin",
+ "qnc-form-look",
  "qnc-ui-kit",
  "qnc-wizard-text",
 ]
@@ -6634,6 +6638,7 @@ dependencies = [
  "qnc-desktop-theme",
  "qnc-dir-browser",
  "qnc-export-preset",
+ "qnc-form-look",
  "qnc-ingest-orchestrator-view",
  "qnc-keyboard-shortcut",
  "qnc-language-choice",
@@ -6671,6 +6676,8 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-board",
+ "qnc-dev-diagnostics",
+ "qnc-form-look",
  "qnc-project-application",
  "qnc-project-blocks",
  "qnc-project-session",

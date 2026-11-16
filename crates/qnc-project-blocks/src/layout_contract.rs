@@ -19,13 +19,23 @@ pub struct AppContracts {
 
 impl AppContracts {
     pub fn load_embedded() -> Result<Self, String> {
+        Self::load_with(None)
+    }
+
+    /// As [`load_embedded`](Self::load_embedded), with the measures of the form's look put into the
+    /// project layout (user 2026-11-16: the look editor of every form).
+    pub fn load_with(look: Option<&qnc_form_look::FormLook>) -> Result<Self, String> {
         validate_layout_json("contracts/ui/shell.layout.json", SHELL_LAYOUT_JSON)?;
         validate_layout_json("contracts/ui/project.layout.json", PROJECT_LAYOUT_JSON)?;
 
         let shell = serde_json::from_str::<ShellLayoutContract>(SHELL_LAYOUT_JSON)
             .map_err(|error| format!("shell layout parse failed: {error}"))?;
         // The texts of the contract are codes, in the language of this computer (qnc-ui-text).
-        let project = serde_json::from_value::<ProjectLayoutContract>(qnc_ui_text::resolve_contract(PROJECT_LAYOUT_JSON)?)
+        let mut project = qnc_ui_text::resolve_contract(PROJECT_LAYOUT_JSON)?;
+        if let Some(look) = look {
+            look.apply(&mut project)?;
+        }
+        let project = serde_json::from_value::<ProjectLayoutContract>(project)
             .map_err(|error| format!("project layout parse failed: {error}"))?;
         let shortcuts = ShortcutCatalog::from_json_str(KEYBOARD_SHORTCUTS_JSON)?;
         let project_open_hint = shortcuts.chord_hint("project", "project_open_selected");
@@ -247,4 +257,18 @@ pub use qnc_settings_rows::PanelMetrics as SettingsPanelMetrics;
 pub struct PtsSlots {
     pub fixed_order: Vec<String>,
     pub scroll_order: Vec<String>,
+}
+
+#[cfg(test)]
+mod look_tests {
+    use super::*;
+
+    #[test]
+    fn the_looks_of_projects_and_settings_point_only_at_measures_the_contract_has() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for form in ["projects", "settings"] {
+            let look = qnc_form_look::FormLook::load(&root, form, &["window_width"]).unwrap();
+            AppContracts::load_with(Some(&look)).unwrap_or_else(|error| panic!("{form}: {error}"));
+        }
+    }
 }
