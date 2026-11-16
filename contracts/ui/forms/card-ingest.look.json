@@ -1,0 +1,33 @@
+{
+  "form": "card-ingest",
+  "values": [
+    { "key": "window_width", "label": "Prozor: širina", "value": 540.0, "min": 360.0, "max": 1400.0, "step": 1.0 },
+    { "key": "window_height", "label": "Prozor: visina", "value": 700.0, "min": 360.0, "max": 1400.0, "step": 1.0 },
+    { "key": "margin_left", "label": "Margina lijevo", "value": 24.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "margin_right", "label": "Margina desno", "value": 24.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "margin_top", "label": "Margina gore", "value": 24.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "margin_bottom", "label": "Margina dolje", "value": 24.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "browser_margin", "label": "Preglednik mapa: margina", "value": 16.0, "min": 0.0, "max": 120.0, "step": 1.0 },
+    { "key": "title_size", "label": "Naslov: slova (+ osnovna)", "value": 8.0, "min": -4.0, "max": 30.0, "step": 1.0 },
+    { "key": "subtitle_size", "label": "Podnaslov: slova (+ osnovna)", "value": 0.0, "min": -6.0, "max": 20.0, "step": 1.0 },
+    { "key": "header_gap", "label": "Razmak ispod naslova", "value": 16.0, "min": 0.0, "max": 80.0, "step": 1.0 },
+    { "key": "card_gap", "label": "Razmak između kartica", "value": 12.0, "min": 0.0, "max": 80.0, "step": 1.0 },
+    { "key": "card_padding", "label": "Kartica: unutarnja margina", "value": 18.0, "min": 0.0, "max": 80.0, "step": 1.0 },
+    { "key": "card_corner", "label": "Kartica: zaobljenje", "value": 8.0, "min": 0.0, "max": 30.0, "step": 1.0 },
+    { "key": "card_frame", "label": "Kartica: debljina okvira", "value": 1.0, "min": 0.0, "max": 6.0, "step": 0.5 },
+    { "key": "card_title_size", "label": "Kartica: naslov slova (+ osnovna)", "value": -2.0, "min": -8.0, "max": 20.0, "step": 1.0 },
+    { "key": "card_title_gap", "label": "Kartica: razmak ispod naslova", "value": 10.0, "min": 0.0, "max": 60.0, "step": 1.0 },
+    { "key": "line_gap", "label": "Razmak između redaka", "value": 3.0, "min": 0.0, "max": 30.0, "step": 1.0 },
+    { "key": "bars_gap", "label": "Razmak iznad traka", "value": 12.0, "min": 0.0, "max": 60.0, "step": 1.0 },
+    { "key": "after_bars_gap", "label": "Razmak ispod traka", "value": 8.0, "min": 0.0, "max": 60.0, "step": 1.0 },
+    { "key": "bar_row", "label": "Traka: visina reda", "value": 26.0, "min": 12.0, "max": 80.0, "step": 1.0 },
+    { "key": "bar_name", "label": "Traka: stupac naziva", "value": 120.0, "min": 40.0, "max": 400.0, "step": 1.0 },
+    { "key": "bar_count", "label": "Traka: stupac broja", "value": 78.0, "min": 30.0, "max": 300.0, "step": 1.0 },
+    { "key": "bar_time", "label": "Traka: stupac vremena", "value": 50.0, "min": 20.0, "max": 200.0, "step": 1.0 },
+    { "key": "bar_x", "label": "Traka: stupac ×", "value": 22.0, "min": 10.0, "max": 60.0, "step": 1.0 },
+    { "key": "bar_col_gap", "label": "Traka: razmak stupaca", "value": 12.0, "min": 0.0, "max": 60.0, "step": 1.0 },
+    { "key": "bar_thickness", "label": "Traka: debljina", "value": 6.0, "min": 1.0, "max": 30.0, "step": 1.0 },
+    { "key": "field_label_size", "label": "Polja: oznaka slova (+ osnovna)", "value": -1.0, "min": -8.0, "max": 20.0, "step": 1.0 },
+    { "key": "field_gap", "label": "Polja: razmak između polja", "value": 10.0, "min": 0.0, "max": 60.0, "step": 1.0 }
+  ]
+}

@@ -36,6 +36,9 @@ struct Window {
     info: BaseInfo,
     /// The base's card (its camera and time), said in the window, not in its title (user 2026-11-16).
     label: String,
+    /// The window's measures (user 2026-11-16: the look editor), and the size last given to it.
+    look: qnc_form_look::FormLook,
+    size: egui::Vec2,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -68,17 +71,17 @@ impl BaseInfo {
     }
 
     /// The name, the place and the description fields, the name's need said when closing waited for it.
-    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme) -> bool {
-        let label = |ui: &mut egui::Ui, code: &str| ui.label(RichText::new(text(code)).size(theme.font_ui - 1.0).color(theme.text_muted));
+    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook) -> bool {
+        let label = |ui: &mut egui::Ui, code: &str| ui.label(RichText::new(text(code)).size(theme.font_ui + look.get("field_label_size")).color(theme.text_muted));
         label(ui, "card_ingest.base_name");
         let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_name_hint")));
         if self.needed && self.title.trim().is_empty() {
             ui.label(RichText::new(text("card_ingest.base_name_needed")).color(theme.danger));
         }
-        ui.add_space(10.0);
+        look.space(ui, "field_gap");
         label(ui, "card_ingest.base_location");
         let location = ui.add(qnc_ui_kit::text_field(&mut self.location).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_location_hint")));
-        ui.add_space(10.0);
+        look.space(ui, "field_gap");
         label(ui, "card_ingest.base_description");
         let description = ui.add(qnc_ui_kit::text_area(&mut self.description).desired_width(f32::INFINITY).desired_rows(2).hint_text(text("card_ingest.base_description_hint")));
         name.lost_focus() || location.lost_focus() || description.lost_focus()
@@ -87,12 +90,13 @@ impl BaseInfo {
 
 /// A card of the window: a slightly raised surface with a fine frame and round corners, its title
 /// in small capitals, its contents on the same left edge.
-fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
-    egui::Frame::new()
+fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
+    let padding = look.get("card_padding");
+    let shown = egui::Frame::new()
         .fill(theme.surface)
-        .stroke(egui::Stroke::new(1.0, theme.border))
-        .corner_radius(8.0)
-        .inner_margin(egui::Margin::same(18))
+        .stroke(egui::Stroke::new(look.get("card_frame"), theme.border))
+        .corner_radius(look.get("card_corner"))
+        .inner_margin(egui::Margin::same(padding.round() as i8))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             // Fields and bar tracks on the card: the desktop's dark with a fine frame, not black.
@@ -100,14 +104,27 @@ fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, title: &str,
             visuals.extreme_bg_color = theme.bg;
             visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, theme.border);
             visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, theme.text_muted);
-            ui.label(RichText::new(title.to_uppercase()).size(theme.font_ui - 2.0).color(theme.text_muted).strong());
-            ui.add_space(10.0);
+            let title = ui.label(RichText::new(title.to_uppercase()).size(theme.font_ui + look.get("card_title_size")).color(theme.text_muted).strong());
+            look.mark(ui, title.rect, "card_title_size", qnc_form_look::Grows::Up);
+            look.space(ui, "card_title_gap");
+            ui.spacing_mut().item_spacing.y = look.get("line_gap");
             contents(ui);
         });
+    // The card's inner margin is moved at its left edge.
+    let rect = shown.response.rect;
+    look.mark(ui, egui::Rect::from_x_y_ranges(rect.left()..=rect.left() + padding, rect.y_range()), "card_padding", qnc_form_look::Grows::Right);
 }
 
 /// The signal a copy started for a folder gives the copy that runs.
 const FOLDER_SIGNAL: &str = "QNC-AI-card-ingest-folder";
+
+/// The measures this window asks of its look file.
+const LOOK_KEYS: &[&str] = &[
+    "window_width", "window_height", "margin_left", "margin_right", "margin_top", "margin_bottom", "browser_margin",
+    "title_size", "subtitle_size", "header_gap", "card_gap", "card_padding", "card_corner", "card_frame", "card_title_size",
+    "card_title_gap", "line_gap", "bars_gap", "after_bars_gap", "bar_row", "bar_name", "bar_count", "bar_time", "bar_x",
+    "bar_col_gap", "bar_thickness", "field_label_size", "field_gap",
+];
 
 /// m:ss, or h:mm:ss past an hour.
 fn clock(time: std::time::Duration) -> String {
@@ -122,6 +139,13 @@ impl eframe::App for Window {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let theme = qnc_ingest_layout::theme::Theme::from_contract(&self.contracts.shell);
         qnc_ingest_layout::theme::apply(ctx, &theme);
+        // The look editor beside the window, and the window's size as the look says.
+        self.look.editor(ctx);
+        let size = egui::vec2(self.look.get("window_width"), self.look.get("window_height"));
+        if size != self.size {
+            self.size = size;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size + egui::vec2(0.0, qnc_title_bar::HEIGHT)));
+        }
         // The tray's "Import from a folder" while this window runs (a card being ingested): the
         // browser is shown here, the card's import goes on (user 2026-11-13).
         if self.folder_asked.as_ref().is_some_and(qnc_tray::Signal::fired) {
@@ -185,7 +209,7 @@ impl eframe::App for Window {
         // closes the window (user 2026-11-13).
         if status.phase == Phase::Choosing {
             let mut answer = None;
-            egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(16.0)).show(ctx, |ui| {
+            egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(self.look.get("browser_margin"))).show(ctx, |ui| {
                 ui.label(RichText::new(text("card_ingest.choose_folder")).size(theme.font_ui + 6.0).color(theme.text).strong());
                 ui.add_space(8.0);
                 let rect = ui.available_rect_before_wrap();
@@ -209,14 +233,26 @@ impl eframe::App for Window {
         // 2026-11-16: "jedan dio forme ima lijevo poravnanje, jedan izvan; panelu daj premium izgled").
         // The body scrolls inside the window's margin, so nothing runs past the bottom or the right
         // edge (user 2026-11-16: "donja margina forme ne postoji").
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(24.0)).show(ctx, |ui| {
+        let look = &self.look;
+        let (left, right, top, bottom) = (look.get("margin_left"), look.get("margin_right"), look.get("margin_top"), look.get("margin_bottom"));
+        let margin = egui::Margin { left: left.round() as i8, right: right.round() as i8, top: top.round() as i8, bottom: bottom.round() as i8 };
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(margin)).show(ctx, |ui| {
+            // The four margins are moved where they are.
+            use qnc_form_look::Grows;
+            let inner = ui.max_rect();
+            let (xs, ys) = (inner.left() - left..=inner.right() + right, inner.top() - top..=inner.bottom() + bottom);
+            look.mark(ui, egui::Rect::from_x_y_ranges(inner.left() - left..=inner.left(), ys.clone()), "margin_left", Grows::Right);
+            look.mark(ui, egui::Rect::from_x_y_ranges(inner.right()..=inner.right() + right, ys), "margin_right", Grows::Left);
+            look.mark(ui, egui::Rect::from_x_y_ranges(xs.clone(), inner.top() - top..=inner.top()), "margin_top", Grows::Down);
+            look.mark(ui, egui::Rect::from_x_y_ranges(xs, inner.bottom()..=inner.bottom() + bottom), "margin_bottom", Grows::Up);
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
                 Phase::Waiting | Phase::Choosing => text("card_ingest.waiting"),
                 Phase::Selecting | Phase::Making => text("card_ingest.running"),
             };
-            ui.label(RichText::new(title).size(theme.font_ui + 8.0).color(theme.text).strong());
+            let title = ui.label(RichText::new(title).size(theme.font_ui + look.get("title_size")).color(theme.text).strong());
+            look.mark(ui, title.rect, "title_size", Grows::Up);
             let mut sub = Vec::new();
             if !self.label.is_empty() {
                 sub.push(self.label.clone());
@@ -225,11 +261,12 @@ impl eframe::App for Window {
                 sub.push(fill("card_ingest.elapsed", &[("time", &clock(time))]));
             }
             if !sub.is_empty() {
-                ui.label(RichText::new(sub.join("   ·   ")).color(theme.text_muted));
+                let sub = ui.label(RichText::new(sub.join("   ·   ")).size(theme.font_ui + look.get("subtitle_size")).color(theme.text_muted));
+                look.mark(ui, sub.rect, "subtitle_size", Grows::Up);
             }
-            ui.add_space(16.0);
+            look.space(ui, "header_gap");
             let progress = status.progress;
-            card(ui, &theme, &text("work.title"), |ui| {
+            card(ui, &theme, look, &text("work.title"), |ui| {
                 // Each card on its line; one an earlier base already has says so.
                 for card in &status.cards {
                     let line = match (&card.known_in, card.new) {
@@ -249,25 +286,25 @@ impl eframe::App for Window {
                 }
                 // One bar per function the project's settings have on (user 2026-11-12); the X
                 // beside a bar stops that function, what is made stays.
-                ui.add_space(12.0);
+                look.space(ui, "bars_gap");
                 let time_of = |bar: &qnc_card_ingest::Bar| self.done_after.get(bar.function).copied().or(if bar.stopped { None } else { elapsed });
-                if let Some(function) = qnc_work_progress_view::bars(ui, &progress, theme.text, &time_of) {
+                if let Some(function) = qnc_work_progress_view::bars_marked(ui, &progress, theme.text, &time_of, look) {
                     qnc_card_ingest::stop(&self.root, function);
                 }
                 if progress.statements > 0 {
-                    ui.add_space(8.0);
+                    look.space(ui, "after_bars_gap");
                     ui.label(RichText::new(fill("card_ingest.statements", &[("statements", &progress.statements.to_string())])).color(theme.text_muted));
                 }
                 if progress.failed > 0 {
-                    ui.add_space(8.0);
+                    look.space(ui, "after_bars_gap");
                     ui.label(RichText::new(fill("card_ingest.failed", &[("failed", &progress.failed.to_string())])).color(theme.danger));
                 }
             });
             // The base's name, place and description (user 2026-11-16).
             if !self.base.is_empty() {
-                ui.add_space(12.0);
+                look.space(ui, "card_gap");
                 let mut left = false;
-                card(ui, &theme, &text("admin.base"), |ui| left = self.info.show(ui, &theme));
+                card(ui, &theme, look, &text("admin.base"), |ui| left = self.info.show(ui, &theme, look));
                 if left {
                     self.info.keep(&self.root, &self.base);
                 }
@@ -327,14 +364,22 @@ fn main() -> eframe::Result<()> {
     let title = text("card_ingest.title").to_string();
     let label = known.as_ref().map(|known| known.label().to_string()).unwrap_or_default();
     let info = known.map_or_else(BaseInfo::default, BaseInfo::of);
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label };
+    // Every measure of the window is in its look file; a missing one is an error, never a guess.
+    let look = match qnc_form_look::FormLook::load(&root, "card-ingest", LOOK_KEYS) {
+        Ok(look) => look,
+        Err(error) => {
+            log(format!("ai-card-ingest look not read: {error}"));
+            return Ok(());
+        }
+    };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, size: egui::vec2(look.get("window_width"), look.get("window_height")), look };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
     let step = 36.0 * place as f32;
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
-        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(title.clone()).with_inner_size([540.0, 700.0 + qnc_title_bar::HEIGHT]).with_position([120.0 + step, 80.0 + step])).with_resizable(false),
+        viewport: qnc_title_bar::frameless(egui::ViewportBuilder::default().with_title(title.clone()).with_inner_size([app.size.x, app.size.y + qnc_title_bar::HEIGHT]).with_position([120.0 + step, 80.0 + step])).with_resizable(false),
         persist_window: false,
         ..Default::default()
     };

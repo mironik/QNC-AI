@@ -3753,6 +3753,7 @@ dependencies = [
  "eframe",
  "qnc-card-ingest",
  "qnc-dev-diagnostics",
+ "qnc-form-look",
  "qnc-ingest-application",
  "qnc-ingest-base",
  "qnc-ingest-blocks",
@@ -4993,6 +4994,17 @@ dependencies = [
  "qnc-notice",
  "qnc-paint-pace",
  "qnc-pool-pointer",
+]
+
+[[package]]
+name = "qnc-form-look"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-dev-diagnostics",
+ "qnc-wizard-text",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -8448,6 +8460,7 @@ name = "qnc-work-progress-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-form-look",
  "qnc-ui-kit",
  "qnc-wizard-text",
  "qnc-work-progress",

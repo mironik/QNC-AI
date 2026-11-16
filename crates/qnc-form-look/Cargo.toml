@@ -1,0 +1,12 @@
+[package]
+name = "qnc-form-look"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the measures of a form (margins, gaps, sizes, columns) as data in its look file, and the editor beside the form that changes them live and saves them"
+
+[dependencies]
+eframe = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-wizard-text = { workspace = true }

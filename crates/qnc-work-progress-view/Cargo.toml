@@ -9,3 +9,4 @@ qnc-ui-kit = { workspace = true }
 eframe = { workspace = true }
 qnc-work-progress = { workspace = true }
 qnc-wizard-text = { workspace = true }
+qnc-form-look = { workspace = true }
