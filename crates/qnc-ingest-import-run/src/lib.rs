@@ -16,7 +16,8 @@ pub use qnc_ingest_selection_write::ANSWERS;
 
 pub const MODULE_ID: &str = "qnc.module.ingest-import-run";
 
-type Wake = dyn Fn(&Path, &ContentTarget) -> Result<(), String> + Send + Sync;
+/// Wakes the worker; the project it works in, when the form has one loaded.
+type Wake = dyn Fn(&Path, &ContentTarget, Option<&str>) -> Result<(), String> + Send + Sync;
 
 /// What a finished write of the selection brought.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,11 +33,13 @@ pub enum Written {
 pub struct ImportRun {
     writer: SelectionWriter,
     wake: Arc<Wake>,
+    /// The project the form has loaded: the worker works in it (`--project`).
+    project: Option<String>,
 }
 
 impl Default for ImportRun {
     fn default() -> Self {
-        Self { writer: SelectionWriter::default(), wake: Arc::new(qnc_ingest_import_worker::launch_worker) }
+        Self { writer: SelectionWriter::default(), wake: Arc::new(qnc_ingest_import_worker::launch_worker_for), project: None }
     }
 }
 
@@ -49,8 +52,13 @@ impl std::fmt::Debug for ImportRun {
 impl ImportRun {
     /// Another way to wake the background application (tests, other compositions).
     pub fn with_wake(mut self, wake: impl Fn(&Path, &ContentTarget) -> Result<(), String> + Send + Sync + 'static) -> Self {
-        self.wake = Arc::new(wake);
+        self.wake = Arc::new(move |root, target, _| wake(root, target));
         self
+    }
+
+    /// The project the form has loaded, the one the worker it wakes works in.
+    pub fn set_project(&mut self, project_id: Option<String>) {
+        self.project = project_id;
     }
 
     pub fn is_busy(&self) -> bool {
@@ -81,7 +89,7 @@ impl ImportRun {
     pub fn wake(&self, root: Option<&Path>, target: Option<&ContentTarget>) -> Result<(), String> {
         let root = root.ok_or(qnc_ui_text::text("ingest.msg.import_no_root"))?;
         let target = target.ok_or(qnc_ui_text::text("ingest.msg.catalog_unavailable"))?;
-        (self.wake)(root, target)
+        (self.wake)(root, target, self.project.as_deref())
     }
 
     /// The finished write of the selection, `None` while it runs or none runs.

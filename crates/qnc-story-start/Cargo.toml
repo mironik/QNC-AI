@@ -8,7 +8,7 @@ description = "QNC-AI block: Uvezi of an Ingest base without a story opens the n
 qnc-ingest-base = { workspace = true }
 qnc-newsroom-sheet-model = { workspace = true }
 qnc-ai-open = { workspace = true }
-qnc-breaking-news = { workspace = true }
+qnc-ingest-orchestrator = { workspace = true }
 serde_json = { workspace = true }
 qnc-clip-row = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }

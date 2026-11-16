@@ -82,6 +82,8 @@ pub struct IngestApplication {
     cameras: std::collections::BTreeMap<String, String>,
     /// QNC-AI: Uvezi gives the chosen clips of the global base to a story (over the form).
     story: qnc_story_start::StoryStart,
+    /// The orchestrator the form gave: in which project a card chosen here is ingested.
+    orchestrator: Option<qnc_ingest_orchestrator::Orchestrator>,
 }
 
 impl IngestApplication {
@@ -90,6 +92,13 @@ impl IngestApplication {
     }
 
     /// The Tab walk of the form: its panels, pool tabs and dock buttons (layout contract).
+    /// The orchestrator a card chosen in this form is ingested by (the form chose it from the
+    /// settings of this computer).
+    pub fn with_orchestrator(mut self, orchestrator: qnc_ingest_orchestrator::Orchestrator) -> Self {
+        self.orchestrator = Some(orchestrator);
+        self
+    }
+
     pub fn with_focus(mut self, names: qnc_focus_walk::FocusNames<'_>) -> Self {
         self.walk = qnc_focus_walk::FocusWalk::new(names);
         self

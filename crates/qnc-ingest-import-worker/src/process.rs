@@ -222,5 +222,5 @@ fn copy_workers(opener: &ConfigMediaOpener, clip: &StoredClip, plan: &IngestWork
 }
 
 /// Makes sure the worker runs (the wake block's; no copy of it here).
-pub use qnc_worker_wake::{wake as launch_worker, WORKER_EXECUTABLE};
+pub use qnc_worker_wake::{wake as launch_worker, wake_for as launch_worker_for, WORKER_EXECUTABLE};
 

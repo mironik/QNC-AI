@@ -39,8 +39,8 @@ enum Job {
     Checked(Result<Found, String>),
     /// The base has its story (made or gone on with): the base's card and the chosen clips' files.
     Taken(Result<(String, Vec<String>), String>),
-    /// A breaking news project is made for this card (its uri), or not.
-    Breaking(String, Result<(String, String), String>),
+    /// The orchestrator of the form gave this card (its uri) its project, or not.
+    Destination(String, Result<qnc_ingest_orchestrator::Destination, String>),
 }
 
 /// The start of a story.
@@ -130,16 +130,16 @@ impl StoryStart {
         });
     }
 
-    /// A card (not a base) chosen in the Ingest form is breaking news (user 2026-11-16: the
-    /// application links the source card; "automatski kreiraš brejking news projekt, bez da
-    /// novinar bilo što piše"): its project is made and made active off the form's thread, then
-    /// `poll` gives [`Next::SelectBase`] with the card, which Ingest Selects into it.
-    pub fn breaking_news(&mut self, root: &Path, card: &str) {
+    /// A card (not a base) chosen in the Ingest form goes where the form's orchestrator says
+    /// (user 2026-11-16: "gdje će se rezultati njihova rada snimati određuju Orkestratori"): its
+    /// project is had (a breaking news one made) off the form's thread, then `poll` gives
+    /// [`Next::SelectBase`] with the card, which Ingest Selects into that project.
+    pub fn orchestrate(&mut self, root: &Path, card: &str, orchestrator: &qnc_ingest_orchestrator::Orchestrator) {
         if self.busy() {
             return;
         }
-        let (root, card) = (root.to_path_buf(), card.to_string());
-        self.run(move || Job::Breaking(card, qnc_breaking_news::make(&root)));
+        let (root, card, orchestrator) = (root.to_path_buf(), card.to_string(), orchestrator.clone());
+        self.run(move || Job::Destination(card, orchestrator.destination(&root)));
     }
 
     /// The story the user may go on with, shown before the sheet (its name).
@@ -221,12 +221,16 @@ impl StoryStart {
                 Some(Next::SelectBase(card))
             }
             // Its clips are not ticked: the user chooses them in Ingest.
-            Job::Breaking(card, Ok((_, name))) => {
-                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("breaking news project {name} made for {card}"));
+            Job::Destination(card, Ok(destination)) => {
+                let line = match &destination.made {
+                    Some(name) => format!("orchestrator made project {name} for {card}"),
+                    None => format!("orchestrator: {card} into project {}", destination.project_id),
+                };
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
                 Some(Next::SelectBase(card))
             }
-            Job::Breaking(card, Err(error)) => {
-                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("breaking news project for {card} not made: {error}"));
+            Job::Destination(card, Err(error)) => {
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("orchestrator: no project for {card}: {error}"));
                 Some(Next::Say(error))
             }
             Job::Taken(Err(error)) => {

@@ -87,6 +87,8 @@ impl IngestApplication {
             self.view.browser.chosen = Default::default();
         }
         self.show_project_status();
+        // The worker woken from here works in the project loaded (its orchestrator chose it).
+        self.import.set_project(self.project.plan().map(|plan| plan.settings.project_id.clone()));
         let ai = self.project.plan().is_some_and(|plan| plan.settings.ai_feature(qnc_ai_features::SHOT_ANALYSIS).unwrap_or(false));
         (self.view.ai_mining, self.view.archive_original_available, self.view.archive_original) = (ai, false, false);
         let catalog_was_loaded = loaded.clips.is_some();

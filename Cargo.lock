@@ -3849,7 +3849,6 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-open",
- "qnc-breaking-news",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-project-desktop",
@@ -5081,6 +5080,7 @@ dependencies = [
  "qnc-ingest-cameras",
  "qnc-ingest-catalog",
  "qnc-ingest-import-run",
+ "qnc-ingest-orchestrator",
  "qnc-ingest-pieces",
  "qnc-ingest-preview-source",
  "qnc-ingest-project",
@@ -5200,6 +5200,7 @@ dependencies = [
  "qnc-ingest-application",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
+ "qnc-ingest-orchestrator",
  "qnc-paint-pace",
  "qnc-story-overlay",
 ]
@@ -5285,6 +5286,18 @@ dependencies = [
  "qnc-ui-text",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-ingest-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-breaking-news",
+ "qnc-ingest-base",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -7682,10 +7695,10 @@ name = "qnc-story-start"
 version = "0.1.0"
 dependencies = [
  "qnc-ai-open",
- "qnc-breaking-news",
  "qnc-clip-row",
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
+ "qnc-ingest-orchestrator",
  "qnc-newsroom-sheet-model",
  "serde_json",
 ]

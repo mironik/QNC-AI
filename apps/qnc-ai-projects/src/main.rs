@@ -71,36 +71,15 @@ impl eframe::App for Projects {
 impl Projects {
     /// Ingest on the newest base with no story (made the one Ingest works in), or on its own.
     fn new_project(&mut self, ctx: &egui::Context) {
-        // A base opened is a new story Ingest makes at Uvezi; a project made here is already the
-        // one Ingest works in.
-        let made = match qnc_ingest_base::newest_without_story(&self.root) {
-            Ok(Some(base)) => {
-                match qnc_ingest_base::open(&self.root, &base.id) {
-                    Ok(_) => log(format!("ai-projects new project from the base {}", base.name)),
-                    Err(error) => log(format!("ai-projects the base {} not opened: {error}", base.name)),
-                }
-                false
-            }
-            // The orchestrator decides where Ingest writes (user 2026-11-16: "kocke su
-            // zajedničke, samo orkestratori određuju gdje se piše"): a new empty project, active,
-            // and Ingest works in it as in any project.
-            Ok(None) => match qnc_breaking_news::make(&self.root) {
-                Ok((_, name)) => {
-                    log(format!("ai-projects new project {name}: Ingest takes a card or folder"));
-                    true
-                }
-                Err(error) => {
-                    log(format!("ai-projects new project not made: {error}"));
-                    return;
-                }
+        match qnc_ingest_base::newest_without_story(&self.root) {
+            Ok(Some(base)) => match qnc_ingest_base::open(&self.root, &base.id) {
+                Ok(_) => log(format!("ai-projects new project from the base {}", base.name)),
+                Err(error) => log(format!("ai-projects the base {} not opened: {error}", base.name)),
             },
-            Err(error) => {
-                log(format!("ai-projects bases not read: {error}"));
-                false
-            }
-        };
-        let opened = if made { qnc_ai_open::open(&self.root, "qnc-ingest") } else { qnc_ai_open::open_for_new_story(&self.root, "qnc-ingest") };
-        match opened {
+            Ok(None) => log("ai-projects new project: every base has its story, Ingest takes a card or folder".into()),
+            Err(error) => log(format!("ai-projects bases not read: {error}")),
+        }
+        match qnc_ai_open::open_for_new_story(&self.root, "qnc-ingest") {
             Ok(program) => {
                 self.handed = true;
                 log(format!("ai-projects handed over to {}", program.display()));

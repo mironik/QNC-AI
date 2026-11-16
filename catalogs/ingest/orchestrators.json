@@ -1,0 +1,22 @@
+{
+  "orchestrators": [
+    {
+      "id": "breaking_news",
+      "label": "orchestrator.breaking_news",
+      "writes": "new_project",
+      "forms": ["ingest"]
+    },
+    {
+      "id": "active_project",
+      "label": "orchestrator.active_project",
+      "writes": "active_project",
+      "forms": ["ingest"]
+    },
+    {
+      "id": "card_base",
+      "label": "orchestrator.card_base",
+      "writes": "card_base",
+      "forms": ["tray"]
+    }
+  ]
+}

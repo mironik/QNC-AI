@@ -1,0 +1,15 @@
+[package]
+name = "qnc-ingest-orchestrator"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the orchestrators of an ingest (a catalog, one chosen per form in this computer's settings); an orchestrator says in which project a card's ingest writes, the plan of the template says in which order"
+
+[dependencies]
+qnc-active-project-read = { workspace = true }
+qnc-breaking-news = { workspace = true }
+qnc-ingest-base = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

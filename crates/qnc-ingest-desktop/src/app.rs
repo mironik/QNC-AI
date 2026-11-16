@@ -37,7 +37,13 @@ impl qnc_form_host::FormApplication for Hosted<'_> {
 impl IngestApp {
     pub fn new(root: PathBuf) -> Result<Self, String> {
         let contracts = IngestContracts::load()?;
-        let application = IngestApplication::with_store_root(&root)?.with_focus(contracts.focus_names());
+        let mut application = IngestApplication::with_store_root(&root)?.with_focus(contracts.focus_names());
+        // The form says which orchestrator a card chosen here goes by: the one chosen for the
+        // Ingest form in this computer's settings (user 2026-11-16).
+        match qnc_ingest_orchestrator::chosen(&root, qnc_ingest_orchestrator::INGEST) {
+            Ok(orchestrator) => application = application.with_orchestrator(orchestrator),
+            Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("ingest: no orchestrator: {error}")),
+        }
         Ok(Self { contracts, application, host: qnc_form_host::FormHost::new(), root })
     }
 

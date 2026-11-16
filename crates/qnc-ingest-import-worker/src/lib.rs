@@ -26,7 +26,7 @@ pub use config::ConfigMediaOpener;
 mod process;
 
 pub use process::{ImportRun, 
-    launch_worker, run_import, run_service, ImportSummary, WORKER_EXECUTABLE,
+    launch_worker, launch_worker_for, run_import, run_service, ImportSummary, WORKER_EXECUTABLE,
 };
 
 pub use copy::{copy_local_file, import_clip, import_clip_beating, import_poster};
