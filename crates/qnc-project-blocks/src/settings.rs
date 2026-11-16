@@ -310,6 +310,9 @@ impl Blocks<'_> {
         // QNC-AI: the AI folder QNC and QNC-AI share, a setting of this computer.
         if self.settings_only {
             self.path_row(ui, width, settings, LocationTarget::AiShare);
+            // QNC-AI: the ingest orchestrator of each form, a setting of this computer.
+            ui.add_space(8.0);
+            qnc_ingest_orchestrator_view::show(ui, &self.session.component.root);
         }
     }
 

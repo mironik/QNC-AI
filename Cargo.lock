@@ -5301,6 +5301,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ingest-orchestrator-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ingest-orchestrator",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-ingest-pieces"
 version = "0.1.0"
 dependencies = [
@@ -6581,6 +6590,7 @@ dependencies = [
  "qnc-desktop-theme",
  "qnc-dir-browser",
  "qnc-export-preset",
+ "qnc-ingest-orchestrator-view",
  "qnc-keyboard-shortcut",
  "qnc-language-choice",
  "qnc-location-field",

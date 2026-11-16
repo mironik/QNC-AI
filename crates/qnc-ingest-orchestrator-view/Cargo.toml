@@ -1,0 +1,10 @@
+[package]
+name = "qnc-ingest-orchestrator-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the choice of the ingest orchestrator of each form, drawn in the settings (a setting of this computer)"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-ingest-orchestrator = { workspace = true }
+qnc-wizard-text = { workspace = true }
