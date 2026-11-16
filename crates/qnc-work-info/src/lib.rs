@@ -31,10 +31,7 @@ impl WorkInfo {
 
     /// What is done now, while something is left to do.
     fn running(&mut self) -> Option<Progress> {
-        // A window opened for a new story (`qnc-ai-open` NEW_STORY) does not show the project
-        // active before it.
-        let new_story = std::env::var_os("QNC_NEW_STORY").is_some();
-        let follower = self.follower.get_or_insert_with(|| Follower::start_for(&self.root, new_story));
+        let follower = self.follower.get_or_insert_with(|| Follower::start(&self.root));
         follower.poll();
         follower.last().copied().filter(|work| work.clips > 0 && !work.complete())
     }
