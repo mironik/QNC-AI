@@ -52,7 +52,14 @@ pub struct IngestProject {
     select: Option<SelectTarget>,
     stats: Option<CatalogStats>,
     status: ProjectStatus,
+    /// Opened for a new story (`qnc-ai-open` NEW_STORY, user 2026-11-16: "pool neka bude prazan
+    /// dok ne odaberem karticu"): the project active then is not this window's; its clips are not
+    /// shown and a card chosen makes a project of its own.
+    before: Option<String>,
 }
+
+/// The environment variable of a window opened for a new story (`qnc-ai-open` NEW_STORY).
+const NEW_STORY: &str = "QNC_NEW_STORY";
 
 impl IngestProject {
     /// The project of the QNC root's active project database; an error is its status.
@@ -61,11 +68,19 @@ impl IngestProject {
         match ActiveProjectReader::from_root(root) {
             Ok(active) => {
                 project.reader = Some(active.settings_reader().clone());
+                if std::env::var_os(NEW_STORY).is_some() {
+                    project.before = active.read().ok().map(|snapshot| snapshot.project_id);
+                }
                 project.active = Some(active);
             }
             Err(error) => _ = project.fail(error.to_string()),
         }
         project
+    }
+
+    /// The project loaded is the one active before this window was opened for a new story.
+    pub fn is_before_new_story(&self) -> bool {
+        self.before.is_some() && self.plan.as_ref().map(|plan| &plan.settings.project_id) == self.before.as_ref()
     }
 
     pub fn status(&self) -> &ProjectStatus {
@@ -162,7 +177,8 @@ impl IngestProject {
         self.catalog = Some(loaded.target);
         self.stats = Some(loaded.stats);
         self.plan = Some(loaded.plan);
-        Some(Ok(Loaded { project_changed, clips: loaded.clips, source: loaded.source }))
+        let clips = if self.is_before_new_story() { Some(Vec::new()) } else { loaded.clips };
+        Some(Ok(Loaded { project_changed, clips, source: loaded.source }))
     }
 
     /// Nothing of the loaded project stays: the error is the status. Returns the error.
