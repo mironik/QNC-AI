@@ -45,11 +45,20 @@ pub struct TitleBar {
     title: String,
     root: PathBuf,
     search: SearchOverlay,
+    /// The background work of the project, for the windows of the forms (`with_work`).
+    work: Option<qnc_work_info::WorkInfo>,
 }
 
 impl TitleBar {
     pub fn new(title: impl Into<String>, root: impl Into<PathBuf>) -> Self {
-        Self { title: title.into(), root: root.into(), search: SearchOverlay::default() }
+        Self { title: title.into(), root: root.into(), search: SearchOverlay::default(), work: None }
+    }
+
+    /// The bar shows the background work of the active project (a form's window): minimized in
+    /// the bar, open under it (user 2026-11-16: "minimizirani wizard premjesti u header forme").
+    pub fn with_work(mut self) -> Self {
+        self.work = Some(qnc_work_info::WorkInfo::new(&self.root));
+        self
     }
 
     /// Draws the bar on top of the window (before its content) and does what was asked; then the
@@ -96,7 +105,15 @@ impl TitleBar {
                         pressed = Some(button);
                     }
                 }
+                // The work's chip, left of the buttons.
+                if let Some(work) = &mut self.work {
+                    let space = Rect::from_min_max(bar.min, Pos2::new(bar.right() - BUTTON * 5.0, bar.bottom()));
+                    work.header(ui, space);
+                }
             });
+        if let Some(work) = &mut self.work {
+            work.overlay(ctx, HEIGHT);
+        }
         match pressed {
             Some(Button::Close) => ctx.send_viewport_cmd(ViewportCommand::Close),
             Some(Button::Maximize) => ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized)),

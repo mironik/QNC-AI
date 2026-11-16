@@ -7854,6 +7854,7 @@ dependencies = [
  "qnc-base-search-view",
  "qnc-dev-diagnostics",
  "qnc-wizard-text",
+ "qnc-work-info",
 ]
 
 [[package]]
@@ -7967,16 +7968,13 @@ dependencies = [
  "qnc-clip-row",
  "qnc-clip-transcripts",
  "qnc-db-broker",
- "qnc-dev-diagnostics",
  "qnc-source-preview",
  "qnc-source-timecode",
- "qnc-stopped-work",
  "qnc-text-cursor",
  "qnc-timeline-model",
  "qnc-transcribe-queue",
  "qnc-transcript-db",
  "qnc-ui-text",
- "qnc-work-progress",
 ]
 
 [[package]]
@@ -8002,9 +8000,6 @@ dependencies = [
  "qnc-transcript",
  "qnc-ui-kit",
  "qnc-ui-text",
- "qnc-wizard-text",
- "qnc-work-progress",
- "qnc-work-progress-view",
 ]
 
 [[package]]
@@ -8336,6 +8331,16 @@ dependencies = [
 [[package]]
 name = "qnc-word-align"
 version = "0.1.0"
+
+[[package]]
+name = "qnc-work-info"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-wizard-text",
+ "qnc-work-progress",
+ "qnc-work-progress-view",
+]
 
 [[package]]
 name = "qnc-work-progress"

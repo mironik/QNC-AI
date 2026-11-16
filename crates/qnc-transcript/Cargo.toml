@@ -6,9 +6,6 @@ description = "QNC public piece: the transcripts of a project's clips - ticked c
 
 [dependencies]
 qnc-ai-features = { workspace = true }
-qnc-work-progress = { workspace = true }
-qnc-stopped-work = { workspace = true }
-qnc-dev-diagnostics = { workspace = true }
 qnc-clip-row = { workspace = true }
 qnc-clip-transcripts = { workspace = true }
 qnc-db-broker = { workspace = true }

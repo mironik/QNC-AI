@@ -28,7 +28,7 @@ pub fn options(title: &str) -> eframe::NativeOptions {
 /// Runs the form's app `app` in its window titled `title`.
 pub fn run<A: eframe::App + 'static>(title: &str, app: A) -> eframe::Result<()> {
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_default();
-    let framed = qnc_title_bar::Framed { bar: qnc_title_bar::TitleBar::new(title, root), app };
+    let framed = qnc_title_bar::Framed { bar: qnc_title_bar::TitleBar::new(title, root).with_work(), app };
     eframe::run_native(title, options(title), Box::new(|_| Ok(Box::new(Maximized { app: framed, frames: 0 }))))
 }
 

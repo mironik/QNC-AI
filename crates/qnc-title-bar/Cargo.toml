@@ -10,3 +10,4 @@ qnc-ai-open = { workspace = true }
 qnc-base-search-view = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-wizard-text = { workspace = true }
+qnc-work-info = { workspace = true }
