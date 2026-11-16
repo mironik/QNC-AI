@@ -226,13 +226,9 @@ impl SidePieces {
     pub fn act(&mut self, action_id: &str, value: Option<i64>, target: Option<&str>, preview: &mut SourcePreview, timeline: &TimelineProjection, timecode: Option<&SourceTimecode>) -> Option<bool> {
         if let Some(transcript) = &mut self.transcript {
             if let Some(done) = transcript.act(action_id, value, target, preview, timeline, timecode) {
-                // A statement sent to the repass (user 2026-11-08): it is transcribed again in the
-                // background and written to the database only; this form keeps what it shows.
-                if action_id == qnc_transcript::REPASS && done {
-                    if let Some(clip) = preview.view().clip_id.clone() {
-                        self.transcripts.hold(&clip);
-                    }
-                }
+                // A statement sent to the repass is shown corrected as soon as it is written (user
+                // 2026-11-16: "da, neka se ispravka prikaže odmah"; before, 2026-11-08, the form
+                // kept what it showed until it was left).
                 // What the action changed (the search) is seen at once.
                 self.views.transcript = Arc::new(transcript.view().clone());
                 return Some(done);
