@@ -17,3 +17,6 @@ qnc-timeline-assets = { workspace = true }
 qnc-wave = { workspace = true }
 qnc-wave-worker = { workspace = true }
 qnc-work-settings = { workspace = true }
+
+[dev-dependencies]
+qnc-active-project-read = { workspace = true }
