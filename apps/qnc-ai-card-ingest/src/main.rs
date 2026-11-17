@@ -76,23 +76,10 @@ impl BaseInfo {
     }
 
     /// The name, the place and the description fields, the name's need said when closing waited for it.
-    /// The fields; `cancel` (its size) puts Cancel right of the name (user 2026-11-17). Gives
-    /// whether a field was left, and whether Cancel was pressed.
-    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook, cancel: Option<egui::Vec2>) -> (bool, bool) {
+    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook) -> bool {
         let label = |ui: &mut egui::Ui, code: &str| ui.label(RichText::new(text(code)).size(theme.font_ui + look.get("field_label_size")).color(theme.text_muted));
         label(ui, "card_ingest.base_name");
-        let mut cancelled = false;
-        let name = ui
-            .horizontal(|ui| {
-                let gap = ui.spacing().item_spacing.x;
-                let width = cancel.map_or(ui.available_width(), |size| (ui.available_width() - size.x - gap).max(80.0));
-                let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(width).hint_text(text("card_ingest.base_name_hint")));
-                if let Some(size) = cancel {
-                    cancelled = ui.add(qnc_ui_kit::sized_button(text("card_ingest.cancel"), size)).clicked();
-                }
-                name
-            })
-            .inner;
+        let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_name_hint")));
         if self.needed && self.title.trim().is_empty() {
             ui.label(RichText::new(text("card_ingest.base_name_needed")).color(theme.danger));
         }
@@ -102,14 +89,17 @@ impl BaseInfo {
         look.space(ui, "field_gap");
         label(ui, "card_ingest.base_description");
         let description = ui.add(qnc_ui_kit::text_area(&mut self.description).desired_width(f32::INFINITY).desired_rows(2).hint_text(text("card_ingest.base_description_hint")));
-        (name.lost_focus() || location.lost_focus() || description.lost_focus(), cancelled)
+        name.lost_focus() || location.lost_focus() || description.lost_focus()
     }
 }
 
 /// A card of the window: a slightly raised surface with a fine frame and round corners, its title
-/// in small capitals, its contents on the same left edge.
-fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
+/// in small capitals, its contents on the same left edge. `button` (its text and size) stands at the
+/// right end of the title's line (user 2026-11-17: Cancel on the line of "Ingest baza"); gives
+/// whether it was pressed.
+fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook, title: &str, button: Option<(String, egui::Vec2)>, contents: impl FnOnce(&mut egui::Ui)) -> bool {
     let padding = look.get("card_padding");
+    let mut pressed = false;
     let shown = egui::Frame::new()
         .fill(theme.surface)
         .stroke(egui::Stroke::new(look.get("card_frame"), theme.border))
@@ -122,7 +112,17 @@ fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_f
             visuals.extreme_bg_color = theme.bg;
             visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, theme.border);
             visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, theme.text_muted);
-            let title = ui.label(RichText::new(title.to_uppercase()).size(theme.font_ui + look.get("card_title_size")).color(theme.text_muted).strong());
+            let title = ui
+                .horizontal(|ui| {
+                    let title = ui.label(RichText::new(title.to_uppercase()).size(theme.font_ui + look.get("card_title_size")).color(theme.text_muted).strong());
+                    if let Some((label, size)) = button {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            pressed = ui.add(qnc_ui_kit::sized_button(label, size)).clicked();
+                        });
+                    }
+                    title
+                })
+                .inner;
             look.mark(ui, title.rect, "card_title_size", qnc_form_look::Grows::Up);
             look.space(ui, "card_title_gap");
             ui.spacing_mut().item_spacing.y = look.get("line_gap");
@@ -131,6 +131,7 @@ fn card(ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_f
     // The card's inner margin is moved at its left edge.
     let rect = shown.response.rect;
     look.mark(ui, egui::Rect::from_x_y_ranges(rect.left()..=rect.left() + padding, rect.y_range()), "card_padding", qnc_form_look::Grows::Right);
+    pressed
 }
 
 /// The signal a copy started for a folder gives the copy that runs.
@@ -278,7 +279,7 @@ impl eframe::App for Window {
             }
             look.space(ui, "header_gap");
             let progress = status.progress;
-            card(ui, &theme, look, &text("work.title"), |ui| {
+            card(ui, &theme, look, &text("work.title"), None, |ui| {
                 // Each card on its line; one an earlier base already has says so.
                 for card in &status.cards {
                     let line = match (&card.known_in, card.new) {
@@ -316,8 +317,7 @@ impl eframe::App for Window {
             if !self.base.is_empty() {
                 look.space(ui, "card_gap");
                 let mut left = false;
-                let mut cancel = false;
-                card(ui, &theme, look, &text("admin.base"), |ui| (left, cancel) = self.info.show(ui, &theme, look, show_cancel.then_some(cancel_size)));
+                let cancel = card(ui, &theme, look, &text("admin.base"), show_cancel.then(|| (text("card_ingest.cancel"), cancel_size)), |ui| left = self.info.show(ui, &theme, look));
                 if left {
                     self.info.keep(&self.root, &self.base);
                 }
