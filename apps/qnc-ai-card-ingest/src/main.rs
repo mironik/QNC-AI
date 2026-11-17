@@ -237,7 +237,9 @@ impl eframe::App for Window {
         let look = &self.look;
         look.panel(ctx, theme.bg, |ui| {
             use qnc_form_look::Grows;
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            let show_cancel = status.phase != Phase::Done && !self.cancelled;
+            let reserve = if show_cancel { theme.chrome_control_height + look.get("card_gap") + ui.spacing().item_spacing.y } else { 0.0 };
+            egui::ScrollArea::vertical().auto_shrink([false, false]).max_height((ui.available_height() - reserve).max(0.0)).show(ui, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
                 Phase::Waiting | Phase::Choosing => text("card_ingest.waiting"),
@@ -301,8 +303,13 @@ impl eframe::App for Window {
                     self.info.keep(&self.root, &self.base);
                 }
             }
-            // Cancel while work still runs (user 2026-11-16: "dodaj odustani dugme ako korisnik hoće prekinut").
-            if status.phase != Phase::Done && !self.cancelled {
+            // No "Start QNC" here: the tray asks once for every base being ingested (user
+            // 2026-11-14). Closing this window does not stop the work (the worker is its own program).
+            });
+            // Cancel while work still runs (user 2026-11-16: "dodaj odustani dugme ako korisnik hoće
+            // prekinut"), on a row of its own under the scrolling body, always seen (user 2026-11-17:
+            // at the end of the body it was below the window).
+            if show_cancel {
                 look.space(ui, "card_gap");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let size = egui::vec2(look.get("cancel_width"), theme.chrome_control_height);
@@ -311,9 +318,6 @@ impl eframe::App for Window {
                     }
                 });
             }
-            // No "Start QNC" here: the tray asks once for every base being ingested (user
-            // 2026-11-14). Closing this window does not stop the work (the worker is its own program).
-            });
         });
         if self.cancel_asked {
             let style = qnc_confirm_dialog::DialogStyle { surface: theme.surface, border: theme.border, text: theme.text, muted: theme.text_muted, accent: theme.accent, font_size: theme.font_ui, button_height: theme.chrome_control_height };
