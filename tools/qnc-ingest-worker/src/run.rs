@@ -46,6 +46,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     let target = qnc_content_store::ContentTarget::for_project(&reader, &snapshot.settings)?;
     let player_works = qnc_playback_activity::playback_pause(target.clone());
     let stop_target = target.clone();
+    // The clips of the base, for the length of the copied ones (the transcription's work in all).
+    let content = qnc_content_read::ContentReader::for_project(active_project.settings_reader(), &snapshot.settings);
     let stops = Stops::new();
     stops.read(&stop_target);
     // Taken in one statement with its owner (external audit 2026-10-17): two starts never
@@ -98,16 +100,19 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     let at = |step: Step| steps.iter().position(|other| *other == step).expect("a step of the plan");
     // The conductor (`qnc-ingest-conductor`) keeps the clips done by the transcription, the waves
     // and the filmstrips about level (user 2026-11-17: "cilj je da AI prijepis, val i filmstrip
-    // imaju približno isti broj obrađenih klipova"): one ahead waits, the one behind takes the
-    // processor. The copy is not conducted: it reads the card and feeds them all.
+    // imaju približno isti broj obrađenih klipova"; "bitno je da svi završe približno u isto
+    // vrijeme"): each step's share of its work done is kept level, the one behind gets the
+    // processor's threads. The copy is not conducted: it reads the card and feeds them all.
     let cores = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
     // The transcription's places are its programs (the AI catalog: how many and their threads).
     let (programs, program_threads) = qnc_ai_catalog::installed_transcriber_for(qnc_ai_catalog::Quality::Fast)
         .map_or((1, 4), |engine| (engine.parallel.max(1) as usize, engine.threads.max(1) as usize));
     let conducted: Vec<(Step, qnc_ingest_conductor::Step)> = [
-        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), programs).costing(program_threads).balanced(),
+        // The transcription and the filmstrips keep a place with work (a stop costs them); the
+        // fast waves may wait (user 2026-11-17: "ako je val brz, oduzmi mu vrijeme").
+        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), programs).keeping(1).costing(program_threads).balanced(),
         qnc_ingest_conductor::Step::new(Step::Waves.code(), 4).balanced(),
-        qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), cores).balanced(),
+        qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), cores).keeping(1).balanced(),
         qnc_ingest_conductor::Step::new(Step::Shots.code(), 1),
         qnc_ingest_conductor::Step::new(Step::Content.code(), 1),
         qnc_ingest_conductor::Step::new(Step::Captions.code(), 1),
@@ -148,37 +153,41 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             while going.load(Relaxed) {
                 {
                     let now = started_at.elapsed().as_secs_f64();
-                    // What each step has left and has done, from the base (every 2 s): the blocks
-                    // are the clips copied (the copies feed every step).
+                    // Each step's work done and in all, from the base (every 2 s): the waves and the
+                    // filmstrips in clips, the transcription in seconds of speech heard of the copied
+                    // clips' length (a clip of it is done only whole, and the long ones come last).
                     let progress = read_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(2)).then(|| {
                         read_at = Some(std::time::Instant::now());
-                        qnc_work_progress::progress_of(root, &started)
+                        let length: f64 = content.as_ref().ok().and_then(|content| content.summaries().ok()).map_or(0.0, |clips| clips.iter().filter(|clip| clip.imported).map(|clip| clip.duration_seconds).sum());
+                        qnc_work_progress::progress_of(root, &started).map(|progress| (progress, length))
                     });
                     let mut conductor = conductor.lock().unwrap_or_else(|e| e.into_inner());
-                    if let Some(Ok(progress)) = progress {
+                    if let Some(Ok((progress, length))) = progress {
+                        // The transcription takes a block while its queue works.
+                        let hearing = qnc_playback_activity::is_fresh(&stop_target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
                         for (step, _) in &conducted {
-                            let done = match step {
-                                Step::Transcripts => progress.transcripts,
-                                Step::Waves => progress.waves,
-                                Step::Filmstrips => progress.filmstrips,
-                                Step::Shots => progress.shots,
-                                Step::Content => progress.content,
-                                Step::Captions => progress.captions,
-                                _ => None,
-                            }
-                            .unwrap_or_default();
-                            // A step the user stopped has nothing left for the conductor.
+                            let made = |count: Option<usize>| count.unwrap_or_default();
+                            let clips = |count: Option<usize>| (made(count) as f64, progress.clips as f64, made(count) < progress.imported);
+                            let (done, all, can) = match step {
+                                Step::Transcripts => (qnc_transcribe_run::heard_seconds(), length, hearing),
+                                Step::Waves => clips(progress.waves),
+                                Step::Filmstrips => clips(progress.filmstrips),
+                                Step::Shots => clips(progress.shots),
+                                Step::Content => clips(progress.content),
+                                Step::Captions => clips(progress.captions),
+                                _ => (0.0, 0.0, false),
+                            };
+                            // A step the user stopped, or the AI waiting for the steps before it,
+                            // takes no place.
                             let stopped = stop_code(*step).is_some_and(|code| stops.is(code));
-                            // The AI waiting for the steps before it takes no place from them.
-                            let left = if stopped || ai_before_busy(*step) { 0 } else { progress.imported.saturating_sub(done) };
-                            conductor.work(step.code(), done, left);
+                            conductor.work(step.code(), done, all, can && !stopped && !ai_before_busy(*step));
                         }
                     }
                     // The processor measured beside the decision: the log shows what the places did.
                     let busy = processor.busy();
                     if let Some(decision) = conductor.tick(now) {
                         let busy = busy.map_or_else(|| "?".to_string(), |busy| format!("{:.0} %", busy * 100.0));
-                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, done, left, speed)| format!("{code} done={done} left={left} places={places} speed={}", speed.map_or_else(|| "?".to_string(), |speed| format!("{speed:.3}")))).collect();
+                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, share)| format!("{code} {:.0} % places={places}", share * 100.0)).collect();
                         trace(format!("conductor processor={busy} | {}", steps.join(" | ")));
                     }
                     // The background transcription waits while it has no place.
