@@ -187,7 +187,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     let busy = processor.busy();
                     if let Some(decision) = conductor.tick(now) {
                         let busy = busy.map_or_else(|| "?".to_string(), |busy| format!("{:.0} %", busy * 100.0));
-                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, share)| format!("{code} {:.0} % places={places}", share * 100.0)).collect();
+                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, left, all)| format!("{code} left={left}/{all} places={places}")).collect();
                         trace(format!("conductor processor={busy} | {}", steps.join(" | ")));
                     }
                     // The background transcription waits while it has no place.

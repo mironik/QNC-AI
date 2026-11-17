@@ -62,10 +62,11 @@ impl Step {
     }
 }
 
-/// What a period decided, for the log: each step with its places and its share of work done.
+/// What a period decided, for the log: each step with its places, the clips it has left and the
+/// clips it started with (user 2026-11-17: "brojač obrnuto, broji koliko je ostalo").
 #[derive(Debug, Clone, PartialEq)]
 pub struct Decision {
-    pub steps: Vec<(String, usize, f64)>,
+    pub steps: Vec<(String, usize, usize, usize)>,
 }
 
 #[derive(Debug, Clone)]
@@ -188,7 +189,7 @@ impl Conductor {
         for (state, places) in self.steps.iter_mut().zip(places) {
             state.places = places;
         }
-        Some(Decision { steps: self.steps.iter().map(|state| (state.step.code.clone(), state.places, state.share())).collect() })
+        Some(Decision { steps: self.steps.iter().map(|state| (state.step.code.clone(), state.places, (state.all - state.done).max(0.0).round() as usize, state.all.round() as usize)).collect() })
     }
 }
 
