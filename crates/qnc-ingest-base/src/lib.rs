@@ -551,6 +551,9 @@ pub struct KnownCard {
     pub had: usize,
     /// The originals on the card the base has not (QNC URIs).
     pub new: Vec<String>,
+    /// How many of the card's originals the base has only Selected, not imported (its ingest was
+    /// stopped before the end).
+    pub unfinished: usize,
 }
 
 /// The newest base that has clips of the card `source_uri` whose originals are among those on the
@@ -570,14 +573,16 @@ fn known_among(root: &Path, source_uri: &str, card: &[String], but_active: bool)
     let store = ProjectStore::open(root)?;
     for base in all(root)?.into_iter().filter(|base| !(but_active && base.active)) {
         let Ok((file, _)) = store.project_db_binding(&base.id) else { continue };
-        let had: std::collections::BTreeSet<String> =
-            qnc_content_read::clip_originals_of_file(&file)?.into_iter().filter(|clip| clip.source_uri == source_uri).map(|clip| clip.original_uri).collect();
-        let common = card.iter().filter(|original| had.contains(*original)).count();
+        let clips: Vec<_> = qnc_content_read::clip_originals_of_file(&file)?.into_iter().filter(|clip| clip.source_uri == source_uri).collect();
+        let had: std::collections::BTreeSet<&str> = clips.iter().map(|clip| clip.original_uri.as_str()).collect();
+        let imported: std::collections::BTreeSet<&str> = clips.iter().filter(|clip| clip.imported).map(|clip| clip.original_uri.as_str()).collect();
+        let common = card.iter().filter(|original| had.contains(original.as_str())).count();
         if common == 0 {
             continue;
         }
-        let new = card.iter().filter(|original| !had.contains(*original)).cloned().collect();
-        return Ok(Some(KnownCard { base, had: common, new }));
+        let new = card.iter().filter(|original| !had.contains(original.as_str())).cloned().collect();
+        let unfinished = card.iter().filter(|original| had.contains(original.as_str()) && !imported.contains(original.as_str())).count();
+        return Ok(Some(KnownCard { base, had: common, new, unfinished }));
     }
     Ok(None)
 }
@@ -894,12 +899,12 @@ mod tests {
             let (db, _) = ProjectStore::open(&root).unwrap().project_db_binding(id).unwrap();
             let conn = rusqlite::Connection::open(db).unwrap();
             conn.execute_batch(
-                "DROP VIEW IF EXISTS public_clips; CREATE TABLE test_clips (clip_id TEXT, source_uri TEXT, original_uri TEXT, clip_kind TEXT);
-                 CREATE VIEW public_clips AS SELECT clip_id, source_uri, original_uri, clip_kind FROM test_clips;",
+                "DROP VIEW IF EXISTS public_clips; CREATE TABLE test_clips (clip_id TEXT, source_uri TEXT, original_uri TEXT, clip_kind TEXT, import_status TEXT);
+                 CREATE VIEW public_clips AS SELECT clip_id, source_uri, original_uri, clip_kind, import_status FROM test_clips;",
             )
             .unwrap();
             for (clip, original) in rows {
-                conn.execute("INSERT INTO test_clips VALUES (?1, ?2, ?3, 'camera')", [*clip, card, original]).unwrap();
+                conn.execute("INSERT INTO test_clips VALUES (?1, ?2, ?3, 'camera', CASE WHEN ?1 = 'b' THEN 'detected' ELSE 'imported' END)", [*clip, card, original]).unwrap();
             }
         };
         let first = current(&root).unwrap();
@@ -907,6 +912,7 @@ mod tests {
         let on_card = vec![file("A.MXF"), file("B.MXF"), file("C.MXF")];
         let known = known_card(&root, card, &on_card).unwrap().unwrap();
         assert_eq!((known.base.id.as_str(), known.had, known.new.clone()), (first.id.as_str(), 2, vec![file("C.MXF")]));
+        assert_eq!(known.unfinished, 1, "B is in the base only Selected: its ingest was stopped");
         assert_eq!(known_card(&root, card, &[file("X.MXF")]).unwrap(), None, "a card shot again after formatting is new");
         assert!(not_taken(&root).unwrap().is_empty(), "a base made as usual takes every clip");
         std::thread::sleep(std::time::Duration::from_millis(1100));

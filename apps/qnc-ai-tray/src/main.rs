@@ -161,6 +161,13 @@ fn main() {
                             // uvezena"); not read is ingested as before.
                             let known = qnc_card_watch::card_originals(catalog, &volume).and_then(|originals| qnc_ingest_base::known_card(&root, &volume.source_uri(), &originals));
                             match known {
+                                // Its ingest was stopped before the end: it goes on in that base.
+                                Ok(Some(known)) if known.new.is_empty() && known.unfinished > 0 => {
+                                    log(format!("card serial={} known base={} unfinished={}: goes on in that base", volume.serial_number, known.base.label(), known.unfinished));
+                                    tray.notify(&text("tray.title"), &fill("tray.card_goes_on", &[("card", &card), ("camera", &camera), ("base", &known.base.shown()), ("count", &known.unfinished.to_string())]));
+                                    open_window(&tray, &root, &mut ingest, known.base, Some(&volume.serial_number), false, true);
+                                    continue;
+                                }
                                 Ok(Some(known)) if known.new.is_empty() => {
                                     log(format!("card serial={} known base={} had={}: nothing new, no base made", volume.serial_number, known.base.label(), known.had));
                                     tray.notify(&text("tray.title"), &fill("tray.card_known", &[("card", &card), ("camera", &camera), ("base", &known.base.shown()), ("count", &known.had.to_string())]));
@@ -173,7 +180,7 @@ fn main() {
                             match orchestrator.card_base(&root, &camera) {
                                 Ok(base) => {
                                     tray.notify(&text("tray.title"), &fill("tray.card_ingest", &[("card", &card), ("camera", &camera), ("base", base.label())]));
-                                    open_window(&tray, &root, &mut ingest, base, Some(&volume.serial_number), false);
+                                    open_window(&tray, &root, &mut ingest, base, Some(&volume.serial_number), false, false);
                                 }
                                 Err(error) => fail(&tray, error),
                             }
@@ -209,7 +216,7 @@ fn main() {
 fn open_folder(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, into: Option<&str>) {
     let Some(orchestrator) = orchestrator(tray, root) else { return };
     match orchestrator.folder_base(root, &text("tray.folder_base"), into) {
-        Ok(base) => open_window(tray, root, ingest, base, None, true),
+        Ok(base) => open_window(tray, root, ingest, base, None, true, false),
         Err(error) => fail(tray, error),
     }
 }
@@ -265,7 +272,7 @@ impl Windows {
 /// The ingest window of a base (beside this program), pinned to the base the orchestrator gave
 /// (`QNC_WORK_PROJECT`); with `folder` it first shows Ingest's browser. `card`: the one card it
 /// ingests. Its helper programs share one hidden console.
-fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: qnc_ingest_base::IngestBase, card: Option<&str>, folder: bool) {
+fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: qnc_ingest_base::IngestBase, card: Option<&str>, folder: bool, goes_on: bool) {
     log(format!("ingest base {} {} card={card:?} folder={folder}", base.name, base.uri));
     if ingest.runs_base(&base.id) {
         return;
@@ -278,6 +285,9 @@ fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
     command.current_dir(root).env("QNC_ROOT", root).env(qnc_work_settings::PINNED_PROJECT_ENV, &base.id);
     if folder {
         command.arg("--folder");
+    }
+    if goes_on {
+        command.arg("--goes-on");
     }
     if let Some(card) = card {
         command.arg("--card").arg(card);

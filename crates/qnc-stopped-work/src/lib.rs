@@ -47,6 +47,15 @@ pub fn stop(target: ContentTarget, code: &str) -> Result<(), String> {
     qnc_playback_activity::Writer::start(target)?.set(KEY, &value)
 }
 
+/// Nothing stopped in the base of `target` any more: an ingest cancelled and kept goes on (user
+/// 2026-11-17: the kept base goes on when the card is put in again).
+pub fn resume(target: ContentTarget) -> Result<(), String> {
+    if read(&target).is_empty() {
+        return Ok(());
+    }
+    qnc_playback_activity::Writer::start(target)?.set(KEY, "")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

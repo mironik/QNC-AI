@@ -100,6 +100,13 @@ pub fn stop(root: &Path, function: &'static str) {
     stop_all(root, vec![function]);
 }
 
+/// Nothing stopped in the active base of `root` any more (a kept base goes on).
+pub fn resume_all(root: &Path) -> Result<(), String> {
+    let active = qnc_active_project_read::ActiveProjectReader::from_root(root).map_err(|error| error.to_string())?;
+    let snapshot = active.read().map_err(|error| error.to_string())?;
+    qnc_stopped_work::resume(qnc_content_store::ContentTarget::for_project(active.settings_reader(), &snapshot.settings)?)
+}
+
 /// Stops every function of `functions` in the active base of `root`, one after the other on a
 /// thread of its own (user 2026-11-16: Cancel of the wizard stops all that still runs).
 pub fn stop_all(root: &Path, functions: Vec<&'static str>) {

@@ -41,6 +41,10 @@ struct Window {
     /// Cancel was pressed and waits for its answer; the ingest was cancelled (the window closes).
     cancel_asked: bool,
     cancelled: bool,
+    /// After the cancel: whether the partial import of the base is deleted or kept (user
+    /// 2026-11-17: "pitaj hoćete li obrisati ili zadržati djelomični import baze").
+    delete_asked: bool,
+    deleting: Option<qnc_base_admin::Delete>,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -321,14 +325,46 @@ impl eframe::App for Window {
                     let running: Vec<&'static str> = status.progress.bars().iter().filter(|bar| !bar.stopped && bar.done < status.progress.clips).map(|bar| bar.function).collect();
                     log(format!("ai-card-ingest cancelled by the user: stops {running:?}"));
                     qnc_card_ingest::stop_all(&self.root, running);
-                    self.info.keep(&self.root, &self.base);
                     self.cancel_asked = false;
                     self.cancelled = true;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    self.delete_asked = true;
                 }
                 Some(false) => self.cancel_asked = false,
                 None => {}
             }
+        } else if self.delete_asked {
+            let style = qnc_confirm_dialog::DialogStyle { surface: theme.surface, border: theme.border, text: theme.text, muted: theme.text_muted, accent: theme.accent, font_size: theme.font_ui, button_height: theme.chrome_control_height };
+            let (title, subject, no, yes) = (text("card_ingest.partial_title"), text("card_ingest.partial_subject"), text("card_ingest.partial_keep"), text("card_ingest.partial_delete"));
+            match qnc_confirm_dialog::show(ctx, &style, qnc_confirm_dialog::Question { id: "card_ingest_partial", title: &title, subject: &subject, no: &no, yes: &yes }) {
+                Some(true) => {
+                    self.delete_asked = false;
+                    match qnc_ingest_base::by_id(&self.root, &self.base) {
+                        Ok(base) => {
+                            log(format!("ai-card-ingest the partial import of {} is deleted", base.label()));
+                            self.deleting = Some(qnc_base_admin::Delete::start(&self.root, &base));
+                        }
+                        Err(error) => {
+                            log(format!("ai-card-ingest base {} not found to delete: {error}", self.base));
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                    }
+                }
+                Some(false) => {
+                    log("ai-card-ingest the partial import is kept".into());
+                    self.delete_asked = false;
+                    self.info.keep(&self.root, &self.base);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                None => {}
+            }
+        }
+        if let Some(result) = self.deleting.as_ref().and_then(qnc_base_admin::Delete::poll) {
+            match result {
+                Ok(()) => log(format!("ai-card-ingest base {} deleted", self.base)),
+                Err(error) => log(format!("ai-card-ingest base {} not deleted: {error}", self.base)),
+            }
+            self.deleting = None;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         ctx.request_repaint_after(std::time::Duration::from_millis(200));
     }
@@ -354,6 +390,14 @@ fn main() -> eframe::Result<()> {
         return Ok(());
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    // `--goes-on`: a base cancelled and kept goes on (its card put in again): what was stopped then
+    // runs again (user 2026-11-17).
+    if std::env::args().any(|arg| arg == "--goes-on") {
+        match qnc_card_ingest::resume_all(&root) {
+            Ok(()) => log(format!("ai-card-ingest base {base} goes on: nothing stopped")),
+            Err(error) => log(format!("ai-card-ingest base {base} goes on, stops not cleared: {error}")),
+        }
+    }
     let folder_asked = qnc_tray::Signal::listen(&signal_name).map_err(|error| log(format!("ai-card-ingest folder signal: {error}"))).ok();
     let started = qnc_ingest_layout::IngestContracts::load().and_then(|contracts| {
         let ingest = match &folder_uri {
@@ -389,7 +433,7 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false, deleting: None };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
