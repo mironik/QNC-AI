@@ -44,7 +44,6 @@ struct Window {
     /// After the cancel: whether the partial import of the base is deleted or kept (user
     /// 2026-11-17: "pitaj hoćete li obrisati ili zadržati djelomični import baze").
     delete_asked: bool,
-    deleting: Option<qnc_base_admin::Delete>,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -338,16 +337,14 @@ impl eframe::App for Window {
             match qnc_confirm_dialog::show(ctx, &style, qnc_confirm_dialog::Question { id: "card_ingest_partial", title: &title, subject: &subject, no: &no, yes: &yes }) {
                 Some(true) => {
                     self.delete_asked = false;
-                    match qnc_ingest_base::by_id(&self.root, &self.base) {
-                        Ok(base) => {
-                            log(format!("ai-card-ingest the partial import of {} is deleted", base.label()));
-                            self.deleting = Some(qnc_base_admin::Delete::start(&self.root, &base));
-                        }
-                        Err(error) => {
-                            log(format!("ai-card-ingest base {} not found to delete: {error}", self.base));
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
+                    // The delete runs in a program of its own (this one again, without a window):
+                    // this window holds the base's database and must close to let it go (live
+                    // 2026-11-17: the window closed as the base closed and the delete stopped).
+                    match delete_in_background(&self.root, &self.base) {
+                        Ok(()) => log(format!("ai-card-ingest the partial import of {} is deleted in the background", self.base)),
+                        Err(error) => log(format!("ai-card-ingest base {} not deleted: {error}", self.base)),
                     }
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
                 Some(false) => {
                     log("ai-card-ingest the partial import is kept".into());
@@ -358,20 +355,50 @@ impl eframe::App for Window {
                 None => {}
             }
         }
-        if let Some(result) = self.deleting.as_ref().and_then(qnc_base_admin::Delete::poll) {
-            match result {
-                Ok(()) => log(format!("ai-card-ingest base {} deleted", self.base)),
-                Err(error) => log(format!("ai-card-ingest base {} not deleted: {error}", self.base)),
-            }
-            self.deleting = None;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
         ctx.request_repaint_after(std::time::Duration::from_millis(200));
+    }
+}
+
+/// Starts this program again as `--delete-base <id>` (no window), detached from this one.
+fn delete_in_background(root: &std::path::Path, base: &str) -> Result<(), String> {
+    let program = std::env::current_exe().map_err(|error| error.to_string())?;
+    let mut command = std::process::Command::new(program);
+    command.current_dir(root).env("QNC_ROOT", root).env_remove(qnc_work_settings::PINNED_PROJECT_ENV).arg("--delete-base").arg(base);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000 | 0x0000_0008); // no window, detached
+    }
+    command.spawn().map(drop).map_err(|error| error.to_string())
+}
+
+/// `--delete-base <id>`: deletes the base the way the administrator's form does (its window and
+/// worker let it go first) and ends.
+fn delete_base(root: &std::path::Path, id: &str) {
+    let base = match qnc_ingest_base::by_id(root, id) {
+        Ok(base) => base,
+        Err(error) => return log(format!("ai-card-ingest base {id} not found to delete: {error}")),
+    };
+    let delete = qnc_base_admin::Delete::start(root, &base);
+    loop {
+        if let Some(result) = delete.poll() {
+            match result {
+                Ok(()) => log(format!("ai-card-ingest base {} deleted", base.label())),
+                Err(error) => log(format!("ai-card-ingest base {} not deleted: {error}", base.label())),
+            }
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
     }
 }
 
 fn main() -> eframe::Result<()> {
     qnc_dev_diagnostics::log_panics("qnc-ai-card-ingest");
+    if let Some(id) = std::env::args().skip_while(|arg| arg != "--delete-base").nth(1) {
+        let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        delete_base(&root, &id);
+        return Ok(());
+    }
     // `--folder`: the source is a folder the user picks (the tray's "Import from a folder").
     let folder = std::env::args().any(|arg| arg == "--folder");
     // `--folder-uri <uri>`: the folder or card the Ingest form chose (user 2026-11-16).
@@ -433,7 +460,7 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false, deleting: None };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
