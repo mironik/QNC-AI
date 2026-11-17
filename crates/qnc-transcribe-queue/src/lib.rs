@@ -157,7 +157,9 @@ fn work(
         // A clip left running goes on first; then the shortest waiting clip: a long one does not
         // hold the short ones behind it (live 2026-11-12: a 13.5 min clip held 20 clips for 146 s,
         // and the AI shots waited for them). None another worker of this runner has.
-        let (next, _claim) = {
+        // A worker with nothing free waits while another works (live 2026-11-17: while the import
+        // still filled the queue the second worker found nothing, ended, and the read ahead never ran).
+        let picked = 'pick: {
             let mut taken = picking.lock().unwrap_or_else(|e| e.into_inner());
             let queue = match qnc_transcript_db::read_queue(db) {
                 Ok(queue) => queue,
@@ -166,10 +168,18 @@ fn work(
             let free = |q: &&Queued| !taken.contains(&q.clip_id);
             let running_one = queue.iter().filter(free).find(|q| q.state == QueueState::Running).cloned();
             let shortest = queue.iter().filter(free).filter(|q| q.state == QueueState::Waiting).min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)).cloned();
-            let Some(next) = running_one.or(shortest) else { return };
+            let Some(next) = running_one.or(shortest) else { break 'pick Err(!taken.is_empty()) };
             taken.insert(next.clip_id.clone());
             let claim = Claim { picking, clip_id: next.clip_id.clone() };
-            (next, claim)
+            Ok((next, claim))
+        };
+        let (next, _claim) = match picked {
+            Ok(picked) => picked,
+            Err(true) => {
+                std::thread::sleep(std::time::Duration::from_millis(250));
+                continue;
+            }
+            Err(false) => return,
         };
         if let Err(error) = qnc_transcript_db::set_queued(db, &next, QueueState::Running, "", 0) {
             return log(&format!("transcribe-queue mark {}: {error}", next.clip_id));
