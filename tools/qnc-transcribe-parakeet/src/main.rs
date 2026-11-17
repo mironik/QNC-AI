@@ -11,13 +11,13 @@ mod sherpa;
 
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-transcribe-parakeet");
-    // Below the player and the desktop: when the processor is full the transcription waits,
-    // so it may run while the user edits (user 2026-10-26: waiting for every touch of the
-    // player made it not worth it).
+    // Normal priority, above the waves, filmstrips and AI of the ingest (user 2026-11-17: "AI
+    // prijepis (Parakeet) je prioritet"; it was below normal, under the wave threads of the
+    // worker); the player stays above it.
     #[cfg(windows)]
     unsafe {
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
-        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, NORMAL_PRIORITY_CLASS};
+        SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
     }
     let mut engine = engine::Parakeet::default();
     if let Err(error) = qnc_transcribe_jobs::serve(&mut engine, "qnc.transcribe.parakeet", env!("CARGO_PKG_VERSION"), "sherpa-onnx parakeet-tdt") {

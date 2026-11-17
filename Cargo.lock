@@ -5527,6 +5527,7 @@ dependencies = [
  "qnc-ui-text",
  "qnc-work-settings",
  "serde_json",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

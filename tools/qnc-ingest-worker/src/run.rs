@@ -181,6 +181,11 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                 }
                 let stopped = || stop_code(step).is_some_and(|code| stops.is(code));
                 trace(format!("step {} starts", step.code()));
+                // The look from the posters does not hold the stage after it (audit 2026-11-17: the
+                // import and the transcription waited for its first round of SigLIP).
+                if step == Step::PosterLook {
+                    begun.store(true, Relaxed);
+                }
                 let mut first = true;
                 loop {
                     if stopped() || closed.load(Relaxed) {

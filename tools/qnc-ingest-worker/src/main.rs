@@ -19,6 +19,14 @@ use run::run_once;
 
 fn main() -> ExitCode {
     qnc_dev_diagnostics::log_panics("qnc-ingest-worker");
+    // Below the transcription (user 2026-11-17: "AI prijepis (Parakeet) je prioritet, pa tek
+    // onda val i onda filmstrip"): the waves, import and AI of this process give the processor
+    // to the Parakeet program, which sets itself to normal; the player stays above both.
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
+        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+    }
     let Some(root) = root_argument() else {
         eprintln!("Upotreba: qnc-ingest-worker --root <QNC korijen>");
         return ExitCode::from(2);
