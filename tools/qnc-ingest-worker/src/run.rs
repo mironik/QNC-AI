@@ -183,7 +183,10 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     }
                     // The background transcription waits while it has no place.
                     if conducted_step(Step::Transcripts) {
-                        qnc_transcribe_run::set_places(conductor.places(Step::Transcripts.code()));
+                        // Never held by the count: a clip with part of its transcript saved counts as done while its
+                        // queue still hears it (2026-11-17 test: the last two clips held for ever); the queue ends
+                        // the transcription itself.
+                        qnc_transcribe_run::set_places(conductor.places(Step::Transcripts.code()).max(1));
                     }
                 }
                 if !crate::still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
