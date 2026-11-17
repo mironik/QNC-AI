@@ -35,3 +35,6 @@ qnc-sony-metadata = { workspace = true }
 qnc-ingest-select = { workspace = true, features = ["test-support"] }
 serde_json = { workspace = true }
 tempfile = "3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading"] }

@@ -25,6 +25,7 @@ pub(crate) fn copy_into(
     // stream of the media transport checks the file at every read, which makes a card behind USB
     // crawl (user 2026-11-12: "3,5 gigabajta mora biti za čas"). It is checked once, at the end.
     // A medium of another computer goes through the transport.
+    copy_thread_first();
     let local = opener.local_path(source_uri);
     let stamp_of = |path: &Path| fs::metadata(path).and_then(|meta| Ok((meta.len(), meta.modified()?))).ok();
     let before = local.as_deref().and_then(stamp_of);
@@ -81,14 +82,17 @@ fn copy_pieces(
     let (send, pieces) = std::sync::mpsc::sync_channel::<Result<Vec<u8>, String>>(AHEAD);
     let stop = std::sync::Arc::new(AtomicBool::new(false));
     let stopped = stop.clone();
-    std::thread::spawn(move || loop {
-        if stopped.load(Ordering::Relaxed) {
-            return;
-        }
-        let read = source();
-        let end = !matches!(&read, Ok(piece) if !piece.is_empty());
-        if send.send(read).is_err() || end {
-            return;
+    std::thread::spawn(move || {
+        copy_thread_first();
+        loop {
+            if stopped.load(Ordering::Relaxed) {
+                return;
+            }
+            let read = source();
+            let end = !matches!(&read, Ok(piece) if !piece.is_empty());
+            if send.send(read).is_err() || end {
+                return;
+            }
         }
     });
     let _stop = StopOnDrop(stop);
@@ -349,4 +353,15 @@ pub fn copy_local_file(source: &Path, destination: &Path) -> Result<String, Stri
         }
     }
     copy_into(&Local(source.to_path_buf()), "", destination, &AtomicBool::new(false), &mut || {})
+}
+
+/// The threads of a copy (the card read ahead, the write and its checksum) run at the highest
+/// priority of their process (live 2026-11-17: in the background worker, below the transcription,
+/// the copy of the card took 4:07 instead of 2:07; every step after it waits for the copy).
+fn copy_thread_first() {
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_HIGHEST};
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+    }
 }
