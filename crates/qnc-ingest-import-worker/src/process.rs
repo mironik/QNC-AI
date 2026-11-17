@@ -167,7 +167,12 @@ pub fn run_import(root: &Path, project: &ActiveProjectReader, run: &ImportRun<'_
     let counts = std::sync::Mutex::new((0_usize, 0_usize));
     let count = |outcome: &crate::Outcome| {
         let mut counts = counts.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if outcome.result.is_ok() { counts.0 += 1 } else { counts.1 += 1 }
+        if outcome.result.is_ok() {
+            counts.0 += 1;
+            qnc_done_count::add(qnc_done_count::IMPORTED);
+        } else {
+            counts.1 += 1
+        }
     };
     let drain = |project: &mut Project, first: Option<StoredClip>| -> Result<(), String> {
         let mut queue = RunQueue { queue: &mut project.queue, run };

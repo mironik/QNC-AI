@@ -259,6 +259,7 @@ fn work(
             Err(error) => (QueueState::Failed, error.clone()),
         };
         log(&format!("transcribe-queue {} {}..{} {:?} {:?} ms={} {error}", next.clip_id, next.from_frame, next.to_frame, next.quality, state, started.elapsed().as_millis()));
+        qnc_done_count::add(qnc_done_count::TRANSCRIPTS);
         let _ = qnc_transcript_db::set_queued(db, &next, state, &error, started.elapsed().as_millis() as u64);
         let _ = send.send(Heard::Finished { clip_id: next.clip_id, result: kept });
     }

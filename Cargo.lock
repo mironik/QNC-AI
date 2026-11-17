@@ -4710,6 +4710,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-done-count"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-edit-cut"
 version = "0.1.0"
 
@@ -4946,6 +4950,7 @@ dependencies = [
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
  "qnc-dir-browser",
+ "qnc-done-count",
  "qnc-filmstrip",
  "qnc-frame-timebase",
  "qnc-media-decode",
@@ -5305,6 +5310,7 @@ dependencies = [
  "qnc-content-store",
  "qnc-dev-diagnostics",
  "qnc-dir-browser",
+ "qnc-done-count",
  "qnc-ffprobe-metadata",
  "qnc-import-fit",
  "qnc-ingest-select",
@@ -5514,6 +5520,7 @@ dependencies = [
  "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
+ "qnc-done-count",
  "qnc-ingest-base",
  "qnc-ingest-conductor",
  "qnc-ingest-import-worker",
@@ -8036,6 +8043,7 @@ dependencies = [
  "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
+ "qnc-done-count",
  "qnc-playback-activity",
  "qnc-player-clip-content",
  "qnc-source-bindings",
@@ -8376,6 +8384,7 @@ dependencies = [
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
  "qnc-dir-browser",
+ "qnc-done-count",
  "qnc-filmstrip",
  "qnc-loudness",
  "qnc-media-decode",

@@ -9,6 +9,7 @@ name = "qnc-ingest-worker"
 path = "src/main.rs"
 
 [dependencies]
+qnc-done-count = { workspace = true }
 qnc-ingest-plan = { workspace = true }
 qnc-ui-text = { workspace = true }
 qnc-missing-posters = { workspace = true }

@@ -175,12 +175,16 @@ fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectRe
             _ => {}
         }
     }
+    // Only the ids of what is made: reading every record parsed every wave's peaks (the worker's
+    // conductor counts every 2 s).
+    let (filmstrips, waves) = artifacts.read_made()?;
+    let (filmstrips, waves): (std::collections::BTreeSet<String>, std::collections::BTreeSet<String>) = (filmstrips.into_iter().collect(), waves.into_iter().collect());
     for (clip, _) in &posters {
         if let Some(done) = progress.filmstrips.as_mut() {
-            *done += usize::from(artifacts.read_filmstrip(clip)?.is_some_and(|record| record.status == "ready"));
+            *done += usize::from(filmstrips.contains(clip));
         }
         if let Some(done) = progress.waves.as_mut() {
-            *done += usize::from(artifacts.read_wave(clip)?.is_some());
+            *done += usize::from(waves.contains(clip));
         }
     }
     // The first channel heard, and which clips it shows to be statements: the AI shots leave
@@ -199,9 +203,9 @@ fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectRe
         }
         let clips: std::collections::BTreeSet<&String> = posters.iter().map(|(clip, _)| clip).collect();
         heard.retain(|clip| clips.contains(clip));
-        for clip in &heard {
-            let transcripts = qnc_transcript_db::read_clip(&target, clip)?;
-            let to = frames.get(clip).copied().unwrap_or(0);
+        let heard_ids: Vec<String> = heard.iter().cloned().collect();
+        for (clip, transcripts) in qnc_transcript_db::read_clips(&target, &heard_ids)? {
+            let to = frames.get(&clip).copied().unwrap_or(0);
             if qnc_transcript_db::spoken_share(&transcripts, 0, to).is_some_and(|share| share >= qnc_transcript_db::SPOKEN) {
                 statements.insert(clip.clone());
             }

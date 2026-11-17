@@ -132,7 +132,9 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // place by a probe while the card was being copied).
     let editing_busy = || [Step::Import, Step::Transcripts, Step::Waves, Step::Filmstrips].into_iter().any(not_done);
     let ai_before_busy = |step: Step| match step {
-        Step::Shots => editing_busy(),
+        // SigLIP's look at the card's posters too (2026-11-17 measurement: 0.3-0.6 of a core the
+        // whole copy long).
+        Step::PosterLook | Step::Shots => editing_busy(),
         Step::Content => editing_busy() || not_done(Step::Shots),
         Step::Captions => editing_busy() || not_done(Step::Shots) || not_done(Step::Content),
         _ => false,
@@ -152,19 +154,42 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             let mut programs = crate::Programs::new();
             let mut programs_at = std::time::Instant::now();
             let mut read_at: Option<std::time::Instant> = None;
+            let mut counted_at: Option<std::time::Instant> = None;
+            // What the base said last, and the counts of this process then: between two reads
+            // of the base each step's +1 for every clip it finished (`qnc-done-count`; user
+            // 2026-11-17: "ne brojati, treba aplikacija samo poslati u array za svaki odrađeni
+            // +1"). The base is read again every 30 s and then is the truth.
+            let counted = [qnc_done_count::IMPORTED, qnc_done_count::TRANSCRIPTS, qnc_done_count::WAVES, qnc_done_count::FILMSTRIPS];
+            let counts_now = || counted.map(qnc_done_count::count);
+            let mut base: Option<(qnc_work_progress::Progress, usize, [usize; 4])> = None;
             while going.load(Relaxed) {
                 {
                     let now = started_at.elapsed().as_secs_f64();
-                    // Each step's clips done of all the clips, from the base (every 2 s; user
-                    // 2026-11-17: "broj klipova je bitan, ništa drugo"): the transcription's are the
-                    // clips its queue heard whole (a part saved is not a clip done).
-                    let progress = read_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(2)).then(|| {
+                    let again = if base.is_some() { Duration::from_secs(30) } else { Duration::from_secs(2) };
+                    if read_at.is_none_or(|at| at.elapsed() >= again) {
                         read_at = Some(std::time::Instant::now());
+                        let counts = counts_now();
                         let heard = transcripts.as_ref().ok().and_then(|target| qnc_transcript_db::read_queue(target).ok()).map_or(0, |queue| queue.iter().filter(|entry| matches!(entry.state, qnc_transcript_db::QueueState::Done | qnc_transcript_db::QueueState::Failed)).count());
-                        qnc_work_progress::progress_of(root, &started).map(|progress| (progress, heard))
+                        if let Ok(progress) = qnc_work_progress::progress_of(root, &started) {
+                            base = Some((progress, heard, counts));
+                        }
+                    }
+                    // Each step's clips done of all the clips (every 2 s; user 2026-11-17: "broj
+                    // klipova je bitan, ništa drugo"): the transcription's are the clips its queue
+                    // heard whole (a part saved is not a clip done).
+                    let progress = counted_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(2)).then(|| {
+                        counted_at = Some(std::time::Instant::now());
+                        base.map(|(mut progress, heard, then)| {
+                            let more = |i: usize| counts_now()[i].saturating_sub(then[i]);
+                            let up = |done: usize, i: usize| (done + more(i)).min(progress.clips);
+                            progress.imported = up(progress.imported, 0);
+                            progress.waves = progress.waves.map(|done| up(done, 2));
+                            progress.filmstrips = progress.filmstrips.map(|done| up(done, 3));
+                            (progress, up(heard, 1))
+                        })
                     });
                     let mut conductor = conductor.lock().unwrap_or_else(|e| e.into_inner());
-                    if let Some(Ok((progress, heard))) = progress {
+                    if let Some(Some((progress, heard))) = progress {
                         // The transcription takes a block while its queue works.
                         let hearing = qnc_playback_activity::is_fresh(&stop_target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
                         for (step, _) in &conducted {
