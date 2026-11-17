@@ -169,7 +169,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     if read_at.is_none_or(|at| at.elapsed() >= again) {
                         read_at = Some(std::time::Instant::now());
                         let counts = counts_now();
-                        let heard = transcripts.as_ref().ok().and_then(|target| qnc_transcript_db::read_queue(target).ok()).map_or(0, |queue| queue.iter().filter(|entry| matches!(entry.state, qnc_transcript_db::QueueState::Done | qnc_transcript_db::QueueState::Failed)).count());
+                        // A clip heard: every piece of it done or failed.
+                        let heard = transcripts.as_ref().ok().and_then(|target| qnc_transcript_db::read_queue(target).ok()).map_or(0, |queue| {
+                            let clips: std::collections::BTreeSet<&str> = queue.iter().map(|entry| entry.clip_id.as_str()).collect();
+                            let open: std::collections::BTreeSet<&str> = queue.iter().filter(|entry| matches!(entry.state, qnc_transcript_db::QueueState::Waiting | qnc_transcript_db::QueueState::Running)).map(|entry| entry.clip_id.as_str()).collect();
+                            clips.difference(&open).count()
+                        });
                         if let Ok(progress) = qnc_work_progress::progress_of(root, &started) {
                             base = Some((progress, heard, counts));
                         }

@@ -11,6 +11,9 @@ use std::{collections::HashMap, path::Path, sync::Arc, time::Duration};
 
 use qnc_transcript_db::{QueueQuality, QueueState, Queued};
 
+/// The longest piece of a clip given to one transcription program.
+const PIECE_SECONDS: f64 = 60.0;
+
 /// The project of the active project's transcription, read once a run.
 pub(crate) struct Transcription {
     db: qnc_db_broker::ProjectDbTarget,
@@ -49,23 +52,39 @@ impl Transcription {
         let transcribed = qnc_transcript_db::read_transcribed(&self.db)?;
         // Only a clip whose record is final can be heard (its sound is read through the player input).
         let waiting = self.content.records_waiting()?;
-        let new: Vec<Queued> = self
+        let clips: Vec<_> = self
             .content
             .summaries()?
             .into_iter()
             .filter(|clip| clip.imported && clip.duration_frames > 0 && !waiting.contains(&clip.clip_id))
             .filter(|clip| !queued.contains(&clip.clip_id) && !transcribed.contains(&clip.clip_id))
-            .map(|clip| Queued {
-                clip_id: clip.clip_id,
-                from_frame: 0,
-                to_frame: clip.duration_frames,
-                quality: QueueQuality::Fast,
-                state: QueueState::Waiting,
-                error: String::new(),
-                took_ms: 0,
+            .collect();
+        let count = clips.len();
+        // A long clip goes in as pieces of about a minute, heard by every program at once (user
+        // 2026-11-17: the longest clips came last and each was heard alone, 95 s with the processor
+        // half idle). The engine hears a second either side of a piece and keeps the words whose
+        // middle is inside, so no word is cut at a piece's edge.
+        let new: Vec<Queued> = clips
+            .into_iter()
+            .flat_map(|clip| {
+                // Without its length in seconds a clip goes in whole.
+                let most = if clip.duration_seconds > 0.0 {
+                    ((PIECE_SECONDS * clip.duration_frames as f64 / clip.duration_seconds).round() as u64).max(1)
+                } else {
+                    clip.duration_frames
+                };
+                let pieces = clip.duration_frames.div_ceil(most).max(1);
+                (0..pieces).map(move |n| Queued {
+                    clip_id: clip.clip_id.clone(),
+                    from_frame: clip.duration_frames * n / pieces,
+                    to_frame: clip.duration_frames * (n + 1) / pieces,
+                    quality: QueueQuality::Fast,
+                    state: QueueState::Waiting,
+                    error: String::new(),
+                    took_ms: 0,
+                })
             })
             .collect();
-        let count = new.len();
         if count > 0 {
             qnc_transcript_db::enqueue(&self.db, new)?;
         }
@@ -128,16 +147,25 @@ pub(crate) fn ai_takes(root: &Path, stopped: bool) -> Result<AiTakes, String> {
     };
     let frames: HashMap<String, u64> = transcription.content.summaries()?.into_iter().map(|clip| (clip.clip_id, clip.duration_frames)).collect();
     // Per clip: (heard, a statement).
-    let mut known: HashMap<String, (bool, bool)> = HashMap::new();
+    // A long clip is queued in pieces: it is heard when every piece is; a statement is judged on
+    // its whole transcript once.
+    let mut pieces: HashMap<String, (bool, bool)> = HashMap::new();
     for entry in qnc_transcript_db::read_queue(&transcription.db)? {
-        let state = match entry.state {
+        let heard = match entry.state {
             // A clip that failed only because its record was not final is heard again.
-            QueueState::Failed => (stopped || !entry.error.contains("NotFinal"), false),
-            QueueState::Done => (true, statement(&entry.clip_id, frames.get(&entry.clip_id).copied().unwrap_or(entry.to_frame))?),
+            QueueState::Failed => stopped || !entry.error.contains("NotFinal"),
+            QueueState::Done => true,
             // The user stopped the transcription: what is not heard is not known as a statement.
-            QueueState::Waiting | QueueState::Running => (stopped, false),
+            QueueState::Waiting | QueueState::Running => stopped,
         };
-        known.insert(entry.clip_id, state);
+        let clip = pieces.entry(entry.clip_id).or_insert((true, false));
+        clip.0 &= heard;
+        clip.1 |= entry.state == QueueState::Done;
+    }
+    let mut known: HashMap<String, (bool, bool)> = HashMap::new();
+    for (clip, (heard, any_done)) in pieces {
+        let spoken = heard && any_done && statement(&clip, frames.get(&clip).copied().unwrap_or(0))?;
+        known.insert(clip, (heard, spoken));
     }
     // A clip transcribed before (by hand) without a queue entry is judged by its transcript.
     for clip in qnc_transcript_db::read_transcribed(&transcription.db)? {

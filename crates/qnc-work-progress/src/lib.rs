@@ -196,9 +196,16 @@ fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectRe
         // the queue alone: AI Media Assist takes the done rows out of it (live 2026-11-15: the bar
         // went back to 0 once it was opened).
         let mut heard: std::collections::BTreeSet<String> = qnc_transcript_db::read_transcribed(&target)?.into_iter().collect();
-        for entry in qnc_transcript_db::read_queue(&target)? {
+        let queue = qnc_transcript_db::read_queue(&target)?;
+        for entry in &queue {
             if matches!(entry.state, qnc_transcript_db::QueueState::Done | qnc_transcript_db::QueueState::Failed) {
-                heard.insert(entry.clip_id);
+                heard.insert(entry.clip_id.clone());
+            }
+        }
+        // A long clip is heard in pieces: it is heard once none of them waits or runs.
+        for entry in &queue {
+            if matches!(entry.state, qnc_transcript_db::QueueState::Waiting | qnc_transcript_db::QueueState::Running) {
+                heard.remove(&entry.clip_id);
             }
         }
         let clips: std::collections::BTreeSet<&String> = posters.iter().map(|(clip, _)| clip).collect();

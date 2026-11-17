@@ -127,6 +127,11 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
 }
 
 /// A clip one worker of the runner has: no other takes it while it is here.
+/// What a worker holds: one range of one clip.
+fn piece_key(queued: &Queued) -> String {
+    format!("{}@{}..{}", queued.clip_id, queued.from_frame, queued.to_frame)
+}
+
 struct Claim<'a> {
     picking: &'a std::sync::Mutex<std::collections::BTreeSet<String>>,
     clip_id: String,
@@ -165,12 +170,14 @@ fn work(
                 Ok(queue) => queue,
                 Err(error) => return log(&format!("transcribe-queue read: {error}")),
             };
-            let free = |q: &&Queued| !taken.contains(&q.clip_id);
+            // A worker takes one piece (range) of a clip: the pieces of a long clip are heard by
+            // every worker at once (user 2026-11-17: the long clips held the end of the ingest).
+            let free = |q: &&Queued| !taken.contains(&piece_key(q));
             let running_one = queue.iter().filter(free).find(|q| q.state == QueueState::Running).cloned();
             let shortest = queue.iter().filter(free).filter(|q| q.state == QueueState::Waiting).min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)).cloned();
             let Some(next) = running_one.or(shortest) else { break 'pick Err(!taken.is_empty()) };
-            taken.insert(next.clip_id.clone());
-            let claim = Claim { picking, clip_id: next.clip_id.clone() };
+            taken.insert(piece_key(&next));
+            let claim = Claim { picking, clip_id: piece_key(&next) };
             Ok((next, claim))
         };
         let (next, _claim) = match picked {
@@ -259,8 +266,13 @@ fn work(
             Err(error) => (QueueState::Failed, error.clone()),
         };
         log(&format!("transcribe-queue {} {}..{} {:?} {:?} ms={} {error}", next.clip_id, next.from_frame, next.to_frame, next.quality, state, started.elapsed().as_millis()));
-        qnc_done_count::add(qnc_done_count::TRANSCRIPTS);
         let _ = qnc_transcript_db::set_queued(db, &next, state, &error, started.elapsed().as_millis() as u64);
+        // A clip is heard once its last piece is.
+        let clip_left = qnc_transcript_db::read_queue(db)
+            .is_ok_and(|queue| queue.iter().any(|q| q.clip_id == next.clip_id && matches!(q.state, QueueState::Waiting | QueueState::Running)));
+        if !clip_left {
+            qnc_done_count::add(qnc_done_count::TRANSCRIPTS);
+        }
         let _ = send.send(Heard::Finished { clip_id: next.clip_id, result: kept });
     }
 }
