@@ -11,13 +11,14 @@ mod sherpa;
 
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-transcribe-parakeet");
-    // Normal priority, above the waves, filmstrips and AI of the ingest (user 2026-11-17: "AI
-    // prijepis (Parakeet) je prioritet"; it was below normal, under the wave threads of the
-    // worker); the player stays above it.
+    // The same priority as the ingest's worker, below normal: the processor shared even, its
+    // priority given by the conductor's places, not by Windows (user 2026-11-17: "treba biti
+    // balansirano, da se ništa ne čeka previše"; at normal it starved the filmstrips, 7 s a clip).
+    // The player and the editing stay above it.
     #[cfg(windows)]
     unsafe {
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, NORMAL_PRIORITY_CLASS};
-        SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
+        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
     }
     let mut engine = engine::Parakeet::default();
     if let Err(error) = qnc_transcribe_jobs::serve(&mut engine, "qnc.transcribe.parakeet", env!("CARGO_PKG_VERSION"), "sherpa-onnx parakeet-tdt") {
