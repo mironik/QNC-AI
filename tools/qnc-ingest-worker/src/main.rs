@@ -186,7 +186,17 @@ pub(crate) fn run_artifacts(
     let transcription = transcription_running(target.clone());
     let transcribing = || !copying && transcription();
     let player_works = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing();
-    let cap = || if transcribing() { qnc_playback_activity::PlaybackLevel::Playing.background_cap() } else { level().background_cap() };
+    // The transcription first, then the waves, then the filmstrips (user 2026-11-17: "prijepis je
+    // najhitniji, pa val, pa filmstrip"): while a transcription runs the filmstrips (pictures
+    // decoded, the heaviest) go one clip at a time also from the copies; the waves go on.
+    let filmstrips = step == qnc_ingest_plan::Step::Filmstrips;
+    let cap = || {
+        if transcribing() || (filmstrips && transcription()) {
+            qnc_playback_activity::PlaybackLevel::Playing.background_cap()
+        } else {
+            level().background_cap()
+        }
+    };
     let start = |settings: &qnc_work_settings::WorkSettings| -> Result<qnc_content_artifacts::ProjectArtifacts, String> {
         let mut artifacts = qnc_content_artifacts::ProjectArtifacts::new();
         artifacts.set_host_root(root);
