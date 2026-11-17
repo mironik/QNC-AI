@@ -105,8 +105,13 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // processor's threads. The copy is not conducted: it reads the card and feeds them all.
     let cores = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
     // The transcription's places are its programs (the AI catalog: how many and their threads).
-    let (programs, program_threads) = qnc_ai_catalog::installed_transcriber_for(qnc_ai_catalog::Quality::Fast)
-        .map_or((1, 4), |engine| (engine.parallel.max(1) as usize, engine.threads.max(1) as usize));
+    // With the graphics card's engine too, its program is one place more (it costs the processor
+    // little; a place costs the threads of the processor's programs).
+    let (programs, program_threads) = qnc_ai_catalog::installed_fast_transcribers().map_or((1, 4), |engines| {
+        let programs = engines.iter().map(|engine| engine.parallel.max(1) as usize).sum();
+        let threads = engines.iter().filter(|engine| engine.backend == "cpu").map(|engine| engine.threads.max(1) as usize).max().unwrap_or(1);
+        (programs, threads)
+    });
     let conducted: Vec<(Step, qnc_ingest_conductor::Step)> = [
         // The transcription and the filmstrips keep a place with work (a stop costs them); the
         // fast waves may wait (user 2026-11-17: "ako je val brz, oduzmi mu vrijeme").

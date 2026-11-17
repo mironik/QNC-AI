@@ -110,7 +110,7 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
     // One worker more than the programs of the fast engine (user 2026-11-17: "AI prijepis mora
     // biti najbrži"): while a program hears one clip, the next worker reads its clip's sound,
     // so the engine never waits for a read (live: 46 s of 193 s went to waiting for the read).
-    let workers = qnc_ai_catalog::installed_transcriber_for(Quality::Fast).map_or(1, |engine| engine.parallel.max(1) + 1);
+    let workers = qnc_ai_catalog::installed_fast_transcribers().map_or(1, |engines| engines.iter().map(|engine| engine.parallel.max(1)).sum::<u32>() as usize + 1);
     let picking = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
     std::thread::scope(|scope| {
         for _ in 0..workers {

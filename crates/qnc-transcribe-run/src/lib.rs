@@ -77,11 +77,16 @@ pub fn transcribe(locator: &StillLocator, ask: &Ask, quality: Quality, pace: Pac
     if !settings.ai_feature(qnc_ai_features::TRANSCRIPTION).map_err(|e| e.to_string())? {
         return Err(qnc_ui_text::text("transcribe.off_in_project").into());
     }
-    let engine = qnc_ai_catalog::installed_transcriber_for(quality)?;
+    // The fast pieces go to every fast engine of the computer: the graphics card's first, then the
+    // processor's (user 2026-11-18: "grafička i procesor zajedno").
+    let engines = match quality {
+        Quality::Fast => qnc_ai_catalog::installed_fast_transcribers()?,
+        Quality::Best => vec![qnc_ai_catalog::installed_transcriber_for(quality)?],
+    };
     let place = locator.locate_sound(&ask.clip_id)?;
     let job = Job {
         locator,
-        engine: &engine,
+        engines: &engines,
         language: settings.speech_language().map_err(|e| e.to_string())?,
         channel: u16::try_from(settings.transcribe_channel().map_err(|e| e.to_string())?)
             .map_err(|_| qnc_ui_text::text("transcribe.no_channel").to_string())?,
@@ -111,13 +116,14 @@ pub fn transcribe(locator: &StillLocator, ask: &Ask, quality: Quality, pace: Pac
             }
         }
     };
-    let model = engine.model.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
     Ok(ClipTranscript {
         clip_id: ask.clip_id.clone(),
         from_frame: ask.from,
         to_frame: ask.to,
         language,
-        engine: format!("{made_by} {model}"),
+        // The program and the model of the engine that heard it (the last piece's, when the
+        // pieces of a clip went to more than one).
+        engine: made_by,
         lines,
     })
 }
@@ -336,7 +342,9 @@ fn hear(job: &Job, ask: &Ask, (busy, cancel): (&(dyn Fn() -> PlaybackLevel + Sen
             Err(_) if stopped => log(&format!("transcribe background {} {:.1}s yields to the player", ask.clip_id, start)),
             Err(error) if !ended_once => {
                 log(&format!("transcribe background {} {:.1}s: {error}; once again", ask.clip_id, start));
-                forget_transcriber(&job.engine.program);
+                for engine in job.engines {
+                    forget_transcriber(&engine.program);
+                }
                 ended_once = true;
             }
             Err(error) => return Err(error),
@@ -551,7 +559,8 @@ impl Drop for Hearing {
 
 struct Job<'a> {
     locator: &'a StillLocator,
-    engine: &'a qnc_ai_catalog::Transcriber,
+    /// The engines that may hear a piece, the first that has a program free takes it.
+    engines: &'a [qnc_ai_catalog::Transcriber],
     language: String,
     channel: u16,
     place: &'a qnc_still_locator::LocatedSound,
@@ -588,26 +597,32 @@ impl Job<'_> {
                 .map(|word| Word { from: frame(word.start), to: frame(word.end).max(frame(word.start)), text: word.text.clone() })
                 .collect(),
         };
-        let transcript = run_engine(self.engine, &self.language, samples, cancel, &mut |segment| on_line(&to_line(segment)))?;
+        let transcript = run_engine(self.engines, &self.language, samples, cancel, &mut |segment| on_line(&to_line(segment)))?;
         Ok((transcript.segments.iter().map(to_line).collect(), transcript.language, transcript.engine))
     }
 }
 
 /// `samples` (16 kHz) through `engine`: the sound itself goes to its program, which finds the
 /// engine's model where it runs (contract version 2).
-fn run_engine(engine: &qnc_ai_catalog::Transcriber, language: &str, samples: &[f32], cancel: &AtomicBool, on_segment: &mut dyn FnMut(&qnc_transcribe_jobs::Segment)) -> Result<qnc_transcribe_jobs::Transcript, String> {
+fn run_engine(engines: &[qnc_ai_catalog::Transcriber], language: &str, samples: &[f32], cancel: &AtomicBool, on_segment: &mut dyn FnMut(&qnc_transcribe_jobs::Segment)) -> Result<qnc_transcribe_jobs::Transcript, String> {
     // The engine hears the sound at the level of speech (user 2026-11-03).
     let heard = qnc_transcribe_jobs::at_speech_level(samples, qnc_transcribe_jobs::WHISPER_RATE as usize);
-    let job = TranscribeRequest::new(&engine.id, &heard, language)?;
     let _hearing = Hearing::take(cancel)?;
-    transcriber(&engine.program, engine.parallel as usize)?.transcribe(&job, cancel, on_segment)
+    let (engine, program) = transcriber(engines)?;
+    let job = TranscribeRequest::new(&engine.id, &heard, language)?;
+    let began = std::time::Instant::now();
+    let mut transcript = program.transcribe(&job, cancel, on_segment)?;
+    log(&format!("transcribe engine={} heard={:.1}s ms={}", engine.id, samples.len() as f64 / f64::from(qnc_transcribe_jobs::WHISPER_RATE), began.elapsed().as_millis()));
+    let model = engine.model.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    transcript.engine = format!("{} {model}", transcript.engine);
+    Ok(transcript)
 }
 
 /// What the Best engine of this computer hears in `samples` (16 kHz) that are not of a clip: a
 /// take of the voice-over (user 2026-11-08). Its words are seconds of `samples`.
 pub fn hear_samples(samples: &[f32], language: &str, cancel: &AtomicBool) -> Result<qnc_transcribe_jobs::Transcript, String> {
     let engine = qnc_ai_catalog::installed_transcriber_for(Quality::Best)?;
-    run_engine(&engine, language, samples, cancel, &mut |_| {}).inspect_err(|_| forget_transcriber(&engine.program))
+    run_engine(std::slice::from_ref(&engine), language, samples, cancel, &mut |_| {}).inspect_err(|_| forget_transcriber(&engine.program))
 }
 
 fn kept() -> std::sync::MutexGuard<'static, HashMap<String, Vec<Arc<Transcriber>>>> {
@@ -624,19 +639,25 @@ fn forget_transcriber(program: &str) {
 /// stays loaded: one no job uses now, else a new one while there are fewer than `most` (user
 /// 2026-11-17: "AI prijepis mora biti najbrži": several clips at the same time), else the first
 /// (its job waits for it). The zoom's job takes one of them too.
-fn transcriber(program: &str, most: usize) -> Result<Arc<Transcriber>, String> {
+/// With several engines (the graphics card's and the processor's) the first that has a program
+/// free, or room for one more, takes the piece.
+fn transcriber(engines: &[qnc_ai_catalog::Transcriber]) -> Result<(&qnc_ai_catalog::Transcriber, Arc<Transcriber>), String> {
+    let first = engines.first().ok_or("no transcription engine")?;
     let mut kept = kept();
-    let running = kept.entry(program.to_string()).or_default();
-    // Only the list holds a program no job uses.
-    if let Some(free) = running.iter().find(|one| Arc::strong_count(one) == 1) {
-        return Ok(free.clone());
+    for engine in engines {
+        let running = kept.entry(engine.program.clone()).or_default();
+        // Only the list holds a program no job uses.
+        if let Some(free) = running.iter().find(|one| Arc::strong_count(one) == 1) {
+            return Ok((engine, free.clone()));
+        }
+        if running.len() < (engine.parallel as usize).max(1) {
+            let made = Arc::new(Transcriber::beside_application(&engine.program)?);
+            running.push(made.clone());
+            return Ok((engine, made));
+        }
     }
-    if running.len() < most.max(1) {
-        let made = Arc::new(Transcriber::beside_application(program)?);
-        running.push(made.clone());
-        return Ok(made);
-    }
-    Ok(running[0].clone())
+    let running = kept.entry(first.program.clone()).or_default();
+    Ok((first, running[0].clone()))
 }
 
 fn log(line: &str) {
