@@ -156,6 +156,19 @@ fn main() {
                                 continue; // its window takes the card back
                             }
                             let card = volume.volume_name.clone().unwrap_or_else(|| disk.clone());
+                            // A card an earlier base already has whole is only told, no base is
+                            // made (user 2026-11-17: "tray neka samo javi da je kartica već
+                            // uvezena"); not read is ingested as before.
+                            let known = qnc_card_watch::card_originals(catalog, &volume).and_then(|originals| qnc_ingest_base::known_card(&root, &volume.source_uri(), &originals));
+                            match known {
+                                Ok(Some(known)) if known.new.is_empty() => {
+                                    log(format!("card serial={} known base={} had={}: nothing new, no base made", volume.serial_number, known.base.label(), known.had));
+                                    tray.notify(&text("tray.title"), &fill("tray.card_known", &[("card", &card), ("camera", &camera), ("base", &known.base.shown()), ("count", &known.had.to_string())]));
+                                    continue;
+                                }
+                                Ok(_) => {}
+                                Err(error) => log(format!("card serial={} not compared with the bases: {error}", volume.serial_number)),
+                            }
                             let Some(orchestrator) = orchestrator(&tray, &root) else { continue };
                             match orchestrator.card_base(&root, &camera) {
                                 Ok(base) => {

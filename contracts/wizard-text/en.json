@@ -80,6 +80,7 @@
     "admin.no_bases": "There are no Ingest bases.",
     "tray.folder_ask": "Import the folder into a new Ingest base?\n\nYes: a new base. No: into the base {base}.",
     "tray.card_ingest": "{card} ({camera}): ingest into {base}",
+    "tray.card_known": "{card} ({camera}): already imported in {base} ({count} clips), nothing new",
     "tray.card_done": "{card}: every clip is already ingested",
     "tray.ingesting": "Ingest: {count} running",
     "tray.no_orchestrator": "No ingest orchestrator is chosen for the tray: {error}",
