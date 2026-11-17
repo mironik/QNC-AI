@@ -5534,6 +5534,7 @@ dependencies = [
  "qnc-transcribe-run",
  "qnc-transcript-db",
  "qnc-ui-text",
+ "qnc-work-progress",
  "qnc-work-settings",
  "serde_json",
  "windows-sys 0.59.0",

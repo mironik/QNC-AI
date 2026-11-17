@@ -100,23 +100,24 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // what it measures (user 2026-11-17: "trebaš tražiti drugačiju organizaciju procesa i
     // optimizirati dinamičkim prilagođavanjem"): the copy first, it feeds every other step; a lower
     // step gets a place only while the higher ones do not go slower (`qnc-ingest-conductor`).
-    const CONDUCTED: [(Step, usize); 7] = [(Step::Import, 1), (Step::Transcripts, 1), (Step::Waves, 1), (Step::Filmstrips, 4), (Step::Shots, 1), (Step::Content, 1), (Step::Captions, 1)];
-    let conducted: Vec<(Step, usize)> = CONDUCTED.iter().copied().filter(|(step, _)| steps.contains(step)).collect();
-    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(step, most)| {
-        // The waves and the filmstrips never wait whole: one each always works beside the copy and the
-        // transcription (user 2026-11-17: "filmstrip više od 6 minuta, neupotrebljivo").
-        // The transcription keeps its place too: the journalist reads the statements first (user
-        // 2026-11-17: "AI prijepis mora biti najbrži"; the log: it gave its place back to the noise
-        // of the copy and waited 20 s for its first one).
-        // The waves one clip at most (cheap, they ended long before the rest), the filmstrips two
-        // always (user 2026-11-17: "smanji niti za val, povećaj za prijepis i filmstrip").
-        let keeps = match step {
-            Step::Transcripts | Step::Waves => 1,
-            Step::Filmstrips => 2,
-            _ => 0,
-        };
-        qnc_ingest_conductor::Step::new(step.code(), *most).keeping(keeps)
-    }).collect())?);
+    // The copy is not conducted: it reads the card, the rest the processor, and it feeds them all.
+    // The others are (user 2026-11-17: "orkestrator bi trebao biti dinamički i vidjeti što kasni
+    // pa prilagoditi"): each with work keeps a place ("da se ništa ne čeka previše"), the rest of
+    // the processor goes to the step that would end last; a place costs its threads, the
+    // transcription weighs more (the journalist reads the statements first).
+    let conducted: Vec<(Step, qnc_ingest_conductor::Step)> = [
+        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), 1).keeping(1).costing(4).weighing(1.5),
+        qnc_ingest_conductor::Step::new(Step::Waves.code(), 4).keeping(1),
+        qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), 4).keeping(1).costing(2),
+        qnc_ingest_conductor::Step::new(Step::Shots.code(), 1).costing(2),
+        qnc_ingest_conductor::Step::new(Step::Content.code(), 1).costing(2),
+        qnc_ingest_conductor::Step::new(Step::Captions.code(), 1).costing(2),
+    ]
+    .into_iter()
+    .filter_map(|spec| steps.iter().copied().find(|step| step.code() == spec.code).map(|step| (step, spec)))
+    .collect();
+    let cores = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
+    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(_, spec)| spec.clone()).collect(), cores)?);
     let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
     // How many clips a conducted step may work on now (a step the conductor does not lead: always).
     let places = |step: Step| if conducted_step(step) { conductor.lock().unwrap_or_else(|e| e.into_inner()).places(step.code()) } else { usize::MAX };
@@ -145,32 +146,39 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             let mut quiet = 0;
             let started_at = std::time::Instant::now();
             let mut processor = crate::Processor::new();
-            // The copy and the speech heard, a second apart, over the last 10 s: the rates.
-            let mut samples: std::collections::VecDeque<(f64, u64, f64)> = std::collections::VecDeque::new();
+            let mut read_at: Option<std::time::Instant> = None;
             while going.load(Relaxed) {
                 {
                     let now = started_at.elapsed().as_secs_f64();
-                    samples.push_back((now, qnc_ingest_import_worker::copied_bytes(), qnc_transcribe_run::heard_seconds()));
-                    while samples.len() > 11 {
-                        samples.pop_front();
-                    }
+                    // What each step has left and has done, from the base (every 2 s): the blocks
+                    // are the clips copied (the copies feed every step).
+                    let progress = read_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(2)).then(|| {
+                        read_at = Some(std::time::Instant::now());
+                        qnc_work_progress::progress_of(root, &started)
+                    });
                     let mut conductor = conductor.lock().unwrap_or_else(|e| e.into_inner());
-                    for (step, _) in &conducted {
-                        let i = at(*step);
-                        let working = !begun[i].load(Relaxed) || !idle[i].load(Relaxed);
-                        conductor.work(step.code(), usize::from(working), 0);
-                    }
-                    if let (Some(first), Some(last)) = (samples.front(), samples.back()) {
-                        let span = last.0 - first.0;
-                        if span >= 5.0 {
-                            conductor.rate(Step::Import.code(), (last.1 - first.1) as f64 / 1e6 / span);
-                            conductor.rate(Step::Transcripts.code(), (last.2 - first.2) / span);
+                    if let Some(Ok(progress)) = progress {
+                        for (step, _) in &conducted {
+                            let done = match step {
+                                Step::Transcripts => progress.transcripts,
+                                Step::Waves => progress.waves,
+                                Step::Filmstrips => progress.filmstrips,
+                                Step::Shots => progress.shots,
+                                Step::Content => progress.content,
+                                Step::Captions => progress.captions,
+                                _ => None,
+                            }
+                            .unwrap_or_default();
+                            // A step the user stopped has nothing left for the conductor.
+                            let stopped = stop_code(*step).is_some_and(|code| stops.is(code));
+                            let left = if stopped { 0 } else { progress.imported.saturating_sub(done) };
+                            conductor.work(step.code(), left, done);
                         }
                     }
                     if let Some(busy) = processor.busy() {
                         conductor.busy(busy);
                     }
-                    for decision in conductor.tick(now) {
+                    if let Some(decision) = conductor.tick(now) {
                         trace(format!("conductor {decision:?}"));
                     }
                     // The background transcription waits while it has no place.
