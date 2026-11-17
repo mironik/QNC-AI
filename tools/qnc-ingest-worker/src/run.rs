@@ -100,7 +100,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // what it measures (user 2026-11-17: "trebaš tražiti drugačiju organizaciju procesa i
     // optimizirati dinamičkim prilagođavanjem"): the copy first, it feeds every other step; a lower
     // step gets a place only while the higher ones do not go slower (`qnc-ingest-conductor`).
-    const CONDUCTED: [(Step, usize); 7] = [(Step::Import, 1), (Step::Transcripts, 1), (Step::Waves, 4), (Step::Filmstrips, 4), (Step::Shots, 1), (Step::Content, 1), (Step::Captions, 1)];
+    const CONDUCTED: [(Step, usize); 7] = [(Step::Import, 1), (Step::Transcripts, 1), (Step::Waves, 1), (Step::Filmstrips, 4), (Step::Shots, 1), (Step::Content, 1), (Step::Captions, 1)];
     let conducted: Vec<(Step, usize)> = CONDUCTED.iter().copied().filter(|(step, _)| steps.contains(step)).collect();
     let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(step, most)| {
         // The waves and the filmstrips never wait whole: one each always works beside the copy and the
@@ -108,7 +108,13 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         // The transcription keeps its place too: the journalist reads the statements first (user
         // 2026-11-17: "AI prijepis mora biti najbrži"; the log: it gave its place back to the noise
         // of the copy and waited 20 s for its first one).
-        let keeps = usize::from(matches!(step, Step::Transcripts | Step::Waves | Step::Filmstrips));
+        // The waves one clip at most (cheap, they ended long before the rest), the filmstrips two
+        // always (user 2026-11-17: "smanji niti za val, povećaj za prijepis i filmstrip").
+        let keeps = match step {
+            Step::Transcripts | Step::Waves => 1,
+            Step::Filmstrips => 2,
+            _ => 0,
+        };
         qnc_ingest_conductor::Step::new(step.code(), *most).keeping(keeps)
     }).collect())?);
     let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
