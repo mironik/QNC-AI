@@ -223,6 +223,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         *rounds += 1;
                     }
                     let in_round = InRound(rounds);
+                    // The AI waits inside its round for a place; waiting it has work, else the
+                    // conductor never gives it one (2026-11-17 log: after the filmstrips nothing led
+                    // and the AI shots waited for ever).
+                    if matches!(step, Step::Shots | Step::Content | Step::Captions) {
+                        idle.store(false, Relaxed);
+                    }
                     let did = match step {
                         Step::Records => {
                             let waiting = crate::records_waiting(root).unwrap_or_default();
