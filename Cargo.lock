@@ -5235,6 +5235,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ingest-conductor"
+version = "0.1.0"
+
+[[package]]
 name = "qnc-ingest-desktop"
 version = "0.1.0"
 dependencies = [

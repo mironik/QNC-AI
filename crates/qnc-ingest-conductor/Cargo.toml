@@ -1,0 +1,7 @@
+[package]
+name = "qnc-ingest-conductor"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the conductor of an ingest; gives each step of the background work its places by priority and by what it measures (the rates of the steps, the processor), so a lower step gets the processor only while the higher ones do not slow down"
+
+[dependencies]
