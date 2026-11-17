@@ -107,9 +107,10 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
         Ok(None) => return, // another process runs this project's queue
         Err(error) => return log(&format!("transcribe-queue lease: {error}")),
     };
-    // Several clips at the same time, each in a program of its own (user 2026-11-17: "AI prijepis
-    // mora biti najbrži"): as many as the fast engine of this computer's AI catalog says.
-    let workers = qnc_ai_catalog::installed_transcriber_for(Quality::Fast).map_or(1, |engine| engine.parallel.max(1));
+    // One worker more than the programs of the fast engine (user 2026-11-17: "AI prijepis mora
+    // biti najbrži"): while a program hears one clip, the next worker reads its clip's sound,
+    // so the engine never waits for a read (live: 46 s of 193 s went to waiting for the read).
+    let workers = qnc_ai_catalog::installed_transcriber_for(Quality::Fast).map_or(1, |engine| engine.parallel.max(1) + 1);
     let picking = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
     std::thread::scope(|scope| {
         for _ in 0..workers {
