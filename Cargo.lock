@@ -3752,6 +3752,7 @@ name = "qnc-ai-card-ingest"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-base-admin",
  "qnc-card-ingest",
  "qnc-confirm-dialog",
  "qnc-dev-diagnostics",
