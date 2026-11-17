@@ -101,8 +101,11 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // imaju približno isti broj obrađenih klipova"): one ahead waits, the one behind takes the
     // processor. The copy is not conducted: it reads the card and feeds them all.
     let cores = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
+    // The transcription's places are its programs (the AI catalog: how many and their threads).
+    let (programs, program_threads) = qnc_ai_catalog::installed_transcriber_for(qnc_ai_catalog::Quality::Fast)
+        .map_or((1, 4), |engine| (engine.parallel.max(1) as usize, engine.threads.max(1) as usize));
     let conducted: Vec<(Step, qnc_ingest_conductor::Step)> = [
-        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), 1).balanced(),
+        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), programs).costing(program_threads).balanced(),
         qnc_ingest_conductor::Step::new(Step::Waves.code(), 4).balanced(),
         qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), cores).balanced(),
         qnc_ingest_conductor::Step::new(Step::Shots.code(), 1),
@@ -112,7 +115,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     .into_iter()
     .filter_map(|spec| steps.iter().copied().find(|step| step.code() == spec.code).map(|step| (step, spec)))
     .collect();
-    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(_, spec)| spec.clone()).collect())?);
+    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(_, spec)| spec.clone()).collect(), cores)?);
     let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
     // How many clips a conducted step may work on now (a step the conductor does not lead: always).
     let places = |step: Step| if conducted_step(step) { conductor.lock().unwrap_or_else(|e| e.into_inner()).places(step.code()) } else { usize::MAX };
@@ -175,12 +178,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     let busy = processor.busy();
                     if let Some(decision) = conductor.tick(now) {
                         let busy = busy.map_or_else(|| "?".to_string(), |busy| format!("{:.0} %", busy * 100.0));
-                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, done, left)| format!("{code} done={done} left={left} places={places}")).collect();
+                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, done, left, speed)| format!("{code} done={done} left={left} places={places} speed={}", speed.map_or_else(|| "?".to_string(), |speed| format!("{speed:.3}")))).collect();
                         trace(format!("conductor processor={busy} | {}", steps.join(" | ")));
                     }
                     // The background transcription waits while it has no place.
                     if conducted_step(Step::Transcripts) {
-                        qnc_transcribe_run::hold(conductor.places(Step::Transcripts.code()) == 0);
+                        qnc_transcribe_run::set_places(conductor.places(Step::Transcripts.code()));
                     }
                 }
                 if !crate::still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
@@ -325,7 +328,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         }
         Ok::<(), String>(())
     });
-    qnc_transcribe_run::hold(false);
+    qnc_transcribe_run::set_places(usize::MAX);
     result?;
     if closed.load(Relaxed) {
         eprintln!("projekt je zatvoren: pozadinski proces staje");

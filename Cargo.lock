@@ -5506,6 +5506,7 @@ name = "qnc-ingest-worker"
 version = "0.1.0"
 dependencies = [
  "qnc-active-project-read",
+ "qnc-ai-catalog",
  "qnc-ai-features",
  "qnc-base-contents",
  "qnc-content-artifacts",

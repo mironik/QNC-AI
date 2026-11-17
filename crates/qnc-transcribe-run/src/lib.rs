@@ -506,6 +506,49 @@ pub fn heard_seconds() -> f64 {
 pub fn hold(held: bool) {
     HELD.store(held, Ordering::Relaxed);
 }
+
+/// How many transcription programs of this process may hear at once (the conductor's places;
+/// 2026-11-17 measure: three programs of two threads hear 15.2 s of speech a second, one of four
+/// 10.6). A process that never sets it is not limited.
+static PLACES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(usize::MAX);
+/// How many are hearing now.
+static HEARING: std::sync::Mutex<usize> = std::sync::Mutex::new(0);
+
+/// At most `places` programs hear at once from now on (none: held, as [`hold`]).
+pub fn set_places(places: usize) {
+    PLACES.store(places, Ordering::Relaxed);
+    hold(places == 0);
+}
+
+/// One program hearing: taken while fewer than the places hear (it waits otherwise), given back
+/// when dropped.
+struct Hearing;
+
+impl Hearing {
+    fn take(cancel: &AtomicBool) -> Result<Self, String> {
+        loop {
+            {
+                let mut hearing = HEARING.lock().unwrap_or_else(|e| e.into_inner());
+                if *hearing < PLACES.load(Ordering::Relaxed).max(1) {
+                    *hearing += 1;
+                    return Ok(Self);
+                }
+            }
+            if cancel.load(Ordering::Relaxed) {
+                return Err(qnc_ui_text::text("transcribe.cancelled").into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+}
+
+impl Drop for Hearing {
+    fn drop(&mut self) {
+        let mut hearing = HEARING.lock().unwrap_or_else(|e| e.into_inner());
+        *hearing = hearing.saturating_sub(1);
+    }
+}
+
 struct Job<'a> {
     locator: &'a StillLocator,
     engine: &'a qnc_ai_catalog::Transcriber,
@@ -556,6 +599,7 @@ fn run_engine(engine: &qnc_ai_catalog::Transcriber, language: &str, samples: &[f
     // The engine hears the sound at the level of speech (user 2026-11-03).
     let heard = qnc_transcribe_jobs::at_speech_level(samples, qnc_transcribe_jobs::WHISPER_RATE as usize);
     let job = TranscribeRequest::new(&engine.id, &heard, language)?;
+    let _hearing = Hearing::take(cancel)?;
     transcriber(&engine.program, engine.parallel as usize)?.transcribe(&job, cancel, on_segment)
 }
 

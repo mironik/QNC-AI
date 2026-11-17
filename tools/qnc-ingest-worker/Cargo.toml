@@ -39,6 +39,7 @@ qnc-source-bindings = { workspace = true }
 qnc-player-clip-content = { workspace = true }
 qnc-ai-features = { workspace = true }
 qnc-ingest-conductor = { workspace = true }
+qnc-ai-catalog = { workspace = true }
 qnc-work-progress = { workspace = true }
 qnc-transcribe-run = { workspace = true }
 
