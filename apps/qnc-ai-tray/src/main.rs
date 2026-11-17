@@ -107,10 +107,15 @@ fn main() {
     // The camera profiles, to name a card's camera by its model.
     let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));
-    let mut ingest = Windows { open: Vec::new(), job, admin: None };
+    let mut ingest = Windows { open: Vec::new(), job, admin: None, bases: Vec::new() };
     let mut shown: Option<(usize, usize)> = None;
     // The question before all the work is stopped: true when the user quits.
-    let mut stop_asked: Option<(std::sync::mpsc::Receiver<bool>, bool)> = None;
+    let mut stop_asked: Option<(std::sync::mpsc::Receiver<Option<String>>, bool)> = None;
+    // The bases to delete once their work has stopped (and whether the tray quits after), and the
+    // deletes running.
+    let mut to_delete: Option<(Vec<qnc_ingest_base::IngestBase>, bool, Instant)> = None;
+    let mut deleting: Vec<(qnc_base_admin::Delete, qnc_ingest_base::IngestBase)> = Vec::new();
+    let mut quit_when_deleted = false;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
     let mut watch = CardWatch::new();
@@ -129,27 +134,63 @@ fn main() {
             }
             shown = Some((running, active));
         }
+        // Stopping is asked what becomes of the partial ingest: kept (it goes on when the card is
+        // put in again) or deleted (user 2026-11-17: "ako zaustavljam proces onda ne treba nuditi
+        // spremanje napravljenog, brisanje ili spremanje").
         if let Some(answer) = stop_asked.as_ref().and_then(|(answer, _)| answer.try_recv().ok()) {
             let (_, quit) = stop_asked.take().expect("asked");
             log(format!("stop asked quit={quit}: {answer:?}"));
-            if answer {
-                // The quit ends it all with the job; a stop ends it and the tray waits on.
-                if quit {
-                    log("quit: the work stops".into());
+            match answer.as_deref() {
+                Some(KEEP) if quit => {
+                    log("quit: the work stops, the partial ingest kept".into());
                     return;
                 }
-                match ingest.job.stop() {
-                    Ok(()) => tray.notify(&text("tray.title"), &text("tray.stopped")),
-                    Err(error) => fail(&tray, error),
+                Some(KEEP) => {
+                    match ingest.job.stop() {
+                        Ok(()) => tray.notify(&text("tray.title"), &text("tray.stopped")),
+                        Err(error) => fail(&tray, error),
+                    }
+                    ingest.bases.clear();
                 }
+                Some(DELETE) => {
+                    if let Err(error) = ingest.job.stop() {
+                        fail(&tray, error);
+                    }
+                    // Deleted once nothing of the job holds the base's files any more.
+                    to_delete = Some((std::mem::take(&mut ingest.bases), quit, Instant::now()));
+                }
+                _ => {}
             }
+        }
+        if let Some((bases, quit, since)) = to_delete.take_if(|(_, _, since)| ingest.job.active() == 0 || since.elapsed() >= Duration::from_secs(10)) {
+            log(format!("deleting {} bases quit={quit} after {} ms", bases.len(), since.elapsed().as_millis()));
+            for base in bases {
+                tray.notify(&text("tray.title"), &fill("tray.base_deleting", &[("base", &base.shown())]));
+                deleting.push((qnc_base_admin::Delete::start(&root, &base), base));
+            }
+            quit_when_deleted = quit;
+        }
+        deleting.retain(|(delete, base)| match delete.poll() {
+            None => true,
+            Some(result) => {
+                log(format!("base {} deleted: {result:?}", base.id));
+                match result {
+                    Ok(()) => tray.notify(&text("tray.title"), &fill("tray.base_deleted", &[("base", &base.shown())])),
+                    Err(error) => fail(&tray, fill("tray.base_delete_failed", &[("base", &base.shown()), ("error", &error)])),
+                }
+                false
+            }
+        });
+        if quit_when_deleted && to_delete.is_none() && deleting.is_empty() {
+            log("quit: the partial ingest deleted".into());
+            return;
         }
         while let Some(event) = tray.try_event() {
             match event {
                 // Work running is asked about first: quitting stops it.
                 TrayEvent::Menu(QUIT) if ingest.work() > 0 => {
                     if stop_asked.is_none() {
-                        stop_asked = Some((tray.confirm(&text("tray.title"), &text("tray.quit_ask")), true));
+                        stop_asked = Some((ask_stop(&tray, "tray.quit_ask"), true));
                     }
                 }
                 TrayEvent::Menu(QUIT) => {
@@ -157,7 +198,7 @@ fn main() {
                     return;
                 }
                 TrayEvent::Menu(STOP_ALL) if stop_asked.is_none() && ingest.work() > 0 => {
-                    stop_asked = Some((tray.confirm(&text("tray.title"), &text("tray.stop_ask")), false));
+                    stop_asked = Some((ask_stop(&tray, "tray.stop_ask"), false));
                 }
                 TrayEvent::Menu(ADMIN) => open_admin(&tray, &root, &mut ingest),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
@@ -298,6 +339,8 @@ fn fail(tray: &Tray, error: String) {
 struct Windows {
     open: Vec<(String, Option<String>, std::process::Child)>,
     job: qnc_process_job::Job,
+    /// The bases the work since the last stop went into: a stop that deletes deletes these.
+    bases: Vec<qnc_ingest_base::IngestBase>,
     /// The administrator's form, held too but no work.
     admin: Option<std::process::Child>,
 }
@@ -370,6 +413,9 @@ fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
                 log(format!("ingest window not held by the tray: {error}"));
             }
             ingest.open.push((base.id.clone(), card.map(str::to_string), child));
+            if !ingest.bases.iter().any(|known| known.id == base.id) {
+                ingest.bases.push(base.clone());
+            }
         }
         Err(error) => fail(tray, error.to_string()),
     }
@@ -394,4 +440,14 @@ fn open_admin(tray: &Tray, root: &std::path::Path, ingest: &mut Windows) {
             tray.alert("admin", &text("tray.title"), &fill("tray.admin_failed", &[("error", &error.to_string())]), &text("tray.ok"));
         }
     }
+}
+
+/// The answers of the question before the work stops.
+const KEEP: &str = "keep";
+const DELETE: &str = "delete";
+
+/// The question before the work stops: keep the partial ingest, delete it, or not stop (Enter).
+fn ask_stop(tray: &Tray, question: &str) -> std::sync::mpsc::Receiver<Option<String>> {
+    let buttons = [(KEEP, text("card_ingest.partial_keep")), (DELETE, text("card_ingest.partial_delete")), ("cancel", text("ask.cancel"))];
+    tray.choose(&text("tray.title"), &text(question), &buttons, "cancel")
 }

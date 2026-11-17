@@ -109,6 +109,23 @@ impl Tray {
         }
     }
 
+    /// A question with the buttons given (code, label; Enter chooses `enter`): it does not wait;
+    /// the code chosen comes on the channel, none when the box was closed. Another system answers
+    /// none at once (it has no tray yet).
+    pub fn choose(&self, title: &str, text: &str, buttons: &[(&str, String)], enter: &str) -> Receiver<Option<String>> {
+        #[cfg(windows)]
+        {
+            windows::choose(title, text, buttons.iter().map(|(code, label)| (code.to_string(), label.clone())).collect(), enter)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (title, text, buttons, enter);
+            let (send, answer) = std::sync::mpsc::channel();
+            let _ = send.send(None);
+            answer
+        }
+    }
+
     /// A question with Yes, No and Cancel (the text says what each does): it does not wait; the
     /// answer comes on the channel. Another system answers Cancel at once (it has no tray yet).
     pub fn ask(&self, title: &str, text: &str) -> Receiver<Answer> {

@@ -3937,6 +3937,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-app-mark",
  "qnc-autoplay-guard",
+ "qnc-base-admin",
  "qnc-camera-profiles",
  "qnc-card-watch",
  "qnc-dev-diagnostics",

@@ -309,8 +309,39 @@ pub(crate) fn close_alert(key: &str) {
 /// answers in order, `enter` the one Enter gives. Its answer, or `None` when the program cannot run
 /// (the system box then asks, and the log says why).
 fn qnc_ask(title: &str, text: &str, buttons: &[&str], enter: &str) -> Option<String> {
+    let labelled: Vec<(String, String)> = buttons.iter().map(|answer| (answer.to_string(), qnc_wizard_text::text(&format!("ask.{answer}")))).collect();
+    qnc_ask_labelled(title, text, &labelled, enter)
+}
+
+/// A question with the buttons given (code, label), above every window, on its own thread; the
+/// code of the button chosen comes back (none when the box was closed). Without the question
+/// program it is the system's box: its Yes, No and Cancel are the first, second and third button.
+pub(crate) fn choose(title: &str, text: &str, buttons: Vec<(String, String)>, enter: &str) -> std::sync::mpsc::Receiver<Option<String>> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDCANCEL, IDNO, IDYES, MB_ICONQUESTION, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNOCANCEL};
+    let (send, answer) = std::sync::mpsc::channel();
+    let (title, text, enter) = (title.to_string(), text.to_string(), enter.to_string());
+    std::thread::spawn(move || {
+        if let Some(chosen) = qnc_ask_labelled(&title, &text, &buttons, &enter) {
+            let _ = send.send(buttons.iter().any(|(code, _)| *code == chosen).then_some(chosen));
+            return;
+        }
+        let (title, text) = (wide(&title), wide(&text));
+        // SAFETY: both texts are NUL-terminated UTF-16 that live until the box is closed.
+        let chosen = unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_YESNOCANCEL | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND) };
+        let at = match chosen {
+            IDYES => Some(0),
+            IDNO => Some(1),
+            IDCANCEL => Some(2),
+            _ => None,
+        };
+        let _ = send.send(at.and_then(|at| buttons.get(at)).map(|(code, _)| code.clone()));
+    });
+    answer
+}
+
+fn qnc_ask_labelled(title: &str, text: &str, buttons: &[(String, String)], enter: &str) -> Option<String> {
     let program = std::env::current_exe().ok()?.with_file_name("qnc-ai-ask.exe");
-    let labels: Vec<String> = buttons.iter().map(|answer| format!("{answer}={}", qnc_wizard_text::text(&format!("ask.{answer}")))).collect();
+    let labels: Vec<String> = buttons.iter().map(|(answer, label)| format!("{answer}={label}")).collect();
     let output = std::process::Command::new(&program)
         .args(["--title", title, "--text", text, "--buttons", &labels.join(","), "--enter", enter])
         .stdin(std::process::Stdio::null())
