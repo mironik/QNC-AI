@@ -76,10 +76,23 @@ impl BaseInfo {
     }
 
     /// The name, the place and the description fields, the name's need said when closing waited for it.
-    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook) -> bool {
+    /// The fields; `cancel` (its size) puts Cancel right of the name (user 2026-11-17). Gives
+    /// whether a field was left, and whether Cancel was pressed.
+    fn show(&mut self, ui: &mut egui::Ui, theme: &qnc_ingest_layout::theme::Theme, look: &qnc_form_look::FormLook, cancel: Option<egui::Vec2>) -> (bool, bool) {
         let label = |ui: &mut egui::Ui, code: &str| ui.label(RichText::new(text(code)).size(theme.font_ui + look.get("field_label_size")).color(theme.text_muted));
         label(ui, "card_ingest.base_name");
-        let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(f32::INFINITY).hint_text(text("card_ingest.base_name_hint")));
+        let mut cancelled = false;
+        let name = ui
+            .horizontal(|ui| {
+                let gap = ui.spacing().item_spacing.x;
+                let width = cancel.map_or(ui.available_width(), |size| (ui.available_width() - size.x - gap).max(80.0));
+                let name = ui.add(qnc_ui_kit::text_field(&mut self.title).desired_width(width).hint_text(text("card_ingest.base_name_hint")));
+                if let Some(size) = cancel {
+                    cancelled = ui.add(qnc_ui_kit::sized_button(text("card_ingest.cancel"), size)).clicked();
+                }
+                name
+            })
+            .inner;
         if self.needed && self.title.trim().is_empty() {
             ui.label(RichText::new(text("card_ingest.base_name_needed")).color(theme.danger));
         }
@@ -89,7 +102,7 @@ impl BaseInfo {
         look.space(ui, "field_gap");
         label(ui, "card_ingest.base_description");
         let description = ui.add(qnc_ui_kit::text_area(&mut self.description).desired_width(f32::INFINITY).desired_rows(2).hint_text(text("card_ingest.base_description_hint")));
-        name.lost_focus() || location.lost_focus() || description.lost_focus()
+        (name.lost_focus() || location.lost_focus() || description.lost_focus(), cancelled)
     }
 }
 
@@ -237,8 +250,13 @@ impl eframe::App for Window {
         let look = &self.look;
         look.panel(ctx, theme.bg, |ui| {
             use qnc_form_look::Grows;
+            // Cancel while work still runs (user 2026-11-16: "dodaj odustani dugme ako korisnik hoće
+            // prekinut"): right of the base's name (user 2026-11-17); without a base on a row of its
+            // own under the scrolling body.
             let show_cancel = status.phase != Phase::Done && !self.cancelled;
-            let reserve = if show_cancel { theme.chrome_control_height + look.get("card_gap") + ui.spacing().item_spacing.y } else { 0.0 };
+            let cancel_size = egui::vec2(look.get("cancel_width"), theme.chrome_control_height);
+            let in_base = !self.base.is_empty();
+            let reserve = if show_cancel && !in_base { theme.chrome_control_height + look.get("card_gap") + ui.spacing().item_spacing.y } else { 0.0 };
             egui::ScrollArea::vertical().auto_shrink([false, false]).max_height((ui.available_height() - reserve).max(0.0)).show(ui, |ui| {
             let title = match status.phase {
                 Phase::Done => text("card_ingest.done"),
@@ -298,22 +316,22 @@ impl eframe::App for Window {
             if !self.base.is_empty() {
                 look.space(ui, "card_gap");
                 let mut left = false;
-                card(ui, &theme, look, &text("admin.base"), |ui| left = self.info.show(ui, &theme, look));
+                let mut cancel = false;
+                card(ui, &theme, look, &text("admin.base"), |ui| (left, cancel) = self.info.show(ui, &theme, look, show_cancel.then_some(cancel_size)));
                 if left {
                     self.info.keep(&self.root, &self.base);
+                }
+                if cancel {
+                    self.cancel_asked = true;
                 }
             }
             // No "Start QNC" here: the tray asks once for every base being ingested (user
             // 2026-11-14). Closing this window does not stop the work (the worker is its own program).
             });
-            // Cancel while work still runs (user 2026-11-16: "dodaj odustani dugme ako korisnik hoće
-            // prekinut"), on a row of its own under the scrolling body, always seen (user 2026-11-17:
-            // at the end of the body it was below the window).
-            if show_cancel {
+            if show_cancel && !in_base {
                 look.space(ui, "card_gap");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let size = egui::vec2(look.get("cancel_width"), theme.chrome_control_height);
-                    if ui.add(qnc_ui_kit::sized_button(text("card_ingest.cancel"), size)).clicked() {
+                    if ui.add(qnc_ui_kit::sized_button(text("card_ingest.cancel"), cancel_size)).clicked() {
                         self.cancel_asked = true;
                     }
                 });
