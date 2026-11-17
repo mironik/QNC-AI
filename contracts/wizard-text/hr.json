@@ -87,14 +87,8 @@
     "tray.ingesting": "Ingest: {count} u radu",
     "tray.background": "U pozadini radi obrada ({count} programa)",
     "tray.stop_all": "Prekini svu obradu",
-    "tray.stop_ask": "Prekinuti svu obradu (prozore uvoza i rad u pozadini: kopiju, prijepis, valove, filmstrip, AI)?
-
-Što je gotovo ostaje u bazi; kad ponovno ubaciš karticu, uvoz se nastavlja.",
-    "tray.quit_ask": "Obrada još radi (prozori uvoza ili rad u pozadini).
-
-Izlaz iz QNC AI je prekida. Što je gotovo ostaje u bazi; kad ponovno ubaciš karticu, uvoz se nastavlja.
-
-Izaći?",
+    "tray.stop_ask": "Prekinuti svu obradu (prozore uvoza i rad u pozadini: kopiju, prijepis, valove, filmstrip, AI)?\n\nŠto je gotovo ostaje u bazi; kad ponovno ubaciš karticu, uvoz se nastavlja.",
+    "tray.quit_ask": "Obrada još radi (prozori uvoza ili rad u pozadini).\n\nIzlaz iz QNC AI je prekida. Što je gotovo ostaje u bazi; kad ponovno ubaciš karticu, uvoz se nastavlja.\n\nIzaći?",
     "tray.stopped": "Obrada je prekinuta.",
     "tray.no_orchestrator": "Za tray nije izabran orkestrator Ingesta: {error}",
     "orchestrator.title": "Orkestratori Ingesta (ovo računalo)",
