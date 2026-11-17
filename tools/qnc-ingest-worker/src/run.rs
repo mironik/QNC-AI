@@ -203,7 +203,11 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         Step::Records => {
                             let waiting = crate::records_waiting(root).unwrap_or_default();
                             let mut stuck = stuck.lock().expect("stuck records");
-                            if first || waiting.iter().any(|clip| !stuck.contains(clip)) {
+                            let fresh = waiting.iter().any(|clip| !stuck.contains(clip));
+                            if fresh {
+                                idle.store(false, Relaxed);
+                            }
+                            if first || fresh {
                                 match crate::project(root).and_then(|project| {
                                     qnc_record_completion::complete_project(&project, make_backend, crate::PROBE_WORKERS, &**player_works, cancel, Some(lease.write_lease()))
                                 }) {
@@ -226,7 +230,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         Step::Posters => crate::make_posters(root, config, lease, stops) > 0,
                         Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || ai_before_busy(step)) > 0,
                         Step::Import => match crate::import_waiting(root) {
-                            Ok(true) => match crate::project(root).and_then(|project| qnc_ingest_import_worker::run_import(root, &project, run)) {
+                            // Working from the start of the round, not from its end (the conductor
+                            // saw the copy idle while it copied: 2026-11-17 log).
+                            Ok(true) => match crate::project(root).and_then(|project| {
+                                idle.store(false, Relaxed);
+                                qnc_ingest_import_worker::run_import(root, &project, run)
+                            }) {
                                 Ok(summary) => summary.imported + summary.failed > 0,
                                 Err(error) => {
                                     *failure.lock().expect("failure") = Some(error);
