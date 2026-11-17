@@ -9,10 +9,12 @@
 //! - Each step with work holds the places it keeps (none waits whole: "da se ništa ne čeka
 //!   previše").
 //! - The processor is a budget: a place costs what the step uses of it (the transcription its
-//!   threads). The budget grows while the processor has room and shrinks while it is full.
+//!   threads), twice the cores in all: while the ingest works the processor is full anyway, and a
+//!   step with more places gets more of it.
 //! - What is left of the budget goes, one place at a time, to the step that would end last: its
 //!   blocks left over what it does a second with the places it holds, times its weight (the
-//!   transcription first: the journalist reads the statements first).
+//!   transcription first: the journalist reads the statements first). A step that would end well
+//!   before the last gets no more: the ends draw together.
 //!
 //! It only decides; it reads nothing, starts nothing and keeps nothing between runs. The clock is
 //! given (seconds), so the rule is tested without waiting.
@@ -23,9 +25,8 @@ use std::collections::VecDeque;
 pub const PERIOD_SECONDS: f64 = 10.0;
 /// Over how long a step's speed is measured.
 pub const WINDOW_SECONDS: f64 = 30.0;
-/// Above this share of the processor busy the budget shrinks by one, below `ROOM` it grows.
-pub const FULL: f64 = 0.95;
-pub const ROOM: f64 = 0.80;
+/// A step gets one more place only while it would end at this share of the last end or later.
+pub const NEAR_LAST: f64 = 0.5;
 
 /// One step: its code, how many blocks it can work on at once at most, how many places it keeps
 /// whenever it has work, what a place costs of the processor and its weight.
@@ -124,7 +125,7 @@ impl Conductor {
         Ok(Self {
             steps: steps.into_iter().map(|step| State { step, left: 0, samples: VecDeque::new(), held: 0.0, places: 0 }).collect(),
             cores,
-            budget: cores,
+            budget: cores * 2,
             busy: None,
             given: f64::NEG_INFINITY,
             last: 0.0,
@@ -175,12 +176,10 @@ impl Conductor {
             return None;
         }
         self.given = now;
-        // The budget follows the processor.
-        match self.busy {
-            Some(busy) if busy >= FULL => self.budget = self.budget.saturating_sub(1),
-            Some(busy) if busy < ROOM => self.budget = (self.budget + 1).min(self.cores),
-            _ => {}
-        }
+        // The budget does not follow how busy the processor is: while the ingest works it is full
+        // anyway (2026-11-17 log: the budget shrank to the places kept and the filmstrips, 2000 s
+        // behind, got none). A step that lags gets more places, so more of the processor.
+        self.budget = self.cores * 2;
         let floor: usize = self.steps.iter().filter(|state| state.left > 0).map(|state| state.step.least * state.step.cost).sum();
         self.budget = self.budget.max(floor);
         // A step whose speed is not known yet is taken at the slowest known (it gets places).
@@ -189,10 +188,16 @@ impl Conductor {
         let mut places: Vec<usize> = self.steps.iter().map(|state| if state.left > 0 { state.step.least } else { 0 }).collect();
         let mut spent: usize = places.iter().zip(&self.steps).map(|(p, state)| p * state.step.cost).sum();
         loop {
+            // A step gets one more place only while it would end near the last (half its time at
+            // least): one that ends well before needs none, its places would only slow the lagging.
+            let last = (0..self.steps.len()).filter(|&i| self.steps[i].left > 0).map(|i| self.steps[i].ends_in(places[i], default)).fold(0.0, f64::max);
             let next = (0..self.steps.len())
                 .filter(|&i| {
                     let state = &self.steps[i];
-                    state.left > places[i] && places[i] < state.step.most && spent + state.step.cost <= self.budget
+                    state.left > places[i]
+                        && places[i] < state.step.most
+                        && spent + state.step.cost <= self.budget
+                        && state.ends_in(places[i], default) >= last * NEAR_LAST
                 })
                 .max_by(|&a, &b| self.steps[a].ends_in(places[a], default).total_cmp(&self.steps[b].ends_in(places[b], default)));
             let Some(i) = next else { break };
@@ -252,7 +257,7 @@ mod tests {
         c.work("filmstrips", 100, 0);
         c.busy(0.5);
         let decision = c.tick(0.0).unwrap();
-        assert_eq!(decision.budget, 8);
+        assert_eq!(decision.budget, 16);
         assert!(c.places("transcripts") == 1 && c.places("waves") >= 1 && c.places("filmstrips") >= 1, "{decision:?}");
         // The filmstrips go slow, the waves fast: the filmstrips get the places.
         let (mut left, mut done) = ([100, 100, 100], [0, 0, 0]);
@@ -261,18 +266,15 @@ mod tests {
     }
 
     #[test]
-    fn the_budget_shrinks_while_the_processor_is_full_and_never_below_what_the_steps_keep() {
+    fn the_lagging_step_gets_places_on_a_full_processor_and_the_early_ones_none_more() {
+        // 2026-11-17 log: transcription 80 s left, waves 70 s, filmstrips 2000 s; the processor full.
         let mut c = ingest();
-        c.work("transcripts", 10, 0);
-        c.work("waves", 10, 0);
-        c.work("filmstrips", 10, 0);
         c.busy(1.0);
-        for s in 0..10 {
-            c.tick(s as f64 * PERIOD_SECONDS);
-        }
-        let decision = c.tick(1000.0).unwrap();
-        assert_eq!(decision.budget, 4 + 1 + 2, "the places kept: transcription 4, waves 1, filmstrips 2");
-        assert_eq!((c.places("transcripts"), c.places("waves"), c.places("filmstrips")), (1, 1, 1));
+        let (mut left, mut done) = ([40, 20, 94], [0, 0, 0]);
+        run(&mut c, 0.0, 40, &mut left, &mut done, [0.5, 0.3, 0.05]);
+        assert_eq!(c.places("filmstrips"), 4, "the lagging gets all it can take");
+        assert_eq!(c.places("waves"), 1, "ending well before the last, no more");
+        assert_eq!(c.places("transcripts"), 1);
     }
 
     #[test]

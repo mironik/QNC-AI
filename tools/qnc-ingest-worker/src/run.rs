@@ -171,7 +171,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             .unwrap_or_default();
                             // A step the user stopped has nothing left for the conductor.
                             let stopped = stop_code(*step).is_some_and(|code| stops.is(code));
-                            let left = if stopped { 0 } else { progress.imported.saturating_sub(done) };
+                            // The AI waiting for the steps before it takes no place from them.
+                            let left = if stopped || ai_before_busy(*step) { 0 } else { progress.imported.saturating_sub(done) };
                             conductor.work(step.code(), left, done);
                         }
                     }
