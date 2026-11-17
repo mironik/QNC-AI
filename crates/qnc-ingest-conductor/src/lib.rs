@@ -72,6 +72,8 @@ pub struct Conductor {
     steps: Vec<State>,
     busy: Option<f64>,
     changed: f64,
+    /// The step that led the tick before.
+    lead: Option<usize>,
 }
 
 impl Conductor {
@@ -83,7 +85,7 @@ impl Conductor {
                 return Err(format!("conductor: step {} twice", step.code));
             }
         }
-        Ok(Self { steps: steps.into_iter().map(|step| State { step, waiting: 0, running: 0, rate: None, kept: None, places: 0 }).collect(), busy: None, changed: f64::NEG_INFINITY })
+        Ok(Self { steps: steps.into_iter().map(|step| State { step, waiting: 0, running: 0, rate: None, kept: None, places: 0 }).collect(), busy: None, changed: f64::NEG_INFINITY, lead: None })
     }
 
     fn at(&self, code: &str) -> Option<usize> {
@@ -126,6 +128,20 @@ impl Conductor {
             }
         }
         let Some(lead) = self.steps.iter().position(State::has_work) else { return said };
+        // A higher step leads now: the steps below it hold what they had while it had nothing,
+        // so they hold nothing and earn their places again by a probe (2026-11-17 log: the
+        // filmstrips kept four places when the transcription began).
+        if self.lead.is_none_or(|was| lead < was) {
+            for state in &mut self.steps[lead + 1..] {
+                if state.places > 0 {
+                    state.places = 0;
+                    state.kept = None;
+                    said.push(Decision::Idle { step: state.step.code.clone() });
+                    self.changed = now;
+                }
+            }
+        }
+        self.lead = Some(lead);
         if self.steps[lead].places != self.steps[lead].step.most {
             self.steps[lead].places = self.steps[lead].step.most;
             // The lead has no step above it to keep a rate for.
@@ -233,6 +249,22 @@ mod tests {
         c.work("import", 0, 0);
         c.tick(1.0);
         assert_eq!((c.places("import"), c.places("transcripts")), (0, 2));
+    }
+
+    #[test]
+    fn a_higher_step_that_begins_to_lead_takes_the_places_of_the_steps_below() {
+        let mut c = ingest();
+        c.work("filmstrips", 10, 0);
+        c.busy(0.4);
+        c.tick(0.0);
+        assert_eq!(c.places("filmstrips"), 4, "alone, the filmstrips lead");
+        c.work("transcripts", 5, 0);
+        c.tick(1.0);
+        assert_eq!((c.places("transcripts"), c.places("filmstrips")), (2, 0), "the transcription leads; the filmstrips earn their places again");
+        c.tick(2.0);
+        assert_eq!(c.places("filmstrips"), 0, "not before the next probe");
+        c.tick(6.5);
+        assert_eq!(c.places("filmstrips"), 1);
     }
 
     #[test]
