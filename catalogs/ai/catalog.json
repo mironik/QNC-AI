@@ -57,7 +57,8 @@
         "program": "qnc-transcribe-parakeet",
         "backend": "cpu",
         "model": "share:models/parakeet-tdt-0.6b-v3-int8",
-        "threads": 4
+        "threads": 3,
+        "parallel": 2
       }
     ]
   }

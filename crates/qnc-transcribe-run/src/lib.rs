@@ -535,7 +535,7 @@ fn run_engine(engine: &qnc_ai_catalog::Transcriber, language: &str, samples: &[f
     // The engine hears the sound at the level of speech (user 2026-11-03).
     let heard = qnc_transcribe_jobs::at_speech_level(samples, qnc_transcribe_jobs::WHISPER_RATE as usize);
     let job = TranscribeRequest::new(&engine.id, &heard, language)?;
-    transcriber(&engine.program)?.transcribe(&job, cancel, on_segment)
+    transcriber(&engine.program, engine.parallel as usize)?.transcribe(&job, cancel, on_segment)
 }
 
 /// What the Best engine of this computer hears in `samples` (16 kHz) that are not of a clip: a
@@ -545,8 +545,8 @@ pub fn hear_samples(samples: &[f32], language: &str, cancel: &AtomicBool) -> Res
     run_engine(&engine, language, samples, cancel, &mut |_| {}).inspect_err(|_| forget_transcriber(&engine.program))
 }
 
-fn kept() -> std::sync::MutexGuard<'static, HashMap<String, Arc<Transcriber>>> {
-    static KEPT: OnceLock<Mutex<HashMap<String, Arc<Transcriber>>>> = OnceLock::new();
+fn kept() -> std::sync::MutexGuard<'static, HashMap<String, Vec<Arc<Transcriber>>>> {
+    static KEPT: OnceLock<Mutex<HashMap<String, Vec<Arc<Transcriber>>>>> = OnceLock::new();
     KEPT.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
 }
 
@@ -555,16 +555,23 @@ fn forget_transcriber(program: &str) {
     kept().remove(program);
 }
 
-/// The transcription program named `program` in this process, kept between jobs so its model
-/// stays loaded; each program its own, so the zoom's runs beside the background one.
-fn transcriber(program: &str) -> Result<Arc<Transcriber>, String> {
+/// A transcription program named `program` in this process, kept between jobs so its model
+/// stays loaded: one no job uses now, else a new one while there are fewer than `most` (user
+/// 2026-11-17: "AI prijepis mora biti najbrži": several clips at the same time), else the first
+/// (its job waits for it). The zoom's job takes one of them too.
+fn transcriber(program: &str, most: usize) -> Result<Arc<Transcriber>, String> {
     let mut kept = kept();
-    if let Some(found) = kept.get(program) {
-        return Ok(found.clone());
+    let running = kept.entry(program.to_string()).or_default();
+    // Only the list holds a program no job uses.
+    if let Some(free) = running.iter().find(|one| Arc::strong_count(one) == 1) {
+        return Ok(free.clone());
     }
-    let made = Arc::new(Transcriber::beside_application(program)?);
-    kept.insert(program.to_string(), made.clone());
-    Ok(made)
+    if running.len() < most.max(1) {
+        let made = Arc::new(Transcriber::beside_application(program)?);
+        running.push(made.clone());
+        return Ok(made);
+    }
+    Ok(running[0].clone())
 }
 
 fn log(line: &str) {

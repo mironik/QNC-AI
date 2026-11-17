@@ -107,25 +107,68 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
         Ok(None) => return, // another process runs this project's queue
         Err(error) => return log(&format!("transcribe-queue lease: {error}")),
     };
+    // Several clips at the same time, each in a program of its own (user 2026-11-17: "AI prijepis
+    // mora biti najbrži"): as many as the fast engine of this computer's AI catalog says.
+    let workers = qnc_ai_catalog::installed_transcriber_for(Quality::Fast).map_or(1, |engine| engine.parallel.max(1));
+    let picking = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| work(locator, db, cancel, send, &lease, &picking, workers == 1));
+        }
+    });
+    if cancel.load(Ordering::Relaxed) || !lease.held() {
+        return;
+    }
+    // The queue is done: the lease goes now and the background worker is woken, so the shot
+    // analysis that waited for the card starts at once (user 2026-10-28).
+    drop(lease);
+    wake_worker(locator);
+}
+
+/// A clip one worker of the runner has: no other takes it while it is here.
+struct Claim<'a> {
+    picking: &'a std::sync::Mutex<std::collections::BTreeSet<String>>,
+    clip_id: String,
+}
+
+impl Drop for Claim<'_> {
+    fn drop(&mut self) {
+        self.picking.lock().unwrap_or_else(|e| e.into_inner()).remove(&self.clip_id);
+    }
+}
+
+/// One worker of the runner: clip after clip until nothing waits that no other worker has.
+/// `alone`: the only worker (a long clip then gives way to a shorter one waiting).
+fn work(
+    locator: &StillLocator,
+    db: &ProjectDbTarget,
+    cancel: &AtomicBool,
+    send: &mpsc::Sender<Heard>,
+    lease: &qnc_playback_activity::Lease,
+    picking: &std::sync::Mutex<std::collections::BTreeSet<String>>,
+    alone: bool,
+) {
     loop {
         if cancel.load(Ordering::Relaxed) || !lease.held() {
             return;
         }
-        let queue = match qnc_transcript_db::read_queue(db) {
-            Ok(queue) => queue,
-            Err(error) => return log(&format!("transcribe-queue read: {error}")),
-        };
         // A clip left running by a run that died waits again; this runner holds the lease.
         // A clip left running goes on first; then the shortest waiting clip: a long one does not
         // hold the short ones behind it (live 2026-11-12: a 13.5 min clip held 20 clips for 146 s,
-        // and the AI shots waited for them).
-        let running_one = queue.iter().find(|q| q.state == QueueState::Running).cloned();
-        let shortest = queue.iter().filter(|q| q.state == QueueState::Waiting).min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)).cloned();
-        let Some(next) = running_one.or(shortest) else {
-            // The queue is done: the lease goes now and the background worker is woken, so the
-            // shot analysis that waited for the card starts at once (user 2026-10-28).
-            drop(lease);
-            return wake_worker(locator);
+        // and the AI shots waited for them). None another worker of this runner has.
+        let (next, _claim) = {
+            let mut taken = picking.lock().unwrap_or_else(|e| e.into_inner());
+            let queue = match qnc_transcript_db::read_queue(db) {
+                Ok(queue) => queue,
+                Err(error) => return log(&format!("transcribe-queue read: {error}")),
+            };
+            let free = |q: &&Queued| !taken.contains(&q.clip_id);
+            let running_one = queue.iter().filter(free).find(|q| q.state == QueueState::Running).cloned();
+            let shortest = queue.iter().filter(free).filter(|q| q.state == QueueState::Waiting).min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)).cloned();
+            let Some(next) = running_one.or(shortest) else { return };
+            taken.insert(next.clip_id.clone());
+            let claim = Claim { picking, clip_id: next.clip_id.clone() };
+            (next, claim)
         };
         if let Err(error) = qnc_transcript_db::set_queued(db, &next, QueueState::Running, "", 0) {
             return log(&format!("transcribe-queue mark {}: {error}", next.clip_id));
@@ -172,7 +215,7 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
                         let shorter = qnc_transcript_db::read_queue(db).is_ok_and(|queue| {
                             queue.iter().any(|q| q.clip_id != next.clip_id && q.state == QueueState::Waiting && q.to_frame.saturating_sub(q.from_frame) < left)
                         });
-                        if shorter {
+                        if shorter && alone {
                             yielding.store(true, Ordering::Relaxed);
                         }
                     }

@@ -8013,6 +8013,7 @@ name = "qnc-transcribe-queue"
 version = "0.1.0"
 dependencies = [
  "qnc-active-project-read",
+ "qnc-ai-catalog",
  "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
