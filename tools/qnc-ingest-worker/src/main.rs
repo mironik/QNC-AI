@@ -328,8 +328,11 @@ pub(crate) fn make_shots(
         let level = qnc_playback_activity::playback_level(target.clone());
         // It also waits while a transcription the user asked for runs: both read the same card
         // (live 2026-10-27: the transcription read crawled behind the shot analysis).
-        // From the copies the transcription reads no card: the AI does not wait for it then.
-        let transcribing = || !copying && qnc_playback_activity::is_fresh(&target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
+        // From the copies the AI shots and content wait for it too: the transcription has the
+        // processor first (user 2026-11-17: "neka AI kadrovi i sadržaj čekaju dok prijepis ne
+        // završi, prijepisu daj prednost"); the look from the posters does not wait.
+        let waits_for_it = !copying || matches!(step, Step::Shots | Step::Content);
+        let transcribing = || waits_for_it && qnc_playback_activity::is_fresh(&target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
         let player_plays = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing();
         let wanted = || qnc_playback_activity::read(&target, qnc_playback_activity::PLAYBACK_CLIP);
         // Each step its own pace: its cancel is its X (the project closed sets them all).
