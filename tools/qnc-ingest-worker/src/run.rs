@@ -96,28 +96,23 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // How many steps are in a round of work now (the watch ends the run only at none).
     let rounds = std::sync::Mutex::new(0_usize);
     let at = |step: Step| steps.iter().position(|other| *other == step).expect("a step of the plan");
-    // The conductor gives the steps after the records and posters their places, by priority and by
-    // what it measures (user 2026-11-17: "trebaš tražiti drugačiju organizaciju procesa i
-    // optimizirati dinamičkim prilagođavanjem"): the copy first, it feeds every other step; a lower
-    // step gets a place only while the higher ones do not go slower (`qnc-ingest-conductor`).
-    // The copy is not conducted: it reads the card, the rest the processor, and it feeds them all.
-    // The others are (user 2026-11-17: "orkestrator bi trebao biti dinamički i vidjeti što kasni
-    // pa prilagoditi"): each with work keeps a place ("da se ništa ne čeka previše"), the rest of
-    // the processor goes to the step that would end last; a place costs its threads, the
-    // transcription weighs more (the journalist reads the statements first).
+    // The conductor (`qnc-ingest-conductor`) keeps the clips done by the transcription, the waves
+    // and the filmstrips about level (user 2026-11-17: "cilj je da AI prijepis, val i filmstrip
+    // imaju približno isti broj obrađenih klipova"): one ahead waits, the one behind takes the
+    // processor. The copy is not conducted: it reads the card and feeds them all.
+    let cores = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
     let conducted: Vec<(Step, qnc_ingest_conductor::Step)> = [
-        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), 1).keeping(1).costing(4).weighing(1.5),
-        qnc_ingest_conductor::Step::new(Step::Waves.code(), 4).keeping(1),
-        qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), 4).keeping(1).costing(2),
-        qnc_ingest_conductor::Step::new(Step::Shots.code(), 1).costing(2),
-        qnc_ingest_conductor::Step::new(Step::Content.code(), 1).costing(2),
-        qnc_ingest_conductor::Step::new(Step::Captions.code(), 1).costing(2),
+        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), 1).balanced(),
+        qnc_ingest_conductor::Step::new(Step::Waves.code(), 4).balanced(),
+        qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), cores).balanced(),
+        qnc_ingest_conductor::Step::new(Step::Shots.code(), 1),
+        qnc_ingest_conductor::Step::new(Step::Content.code(), 1),
+        qnc_ingest_conductor::Step::new(Step::Captions.code(), 1),
     ]
     .into_iter()
     .filter_map(|spec| steps.iter().copied().find(|step| step.code() == spec.code).map(|step| (step, spec)))
     .collect();
-    let cores = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
-    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(_, spec)| spec.clone()).collect(), cores)?);
+    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(_, spec)| spec.clone()).collect())?);
     let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
     // How many clips a conducted step may work on now (a step the conductor does not lead: always).
     let places = |step: Step| if conducted_step(step) { conductor.lock().unwrap_or_else(|e| e.into_inner()).places(step.code()) } else { usize::MAX };
@@ -173,14 +168,15 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             let stopped = stop_code(*step).is_some_and(|code| stops.is(code));
                             // The AI waiting for the steps before it takes no place from them.
                             let left = if stopped || ai_before_busy(*step) { 0 } else { progress.imported.saturating_sub(done) };
-                            conductor.work(step.code(), left, done);
+                            conductor.work(step.code(), done, left);
                         }
                     }
-                    if let Some(busy) = processor.busy() {
-                        conductor.busy(busy);
-                    }
+                    // The processor measured beside the decision: the log shows what the places did.
+                    let busy = processor.busy();
                     if let Some(decision) = conductor.tick(now) {
-                        trace(format!("conductor {decision:?}"));
+                        let busy = busy.map_or_else(|| "?".to_string(), |busy| format!("{:.0} %", busy * 100.0));
+                        let steps: Vec<String> = decision.steps.iter().map(|(code, places, done, left)| format!("{code} done={done} left={left} places={places}")).collect();
+                        trace(format!("conductor processor={busy} | {}", steps.join(" | ")));
                     }
                     // The background transcription waits while it has no place.
                     if conducted_step(Step::Transcripts) {
