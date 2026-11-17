@@ -24,6 +24,8 @@ const STOP_ALL: u32 = 9;
 const LOOK: Duration = Duration::from_secs(2);
 /// How often a missing camera catalog is read again.
 const CATALOG_AGAIN: Duration = Duration::from_secs(60);
+/// How long a card put in settles before its ingest starts.
+const SETTLE: Duration = Duration::from_secs(5);
 /// How many looks a card that cannot be read yet gets (a card waking up).
 const READ_TRIES: u32 = 5;
 
@@ -120,6 +122,8 @@ fn main() {
     let mut catalog_read: Option<Instant> = None;
     let mut watch = CardWatch::new();
     let mut tries: std::collections::BTreeMap<String, u32> = Default::default();
+    // The cards put in that have not settled yet, by volume serial: since when, and when last seen.
+    let mut settling: std::collections::BTreeMap<String, (Instant, Instant)> = Default::default();
     let mut looked: Option<Instant> = None;
     // The question where a folder goes, and the base it would go into besides a new one.
     let mut folder_asked: Option<(std::sync::mpsc::Receiver<qnc_tray::Answer>, String)> = None;
@@ -243,6 +247,21 @@ fn main() {
                     match found {
                         Found::Card { volume, cameras, patterns } => {
                             let disk = volume.root.display().to_string();
+                            // A card put in settles for a while before its ingest starts (user
+                            // 2026-11-17: "kod ubacivanja kartice napravi pauzu 5 sekundi prije
+                            // pokretanja"; a reader still waking gave half a card to Select). It is
+                            // looked at again until it has been there that long; gone, it starts over.
+                            let (since, seen) = settling.entry(volume.serial_number.clone()).or_insert_with(|| (Instant::now(), Instant::now()));
+                            // Not seen at the last looks: it was out meanwhile, it settles anew.
+                            if seen.elapsed() > LOOK * 2 {
+                                *since = Instant::now();
+                            }
+                            *seen = Instant::now();
+                            if since.elapsed() < SETTLE {
+                                watch.forget(&volume);
+                                continue;
+                            }
+                            settling.remove(&volume.serial_number);
                             // The model the camera profiles recognise ("Sony ILME-FX3A"), else the
                             // camera families of the catalog (user 2026-11-13).
                             let camera = qnc_card_watch::camera_of(catalog, &profiles, &volume).unwrap_or_else(|| cameras.join(", "));
@@ -306,7 +325,10 @@ fn main() {
                                 tray.notify(&text("tray.title"), &fill("tray.unreadable", &[("disk", &disk), ("error", &error)]));
                             }
                         }
-                        Found::Gone { volume } => log(format!("gone disk={} serial={}", volume.root.display(), volume.serial_number)),
+                        Found::Gone { volume } => {
+                            log(format!("gone disk={} serial={}", volume.root.display(), volume.serial_number));
+                            settling.remove(&volume.serial_number);
+                        }
                     }
                 }
             }
