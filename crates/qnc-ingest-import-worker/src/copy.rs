@@ -26,6 +26,7 @@ pub(crate) fn copy_into(
     // crawl (user 2026-11-12: "3,5 gigabajta mora biti za čas"). It is checked once, at the end.
     // A medium of another computer goes through the transport.
     copy_thread_first();
+    let started = std::time::Instant::now();
     let local = opener.local_path(source_uri);
     let stamp_of = |path: &Path| fs::metadata(path).and_then(|meta| Ok((meta.len(), meta.modified()?))).ok();
     let before = local.as_deref().and_then(stamp_of);
@@ -39,7 +40,16 @@ pub(crate) fn copy_into(
     }
     // The copy is the card's only when what was written reads back as what was read (user
     // 2026-11-16: a verified copy, as a professional offload).
+    let copy_ms = started.elapsed().as_millis();
     let written = checksum_of_file(destination)?;
+    // How long the card was read and the copy written, and its read back (user 2026-11-17: the copy
+    // got slower unseen: nothing of it was in the log).
+    let bytes = fs::metadata(destination).map(|meta| meta.len()).unwrap_or(0);
+    let all_ms = started.elapsed().as_millis();
+    qnc_dev_diagnostics::log_line(
+        qnc_dev_diagnostics::DiagnosticsStream::Player,
+        format!("import copy {} {} MB copy {} ms check {} ms {:.0} MB/s", destination.display(), bytes / 1_000_000, copy_ms, all_ms - copy_ms, bytes as f64 / 1e6 / (all_ms.max(1) as f64 / 1000.0)),
+    );
     if written != copied {
         return Err(qnc_ui_text::fill("import.copy_differs", &[("copy", &written), ("card", &copied)]));
     }
