@@ -109,9 +109,14 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // SigLIP after the AI shots, the captions after both (user 2026-11-17): an order of their
     // results, not of the processor.
     let not_done = |step: Step| steps.iter().position(|other| *other == step).is_some_and(|i| !(begun[i].load(Relaxed) && idle[i].load(Relaxed)));
+    // The AI only after the copy, the transcription, the waves and the filmstrips (user
+    // 2026-11-17: "AI kadrovi tek kad je to gotovo, a nakon njega SigLIP"; the log: the shots got a
+    // place by a probe while the card was being copied).
+    let editing_busy = || [Step::Import, Step::Transcripts, Step::Waves, Step::Filmstrips].into_iter().any(not_done);
     let ai_before_busy = |step: Step| match step {
-        Step::Content => not_done(Step::Shots),
-        Step::Captions => not_done(Step::Shots) || not_done(Step::Content),
+        Step::Shots => editing_busy(),
+        Step::Content => editing_busy() || not_done(Step::Shots),
+        Step::Captions => editing_busy() || not_done(Step::Shots) || not_done(Step::Content),
         _ => false,
     };
     let may_start = |step: Step| match plan.stage_of(step) {
