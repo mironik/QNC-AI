@@ -97,11 +97,28 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // The captions are not for the montage (user 2026-11-17: "ubrzati sve osim AI opisa, oni
     // nisu bitni za montažu"): they take the processor only once every other step is done
     // (begun and idle), whatever stage the template puts them in.
-    let others_done = |step: Step| steps.iter().enumerate().all(|(i, other)| *other == step || (begun[i].load(Relaxed) && idle[i].load(Relaxed)));
-    let earlier_done = |step: Step| {
-        let stage = plan.stage_of(step).unwrap_or(0);
-        plan.stages[..stage].iter().flatten().all(|before| begun[at(*before)].load(Relaxed) && idle[at(*before)].load(Relaxed))
+    // The steps a step waits for: the heavy ones (the import, the transcription, the filmstrips;
+    // for the captions also the AI shots and content). The records, posters and waves are not
+    // waited for (live 2026-11-17: two clips whose probe kept failing held the waves at 101/103
+    // and the AI shots never started).
+    let waits_for = |step: Step, before: Step| match step {
+        Step::Shots | Step::Content => {
+            matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips) && plan.stage_of(before) < plan.stage_of(step)
+        }
+        Step::Captions => matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips | Step::PosterLook | Step::Shots | Step::Content),
+        _ => false,
     };
+    // The steps `step` waits for that are not done yet (begun and idle).
+    let busy_before = |step: Step| -> Vec<&'static str> {
+        steps
+            .iter()
+            .enumerate()
+            .filter(|(i, before)| waits_for(step, **before) && !(begun[*i].load(Relaxed) && idle[*i].load(Relaxed)))
+            .map(|(_, before)| before.code())
+            .collect()
+    };
+    let others_done = |step: Step| busy_before(step).is_empty();
+    let earlier_done = |step: Step| busy_before(step).is_empty();
     let may_start = |step: Step| {
         let stage_ready = match plan.stage_of(step) {
             Some(0) | None => true,
@@ -122,7 +139,14 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         // The watch: the project closed, the user's X, the end of the run.
         scope.spawn(|| {
             let mut quiet = 0;
+            let mut told = std::time::Instant::now();
             while going.load(Relaxed) {
+                // What the AI waits for, said every 30 s, and which steps are not idle.
+                if told.elapsed() >= Duration::from_secs(30) {
+                    told = std::time::Instant::now();
+                    let busy: Vec<&str> = steps.iter().enumerate().filter(|(i, _)| !(begun[*i].load(Relaxed) && idle[*i].load(Relaxed))).map(|(_, step)| step.code()).collect();
+                    trace(format!("busy {busy:?} shots wait for {:?}", busy_before(Step::Shots)));
+                }
                 if !crate::still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
                     closed.store(true, Relaxed);
                     cancel.store(true, Relaxed);
