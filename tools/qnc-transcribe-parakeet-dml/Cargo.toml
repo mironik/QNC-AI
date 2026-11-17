@@ -1,0 +1,13 @@
+[package]
+name = "qnc-transcribe-parakeet-dml"
+version = "0.1.0"
+edition = "2021"
+description = "QNC transcription plug-in: speech to text with NVIDIA Parakeet TDT (fp32 ONNX) through ONNX Runtime, its encoder on the graphics card through DirectML (contract qnc.transcribe 2), as its own program"
+
+[dependencies]
+qnc-dev-diagnostics = { workspace = true }
+qnc-transcribe-jobs = { workspace = true }
+qnc-parakeet-onnx = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_LibraryLoader"] }

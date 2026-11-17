@@ -315,6 +315,7 @@ qnc-letter-times = { path = "crates/qnc-letter-times" }
 qnc-match-frame = { path = "../QNC-shared/crates/qnc-match-frame" }
 qnc-media-overlay = { path = "../QNC-shared/crates/qnc-media-overlay" }
 qnc-panel-focus = { path = "crates/qnc-panel-focus" }
+qnc-parakeet-onnx = { path = "../QNC-shared/crates/qnc-parakeet-onnx" }
 qnc-part-sound = { path = "../QNC-shared/crates/qnc-part-sound" }
 qnc-pending-marks = { path = "../QNC-shared/crates/qnc-pending-marks" }
 qnc-playhead-moves = { path = "crates/qnc-playhead-moves" }

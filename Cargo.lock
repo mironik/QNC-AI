@@ -6202,6 +6202,14 @@ name = "qnc-panel-map"
 version = "0.1.0"
 
 [[package]]
+name = "qnc-parakeet-onnx"
+version = "0.1.0"
+dependencies = [
+ "ort",
+ "qnc-transcribe-jobs",
+]
+
+[[package]]
 name = "qnc-part-sound"
 version = "0.1.0"
 dependencies = [
@@ -8030,6 +8038,16 @@ version = "0.1.0"
 dependencies = [
  "libloading",
  "qnc-dev-diagnostics",
+ "qnc-transcribe-jobs",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "qnc-transcribe-parakeet-dml"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-parakeet-onnx",
  "qnc-transcribe-jobs",
  "windows-sys 0.59.0",
 ]

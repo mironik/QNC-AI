@@ -60,6 +60,14 @@
         "model": "share:models/parakeet-tdt-0.6b-v3-int8",
         "threads": 2,
         "parallel": 3
+      },
+      {
+        "id": "parakeet.tdt-0.6b-v3-fp32.directml",
+        "program": "qnc-transcribe-parakeet-dml",
+        "backend": "directml",
+        "model": "share:models/parakeet-tdt-0.6b-v3-onnx-fp32",
+        "threads": 2,
+        "parallel": 1
       }
     ]
   }
