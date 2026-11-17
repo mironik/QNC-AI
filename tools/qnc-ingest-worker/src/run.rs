@@ -98,12 +98,23 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // nisu bitni za montažu"): they take the processor only once every other step is done
     // (begun and idle), whatever stage the template puts them in.
     let others_done = |step: Step| steps.iter().enumerate().all(|(i, other)| *other == step || (begun[i].load(Relaxed) && idle[i].load(Relaxed)));
+    let earlier_done = |step: Step| {
+        let stage = plan.stage_of(step).unwrap_or(0);
+        plan.stages[..stage].iter().flatten().all(|before| begun[at(*before)].load(Relaxed) && idle[at(*before)].load(Relaxed))
+    };
     let may_start = |step: Step| {
         let stage_ready = match plan.stage_of(step) {
             Some(0) | None => true,
             Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
         };
-        stage_ready && (step != Step::Captions || others_done(step))
+        stage_ready
+            && match step {
+                Step::Captions => others_done(step),
+                // The AI shots (and what they show) go once every step of the stages before them
+                // is done (user 2026-11-17: "AI kadrovi idu tek kad završe prethodne radnje").
+                Step::Shots | Step::Content => earlier_done(step),
+                _ => true,
+            }
     };
     let stuck_records = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
     let failure = std::sync::Mutex::new(None::<String>);
@@ -132,7 +143,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         for (i, step) in steps.iter().copied().enumerate() {
             let (begun, idle, going, closed, cancel, stops, config, lease, run, failure) =
                 (&begun[i], &idle[i], &going, &closed, &cancel, &stops, &config, &lease, &run, &failure);
-            let (may_start, make_backend, player_works, stuck) = (&may_start, &make_backend, &player_works, &stuck_records);
+            let (may_start, earlier_done, make_backend, player_works, stuck) = (&may_start, &earlier_done, &make_backend, &player_works, &stuck_records);
             scope.spawn(move || {
                 while !may_start(step) {
                     if !going.load(Relaxed) {
@@ -174,7 +185,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             }
                         }
                         Step::Posters => crate::make_posters(root, config, lease, stops) > 0,
-                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step) > 0,
+                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| matches!(step, Step::Shots | Step::Content) && !earlier_done(step)) > 0,
                         Step::Import => match crate::import_waiting(root) {
                             Ok(true) => match crate::project(root).and_then(|project| qnc_ingest_import_worker::run_import(root, &project, run)) {
                                 Ok(summary) => summary.imported + summary.failed > 0,

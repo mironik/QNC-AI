@@ -300,6 +300,8 @@ pub(crate) fn make_shots(
     lease: &qnc_playback_activity::Lease,
     stops: &Stops,
     step: Step,
+    // The steps before are not done yet: the AI waits as for a playing player.
+    earlier_busy: &(dyn Fn() -> bool + Sync),
 ) -> usize {
     let config = &sources_now(root, config);
     let result = (|| -> Result<usize, String> {
@@ -333,7 +335,7 @@ pub(crate) fn make_shots(
         // završi, prijepisu daj prednost"); the look from the posters does not wait.
         let waits_for_it = !copying || matches!(step, Step::Shots | Step::Content);
         let transcribing = || waits_for_it && qnc_playback_activity::is_fresh(&target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
-        let player_plays = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing();
+        let player_plays = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing() || earlier_busy();
         let wanted = || qnc_playback_activity::read(&target, qnc_playback_activity::PLAYBACK_CLIP);
         // Each step its own pace: its cancel is its X (the project closed sets them all).
         // A clip whose first channel holds a statement is not looked at (user 2026-11-12); with
