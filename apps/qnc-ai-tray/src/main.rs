@@ -110,7 +110,7 @@ fn main() {
     let mut ingest = Windows { open: Vec::new(), job, admin: None };
     let mut shown: Option<(usize, usize)> = None;
     // The question before all the work is stopped: true when the user quits.
-    let mut stop_asked: Option<(std::sync::mpsc::Receiver<qnc_tray::Answer>, bool)> = None;
+    let mut stop_asked: Option<(std::sync::mpsc::Receiver<bool>, bool)> = None;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
     let mut watch = CardWatch::new();
@@ -132,7 +132,7 @@ fn main() {
         if let Some(answer) = stop_asked.as_ref().and_then(|(answer, _)| answer.try_recv().ok()) {
             let (_, quit) = stop_asked.take().expect("asked");
             log(format!("stop asked quit={quit}: {answer:?}"));
-            if answer == qnc_tray::Answer::Yes {
+            if answer {
                 // The quit ends it all with the job; a stop ends it and the tray waits on.
                 if quit {
                     log("quit: the work stops".into());
@@ -149,7 +149,7 @@ fn main() {
                 // Work running is asked about first: quitting stops it.
                 TrayEvent::Menu(QUIT) if ingest.work() > 0 => {
                     if stop_asked.is_none() {
-                        stop_asked = Some((tray.ask(&text("tray.title"), &text("tray.quit_ask")), true));
+                        stop_asked = Some((tray.confirm(&text("tray.title"), &text("tray.quit_ask")), true));
                     }
                 }
                 TrayEvent::Menu(QUIT) => {
@@ -157,7 +157,7 @@ fn main() {
                     return;
                 }
                 TrayEvent::Menu(STOP_ALL) if stop_asked.is_none() && ingest.work() > 0 => {
-                    stop_asked = Some((tray.ask(&text("tray.title"), &text("tray.stop_ask")), false));
+                    stop_asked = Some((tray.confirm(&text("tray.title"), &text("tray.stop_ask")), false));
                 }
                 TrayEvent::Menu(ADMIN) => open_admin(&tray, &root, &mut ingest),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
