@@ -103,7 +103,9 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // and the AI shots never started).
     let waits_for = |step: Step, before: Step| match step {
         Step::Shots | Step::Content => {
-            matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips) && plan.stage_of(before) < plan.stage_of(step)
+            (matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips) && plan.stage_of(before) < plan.stage_of(step))
+                // SigLIP (what the shots show) after the AI shots (user 2026-11-17).
+                || (step == Step::Content && before == Step::Shots)
         }
         Step::Captions => matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips | Step::PosterLook | Step::Shots | Step::Content),
         _ => false,
@@ -117,6 +119,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             .map(|(_, before)| before.code())
             .collect()
     };
+    // A step of the plan that is not done (begun and idle); a step the plan has not is done.
+    let step_busy = |step: Step| steps.iter().position(|other| *other == step).is_some_and(|i| !(begun[i].load(Relaxed) && idle[i].load(Relaxed)));
     let others_done = |step: Step| busy_before(step).is_empty();
     let earlier_done = |step: Step| busy_before(step).is_empty();
     let may_start = |step: Step| {
@@ -167,7 +171,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         for (i, step) in steps.iter().copied().enumerate() {
             let (begun, idle, going, closed, cancel, stops, config, lease, run, failure) =
                 (&begun[i], &idle[i], &going, &closed, &cancel, &stops, &config, &lease, &run, &failure);
-            let (may_start, earlier_done, make_backend, player_works, stuck) = (&may_start, &earlier_done, &make_backend, &player_works, &stuck_records);
+            let (may_start, earlier_done, step_busy, make_backend, player_works, stuck) = (&may_start, &earlier_done, &step_busy, &make_backend, &player_works, &stuck_records);
             scope.spawn(move || {
                 while !may_start(step) {
                     if !going.load(Relaxed) {
@@ -223,7 +227,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         // These keep their own service for the whole run.
                         Step::Waves | Step::Filmstrips => {
                             begun.store(true, Relaxed);
-                            if let Err(error) = crate::run_artifacts(root, lease, closed, going, stops, step, idle) {
+                            if let Err(error) = crate::run_artifacts(root, lease, closed, going, stops, step, idle, &|| step == Step::Filmstrips && (step_busy(Step::Transcripts) || step_busy(Step::Waves))) {
                                 *failure.lock().expect("failure") = Some(error);
                             }
                             idle.store(true, Relaxed);

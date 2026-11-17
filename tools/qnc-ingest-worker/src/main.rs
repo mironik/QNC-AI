@@ -145,6 +145,8 @@ pub(crate) fn run_artifacts(
     stops: &Stops,
     step: qnc_ingest_plan::Step,
     idle: &std::sync::atomic::AtomicBool,
+    // The steps this one waits for (the filmstrips: the transcription and the waves) are not done.
+    before_busy: &(dyn Fn() -> bool + Sync),
 ) -> Result<(), String> {
     let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
@@ -185,13 +187,14 @@ pub(crate) fn run_artifacts(
     let copying = settings.ingest_copies();
     let transcription = transcription_running(target.clone());
     let transcribing = || !copying && transcription();
-    let player_works = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing();
-    // The transcription first, then the waves, then the filmstrips (user 2026-11-17: "prijepis je
-    // najhitniji, pa val, pa filmstrip"): while a transcription runs the filmstrips (pictures
-    // decoded, the heaviest) go one clip at a time also from the copies; the waves go on.
+    // The transcription first, then the waves, then the filmstrips (user 2026-11-17: "AI prijepis
+    // (Parakeet) je prioritet, pa tek onda val i onda filmstrip"): while a transcription runs the
+    // waves go one clip at a time; the filmstrips wait (only the clip a preview has open goes on)
+    // until the transcription and the waves are done (`before_busy`, the steps of the run).
     let filmstrips = step == qnc_ingest_plan::Step::Filmstrips;
+    let player_works = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing() || (filmstrips && before_busy());
     let cap = || {
-        if transcribing() || (filmstrips && transcription()) {
+        if transcribing() || transcription() {
             qnc_playback_activity::PlaybackLevel::Playing.background_cap()
         } else {
             level().background_cap()
