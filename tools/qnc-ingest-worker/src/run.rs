@@ -93,6 +93,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     let begun: Vec<AtomicBool> = steps.iter().map(|_| AtomicBool::new(false)).collect();
     // Whether the step's last round found nothing to do.
     let idle: Vec<AtomicBool> = steps.iter().map(|_| AtomicBool::new(false)).collect();
+    // How many steps are in a round of work now (the watch ends the run only at none).
+    let rounds = std::sync::Mutex::new(0_usize);
     let at = |step: Step| steps.iter().position(|other| *other == step).expect("a step of the plan");
     // The conductor gives the steps after the records and posters their places, by priority and by
     // what it measures (user 2026-11-17: "trebaš tražiti drugačiju organizaciju procesa i
@@ -165,16 +167,23 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     return;
                 }
                 stops.read(&stop_target);
-                let all_idle = steps.iter().enumerate().all(|(i, _)| begun[i].load(Relaxed) && idle[i].load(Relaxed));
-                quiet = if all_idle { quiet + 1 } else { 0 };
-                if quiet >= 2 {
-                    going.store(false, Relaxed);
-                    return;
+                // The run ends only when nothing is in a round: a round begun after the steps
+                // looked idle (the import after Select) is watched to its end (2026-11-17 log:
+                // the watch left, the copy went on and the user's stop was never read).
+                {
+                    let rounds = rounds.lock().unwrap_or_else(|e| e.into_inner());
+                    let all_idle = *rounds == 0 && steps.iter().enumerate().all(|(i, _)| begun[i].load(Relaxed) && idle[i].load(Relaxed));
+                    quiet = if all_idle { quiet + 1 } else { 0 };
+                    if quiet >= 2 {
+                        going.store(false, Relaxed);
+                        return;
+                    }
                 }
                 std::thread::sleep(ROUND);
             }
         });
         for (i, step) in steps.iter().copied().enumerate() {
+            let rounds = &rounds;
             let (begun, idle, going, closed, cancel, stops, config, lease, run, failure) =
                 (&begun[i], &idle[i], &going, &closed, &cancel, &stops, &config, &lease, &run, &failure);
             let (may_start, places, ai_before_busy, make_backend, player_works, stuck) = (&may_start, &places, &ai_before_busy, &make_backend, &player_works, &stuck_records);
@@ -199,6 +208,16 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         idle.store(true, Relaxed);
                         return;
                     }
+                    // A round begins only while the run goes on, and the watch does not end the
+                    // run while it lasts.
+                    {
+                        let mut rounds = rounds.lock().unwrap_or_else(|e| e.into_inner());
+                        if !going.load(Relaxed) {
+                            return;
+                        }
+                        *rounds += 1;
+                    }
+                    let in_round = InRound(rounds);
                     let did = match step {
                         Step::Records => {
                             let waiting = crate::records_waiting(root).unwrap_or_default();
@@ -246,6 +265,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         },
                         // These keep their own service for the whole run.
                         Step::Waves | Step::Filmstrips => {
+                            // A service for the whole run, not a round.
+                            drop(in_round);
                             begun.store(true, Relaxed);
                             if let Err(error) = crate::run_artifacts(root, lease, closed, going, stops, step, idle, &|| places(step)) {
                                 *failure.lock().expect("failure") = Some(error);
@@ -254,12 +275,14 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             return;
                         }
                         Step::Transcripts => {
+                            drop(in_round);
                             begun.store(true, Relaxed);
                             crate::transcribe::run(root, going, stops.flag(qnc_stopped_work::TRANSCRIPTS), idle);
                             idle.store(true, Relaxed);
                             return;
                         }
                     };
+                    drop(in_round);
                     first = false;
                     begun.store(true, Relaxed);
                     idle.store(!did, Relaxed);
@@ -282,5 +305,15 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     match failure.into_inner().expect("failure") {
         Some(error) => Err(error),
         None => Ok(true),
+    }
+}
+
+/// A step in a round of work: the count goes down when the round ends, however it ends.
+struct InRound<'a>(&'a std::sync::Mutex<usize>);
+
+impl Drop for InRound<'_> {
+    fn drop(&mut self) {
+        let mut rounds = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        *rounds = rounds.saturating_sub(1);
     }
 }

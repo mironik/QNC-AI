@@ -256,6 +256,14 @@ fn main() {
                             // uvezena"); not read is ingested as before.
                             let known = qnc_card_watch::card_originals(catalog, &volume).and_then(|originals| qnc_ingest_base::known_card(&root, &volume.source_uri(), &originals));
                             match known {
+                                // The base it is in is being deleted (the user's Delete): the card
+                                // is looked at again once the base is gone, then ingested as new
+                                // (2026-11-17 log: the tray went on in a base being deleted).
+                                Ok(Some(known)) if qnc_ingest_base::closing(&root, &known.base.id) => {
+                                    log(format!("card serial={} known base={} is being deleted: looked at again later", volume.serial_number, known.base.label()));
+                                    watch.forget(&volume);
+                                    continue;
+                                }
                                 // Its ingest was stopped before the end: it goes on in that base.
                                 Ok(Some(known)) if known.new.is_empty() && known.unfinished > 0 => {
                                     log(format!("card serial={} known base={} unfinished={}: goes on in that base", volume.serial_number, known.base.label(), known.unfinished));
