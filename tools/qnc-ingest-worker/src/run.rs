@@ -105,7 +105,10 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(step, most)| {
         // The waves and the filmstrips never wait whole: one each always works beside the copy and the
         // transcription (user 2026-11-17: "filmstrip više od 6 minuta, neupotrebljivo").
-        let keeps = usize::from(matches!(step, Step::Waves | Step::Filmstrips));
+        // The transcription keeps its place too: the journalist reads the statements first (user
+        // 2026-11-17: "AI prijepis mora biti najbrži"; the log: it gave its place back to the noise
+        // of the copy and waited 20 s for its first one).
+        let keeps = usize::from(matches!(step, Step::Transcripts | Step::Waves | Step::Filmstrips));
         qnc_ingest_conductor::Step::new(step.code(), *most).keeping(keeps)
     }).collect())?);
     let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
