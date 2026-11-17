@@ -19,6 +19,7 @@ const STATUS: u32 = 1;
 const QUIT: u32 = 3;
 const ADMIN: u32 = 4;
 const INGEST_FOLDER: u32 = 8;
+const STOP_ALL: u32 = 9;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
 /// How often a missing camera catalog is read again.
@@ -30,11 +31,14 @@ fn log(line: String) {
     log_line(DiagnosticsStream::Player, format!("ai-tray {line}"));
 }
 
-/// The menu: what runs (a line that only tells), Import from a folder, Settings, Quit.
-fn menu(running: usize) -> Vec<MenuItem> {
-    let line = if running == 0 { text("tray.waiting") } else { fill("tray.ingesting", &[("count", &running.to_string())]) };
+/// The menu: what runs (a line that only tells), Stop all the work (while any runs), Import from a
+/// folder, Settings, Quit.
+fn menu(running: usize, active: usize) -> Vec<MenuItem> {
     vec![
-        MenuItem { id: STATUS, text: line, enabled: false },
+        MenuItem { id: STATUS, text: status(running, active), enabled: false },
+        // Every process the tray started, with the windows and the background work (user
+        // 2026-11-17: "treba indikacija u tray-u i dugme za prekid").
+        MenuItem { id: STOP_ALL, text: text("tray.stop_all"), enabled: active > 0 },
         // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
         // browser (user 2026-11-13).
         MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true },
@@ -42,6 +46,18 @@ fn menu(running: usize) -> Vec<MenuItem> {
         MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true },
         MenuItem { id: QUIT, text: text("tray.quit"), enabled: true },
     ]
+}
+
+/// What runs, in one line: the ingest windows, else the work left in the background (a window
+/// closed, its worker on), else waiting for a card.
+fn status(running: usize, active: usize) -> String {
+    if running > 0 {
+        fill("tray.ingesting", &[("count", &running.to_string())])
+    } else if active > 0 {
+        fill("tray.background", &[("count", &active.to_string())])
+    } else {
+        text("tray.waiting")
+    }
 }
 
 fn main() {
@@ -58,7 +74,16 @@ fn main() {
         }
     };
     let root = qnc_dev_diagnostics::resolve_qnc_root().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(0), Some(qnc_app_mark::qnc_mark)) {
+    // Everything the tray starts and all that starts in turn ends with the tray: quitting, or a
+    // crash (user 2026-11-17: the user has no sign of work left in the background).
+    let job = match qnc_process_job::Job::new() {
+        Ok(job) => job,
+        Err(error) => {
+            log(format!("not started: {error}"));
+            return;
+        }
+    };
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(0, 0), Some(qnc_app_mark::qnc_mark)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -82,8 +107,10 @@ fn main() {
     // The camera profiles, to name a card's camera by its model.
     let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));
-    let mut ingest = Windows::default();
-    let mut shown: Option<usize> = None;
+    let mut ingest = Windows { open: Vec::new(), job, admin: None };
+    let mut shown: Option<(usize, usize)> = None;
+    // The question before all the work is stopped: true when the user quits.
+    let mut stop_asked: Option<(std::sync::mpsc::Receiver<qnc_tray::Answer>, bool)> = None;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
     let mut watch = CardWatch::new();
@@ -93,19 +120,46 @@ fn main() {
     let mut folder_asked: Option<(std::sync::mpsc::Receiver<qnc_tray::Answer>, String)> = None;
     loop {
         let running = ingest.running();
-        if shown != Some(running) {
-            tray.set_menu(menu(running));
-            let line = if running == 0 { text("tray.waiting") } else { fill("tray.ingesting", &[("count", &running.to_string())]) };
-            tray.set_tip(&format!("{}: {line}", text("tray.title")));
-            shown = Some(running);
+        let active = ingest.work();
+        if shown != Some((running, active)) {
+            tray.set_menu(menu(running, active));
+            tray.set_tip(&format!("{}: {}", text("tray.title"), status(running, active)));
+            if shown.is_some_and(|(_, was)| (was > 0) != (active > 0)) {
+                log(format!("work running={running} processes={active}"));
+            }
+            shown = Some((running, active));
+        }
+        if let Some(answer) = stop_asked.as_ref().and_then(|(answer, _)| answer.try_recv().ok()) {
+            let (_, quit) = stop_asked.take().expect("asked");
+            log(format!("stop asked quit={quit}: {answer:?}"));
+            if answer == qnc_tray::Answer::Yes {
+                // The quit ends it all with the job; a stop ends it and the tray waits on.
+                if quit {
+                    log("quit: the work stops".into());
+                    return;
+                }
+                match ingest.job.stop() {
+                    Ok(()) => tray.notify(&text("tray.title"), &text("tray.stopped")),
+                    Err(error) => fail(&tray, error),
+                }
+            }
         }
         while let Some(event) = tray.try_event() {
             match event {
+                // Work running is asked about first: quitting stops it.
+                TrayEvent::Menu(QUIT) if ingest.work() > 0 => {
+                    if stop_asked.is_none() {
+                        stop_asked = Some((tray.ask(&text("tray.title"), &text("tray.quit_ask")), true));
+                    }
+                }
                 TrayEvent::Menu(QUIT) => {
                     log("quit".into());
                     return;
                 }
-                TrayEvent::Menu(ADMIN) => open_admin(&tray, &root),
+                TrayEvent::Menu(STOP_ALL) if stop_asked.is_none() && ingest.work() > 0 => {
+                    stop_asked = Some((tray.ask(&text("tray.title"), &text("tray.stop_ask")), false));
+                }
+                TrayEvent::Menu(ADMIN) => open_admin(&tray, &root, &mut ingest),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
                 // asked whether into a new base or the one Ingest works in (user 2026-11-16).
                 TrayEvent::Menu(INGEST_FOLDER) if folder_asked.is_none() => match orchestrator(&tray, &root).map(|orchestrator| orchestrator.folder_choice(&root)) {
@@ -239,13 +293,23 @@ fn fail(tray: &Tray, error: String) {
 }
 
 /// The ingest windows this tray started: one per base, each with the card it ingests (user
-/// 2026-11-14: each base its own window and background worker, at the same time).
-#[derive(Default)]
+/// 2026-11-14: each base its own window and background worker, at the same time); `job` holds
+/// them and every process they start, which end with the tray.
 struct Windows {
     open: Vec<(String, Option<String>, std::process::Child)>,
+    job: qnc_process_job::Job,
+    /// The administrator's form, held too but no work.
+    admin: Option<std::process::Child>,
 }
 
 impl Windows {
+    /// How many processes work: the ingest windows, their background workers and theirs (the
+    /// administrator's form is no work).
+    fn work(&mut self) -> usize {
+        let admin = self.admin.as_mut().is_some_and(|child| matches!(child.try_wait(), Ok(None)));
+        self.job.active().saturating_sub(usize::from(admin))
+    }
+
     /// The windows that ended are let go.
     fn prune(&mut self) {
         self.open.retain_mut(|(_, _, child)| matches!(child.try_wait(), Ok(None)));
@@ -302,6 +366,9 @@ fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
     match command.spawn() {
         Ok(child) => {
             log(format!("ingest opened {} base={}", program.display(), base.id));
+            if let Err(error) = ingest.job.take(&child) {
+                log(format!("ingest window not held by the tray: {error}"));
+            }
             ingest.open.push((base.id.clone(), card.map(str::to_string), child));
         }
         Err(error) => fail(tray, error.to_string()),
@@ -309,13 +376,19 @@ fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
 }
 
 /// The administrator's form, beside this program (it keeps one copy itself).
-fn open_admin(tray: &Tray, root: &std::path::Path) {
+fn open_admin(tray: &Tray, root: &std::path::Path, ingest: &mut Windows) {
     let program = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|folder| folder.join(format!("qnc-ai-admin{}", std::env::consts::EXE_SUFFIX))))
         .unwrap_or_default();
     match std::process::Command::new(&program).current_dir(root).env("QNC_ROOT", root).spawn() {
-        Ok(_) => log("administration opened".into()),
+        Ok(child) => {
+            log("administration opened".into());
+            if let Err(error) = ingest.job.take(&child) {
+                log(format!("administration not held by the tray: {error}"));
+            }
+            ingest.admin = Some(child);
+        }
         Err(error) => {
             log(format!("administration failed {}: {error}", program.display()));
             tray.alert("admin", &text("tray.title"), &fill("tray.admin_failed", &[("error", &error.to_string())]), &text("tray.ok"));

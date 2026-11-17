@@ -1,0 +1,8 @@
+[package]
+name = "qnc-process-job"
+version.workspace = true
+edition.workspace = true
+description = "The programs one program started and all theirs, as one: they end with it (user 2026-11-17: when the tray goes, every process that came from it stops)"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }

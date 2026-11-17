@@ -14,5 +14,6 @@ qnc-source-volumes = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-base = { workspace = true }
 qnc-tray = { workspace = true }
+qnc-process-job = { workspace = true }
 qnc-wizard-text = { workspace = true }
 qnc-work-settings = { workspace = true }

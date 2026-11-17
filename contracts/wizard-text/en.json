@@ -85,6 +85,17 @@
     "tray.card_goes_on": "{card} ({camera}): the ingest into {base} was not finished, it goes on ({count} clips)",
     "tray.card_done": "{card}: every clip is already ingested",
     "tray.ingesting": "Ingest: {count} running",
+    "tray.background": "Work running in the background ({count} programs)",
+    "tray.stop_all": "Stop all the work",
+    "tray.stop_ask": "Stop all the work (the ingest windows and the background work: copy, transcription, waves, filmstrips, AI)?
+
+What is done stays in the base; when the card is put in again, the ingest goes on.",
+    "tray.quit_ask": "Work is still running (ingest windows or background work).
+
+Quitting QNC AI stops it. What is done stays in the base; when the card is put in again, the ingest goes on.
+
+Quit?",
+    "tray.stopped": "The work is stopped.",
     "tray.no_orchestrator": "No ingest orchestrator is chosen for the tray: {error}",
     "orchestrator.title": "Ingest orchestrators (this computer)",
     "orchestrator.form.ingest": "A card chosen in the Ingest form",

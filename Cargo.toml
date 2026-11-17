@@ -283,6 +283,7 @@ qnc-work-progress = { path = "crates/qnc-work-progress" }
 qnc-work-progress-view = { path = "crates/qnc-work-progress-view" }
 qnc-form-look = { path = "crates/qnc-form-look" }
 qnc-ingest-conductor = { path = "crates/qnc-ingest-conductor" }
+qnc-process-job = { path = "crates/qnc-process-job" }
 qnc-work-info = { path = "crates/qnc-work-info" }
 qnc-stream-transcript = { path = "crates/qnc-stream-transcript" }
 qnc-window-front = { path = "crates/qnc-window-front" }

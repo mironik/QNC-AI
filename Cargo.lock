@@ -3942,6 +3942,7 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-ingest-base",
  "qnc-ingest-orchestrator",
+ "qnc-process-job",
  "qnc-source-volumes",
  "qnc-tray",
  "qnc-wizard-text",
@@ -6445,6 +6446,13 @@ dependencies = [
  "qnc-playback-activity",
  "qnc-plugin-process",
  "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-process-job"
+version = "0.1.0"
+dependencies = [
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
