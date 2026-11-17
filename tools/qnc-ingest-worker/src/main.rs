@@ -501,3 +501,82 @@ fn times() -> Option<(u64, u64)> {
 fn times() -> Option<(u64, u64)> {
     None
 }
+
+/// What each program of the ingest uses of the processor (user 2026-11-17: "i dalje ne mjeriš"):
+/// the processor time of every process by its name, between two calls, in cores.
+pub(crate) struct Programs {
+    last: std::collections::HashMap<u32, (String, u64)>,
+    at: std::time::Instant,
+}
+
+/// The programs measured (their executables' names without the extension).
+const MEASURED: [&str; 7] = ["qnc-transcribe-parakeet", "ffmpeg", "qnc-decoder-ffmpeg", "qnc-ingest-worker", "qnc-ai-card-ingest", "qnc-shot-content-siglip", "qnc-shot-caption-florence"];
+
+impl Programs {
+    pub(crate) fn new() -> Self {
+        Self { last: Default::default(), at: std::time::Instant::now() }
+    }
+
+    /// Cores each measured program used since the last call, by name (the first call: none).
+    pub(crate) fn used(&mut self) -> Vec<(String, f64)> {
+        let now = process_times();
+        let span = self.at.elapsed().as_secs_f64();
+        self.at = std::time::Instant::now();
+        let mut used: std::collections::BTreeMap<String, f64> = Default::default();
+        for (pid, (name, time)) in &now {
+            if let Some((_, was)) = self.last.get(pid) {
+                *used.entry(name.clone()).or_default() += time.saturating_sub(*was) as f64 / 1e7 / span.max(0.001);
+            }
+        }
+        let first = self.last.is_empty();
+        self.last = now;
+        if first {
+            return Vec::new();
+        }
+        used.into_iter().collect()
+    }
+}
+
+/// Each measured process: its name and its processor time so far (100 ns units).
+#[cfg(windows)]
+fn process_times() -> std::collections::HashMap<u32, (String, u64)> {
+    use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+    use windows_sys::Win32::System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+    let mut times = std::collections::HashMap::new();
+    // SAFETY: a snapshot this function owns and closes; the entry is sized; each handle is closed.
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            return times;
+        }
+        let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        let mut more = Process32FirstW(snapshot, &mut entry) != 0;
+        while more {
+            let length = entry.szExeFile.iter().position(|c| *c == 0).unwrap_or(entry.szExeFile.len());
+            let exe = String::from_utf16_lossy(&entry.szExeFile[..length]);
+            let name = exe.strip_suffix(".exe").unwrap_or(&exe).to_string();
+            if MEASURED.contains(&name.as_str()) {
+                let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, entry.th32ProcessID);
+                if !process.is_null() {
+                    let zero = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+                    let (mut created, mut ended, mut kernel, mut user) = (zero, zero, zero, zero);
+                    if GetProcessTimes(process, &mut created, &mut ended, &mut kernel, &mut user) != 0 {
+                        let value = |time: FILETIME| (u64::from(time.dwHighDateTime) << 32) | u64::from(time.dwLowDateTime);
+                        times.insert(entry.th32ProcessID, (name, value(kernel) + value(user)));
+                    }
+                    CloseHandle(process);
+                }
+            }
+            more = Process32NextW(snapshot, &mut entry) != 0;
+        }
+        CloseHandle(snapshot);
+    }
+    times
+}
+
+#[cfg(not(windows))]
+fn process_times() -> std::collections::HashMap<u32, (String, u64)> {
+    Default::default()
+}

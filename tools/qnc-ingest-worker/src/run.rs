@@ -149,6 +149,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             let mut quiet = 0;
             let started_at = std::time::Instant::now();
             let mut processor = crate::Processor::new();
+            let mut programs = crate::Programs::new();
+            let mut programs_at = std::time::Instant::now();
             let mut read_at: Option<std::time::Instant> = None;
             while going.load(Relaxed) {
                 {
@@ -185,6 +187,15 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     }
                     // The processor measured beside the decision: the log shows what the places did.
                     let busy = processor.busy();
+                    // What each program uses of the processor, every 10 s.
+                    if programs_at.elapsed() >= Duration::from_secs(10) {
+                        programs_at = std::time::Instant::now();
+                        let used = programs.used();
+                        if !used.is_empty() {
+                            let line: Vec<String> = used.iter().map(|(name, cores)| format!("{name}={cores:.2}")).collect();
+                            trace(format!("cpu cores {}", line.join(" ")));
+                        }
+                    }
                     if let Some(decision) = conductor.tick(now) {
                         let busy = busy.map_or_else(|| "?".to_string(), |busy| format!("{:.0} %", busy * 100.0));
                         let steps: Vec<String> = decision.steps.iter().map(|(code, places, left, all)| format!("{code} left={left}/{all} places={places}")).collect();
