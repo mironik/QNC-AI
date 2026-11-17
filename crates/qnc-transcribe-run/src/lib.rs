@@ -329,7 +329,10 @@ fn hear(job: &Job, ask: &Ask, (busy, cancel): (&(dyn Fn() -> PlaybackLevel + Sen
             return Err(qnc_ui_text::text("transcribe.cancelled").into());
         }
         match made {
-            Ok(made) => return Ok(made),
+            Ok(made) => {
+                HEARD_MS.fetch_add((samples.len() as u64 * 1000) / qnc_transcribe_jobs::WHISPER_RATE as u64, Ordering::Relaxed);
+                return Ok(made);
+            }
             Err(_) if stopped => log(&format!("transcribe background {} {:.1}s yields to the player", ask.clip_id, start)),
             Err(error) if !ended_once => {
                 log(&format!("transcribe background {} {:.1}s: {error}; once again", ask.clip_id, start));
@@ -477,14 +480,32 @@ fn wait_idle(busy: &(dyn Fn() -> PlaybackLevel + Send + Sync), cancel: &AtomicBo
     Ok(())
 }
 
-/// The player's work in this project, as the previews report it to the project database.
+/// The player's work in this project, as the previews report it to the project database; held
+/// by the conductor of this process ([`hold`]) counts as playing.
 fn player_busy(locator: &StillLocator) -> Arc<dyn Fn() -> PlaybackLevel + Send + Sync> {
-    match qnc_content_store::ContentTarget::for_project(locator.reader(), locator.settings()) {
+    let level = match qnc_content_store::ContentTarget::for_project(locator.reader(), locator.settings()) {
         Ok(target) => qnc_playback_activity::playback_level(target),
-        Err(_) => Arc::new(|| PlaybackLevel::Idle),
-    }
+        Err(_) => Arc::new(|| PlaybackLevel::Idle) as Arc<dyn Fn() -> PlaybackLevel + Send + Sync>,
+    };
+    Arc::new(move || if HELD.load(Ordering::Relaxed) { PlaybackLevel::Playing } else { level() })
 }
 
+/// Speech heard by every background transcription of this process so far, in milliseconds (the
+/// conductor's measure of the transcription, user 2026-11-17).
+static HEARD_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The background transcription of this process waits while this is set (the conductor gave it
+/// no place); the zoom's does not.
+static HELD: AtomicBool = AtomicBool::new(false);
+
+/// Seconds of speech the background transcription of this process has heard so far.
+pub fn heard_seconds() -> f64 {
+    HEARD_MS.load(Ordering::Relaxed) as f64 / 1000.0
+}
+
+/// Holds (true) or lets go (false) the background transcription of this process.
+pub fn hold(held: bool) {
+    HELD.store(held, Ordering::Relaxed);
+}
 struct Job<'a> {
     locator: &'a StillLocator,
     engine: &'a qnc_ai_catalog::Transcriber,

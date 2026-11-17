@@ -94,48 +94,27 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // Whether the step's last round found nothing to do.
     let idle: Vec<AtomicBool> = steps.iter().map(|_| AtomicBool::new(false)).collect();
     let at = |step: Step| steps.iter().position(|other| *other == step).expect("a step of the plan");
-    // The captions are not for the montage (user 2026-11-17: "ubrzati sve osim AI opisa, oni
-    // nisu bitni za montažu"): they take the processor only once every other step is done
-    // (begun and idle), whatever stage the template puts them in.
-    // The steps a step waits for: the heavy ones (the import, the transcription, the filmstrips;
-    // for the captions also the AI shots and content). The records, posters and waves are not
-    // waited for (live 2026-11-17: two clips whose probe kept failing held the waves at 101/103
-    // and the AI shots never started).
-    let waits_for = |step: Step, before: Step| match step {
-        Step::Shots | Step::Content => {
-            (matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips) && plan.stage_of(before) < plan.stage_of(step))
-                // SigLIP (what the shots show) after the AI shots (user 2026-11-17).
-                || (step == Step::Content && before == Step::Shots)
-        }
-        Step::Captions => matches!(before, Step::Import | Step::Transcripts | Step::Filmstrips | Step::PosterLook | Step::Shots | Step::Content),
+    // The conductor gives the steps after the records and posters their places, by priority and by
+    // what it measures (user 2026-11-17: "trebaš tražiti drugačiju organizaciju procesa i
+    // optimizirati dinamičkim prilagođavanjem"): the copy first, it feeds every other step; a lower
+    // step gets a place only while the higher ones do not go slower (`qnc-ingest-conductor`).
+    const CONDUCTED: [(Step, usize); 7] = [(Step::Import, 1), (Step::Transcripts, 1), (Step::Waves, 4), (Step::Filmstrips, 4), (Step::Shots, 1), (Step::Content, 1), (Step::Captions, 1)];
+    let conducted: Vec<(Step, usize)> = CONDUCTED.iter().copied().filter(|(step, _)| steps.contains(step)).collect();
+    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(step, most)| qnc_ingest_conductor::Step::new(step.code(), *most)).collect())?);
+    let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
+    // How many clips a conducted step may work on now (a step the conductor does not lead: always).
+    let places = |step: Step| if conducted_step(step) { conductor.lock().unwrap_or_else(|e| e.into_inner()).places(step.code()) } else { usize::MAX };
+    // SigLIP after the AI shots, the captions after both (user 2026-11-17): an order of their
+    // results, not of the processor.
+    let not_done = |step: Step| steps.iter().position(|other| *other == step).is_some_and(|i| !(begun[i].load(Relaxed) && idle[i].load(Relaxed)));
+    let ai_before_busy = |step: Step| match step {
+        Step::Content => not_done(Step::Shots),
+        Step::Captions => not_done(Step::Shots) || not_done(Step::Content),
         _ => false,
     };
-    // The steps `step` waits for that are not done yet (begun and idle).
-    let busy_before = |step: Step| -> Vec<&'static str> {
-        steps
-            .iter()
-            .enumerate()
-            .filter(|(i, before)| waits_for(step, **before) && !(begun[*i].load(Relaxed) && idle[*i].load(Relaxed)))
-            .map(|(_, before)| before.code())
-            .collect()
-    };
-    // A step of the plan that is not done (begun and idle); a step the plan has not is done.
-    let step_busy = |step: Step| steps.iter().position(|other| *other == step).is_some_and(|i| !(begun[i].load(Relaxed) && idle[i].load(Relaxed)));
-    let others_done = |step: Step| busy_before(step).is_empty();
-    let earlier_done = |step: Step| busy_before(step).is_empty();
-    let may_start = |step: Step| {
-        let stage_ready = match plan.stage_of(step) {
-            Some(0) | None => true,
-            Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
-        };
-        stage_ready
-            && match step {
-                Step::Captions => others_done(step),
-                // The AI shots (and what they show) go once every step of the stages before them
-                // is done (user 2026-11-17: "AI kadrovi idu tek kad završe prethodne radnje").
-                Step::Shots | Step::Content => earlier_done(step),
-                _ => true,
-            }
+    let may_start = |step: Step| match plan.stage_of(step) {
+        Some(0) | None => true,
+        Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
     };
     let stuck_records = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
     let failure = std::sync::Mutex::new(None::<String>);
@@ -143,13 +122,40 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         // The watch: the project closed, the user's X, the end of the run.
         scope.spawn(|| {
             let mut quiet = 0;
-            let mut told = std::time::Instant::now();
+            let started_at = std::time::Instant::now();
+            let mut processor = crate::Processor::new();
+            // The copy and the speech heard, a second apart, over the last 10 s: the rates.
+            let mut samples: std::collections::VecDeque<(f64, u64, f64)> = std::collections::VecDeque::new();
             while going.load(Relaxed) {
-                // What the AI waits for, said every 30 s, and which steps are not idle.
-                if told.elapsed() >= Duration::from_secs(30) {
-                    told = std::time::Instant::now();
-                    let busy: Vec<&str> = steps.iter().enumerate().filter(|(i, _)| !(begun[*i].load(Relaxed) && idle[*i].load(Relaxed))).map(|(_, step)| step.code()).collect();
-                    trace(format!("busy {busy:?} shots wait for {:?}", busy_before(Step::Shots)));
+                {
+                    let now = started_at.elapsed().as_secs_f64();
+                    samples.push_back((now, qnc_ingest_import_worker::copied_bytes(), qnc_transcribe_run::heard_seconds()));
+                    while samples.len() > 11 {
+                        samples.pop_front();
+                    }
+                    let mut conductor = conductor.lock().unwrap_or_else(|e| e.into_inner());
+                    for (step, _) in &conducted {
+                        let i = at(*step);
+                        let working = !begun[i].load(Relaxed) || !idle[i].load(Relaxed);
+                        conductor.work(step.code(), usize::from(working), 0);
+                    }
+                    if let (Some(first), Some(last)) = (samples.front(), samples.back()) {
+                        let span = last.0 - first.0;
+                        if span >= 5.0 {
+                            conductor.rate(Step::Import.code(), (last.1 - first.1) as f64 / 1e6 / span);
+                            conductor.rate(Step::Transcripts.code(), (last.2 - first.2) / span);
+                        }
+                    }
+                    if let Some(busy) = processor.busy() {
+                        conductor.busy(busy);
+                    }
+                    for decision in conductor.tick(now) {
+                        trace(format!("conductor {decision:?}"));
+                    }
+                    // The background transcription waits while it has no place.
+                    if conducted_step(Step::Transcripts) {
+                        qnc_transcribe_run::hold(conductor.places(Step::Transcripts.code()) == 0);
+                    }
                 }
                 if !crate::still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
                     closed.store(true, Relaxed);
@@ -171,7 +177,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         for (i, step) in steps.iter().copied().enumerate() {
             let (begun, idle, going, closed, cancel, stops, config, lease, run, failure) =
                 (&begun[i], &idle[i], &going, &closed, &cancel, &stops, &config, &lease, &run, &failure);
-            let (may_start, earlier_done, step_busy, make_backend, player_works, stuck) = (&may_start, &earlier_done, &step_busy, &make_backend, &player_works, &stuck_records);
+            let (may_start, places, ai_before_busy, make_backend, player_works, stuck) = (&may_start, &places, &ai_before_busy, &make_backend, &player_works, &stuck_records);
             scope.spawn(move || {
                 while !may_start(step) {
                     if !going.load(Relaxed) {
@@ -218,7 +224,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             }
                         }
                         Step::Posters => crate::make_posters(root, config, lease, stops) > 0,
-                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| matches!(step, Step::Shots | Step::Content) && !earlier_done(step)) > 0,
+                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || ai_before_busy(step)) > 0,
                         Step::Import => match crate::import_waiting(root) {
                             Ok(true) => match crate::project(root).and_then(|project| qnc_ingest_import_worker::run_import(root, &project, run)) {
                                 Ok(summary) => summary.imported + summary.failed > 0,
@@ -232,7 +238,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         // These keep their own service for the whole run.
                         Step::Waves | Step::Filmstrips => {
                             begun.store(true, Relaxed);
-                            if let Err(error) = crate::run_artifacts(root, lease, closed, going, stops, step, idle, &|| step == Step::Filmstrips && (step_busy(Step::Transcripts) || step_busy(Step::Waves))) {
+                            if let Err(error) = crate::run_artifacts(root, lease, closed, going, stops, step, idle, &|| places(step)) {
                                 *failure.lock().expect("failure") = Some(error);
                             }
                             idle.store(true, Relaxed);
@@ -257,6 +263,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         }
         Ok::<(), String>(())
     });
+    qnc_transcribe_run::hold(false);
     result?;
     if closed.load(Relaxed) {
         eprintln!("projekt je zatvoren: pozadinski proces staje");

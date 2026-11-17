@@ -153,8 +153,8 @@ pub(crate) fn run_artifacts(
     stops: &Stops,
     step: qnc_ingest_plan::Step,
     idle: &std::sync::atomic::AtomicBool,
-    // The steps this one waits for (the filmstrips: the transcription and the waves) are not done.
-    before_busy: &(dyn Fn() -> bool + Sync),
+    // How many clips this step may work on now (the conductor).
+    places: &(dyn Fn() -> usize + Sync),
 ) -> Result<(), String> {
     let active_project = crate::project(root)
         .map_err(|error| error.to_string())?;
@@ -195,18 +195,12 @@ pub(crate) fn run_artifacts(
     let copying = settings.ingest_copies();
     let transcription = transcription_running(target.clone());
     let transcribing = || !copying && transcription();
-    // The transcription first, then the waves, then the filmstrips (user 2026-11-17: "AI prijepis
-    // (Parakeet) je prioritet, pa tek onda val i onda filmstrip"): while a transcription runs the
-    // waves go one clip at a time; the filmstrips wait (only the clip a preview has open goes on)
-    // until the transcription and the waves are done (`before_busy`, the steps of the run).
-    let filmstrips = step == qnc_ingest_plan::Step::Filmstrips;
-    let player_works = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing() || (filmstrips && before_busy());
+    // The places the conductor gives this step (user 2026-11-17: dynamic, by priority and by what
+    // it measures): none, it waits (only the clip a preview has open goes on); else at most that many.
+    let player_works = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing() || places() == 0;
     let cap = || {
-        if transcribing() || transcription() {
-            qnc_playback_activity::PlaybackLevel::Playing.background_cap()
-        } else {
-            level().background_cap()
-        }
+        let level_cap = if transcribing() { qnc_playback_activity::PlaybackLevel::Playing.background_cap() } else { level().background_cap() };
+        Some(level_cap.map_or(places(), |cap| cap.min(places())).max(1))
     };
     let start = |settings: &qnc_work_settings::WorkSettings| -> Result<qnc_content_artifacts::ProjectArtifacts, String> {
         let mut artifacts = qnc_content_artifacts::ProjectArtifacts::new();
@@ -462,4 +456,48 @@ pub(crate) fn describe_base(root: &std::path::Path, reader: &qnc_work_settings::
         Ok(bytes) => log(format!("base-contents {} written ({bytes} bytes)", settings.project_id)),
         Err(error) => log(format!("base-contents {} not written: {error}", settings.project_id)),
     }
+}
+
+/// The share of the processor busy, from one reading to the next (the conductor's measure).
+pub(crate) struct Processor {
+    last: Option<(u64, u64)>,
+}
+
+impl Processor {
+    pub(crate) fn new() -> Self {
+        Self { last: None }
+    }
+
+    /// The share busy since the last call (0..1); none the first time or where it is not read.
+    pub(crate) fn busy(&mut self) -> Option<f64> {
+        let (idle, total) = times()?;
+        let share = self.last.and_then(|(was_idle, was_total)| {
+            let span = total.checked_sub(was_total).filter(|span| *span > 0)?;
+            Some(1.0 - idle.saturating_sub(was_idle) as f64 / span as f64)
+        });
+        self.last = Some((idle, total));
+        share
+    }
+}
+
+/// The idle and the whole time of every processor (100 ns units).
+#[cfg(windows)]
+fn times() -> Option<(u64, u64)> {
+    use windows_sys::Win32::Foundation::FILETIME;
+    use windows_sys::Win32::System::Threading::GetSystemTimes;
+    let zero = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+    let (mut idle, mut kernel, mut user) = (zero, zero, zero);
+    // SAFETY: three valid out pointers.
+    if unsafe { GetSystemTimes(&mut idle, &mut kernel, &mut user) } == 0 {
+        return None;
+    }
+    let value = |time: FILETIME| (u64::from(time.dwHighDateTime) << 32) | u64::from(time.dwLowDateTime);
+    // The kernel time includes the idle time.
+    Some((value(idle), value(kernel) + value(user)))
+}
+
+/// Not read on other systems: the conductor goes by the rates alone.
+#[cfg(not(windows))]
+fn times() -> Option<(u64, u64)> {
+    None
 }

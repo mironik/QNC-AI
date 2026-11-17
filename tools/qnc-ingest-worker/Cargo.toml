@@ -38,6 +38,8 @@ qnc-still-locator = { workspace = true }
 qnc-source-bindings = { workspace = true }
 qnc-player-clip-content = { workspace = true }
 qnc-ai-features = { workspace = true }
+qnc-ingest-conductor = { workspace = true }
+qnc-transcribe-run = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading"] }

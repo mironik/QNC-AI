@@ -132,6 +132,7 @@ fn copy_pieces(
             return Ok(qnc_media_checksum::label(&*checksum));
         }
         checksum.update(&piece);
+        COPIED.fetch_add(piece.len() as u64, Ordering::Relaxed);
         file.write_all(&piece).map_err(|e| e.to_string())?;
         if last_beat.elapsed() >= HEARTBEAT_EVERY {
             beat();
@@ -374,4 +375,12 @@ fn copy_thread_first() {
         use windows_sys::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_HIGHEST};
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
     }
+}
+
+/// Bytes every copy of this process has written so far (the conductor's measure of the copy).
+static COPIED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Bytes every copy of this process has written so far.
+pub fn copied_bytes() -> u64 {
+    COPIED.load(Ordering::Relaxed)
 }
