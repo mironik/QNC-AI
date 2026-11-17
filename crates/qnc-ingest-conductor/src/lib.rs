@@ -20,20 +20,31 @@
 /// How long nothing must change before a lower step is given one more place.
 pub const PROBE_SECONDS: f64 = 5.0;
 /// How much slower than its kept rate a higher step may go before a lower step gives a place back.
-pub const SLOWER_BY: f64 = 0.10;
+/// (0.10 swung with the noise of the rates: 2026-11-17 log, the filmstrips gave a place back every
+/// few seconds and took 6:37.)
+pub const SLOWER_BY: f64 = 0.20;
 /// Above this share of the processor busy no place is added by a probe.
 pub const BUSY: f64 = 0.90;
 
-/// One step: its code and how many clips it can work on at once at most.
+/// One step: its code, how many clips it can work on at once at most, and how many it keeps
+/// whenever it has work (none: it waits for a probe).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Step {
     pub code: String,
     pub most: usize,
+    pub least: usize,
 }
 
 impl Step {
     pub fn new(code: &str, most: usize) -> Self {
-        Self { code: code.to_string(), most: most.max(1) }
+        Self { code: code.to_string(), most: most.max(1), least: 0 }
+    }
+
+    /// A step that never waits whole: with work it holds `least` places at least (user
+    /// 2026-11-17: "filmstrip više od 6 minuta, neupotrebljivo").
+    pub fn keeping(mut self, least: usize) -> Self {
+        self.least = least.min(self.most);
+        self
     }
 }
 
@@ -48,6 +59,8 @@ pub enum Decision {
     GaveBack { step: String, places: usize, slower: String, rate: f64, kept: f64 },
     /// `step` has nothing to do: no place.
     Idle { step: String },
+    /// `step` has work and holds the places it keeps.
+    Keeps { step: String, places: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -142,6 +155,13 @@ impl Conductor {
             }
         }
         self.lead = Some(lead);
+        // A step that keeps places holds them whenever it has work.
+        for state in &mut self.steps[lead + 1..] {
+            if state.has_work() && state.places < state.step.least {
+                state.places = state.step.least;
+                said.push(Decision::Keeps { step: state.step.code.clone(), places: state.places });
+            }
+        }
         if self.steps[lead].places != self.steps[lead].step.most {
             self.steps[lead].places = self.steps[lead].step.most;
             // The lead has no step above it to keep a rate for.
@@ -155,7 +175,7 @@ impl Conductor {
             _ => None,
         });
         if let Some((above, rate, kept)) = slower {
-            if let Some(low) = (above + 1..self.steps.len()).rev().find(|&i| i != lead && self.steps[i].places > 0) {
+            if let Some(low) = (above + 1..self.steps.len()).rev().find(|&i| i != lead && self.steps[i].places > self.steps[i].step.least) {
                 self.steps[low].places -= 1;
                 // What it must not lose is now what it does.
                 self.steps[above].kept = Some(rate);
@@ -265,6 +285,26 @@ mod tests {
         assert_eq!(c.places("filmstrips"), 0, "not before the next probe");
         c.tick(6.5);
         assert_eq!(c.places("filmstrips"), 1);
+    }
+
+    #[test]
+    fn a_step_that_keeps_a_place_holds_it_whenever_it_has_work_and_never_gives_it_back() {
+        let mut c = Conductor::new(vec![Step::new("transcripts", 1), Step::new("filmstrips", 4).keeping(1)]).unwrap();
+        c.work("transcripts", 5, 1);
+        c.work("filmstrips", 10, 0);
+        c.busy(0.99);
+        c.rate("transcripts", 8.0);
+        c.tick(0.0);
+        assert_eq!(c.places("filmstrips"), 1, "busy, no probe, yet it keeps one");
+        c.busy(0.5);
+        c.tick(5.0);
+        assert_eq!(c.places("filmstrips"), 2);
+        c.rate("transcripts", 4.0);
+        c.tick(6.0);
+        assert_eq!(c.places("filmstrips"), 1, "the transcription slower: one back");
+        c.rate("transcripts", 1.0);
+        c.tick(7.0);
+        assert_eq!(c.places("filmstrips"), 1, "never below what it keeps");
     }
 
     #[test]

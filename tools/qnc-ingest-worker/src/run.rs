@@ -102,7 +102,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // step gets a place only while the higher ones do not go slower (`qnc-ingest-conductor`).
     const CONDUCTED: [(Step, usize); 7] = [(Step::Import, 1), (Step::Transcripts, 1), (Step::Waves, 4), (Step::Filmstrips, 4), (Step::Shots, 1), (Step::Content, 1), (Step::Captions, 1)];
     let conducted: Vec<(Step, usize)> = CONDUCTED.iter().copied().filter(|(step, _)| steps.contains(step)).collect();
-    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(step, most)| qnc_ingest_conductor::Step::new(step.code(), *most)).collect())?);
+    let conductor = std::sync::Mutex::new(qnc_ingest_conductor::Conductor::new(conducted.iter().map(|(step, most)| {
+        // The waves and the filmstrips never wait whole: one each always works beside the copy and the
+        // transcription (user 2026-11-17: "filmstrip više od 6 minuta, neupotrebljivo").
+        let keeps = usize::from(matches!(step, Step::Waves | Step::Filmstrips));
+        qnc_ingest_conductor::Step::new(step.code(), *most).keeping(keeps)
+    }).collect())?);
     let conducted_step = |step: Step| conducted.iter().any(|(other, _)| *other == step);
     // How many clips a conducted step may work on now (a step the conductor does not lead: always).
     let places = |step: Step| if conducted_step(step) { conductor.lock().unwrap_or_else(|e| e.into_inner()).places(step.code()) } else { usize::MAX };
