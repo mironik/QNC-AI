@@ -46,8 +46,8 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     let target = qnc_content_store::ContentTarget::for_project(&reader, &snapshot.settings)?;
     let player_works = qnc_playback_activity::playback_pause(target.clone());
     let stop_target = target.clone();
-    // The clips of the base, for the length of the copied ones (the transcription's work in all).
-    let content = qnc_content_read::ContentReader::for_project(active_project.settings_reader(), &snapshot.settings);
+    // The transcription queue of the base: its clips heard whole (done or failed) are the transcription's count.
+    let transcripts = qnc_db_broker::ProjectDbTarget::for_project(active_project.settings_reader(), &snapshot.settings);
     let stops = Stops::new();
     stops.read(&stop_target);
     // Taken in one statement with its owner (external audit 2026-10-17): two starts never
@@ -153,23 +153,23 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             while going.load(Relaxed) {
                 {
                     let now = started_at.elapsed().as_secs_f64();
-                    // Each step's work done and in all, from the base (every 2 s): the waves and the
-                    // filmstrips in clips, the transcription in seconds of speech heard of the copied
-                    // clips' length (a clip of it is done only whole, and the long ones come last).
+                    // Each step's clips done of all the clips, from the base (every 2 s; user
+                    // 2026-11-17: "broj klipova je bitan, ništa drugo"): the transcription's are the
+                    // clips its queue heard whole (a part saved is not a clip done).
                     let progress = read_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(2)).then(|| {
                         read_at = Some(std::time::Instant::now());
-                        let length: f64 = content.as_ref().ok().and_then(|content| content.summaries().ok()).map_or(0.0, |clips| clips.iter().filter(|clip| clip.imported).map(|clip| clip.duration_seconds).sum());
-                        qnc_work_progress::progress_of(root, &started).map(|progress| (progress, length))
+                        let heard = transcripts.as_ref().ok().and_then(|target| qnc_transcript_db::read_queue(target).ok()).map_or(0, |queue| queue.iter().filter(|entry| matches!(entry.state, qnc_transcript_db::QueueState::Done | qnc_transcript_db::QueueState::Failed)).count());
+                        qnc_work_progress::progress_of(root, &started).map(|progress| (progress, heard))
                     });
                     let mut conductor = conductor.lock().unwrap_or_else(|e| e.into_inner());
-                    if let Some(Ok((progress, length))) = progress {
+                    if let Some(Ok((progress, heard))) = progress {
                         // The transcription takes a block while its queue works.
                         let hearing = qnc_playback_activity::is_fresh(&stop_target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
                         for (step, _) in &conducted {
                             let made = |count: Option<usize>| count.unwrap_or_default();
                             let clips = |count: Option<usize>| (made(count) as f64, progress.clips as f64, made(count) < progress.imported);
                             let (done, all, can) = match step {
-                                Step::Transcripts => (qnc_transcribe_run::heard_seconds(), length, hearing),
+                                Step::Transcripts => (heard as f64, progress.clips as f64, hearing),
                                 Step::Waves => clips(progress.waves),
                                 Step::Filmstrips => clips(progress.filmstrips),
                                 Step::Shots => clips(progress.shots),
