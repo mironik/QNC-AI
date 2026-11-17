@@ -94,9 +94,16 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     // Whether the step's last round found nothing to do.
     let idle: Vec<AtomicBool> = steps.iter().map(|_| AtomicBool::new(false)).collect();
     let at = |step: Step| steps.iter().position(|other| *other == step).expect("a step of the plan");
-    let may_start = |step: Step| match plan.stage_of(step) {
-        Some(0) | None => true,
-        Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
+    // The captions are not for the montage (user 2026-11-17: "ubrzati sve osim AI opisa, oni
+    // nisu bitni za montažu"): they take the processor only once every other step is done
+    // (begun and idle), whatever stage the template puts them in.
+    let others_done = |step: Step| steps.iter().enumerate().all(|(i, other)| *other == step || (begun[i].load(Relaxed) && idle[i].load(Relaxed)));
+    let may_start = |step: Step| {
+        let stage_ready = match plan.stage_of(step) {
+            Some(0) | None => true,
+            Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
+        };
+        stage_ready && (step != Step::Captions || others_done(step))
     };
     let stuck_records = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
     let failure = std::sync::Mutex::new(None::<String>);
