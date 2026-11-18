@@ -124,7 +124,7 @@ impl ClipWindow {
         let (from, to) = (enlarged.from, enlarged.to);
         let width = to.saturating_sub(from) as f64 / FILMSTRIP_FRAME_COUNT as f64;
         let assets = Arc::make_mut(&mut enlarged.assets);
-        let mut strip = assets.filmstrip_background.as_deref().cloned().unwrap_or_else(|| FilmstripBackground { clip_id: assets.clip_id.clone(), frames: Vec::new() });
+        let mut strip = assets.filmstrip_background.as_deref().cloned().unwrap_or_else(|| FilmstripBackground { clip_id: assets.clip_id.clone(), frames: Vec::new(), placed: None });
         for index in 0..FILMSTRIP_FRAME_COUNT {
             let wanted = picture_of(from as f64 + (index as f64 + 0.5) * width, marks);
             let Some((frame, image)) = enlarged.pictures.iter().find(|(frame, _)| *frame == wanted) else { continue };
@@ -134,6 +134,8 @@ impl ClipWindow {
                 None => strip.frames.push(asset),
             }
         }
+        // The statement's own four pictures, not the AI shots' strip under them.
+        strip.placed = None;
         assets.filmstrip_background = Some(Arc::new(strip));
     }
 

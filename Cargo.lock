@@ -7642,6 +7642,7 @@ dependencies = [
  "qnc-player-launcher",
  "qnc-player-timeline",
  "qnc-program-input",
+ "qnc-shot-db",
  "qnc-source-bindings",
  "qnc-still-locator",
  "qnc-timeline-assets",

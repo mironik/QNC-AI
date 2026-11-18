@@ -16,6 +16,7 @@ qnc-ui-text = { workspace = true }
 qnc-content-read = { workspace = true }
 qnc-content-store = { workspace = true }
 qnc-db-broker = { workspace = true }
+qnc-shot-db = { workspace = true }
 qnc-filmstrip = { workspace = true }
 qnc-playback-activity = { workspace = true }
 qnc-player-client = { workspace = true }

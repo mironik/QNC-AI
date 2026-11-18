@@ -143,6 +143,8 @@ impl PreviewContext {
                     content: content,
                     filmstrip_root_uri: settings.product_uri(ProductArea::Filmstrip),
                     filmstrip_dir: settings.product_local_dir(&project_dir, ProductArea::Filmstrip),
+                    shots: qnc_db_broker::ProjectDbTarget::for_project(&reader, &settings).ok(),
+                    ai_shots: settings.ai_shots_location(&project_dir).ok(),
                 });
                 (Some(artifacts), None)
             }
