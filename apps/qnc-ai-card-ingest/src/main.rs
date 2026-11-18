@@ -218,10 +218,10 @@ impl eframe::App for Window {
         // copied, the work goes on in the background (user 2026-11-18). Once a card.
         let copied = status.progress.clips > 0 && status.progress.imported > 0 && status.progress.imported + status.progress.failed >= status.progress.clips;
         let breaking = qnc_tray_mode::read(&self.root).ok().flatten().filter(|mode| matches!(mode, qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews }));
-        if let Some(form) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened && (self.card_out.settled() || status.progress.failed > 0)).and_then(qnc_tray_mode::Mode::opens) {
+        if let Some((form, args)) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened && (self.card_out.settled() || status.progress.failed > 0)).and_then(qnc_tray_mode::Mode::opens) {
             self.desktop_opened = true;
             // The card's base is what is worked on: it becomes the active project, then the form opens.
-            let opened = qnc_ingest_base::open(&self.root, &self.base).and_then(|_| qnc_wizard_open::open(&self.root, form));
+            let opened = qnc_ingest_base::open(&self.root, &self.base).and_then(|_| qnc_wizard_open::open(&self.root, form, args));
             match opened {
                 Ok(opened) => log(format!("ai-card-ingest breaking news: {form} {opened:?}")),
                 Err(error) => log(format!("ai-card-ingest breaking news: {form} not opened: {error}")),

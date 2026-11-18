@@ -13,14 +13,15 @@ pub enum Opened {
     Started,
 }
 
-/// Starts the Wizard's form `program` (its program's name) for the QNC root `root` unless it already runs.
-pub fn open(root: &Path, program: &str) -> Result<Opened, String> {
+/// Starts the Wizard's form `program` (its program's name) with `args` for the QNC root `root` unless
+/// it already runs.
+pub fn open(root: &Path, program: &str, args: &[&str]) -> Result<Opened, String> {
     let form = qnc_plugin_process::beside_application(program)?;
     if runs(&form) {
         return Ok(Opened::Running);
     }
     let mut command = std::process::Command::new(&form);
-    command.current_dir(root).env("QNC_ROOT", root);
+    command.current_dir(root).env("QNC_ROOT", root).args(args);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

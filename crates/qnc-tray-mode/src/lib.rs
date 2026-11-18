@@ -45,12 +45,13 @@ impl Mode {
         }
     }
 
-    /// The Wizard's form this mode opens once a card is copied (its program's name): Breaking
-    /// news opens AI Media Assist (user 2026-11-18: "otvoriti u brejking news ide na AI Media
-    /// Assist"); the others open none.
-    pub fn opens(self) -> Option<&'static str> {
+    /// The Wizard's form this mode opens once a card is copied (its program's name and arguments):
+    /// Breaking news opens AI Media Assist on All, there is no transcript yet (user 2026-11-18:
+    /// "otvoriti u brejking news ide na AI Media Assist", "otvori ga na All kad je brejking news");
+    /// the others open none (Story waits, then Ingest opens; AI Media Assist opens on its transcript).
+    pub fn opens(self) -> Option<(&'static str, &'static [&'static str])> {
         match self {
-            Mode::Local { work: Work::BreakingNews } => Some("qnc-media-assist-audio-ai"),
+            Mode::Local { work: Work::BreakingNews } => Some(("qnc-media-assist-audio-ai", &["--pool-tab", "editorial_tab_all"])),
             Mode::Local { work: Work::Story } | Mode::Net => None,
         }
     }

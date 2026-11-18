@@ -31,7 +31,11 @@ impl EditorialForm {
 
     /// The Tab walk of this group's form (its layout contract).
     pub(crate) fn focus_layout(&self) -> qnc_editorial_application::FocusLayout {
-        qnc_editorial_application::FocusLayout::new(self.contracts.focus_names()).with_opening_tab(self.contracts.opening_tab())
+        // `--pool-tab <tab action>`: the tab the opener asks for (the tray's Breaking news opens All,
+        // there is no transcript yet; user 2026-11-18), else the layout's own.
+        let asked = std::env::args().skip_while(|arg| arg != "--pool-tab").nth(1);
+        let opening = asked.as_deref().or(self.contracts.opening_tab());
+        qnc_editorial_application::FocusLayout::new(self.contracts.focus_names()).with_opening_tab(opening)
     }
 
     pub(crate) fn shortcuts(&self) -> &qnc_keyboard_shortcut::ShortcutCatalog {
