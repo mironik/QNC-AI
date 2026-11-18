@@ -145,6 +145,23 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         Step::Captions => editing_busy() || not_done(Step::Shots) || not_done(Step::Content),
         _ => false,
     };
+    // Breaking news on this computer (the tray's setting; user 2026-11-18): the waves first, every
+    // other step waits while they have work ("bitno je da val bude što prije gotov"); then the AI
+    // shots, which make the filmstrip in the same pass (the filmstrips wait for them); then SigLIP;
+    // the transcript and the captions last. Another mode keeps the order below.
+    let breaking = matches!(qnc_tray_mode::read(root), Ok(Some(qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews })));
+    trace(format!("order {}", if breaking { "breaking_news" } else { "level" }));
+    let breaking_held = |step: Step| {
+        let waves = not_done(Step::Waves);
+        match step {
+            Step::Waves => false,
+            Step::PosterLook | Step::Shots => waves || not_done(Step::Import),
+            Step::Filmstrips | Step::Content => waves || not_done(Step::Import) || not_done(Step::Shots),
+            Step::Transcripts | Step::Captions => waves || not_done(Step::Import) || not_done(Step::Shots) || not_done(Step::Content),
+            _ => false,
+        }
+    };
+    let held = |step: Step| if breaking { breaking_held(step) } else { ai_before_busy(step) };
     let may_start = |step: Step| match plan.stage_of(step) {
         Some(0) | None => true,
         Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
@@ -223,7 +240,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             // 2026-11-18 log: two clips whose probe failed held four places of the
                             // waves to the end).
                             let nothing = matches!(step, Step::Waves | Step::Filmstrips) && idle[at(*step)].load(Relaxed);
-                            conductor.work(step.code(), done, all, can && !stopped && !nothing && !ai_before_busy(*step));
+                            conductor.work(step.code(), done, all, can && !stopped && !nothing && !held(*step));
                         }
                     }
                     // The processor measured beside the decision: the log shows what the places did.
@@ -255,7 +272,9 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         // Never held by the count: a clip with part of its transcript saved counts as done while its
                         // queue still hears it (2026-11-17 test: the last two clips held for ever); the queue ends
                         // the transcription itself.
-                        qnc_transcribe_run::set_places(conductor.places(Step::Transcripts.code()).max(1));
+                        // In Breaking news it waits for the steps before it.
+                        let places = if breaking && held(Step::Transcripts) { 0 } else { conductor.places(Step::Transcripts.code()).max(1) };
+                        qnc_transcribe_run::set_places(places);
                     }
                 }
                 if !crate::still_active(&active_project, &started) || !lease.held() || qnc_ingest_base::closing(root, &started) {
@@ -285,7 +304,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             let rounds = &rounds;
             let (begun, idle, going, closed, cancel, stops, config, lease, run, failure) =
                 (&begun[i], &idle[i], &going, &closed, &cancel, &stops, &config, &lease, &run, &failure);
-            let (may_start, places, ai_before_busy, make_backend, player_works, stuck) = (&may_start, &places, &ai_before_busy, &make_backend, &player_works, &stuck_records);
+            let (may_start, places, held, make_backend, player_works, stuck) = (&may_start, &places, &held, &make_backend, &player_works, &stuck_records);
             scope.spawn(move || {
                 while !may_start(step) {
                     if !going.load(Relaxed) {
@@ -352,7 +371,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             }
                         }
                         Step::Posters => crate::make_posters(root, config, lease, stops) > 0,
-                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || ai_before_busy(step)) > 0,
+                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || held(step)) > 0,
                         Step::Import => match crate::import_waiting(root) {
                             // Working from the start of the round, not from its end (the conductor
                             // saw the copy idle while it copied: 2026-11-17 log).

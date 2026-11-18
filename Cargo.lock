@@ -5547,6 +5547,7 @@ dependencies = [
  "qnc-transcribe-queue",
  "qnc-transcribe-run",
  "qnc-transcript-db",
+ "qnc-tray-mode",
  "qnc-ui-text",
  "qnc-work-progress",
  "qnc-work-settings",
