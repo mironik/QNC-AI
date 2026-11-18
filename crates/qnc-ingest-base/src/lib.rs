@@ -443,6 +443,7 @@ pub fn current(root: &Path) -> Result<IngestBase, String> {
 pub fn current_for(root: &Path, what: &str) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root)?;
+    not_indexed(&bases);
     keep_apart(&mut store, root)?;
     if let Some(active) = store.list_projects()?.into_iter().find(|row| working(row)) {
         let base = base_of(active, &takers(&store), &store);
@@ -461,6 +462,7 @@ pub fn current_for(root: &Path, what: &str) -> Result<IngestBase, String> {
 pub fn new_base(root: &Path, what: &str) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root)?;
+    not_indexed(&bases);
     keep_apart(&mut store, root)?;
     let before = store.list_projects()?.into_iter().find(|row| row.active).map(|row| row.project_id);
     let mut made = make(&mut store, &bases, what)?;
@@ -469,6 +471,27 @@ pub fn new_base(root: &Path, what: &str) -> Result<IngestBase, String> {
         made.active = false;
     }
     Ok(made)
+}
+
+/// The bases' folder marked "not content indexed", which what is made in it takes: the system's
+/// search does not read every copied clip and picture while an ingest runs (audit 2026-11-18:
+/// Windows Search took ~0.65 of a core during an ingest into C:\Users\Public). It is an attribute
+/// of the bases' own folder, not a setting of the system; a folder it cannot mark stays as it is.
+fn not_indexed(folder: &Path) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::{GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, INVALID_FILE_ATTRIBUTES};
+        let wide: Vec<u16> = folder.as_os_str().encode_wide().chain(Some(0)).collect();
+        unsafe {
+            let attributes = GetFileAttributesW(wide.as_ptr());
+            if attributes != INVALID_FILE_ATTRIBUTES && attributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED == 0 {
+                SetFileAttributesW(wide.as_ptr(), attributes | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = folder;
 }
 
 /// How the wizard imports a card into its base: a verified copy of its originals.
@@ -645,6 +668,7 @@ const ONLY_NEW_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_only_new (
 pub fn new_with_only_new(root: &Path, from: &IngestBase, what: &str) -> Result<IngestBase, String> {
     let mut store = ProjectStore::open(root)?;
     let bases = folder(root)?;
+    not_indexed(&bases);
     keep_apart(&mut store, root)?;
     let made = make(&mut store, &bases, what)?;
     let (file, _) = store.project_db_binding(&made.id)?;

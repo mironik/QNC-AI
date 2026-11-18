@@ -91,12 +91,9 @@ fn preload_directml(_dir: &std::path::Path) -> Result<(), String> {
 
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-transcribe-parakeet-dml");
-    // Below normal, as the other transcription programs: the player and the editing stay above.
-    #[cfg(windows)]
-    unsafe {
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
-        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
-    }
+    // Normal priority, not below as the processor's programs: it takes little of the processor but
+    // needs it at once to give the card its work (audit 2026-11-18: below normal under a full
+    // processor the card heard at 0.8x real time, idle at 9.5x).
     let mut program = Program::default();
     if let Err(error) = qnc_transcribe_jobs::serve(&mut program, "qnc.transcribe.parakeet-dml", env!("CARGO_PKG_VERSION"), "onnx runtime parakeet-tdt fp32") {
         eprintln!("{error}");

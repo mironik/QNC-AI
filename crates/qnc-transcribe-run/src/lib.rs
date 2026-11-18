@@ -608,11 +608,16 @@ fn run_engine(engines: &[qnc_ai_catalog::Transcriber], language: &str, samples: 
     // The engine hears the sound at the level of speech (user 2026-11-03).
     let heard = qnc_transcribe_jobs::at_speech_level(samples, qnc_transcribe_jobs::WHISPER_RATE as usize);
     let _hearing = Hearing::take(cancel)?;
-    let (engine, program) = transcriber(engines)?;
+    let (engine, program, fresh) = transcriber(engines)?;
     let job = TranscribeRequest::new(&engine.id, &heard, language)?;
     let began = std::time::Instant::now();
     let mut transcript = program.transcribe(&job, cancel, on_segment)?;
-    log(&format!("transcribe engine={} heard={:.1}s ms={}", engine.id, samples.len() as f64 / f64::from(qnc_transcribe_jobs::WHISPER_RATE), began.elapsed().as_millis()));
+    let seconds = samples.len() as f64 / f64::from(qnc_transcribe_jobs::WHISPER_RATE);
+    // A program's first job loads (and on the card prepares) its model: not its speed.
+    if !fresh {
+        speeds::heard(&engine.id, seconds, began.elapsed().as_secs_f64());
+    }
+    log(&format!("transcribe engine={} heard={seconds:.1}s ms={} fresh={fresh}", engine.id, began.elapsed().as_millis()));
     let model = engine.model.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
     transcript.engine = format!("{} {model}", transcript.engine);
     Ok(transcript)
@@ -639,25 +644,56 @@ fn forget_transcriber(program: &str) {
 /// stays loaded: one no job uses now, else a new one while there are fewer than `most` (user
 /// 2026-11-17: "AI prijepis mora biti najbrži": several clips at the same time), else the first
 /// (its job waits for it). The zoom's job takes one of them too.
-/// With several engines (the graphics card's and the processor's) the first that has a program
-/// free, or room for one more, takes the piece.
-fn transcriber(engines: &[qnc_ai_catalog::Transcriber]) -> Result<(&qnc_ai_catalog::Transcriber, Arc<Transcriber>), String> {
+/// With several engines (the graphics card's and the processor's) the fastest as measured in
+/// this process that has a program free, or room for one more, takes the piece; an engine not
+/// measured yet is tried first, so it is measured (audit 2026-11-18: with one place the card,
+/// first in the catalog but held back by a full processor, heard every piece at 0.8x while a
+/// processor's program would have heard it at 3x). Whether the program is new (its first job
+/// loads its model).
+fn transcriber(engines: &[qnc_ai_catalog::Transcriber]) -> Result<(&qnc_ai_catalog::Transcriber, Arc<Transcriber>, bool), String> {
     let first = engines.first().ok_or("no transcription engine")?;
+    let mut order: Vec<&qnc_ai_catalog::Transcriber> = engines.iter().collect();
+    order.sort_by(|a, b| speeds::of(&b.id).unwrap_or(f64::INFINITY).total_cmp(&speeds::of(&a.id).unwrap_or(f64::INFINITY)));
     let mut kept = kept();
-    for engine in engines {
+    for engine in order {
         let running = kept.entry(engine.program.clone()).or_default();
         // Only the list holds a program no job uses.
         if let Some(free) = running.iter().find(|one| Arc::strong_count(one) == 1) {
-            return Ok((engine, free.clone()));
+            return Ok((engine, free.clone(), false));
         }
         if running.len() < (engine.parallel as usize).max(1) {
             let made = Arc::new(Transcriber::beside_application(&engine.program)?);
             running.push(made.clone());
-            return Ok((engine, made));
+            return Ok((engine, made, true));
         }
     }
     let running = kept.entry(first.program.clone()).or_default();
-    Ok((first, running[0].clone()))
+    Ok((first, running[0].clone(), false))
+}
+
+/// How fast each engine hears in this process (seconds of speech a second), followed as it goes.
+mod speeds {
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    static SPEEDS: Mutex<Option<HashMap<String, f64>>> = Mutex::new(None);
+    /// How much a new piece weighs against what was measured before.
+    const NEW: f64 = 0.3;
+
+    pub(super) fn heard(engine: &str, seconds: f64, took: f64) {
+        if took <= 0.0 || seconds <= 0.0 {
+            return;
+        }
+        let speed = seconds / took;
+        let mut speeds = SPEEDS.lock().unwrap_or_else(|e| e.into_inner());
+        let speeds = speeds.get_or_insert_with(HashMap::new);
+        let kept = speeds.entry(engine.to_string()).or_insert(speed);
+        *kept = *kept * (1.0 - NEW) + speed * NEW;
+    }
+
+    pub(super) fn of(engine: &str) -> Option<f64> {
+        SPEEDS.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|speeds| speeds.get(engine).copied())
+    }
 }
 
 fn log(line: &str) {
