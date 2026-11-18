@@ -229,6 +229,8 @@ pub struct SourcePreview {
     play_when_ready: bool,
     /// The last frame step, cue or Play of the user: the machine is theirs a while after.
     touched: Option<std::time::Instant>,
+    /// What the preview last told the background (logged when it changes).
+    told: Option<qnc_playback_activity::PlaybackLevel>,
     /// A pause was sent and the player still says it plays: a second pause would play again.
     pausing: bool,
     /// The JKL shuttle moves the playhead by cues (docs/98 1.4): the trim zoom follows it as a play.
@@ -303,6 +305,7 @@ impl Default for SourcePreview {
             pointed: pointed::Follow::default(),
             play_when_ready: false,
             touched: None,
+            told: None,
             pausing: false,
             scrubbing: false,
             bed_wanted: None,
@@ -422,6 +425,10 @@ impl SourcePreview {
             (false, false, true) => qnc_playback_activity::PlaybackLevel::Editing,
             (false, false, false) => qnc_playback_activity::PlaybackLevel::Idle,
         };
+        if self.told != Some(level) {
+            self.told = Some(level);
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("preview tells the background {level:?} (wanted={} preparing={} playing={})", self.play_when_ready, self.player_view.preparing, self.player_view.playing()));
+        }
         self.activity.update_level(self.activity_target.as_ref(), level);
     }
 

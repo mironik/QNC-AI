@@ -270,7 +270,9 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                     if let Some(decision) = conductor.tick(now) {
                         let busy = busy.map_or_else(|| "?".to_string(), |busy| format!("{:.0} %", busy * 100.0));
                         let steps: Vec<String> = decision.steps.iter().map(|(code, places, left, all)| format!("{code} left={left}/{all} places={places}")).collect();
-                        trace(format!("conductor processor={busy} | {}", steps.join(" | ")));
+                        // Why the AI waits (2026-11-19: the AI shots held while nothing seemed to play).
+                        let why = format!("playing={} waves={} import={} shots={}", playing(), not_done(Step::Waves), not_done(Step::Import), not_done(Step::Shots));
+                        trace(format!("conductor processor={busy} | {} | held {why}", steps.join(" | ")));
                     }
                     // The background transcription waits while it has no place.
                     if conducted_step(Step::Transcripts) {
