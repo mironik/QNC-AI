@@ -155,7 +155,10 @@ fn sheet_target(store: &ProjectStore, project_id: &str) -> Result<qnc_db_broker:
 fn save_sheet(store: &ProjectStore, project_id: &str, sheet: StorySheet) -> Result<(), String> {
     let search = sheet.search_text();
     qnc_newsroom_sheet_db::save(&sheet_target(store, project_id)?, sheet)?;
-    store.set_project_search(project_id, &search)
+    store.set_project_search(project_id, &search)?;
+    // The camera operator the journalist names goes to the card bases the story took that have
+    // none (user 2026-11-18): a base is an archive that outlives the story.
+    qnc_ingest_base::share_operator(store, project_id).map(|_| ())
 }
 
 fn projects(store: &ProjectStore) -> Result<ProjectsState, String> {

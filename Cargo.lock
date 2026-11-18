@@ -6740,6 +6740,7 @@ dependencies = [
  "qnc-ai-features",
  "qnc-application-catalog",
  "qnc-db-broker",
+ "qnc-ingest-base",
  "qnc-newsroom-sheet-db",
  "qnc-project-store",
  "qnc-store-jobs",

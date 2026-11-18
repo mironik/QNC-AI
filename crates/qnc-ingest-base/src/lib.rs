@@ -40,6 +40,9 @@ pub struct IngestBase {
     pub description: String,
     /// What the shot analysis says it holds (each term and caption once; empty: not yet).
     pub analysis: String,
+    /// Who shot it: from the camera when it writes it, else from the story sheet of a project that
+    /// took the base (empty: not known yet).
+    pub operator: String,
 }
 
 /// Whether `row` is the Ingest base this process works in: the one the process was given (the
@@ -140,11 +143,18 @@ const ANALYSIS_COLUMN: &str = "analysis";
 const LOCATION_COLUMN: &str = "location";
 /// The columns added to the table after it was first made; a base made before gets each when it
 /// is first written, and reads as empty until then.
-const ADDED_COLUMNS: [&str; 2] = [ANALYSIS_COLUMN, LOCATION_COLUMN];
+/// Who shot the card (user 2026-11-18: the journalist names the camera operator in the story
+/// sheet; a camera that writes it names it first): written once, never overwritten.
+const OPERATOR_COLUMN: &str = "operator";
+const ADDED_COLUMNS: [&str; 3] = [ANALYSIS_COLUMN, LOCATION_COLUMN, OPERATOR_COLUMN];
 
 /// The info table of a base's database open for writing, with every added column.
 fn info_writer(root: &Path, id: &str) -> Result<rusqlite::Connection, String> {
-    let store = ProjectStore::open(root)?;
+    info_writer_in(&ProjectStore::open(root)?, id)
+}
+
+/// As `info_writer`, with the store already open.
+fn info_writer_in(store: &ProjectStore, id: &str) -> Result<rusqlite::Connection, String> {
     let (file, _) = store.project_db_binding(id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
@@ -179,6 +189,7 @@ struct Info {
     location: String,
     description: String,
     analysis: String,
+    operator: String,
 }
 
 /// The info of the base `id`, read only.
@@ -195,9 +206,9 @@ fn info_in(store: &ProjectStore, id: &str) -> Info {
         }
         let added = |column: &str| if columns.iter().any(|name| name == column) { format!("COALESCE({column}, '')") } else { "''".into() };
         conn.query_row(
-            &format!("SELECT title, description, {}, {} FROM ingest_base_info WHERE one = 1", added(LOCATION_COLUMN), added(ANALYSIS_COLUMN)),
+            &format!("SELECT title, description, {}, {}, {} FROM ingest_base_info WHERE one = 1", added(LOCATION_COLUMN), added(ANALYSIS_COLUMN), added(OPERATOR_COLUMN)),
             [],
-            |row| Ok(Info { title: row.get(0)?, description: row.get(1)?, location: row.get(2)?, analysis: row.get(3)? }),
+            |row| Ok(Info { title: row.get(0)?, description: row.get(1)?, location: row.get(2)?, analysis: row.get(3)?, operator: row.get(4)? }),
         )
         .map_err(|error| error.to_string())
     };
@@ -217,10 +228,59 @@ pub fn set_info(root: &Path, id: &str, title: &str, location: &str, description:
         .map_err(|error| error.to_string())
 }
 
+/// Writes `operator` as who shot the base `id` when it has no one yet (user 2026-11-18: the name a
+/// camera wrote or one written before stays). Gives whether it wrote.
+pub fn set_operator_if_empty(store: &ProjectStore, id: &str, operator: &str) -> Result<bool, String> {
+    let operator = operator.trim();
+    if operator.is_empty() {
+        return Ok(false);
+    }
+    let conn = info_writer_in(store, id)?;
+    conn.execute(
+        "INSERT INTO ingest_base_info (one, title, description, written_at_utc, operator) VALUES (1, '', '', strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?1)
+         ON CONFLICT(one) DO UPDATE SET operator = excluded.operator WHERE COALESCE(ingest_base_info.operator, '') = ''",
+        [operator],
+    )
+    .map(|changed| changed > 0)
+    .map_err(|error| error.to_string())
+}
+
+/// The camera operator of the story `story_id` (its story sheet's `camera_operator`) given to every
+/// base it took that has no one yet (user 2026-11-18: "novinar u Scriptu treba i tako navesti
+/// snimatelja, pa veza baze i projekta može biti povezana"). Gives the bases written.
+pub fn share_operator(store: &ProjectStore, story_id: &str) -> Result<usize, String> {
+    let (file, _) = store.project_db_binding(story_id)?;
+    let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
+    let has: bool = conn
+        .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'public_project_story_values')", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if !has {
+        return Ok(0);
+    }
+    let value: Option<String> = conn
+        .query_row("SELECT value_json FROM public_project_story_values WHERE code = ?1", [STORY_OPERATOR_FIELD], |row| row.get(0))
+        .ok();
+    drop(conn);
+    let operator = value.and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok()).and_then(|value| value.as_str().map(str::to_string)).unwrap_or_default();
+    if operator.trim().is_empty() {
+        return Ok(0);
+    }
+    let mut written = 0;
+    for (base_id, _) in story_bases(store, story_id)? {
+        if set_operator_if_empty(store, &base_id, &operator)? {
+            written += 1;
+        }
+    }
+    Ok(written)
+}
+
+/// The story sheet field with the camera operator (the prepared sheets' `camera_operator`).
+const STORY_OPERATOR_FIELD: &str = "camera_operator";
+
 fn base_of(row: qnc_project_store::ProjectRow, takers: &Takers, store: &ProjectStore) -> IngestBase {
     let project_name = takers.get(&row.project_id).map(|(_, name)| name.clone());
-    let Info { title, location, description, analysis } = info_in(store, &row.project_id);
-    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active, title, location, description, analysis }
+    let Info { title, location, description, analysis, operator } = info_in(store, &row.project_id);
+    IngestBase { id: row.project_id, name: row.name, uri: row.project_uri, project_name, active: row.active, title, location, description, analysis, operator }
 }
 
 /// Whether the project Ingest works in now is an Ingest base: a read only look at the registry
@@ -276,6 +336,8 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str)
     let base = store.list_projects()?.into_iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
     let made = store.create_project(name, template_id, None, &selection())?;
     write_story_base(&store, &made.project_id, &base)?;
+    // A sheet already filled names the operator of the bases it took.
+    let _ = share_operator(&store, &made.project_id);
     Ok(made.project_id)
 }
 
@@ -791,11 +853,16 @@ impl IngestBase {
     }
 
     /// The base as a list shows it: its name the user wrote, then its camera, date and time
-    /// (user 2026-11-15); without a name only the camera, date and time.
+    /// (user 2026-11-15), then who shot it when known (user 2026-11-18); without a name only the
+    /// camera, date and time.
     pub fn shown(&self) -> String {
-        match self.title.trim() {
+        let shown = match self.title.trim() {
             "" => self.label().to_string(),
             title => format!("{title} · {}", self.label()),
+        };
+        match self.operator.trim() {
+            "" => shown,
+            operator => format!("{shown} · {operator}"),
         }
     }
 }
@@ -817,7 +884,7 @@ mod tests {
     #[test]
     fn a_base_is_shown_by_its_time_and_number_without_the_word_ingest() {
         let name = format!("{NAME_PREFIX} {}", stamp());
-        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false, title: String::new(), location: String::new(), description: String::new(), analysis: String::new() };
+        let base = IngestBase { id: "x".into(), name, uri: "u".into(), project_name: None, active: false, title: String::new(), location: String::new(), description: String::new(), analysis: String::new(), operator: String::new() };
         let label = base.label();
         assert!(!label.contains(NAME_PREFIX), "{label}");
         let (time, number) = label.rsplit_once(' ').unwrap();
@@ -859,6 +926,24 @@ mod tests {
         assert_eq!(active_id().as_deref(), Some(story.as_str()), "the new project is the active one, with its own database (user 2026-11-15)");
         assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("2026/11/11 Luka"), "the base read as linked by it");
         assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");
+        // The camera operator the journalist names in the story sheet goes to the base; one written
+        // before stays (user 2026-11-18).
+        {
+            let store = ProjectStore::open(&root).unwrap();
+            let (story_db, _) = store.project_db_binding(&story).unwrap();
+            let conn = rusqlite::Connection::open(&story_db).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS project_story_values (code TEXT PRIMARY KEY, value_json TEXT NOT NULL);
+                 CREATE VIEW IF NOT EXISTS public_project_story_values AS SELECT code, value_json FROM project_story_values;
+                 INSERT INTO project_story_values (code, value_json) VALUES ('camera_operator', '\"Ivo Ivić\"');",
+            )
+            .unwrap();
+            drop(conn);
+            assert_eq!(share_operator(&store, &story).unwrap(), 1);
+            assert_eq!(all(&root).unwrap()[0].operator, "Ivo Ivić", "the base knows who shot it");
+            assert!(!set_operator_if_empty(&store, &base.id, "Drugi").unwrap(), "a name written before stays");
+            assert_eq!(all(&root).unwrap()[0].operator, "Ivo Ivić");
+        }
         std::thread::sleep(std::time::Duration::from_millis(1100));
         let next = current(&root).unwrap();
         assert_ne!(next.id, base.id, "a base a story took is not the next Ingest's");
