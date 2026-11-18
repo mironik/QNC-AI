@@ -36,6 +36,7 @@ fn card_records_are_completed_once_in_the_background_and_published() {
         sources: &sources,
         make_backend: &make_backend,
         copies: Default::default(),
+        proxy: true,
     };
     let cancel = AtomicBool::new(false);
     let run = Run {
@@ -78,6 +79,7 @@ fn a_working_player_is_waited_for_and_cancel_ends_the_wait() {
         sources: &sources,
         make_backend: &make_backend,
         copies: Default::default(),
+        proxy: true,
     };
     let cancel = AtomicBool::new(false);
     let waiting = camera_clips(&target.content).unwrap();
@@ -119,6 +121,7 @@ fn the_wanted_clip_is_completed_first() {
         sources: &sources,
         make_backend: &make_backend,
         copies: Default::default(),
+        proxy: true,
     };
     let waiting = camera_clips(&target.content).unwrap();
     let last = waiting.last().unwrap().id().to_string();
@@ -136,6 +139,28 @@ fn the_wanted_clip_is_completed_first() {
     let done = complete_clips(&parts, waiting, &target.content, &run);
     assert!(done.completed.iter().take(2).any(|id| *id == last), "the clip a preview wants is among the first");
     assert_eq!(done.completed.len(), 2);
+}
+
+#[test]
+fn a_proxy_the_project_does_not_read_is_never_probed() {
+    // User 2026-11-18: probed from the card after the copy and the card ejected.
+    let (_dir, config) = qnc_ingest_select::test_support::fixture();
+    let calls = Arc::new(AtomicUsize::new(0));
+    qnc_ingest_select::test_support::execute_with(&config, &calls, false, false, ".", &fx6());
+    let target = qnc_ingest_select::test_support::select_target(&config);
+    let waiting = camera_clips(&target.content).unwrap();
+    let writer = ProjectDbWriter::start(target.records.clone(), vec![MediaRecordsModule::factory(), SourceIndexModule::factory()]).unwrap();
+    let records = ProjectMediaRecords::new(writer.clone());
+    let sources = ProjectSourceIndex::new(writer);
+    let probes = calls.clone();
+    let make_backend = move |_: &str, _: &[SourceReference], _: &[(String, std::path::PathBuf)]| Ok(qnc_ingest_select::test_support::probe_backend(probes.clone()));
+    let parts = Parts { records: &records, sources: &sources, make_backend: &make_backend, copies: Default::default(), proxy: false };
+    let cancel = AtomicBool::new(false);
+    let run = Run { workers: 2, wanted: &|| None, player_works: &|| false, cancel: &cancel, lease: None };
+    let done = complete_clips(&parts, waiting, &target.content, &run);
+    assert_eq!(done.completed.len(), 2, "{:?}", done.failed);
+    assert_eq!(calls.load(Ordering::SeqCst), 2, "the originals of two clips, once");
+    assert!(camera_clips(&target.content).unwrap().is_empty(), "published as final");
 }
 
 fn run_with_first_failure(first: qnc_media_probe::Error) -> (Completion, usize) {
@@ -164,6 +189,7 @@ fn run_with_first_failure(first: qnc_media_probe::Error) -> (Completion, usize) 
         sources: &sources,
         make_backend: &make_backend,
         copies: Default::default(),
+        proxy: true,
     };
     let cancel = AtomicBool::new(false);
     let run = Run {

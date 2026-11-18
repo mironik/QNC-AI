@@ -75,6 +75,9 @@ pub struct Parts<'a> {
     pub make_backend: MakeBackend<'a>,
     /// Per clip, the copies the import made of its media (card URI and file in the project).
     pub copies: HashMap<String, Vec<(String, PathBuf)>>,
+    /// The project reads the proxy (`qnc_import_fit::Needs::uses_proxy`): else a proxy the camera
+    /// recorded is not probed and the card is not read for it after the copy.
+    pub proxy: bool,
 }
 
 /// Completes every camera record of the project `active` (the one the orchestrator gives). `player_works`
@@ -106,6 +109,7 @@ pub fn complete_project(
     // When the import copies the clips, a record is completed only once its clip is copied, and
     // from the copy (user 2026-11-12: "ostale radnje idu iz kopiranih kadrova").
     let copying = snapshot.settings.ingest_copies();
+    let proxy = qnc_import_fit::Needs::of(&snapshot.settings)?.uses_proxy();
     let project_dir = reader.local_workspace_dir(&snapshot.settings).map_err(|e| e.to_string())?;
     let wanted = || wanted_clip(&content);
     let run = Run {
@@ -142,7 +146,7 @@ pub fn complete_project(
         if waiting.is_empty() {
             return Ok(done);
         }
-        let parts = Parts { records: &records, sources: &sources, make_backend, copies };
+        let parts = Parts { records: &records, sources: &sources, make_backend, copies, proxy };
         let round = complete_clips(&parts, waiting, &content, &run);
         done.completed.extend(round.completed);
         done.failed.extend(round.failed);
@@ -317,8 +321,7 @@ fn complete_clip(
         .sources
         .read(&camera.binding.source_record_id)?
         .ok_or(qnc_ui_text::text("record.source_record_clip_project_database"))?;
-    let needed =
-        qnc_media_metadata_compose::required_probes(&camera).map_err(|e| format!("{e:?}"))?;
+    let needed = qnc_record_probe::needed_probes(&camera, parts.proxy)?;
     let media = needed
         .iter()
         .map(|uri| SourceReference::from_uri(uri).map_err(|e| e.to_string()))
@@ -329,12 +332,13 @@ fn complete_clip(
     } else {
         (parts.make_backend)(&clip.source_uri, &media, parts.copies.get(clip.id()).map_or(&[][..], Vec::as_slice))?
     };
-    clip.snapshot = qnc_record_probe::complete(
+    clip.snapshot = qnc_record_probe::complete_media(
         parts.records,
         &source_record,
         camera,
         backend.as_ref(),
         cancel,
+        parts.proxy,
     )?;
     Ok(clip)
 }

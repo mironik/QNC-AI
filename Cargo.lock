@@ -6797,6 +6797,7 @@ dependencies = [
  "qnc-camera-profiles",
  "qnc-content-store",
  "qnc-db-broker",
+ "qnc-import-fit",
  "qnc-ingest-select",
  "qnc-media-metadata-compose",
  "qnc-media-probe",
