@@ -217,9 +217,10 @@ impl eframe::App for Window {
         // Breaking news on this computer (the tray's setting): the Wizard opens as soon as the card is
         // copied, the work goes on in the background (user 2026-11-18). Once a card.
         let copied = status.progress.clips > 0 && status.progress.imported > 0 && status.progress.imported + status.progress.failed >= status.progress.clips;
-        if !self.cancelled && copied && !self.desktop_opened && matches!(qnc_tray_mode::read(&self.root), Ok(Some(qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews }))) {
+        let breaking = qnc_tray_mode::read(&self.root).ok().flatten().filter(|mode| matches!(mode, qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews }));
+        if let Some(mode) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened) {
             self.desktop_opened = true;
-            match qnc_wizard_open::open(&self.root) {
+            match qnc_wizard_open::open(&self.root, mode.opens()) {
                 Ok(opened) => log(format!("ai-card-ingest breaking news: the Wizard {opened:?}")),
                 Err(error) => log(format!("ai-card-ingest breaking news: the Wizard not opened: {error}")),
             }

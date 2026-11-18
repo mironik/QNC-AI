@@ -307,6 +307,9 @@ pub(crate) fn make_shots(
     step: Step,
     // The steps before are not done yet: the AI waits as for a playing player.
     earlier_busy: &(dyn Fn() -> bool + Sync),
+    // Breaking news (the tray's setting): the transcription comes last, so the AI never waits for
+    // it and judges a statement by its picture first (user 2026-11-18).
+    breaking: bool,
 ) -> usize {
     let config = &sources_now(root, config);
     let result = (|| -> Result<usize, String> {
@@ -338,14 +341,14 @@ pub(crate) fn make_shots(
         // From the copies the AI shots and content wait for it too: the transcription has the
         // processor first (user 2026-11-17: "neka AI kadrovi i sadržaj čekaju dok prijepis ne
         // završi, prijepisu daj prednost"); the look from the posters does not wait.
-        let waits_for_it = !copying || matches!(step, Step::Shots | Step::Content);
+        let waits_for_it = !breaking && (!copying || matches!(step, Step::Shots | Step::Content));
         let transcribing = || waits_for_it && qnc_playback_activity::is_fresh(&target, qnc_transcribe_queue::LEASE, qnc_playback_activity::WORKER_FRESH_SECONDS);
         let player_plays = || level() == qnc_playback_activity::PlaybackLevel::Playing || transcribing() || earlier_busy();
         let wanted = || qnc_playback_activity::read(&target, qnc_playback_activity::PLAYBACK_CLIP);
         // Each step its own pace: its cancel is its X (the project closed sets them all).
         // A clip whose first channel holds a statement is not looked at (user 2026-11-12); with
         // transcription on, a clip is taken once it is heard.
-        let takes = transcribe::ai_takes(root, stops.is(qnc_stopped_work::TRANSCRIPTS))?;
+        let takes = transcribe::ai_takes(root, breaking || stops.is(qnc_stopped_work::TRANSCRIPTS))?;
         let pace = |function| {
             let takes: &dyn Fn(&str) -> bool = if function == qnc_stopped_work::SHOTS { &*takes.shots } else { &*takes.content };
             qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes, cancel: stops.flag(function) }

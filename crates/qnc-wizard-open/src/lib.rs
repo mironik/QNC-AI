@@ -18,13 +18,17 @@ pub enum Opened {
 }
 
 /// Starts the Wizard's desktop for the QNC root `root` unless it already runs.
-pub fn open(root: &Path) -> Result<Opened, String> {
+/// `application` (its `application_id`) is the form it shows first.
+pub fn open(root: &Path, application: Option<&str>) -> Result<Opened, String> {
     let desktop = qnc_plugin_process::beside_application(DESKTOP)?;
     if runs(&desktop) {
         return Ok(Opened::Running);
     }
     let mut command = std::process::Command::new(&desktop);
     command.current_dir(root).env("QNC_ROOT", root);
+    if let Some(application) = application {
+        command.arg("--open").arg(application);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

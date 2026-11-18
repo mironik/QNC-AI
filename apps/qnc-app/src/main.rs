@@ -35,6 +35,9 @@ fn main() -> eframe::Result<()> {
         return Ok(());
     }
 
+    // `--open <application_id>`: the application shown first (the tray's Breaking news, AI Media Assist).
+    let start_app = env::args().skip_while(|arg| arg != "--open").nth(1);
+
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default()
@@ -51,7 +54,7 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             qnc_desktop::apply_app_fonts(&cc.egui_ctx, &layout);
             qnc_desktop::apply_visuals(&cc.egui_ctx, &layout);
-            let shell = qnc_desktop::QncShell::new(layout, qnc_root, app_registry, embedded_app_factories());
+            let shell = qnc_desktop::QncShell::new(layout, qnc_root, app_registry, embedded_app_factories()).opening(start_app);
             Ok(Box::new(shell))
         }),
     )
