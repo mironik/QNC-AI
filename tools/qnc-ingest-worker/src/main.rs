@@ -509,8 +509,9 @@ pub(crate) struct Programs {
     at: std::time::Instant,
 }
 
-/// The programs measured (their executables' names without the extension).
-const MEASURED: [&str; 7] = ["qnc-transcribe-parakeet", "ffmpeg", "qnc-decoder-ffmpeg", "qnc-ingest-worker", "qnc-ai-card-ingest", "qnc-shot-content-siglip", "qnc-shot-caption-florence"];
+/// The ingest's own programs (their executables' names without the extension); every other
+/// process is measured too, for the log.
+pub(crate) const MEASURED: [&str; 7] = ["qnc-transcribe-parakeet", "ffmpeg", "qnc-decoder-ffmpeg", "qnc-ingest-worker", "qnc-ai-card-ingest", "qnc-shot-content-siglip", "qnc-shot-caption-florence"];
 
 impl Programs {
     pub(crate) fn new() -> Self {
@@ -557,7 +558,7 @@ fn process_times() -> std::collections::HashMap<u32, (String, u64)> {
             let length = entry.szExeFile.iter().position(|c| *c == 0).unwrap_or(entry.szExeFile.len());
             let exe = String::from_utf16_lossy(&entry.szExeFile[..length]);
             let name = exe.strip_suffix(".exe").unwrap_or(&exe).to_string();
-            if MEASURED.contains(&name.as_str()) {
+            {
                 let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, entry.th32ProcessID);
                 if !process.is_null() {
                     let zero = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };

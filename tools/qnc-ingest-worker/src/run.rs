@@ -113,9 +113,10 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         (programs, threads)
     });
     let conducted: Vec<(Step, qnc_ingest_conductor::Step)> = [
-        // The transcription and the filmstrips keep a place with work (a stop costs them); the
-        // fast waves may wait (user 2026-11-17: "ako je val brz, oduzmi mu vrijeme").
-        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), programs).keeping(1).costing(program_threads).balanced(),
+        // The transcription holds all its places while it has work, from the first second (user
+        // 2026-11-18: during the copy it got one or two of three, kept level by clips done while its
+        // long clips were left for the end); the filmstrips keep one; the fast waves may wait.
+        qnc_ingest_conductor::Step::new(Step::Transcripts.code(), programs).keeping(programs).costing(program_threads).balanced(),
         qnc_ingest_conductor::Step::new(Step::Waves.code(), 4).balanced(),
         qnc_ingest_conductor::Step::new(Step::Filmstrips.code(), cores).keeping(1).balanced(),
         qnc_ingest_conductor::Step::new(Step::Shots.code(), 1),
@@ -217,7 +218,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             // A step the user stopped, or the AI waiting for the steps before it,
                             // takes no place.
                             let stopped = stop_code(*step).is_some_and(|code| stops.is(code));
-                            conductor.work(step.code(), done, all, can && !stopped && !ai_before_busy(*step));
+                            // The waves and the filmstrips with nothing their workers can take hold no
+                            // place: a clip whose record never became final is no work for them (the
+                            // 2026-11-18 log: two clips whose probe failed held four places of the
+                            // waves to the end).
+                            let nothing = matches!(step, Step::Waves | Step::Filmstrips) && idle[at(*step)].load(Relaxed);
+                            conductor.work(step.code(), done, all, can && !stopped && !nothing && !ai_before_busy(*step));
                         }
                     }
                     // The processor measured beside the decision: the log shows what the places did.
@@ -227,8 +233,14 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         programs_at = std::time::Instant::now();
                         let used = programs.used();
                         if !used.is_empty() {
-                            let line: Vec<String> = used.iter().map(|(name, cores)| format!("{name}={cores:.2}")).collect();
-                            trace(format!("cpu cores {}", line.join(" ")));
+                            // The ingest's programs, then the six biggest others and the sum of all
+                            // (user 2026-11-18: the processor read full while QNC used half of it).
+                            let ours: Vec<String> = used.iter().filter(|(name, _)| crate::MEASURED.contains(&name.as_str())).map(|(name, cores)| format!("{name}={cores:.2}")).collect();
+                            let mut others: Vec<&(String, f64)> = used.iter().filter(|(name, cores)| !crate::MEASURED.contains(&name.as_str()) && *cores >= 0.05).collect();
+                            others.sort_by(|a, b| b.1.total_cmp(&a.1));
+                            let others: Vec<String> = others.iter().take(6).map(|(name, cores)| format!("{name}={cores:.2}")).collect();
+                            let all: f64 = used.iter().map(|(_, cores)| cores).sum();
+                            trace(format!("cpu cores {} | others {} | all={all:.2} of {cores}", ours.join(" "), others.join(" ")));
                         }
                     }
                     if let Some(decision) = conductor.tick(now) {
