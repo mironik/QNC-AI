@@ -34,6 +34,9 @@ pub struct MenuItem {
     pub text: String,
     /// A line that only tells (where the story is): grey, nothing happens on it.
     pub enabled: bool,
+    /// A box with a tick drawn before the text: `Some(true)` ticked, `Some(false)` empty, `None` no
+    /// box (user 2026-11-18: the tray's mode is a choice kept on the computer).
+    pub check: Option<bool>,
 }
 
 /// The icon in the tray; it goes away when this is dropped.

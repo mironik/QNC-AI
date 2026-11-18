@@ -275,7 +275,7 @@ unsafe fn menu(window: HWND) -> Option<u32> {
     let items = SHARED.lock().ok()?.as_ref()?.menu.clone();
     let popup = CreatePopupMenu();
     // Drawn by the tray in QNC-AI's look (`menu_look`): the item's data is its index.
-    crate::menu_look::hold(items.iter().map(|item| item.text.encode_utf16().collect()).collect());
+    crate::menu_look::hold(items.iter().map(|item| (item.text.encode_utf16().collect(), item.check)).collect());
     let ground = crate::menu_look::ground(popup);
     for (at, item) in items.iter().enumerate() {
         let flags = if item.enabled { MF_OWNERDRAW } else { MF_OWNERDRAW | MF_GRAYED };

@@ -39,24 +39,23 @@ fn log(line: String) {
 /// mode, Import from a folder, Admin, Quit.
 fn menu(running: usize, active: usize, mode: Option<qnc_tray_mode::Mode>) -> Vec<MenuItem> {
     let mut items = vec![
-        MenuItem { id: STATUS, text: status(running, active), enabled: false },
+        MenuItem { id: STATUS, text: status(running, active), enabled: false, check: None },
         // Every process the tray started, with the windows and the background work (user
         // 2026-11-17: "treba indikacija u tray-u i dugme za prekid").
-        MenuItem { id: STOP_ALL, text: text("tray.stop_all"), enabled: active > 0 },
+        MenuItem { id: STOP_ALL, text: text("tray.stop_all"), enabled: active > 0, check: None },
     ];
     // How the tray works on this computer (user 2026-11-18): Local with Breaking news or Story, or
-    // Net; the one chosen has a tick.
+    // Net; the one chosen has its box ticked (kept on the computer, read at every start).
     for (i, choice) in qnc_tray_mode::ALL.into_iter().enumerate() {
-        let tick = if mode == Some(choice) { "✓" } else { "    " };
-        items.push(MenuItem { id: MODE_FIRST + i as u32, text: format!("{tick} {}", text(choice.label())), enabled: true });
+        items.push(MenuItem { id: MODE_FIRST + i as u32, text: text(choice.label()), enabled: true, check: Some(mode == Some(choice)) });
     }
     items.extend([
         // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
         // browser (user 2026-11-13).
-        MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true },
+        MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true, check: None },
         // The administrator's way in: the bases and, from there, the settings (user 2026-11-16).
-        MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true },
-        MenuItem { id: QUIT, text: text("tray.quit"), enabled: true },
+        MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true, check: None },
+        MenuItem { id: QUIT, text: text("tray.quit"), enabled: true, check: None },
     ]);
     items
 }
