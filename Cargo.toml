@@ -267,6 +267,7 @@ qnc-transcript-db = { path = "../QNC-shared/crates/qnc-transcript-db" }
 qnc-transport-panel = { path = "../QNC-shared/crates/qnc-transport-panel" }
 qnc-transport-resolver = { path = "../QNC-shared/crates/qnc-transport-resolver" }
 qnc-tray = { path = "crates/qnc-tray" }
+qnc-tray-mode = { path = "crates/qnc-tray-mode" }
 qnc-trim-overlay = { path = "../QNC-shared/crates/qnc-trim-overlay" }
 qnc-ui-kit = { path = "../QNC-shared/crates/qnc-ui-kit" }
 qnc-ui-text = { path = "../QNC-shared/crates/qnc-ui-text" }

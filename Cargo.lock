@@ -3949,6 +3949,7 @@ dependencies = [
  "qnc-process-job",
  "qnc-source-volumes",
  "qnc-tray",
+ "qnc-tray-mode",
  "qnc-wizard-text",
  "qnc-work-settings",
 ]
@@ -8207,6 +8208,14 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-wizard-text",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "qnc-tray-mode"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

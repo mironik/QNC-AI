@@ -20,6 +20,8 @@ const QUIT: u32 = 3;
 const ADMIN: u32 = 4;
 const INGEST_FOLDER: u32 = 8;
 const STOP_ALL: u32 = 9;
+/// The first of the tray's modes in the menu (`qnc_tray_mode::ALL` in order).
+const MODE_FIRST: u32 = 20;
 /// How often the disks are looked at.
 const LOOK: Duration = Duration::from_secs(2);
 /// How often a missing camera catalog is read again.
@@ -33,21 +35,30 @@ fn log(line: String) {
     log_line(DiagnosticsStream::Player, format!("ai-tray {line}"));
 }
 
-/// The menu: what runs (a line that only tells), Stop all the work (while any runs), Import from a
-/// folder, Settings, Quit.
-fn menu(running: usize, active: usize) -> Vec<MenuItem> {
-    vec![
+/// The menu: what runs (a line that only tells), Stop all the work (while any runs), the tray's
+/// mode, Import from a folder, Admin, Quit.
+fn menu(running: usize, active: usize, mode: Option<qnc_tray_mode::Mode>) -> Vec<MenuItem> {
+    let mut items = vec![
         MenuItem { id: STATUS, text: status(running, active), enabled: false },
         // Every process the tray started, with the windows and the background work (user
         // 2026-11-17: "treba indikacija u tray-u i dugme za prekid").
         MenuItem { id: STOP_ALL, text: text("tray.stop_all"), enabled: active > 0 },
+    ];
+    // How the tray works on this computer (user 2026-11-18): Local with Breaking news or Story, or
+    // Net; the one chosen has a tick.
+    for (i, choice) in qnc_tray_mode::ALL.into_iter().enumerate() {
+        let tick = if mode == Some(choice) { "✓" } else { "    " };
+        items.push(MenuItem { id: MODE_FIRST + i as u32, text: format!("{tick} {}", text(choice.label())), enabled: true });
+    }
+    items.extend([
         // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
         // browser (user 2026-11-13).
         MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true },
         // The administrator's way in: the bases and, from there, the settings (user 2026-11-16).
         MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true },
         MenuItem { id: QUIT, text: text("tray.quit"), enabled: true },
-    ]
+    ]);
+    items
 }
 
 /// What runs, in one line: the ingest windows, else the work left in the background (a window
@@ -85,7 +96,13 @@ fn main() {
             return;
         }
     };
-    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(0, 0), Some(qnc_app_mark::qnc_mark)) {
+    // The tray's mode on this computer; none chosen yet: the tray only ingests, as before.
+    let mut mode = qnc_tray_mode::read(&root).unwrap_or_else(|error| {
+        log(format!("mode not read: {error}"));
+        None
+    });
+    log(format!("mode {mode:?}"));
+    let tray = match Tray::start(&format!("{}: {}", text("tray.title"), text("tray.waiting")), menu(0, 0, mode), Some(qnc_app_mark::qnc_mark)) {
         Ok(tray) => tray,
         Err(error) => {
             log(format!("not started: {error}"));
@@ -110,7 +127,7 @@ fn main() {
     let (profiles, _) = qnc_camera_profiles::read_profiles(&root.join(qnc_camera_profiles::PROFILE_DIR));
     log(format!("root {}", root.display()));
     let mut ingest = Windows { open: Vec::new(), job, admin: None, bases: Vec::new() };
-    let mut shown: Option<(usize, usize)> = None;
+    let mut shown: Option<(usize, usize, Option<qnc_tray_mode::Mode>)> = None;
     // The question before all the work is stopped: true when the user quits.
     let mut stop_asked: Option<(std::sync::mpsc::Receiver<Option<String>>, bool)> = None;
     // The bases to delete once their work has stopped (and whether the tray quits after), and the
@@ -130,13 +147,13 @@ fn main() {
     loop {
         let running = ingest.running();
         let active = ingest.work();
-        if shown != Some((running, active)) {
-            tray.set_menu(menu(running, active));
+        if shown != Some((running, active, mode)) {
+            tray.set_menu(menu(running, active, mode));
             tray.set_tip(&format!("{}: {}", text("tray.title"), status(running, active)));
-            if shown.is_some_and(|(_, was)| (was > 0) != (active > 0)) {
+            if shown.is_some_and(|(_, was, _)| (was > 0) != (active > 0)) {
                 log(format!("work running={running} processes={active}"));
             }
-            shown = Some((running, active));
+            shown = Some((running, active, mode));
         }
         // Stopping is asked what becomes of the partial ingest: kept (it goes on when the card is
         // put in again) or deleted (user 2026-11-17: "ako zaustavljam proces onda ne treba nuditi
@@ -216,6 +233,17 @@ fn main() {
                     Some(Err(error)) => fail(&tray, error),
                     None => {}
                 },
+                // A mode chosen in the menu is this computer's from now on.
+                TrayEvent::Menu(id) if (MODE_FIRST..MODE_FIRST + qnc_tray_mode::ALL.len() as u32).contains(&id) => {
+                    let chosen = qnc_tray_mode::ALL[(id - MODE_FIRST) as usize];
+                    match qnc_tray_mode::write(&root, chosen) {
+                        Ok(()) => {
+                            log(format!("mode chosen {chosen:?}"));
+                            mode = Some(chosen);
+                        }
+                        Err(error) => fail(&tray, error),
+                    }
+                }
                 TrayEvent::Menu(_) => {}
             }
         }

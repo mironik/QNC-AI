@@ -1,0 +1,9 @@
+[package]
+name = "qnc-tray-mode"
+version.workspace = true
+edition.workspace = true
+description = "QNC Wizard: how the tray works on this computer (Local with Breaking news or Story, or Net), a setting of the computer"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
