@@ -59,12 +59,14 @@ struct BaseInfo {
     written: (String, String, String),
     /// Closing was asked while the name was empty.
     needed: bool,
+    /// When the name was asked for (the second chance).
+    asked_at: Option<std::time::Instant>,
 }
 
 impl BaseInfo {
     fn of(known: qnc_ingest_base::IngestBase) -> Self {
         let written = (known.title.clone(), known.location.clone(), known.description.clone());
-        Self { title: known.title, location: known.location, description: known.description, written, needed: false }
+        Self { title: known.title, location: known.location, description: known.description, written, needed: false, asked_at: None }
     }
 
     /// Writes what was typed when it differs from what is written.
@@ -181,12 +183,27 @@ impl eframe::App for Window {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             return;
         }
-        // The window closes only once the base has its name (user 2026-11-15); what was typed is
-        // written as it closes.
+        // The window closes once the base has its name (user 2026-11-15); what was typed is written
+        // as it closes. Without one the user is asked once more (user 2026-11-18: "daj mu ponovnu
+        // mogućnost"); a second close, or `NAME_WAIT` after the ask, names the base by its camera,
+        // date and time.
+        if self.info.needed && self.info.title.trim().is_empty() {
+            if self.info.asked_at.is_some_and(|at| at.elapsed() >= NAME_WAIT) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+        }
         if ctx.input(|input| input.viewport().close_requested()) {
             if !self.cancelled && self.info.title.trim().is_empty() && !self.base.is_empty() {
-                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.info.needed = true;
+                if self.info.asked_at.is_none() {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                    self.info.needed = true;
+                    self.info.asked_at = Some(std::time::Instant::now());
+                } else {
+                    self.info.title = camera_and_time(&self.label);
+                    log(format!("ai-card-ingest base named by its camera and time: {}", self.info.title));
+                    self.info.keep(&self.root, &self.base);
+                }
             } else {
                 self.info.keep(&self.root, &self.base);
             }
@@ -528,4 +545,25 @@ fn main() -> eframe::Result<()> {
     };
     let bar = qnc_title_bar::TitleBar::new(title.to_string(), app.root.clone());
     eframe::run_native("QNC AI Card ingest", options, Box::new(move |_| Ok(Box::new(qnc_title_bar::Framed { bar, app }))))
+}
+
+/// How long the window waits for the name once asked again before it names the base itself.
+const NAME_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// A base's name by its camera, date and time: its label without the short id at its end
+/// ("Sony ILME-FX6V 2026-11-18 14:16:14 4f5c" -> "Sony ILME-FX6V 2026-11-18 14:16:14").
+fn camera_and_time(label: &str) -> String {
+    match label.trim().rsplit_once(' ') {
+        Some((rest, id)) if id.len() == 4 && id.chars().all(|c| c.is_ascii_hexdigit()) => rest.to_string(),
+        _ => label.trim().to_string(),
+    }
+}
+
+#[cfg(test)]
+mod name_tests {
+    #[test]
+    fn a_base_without_a_name_is_named_by_its_camera_date_and_time() {
+        assert_eq!(super::camera_and_time("Sony ILME-FX6V 2026-11-18 14:16:14 4f5c"), "Sony ILME-FX6V 2026-11-18 14:16:14");
+        assert_eq!(super::camera_and_time("Sony 2026-11-18 14:16:14"), "Sony 2026-11-18 14:16:14");
+    }
 }
