@@ -48,7 +48,7 @@ struct Window {
     delete_asked: bool,
     /// The card taken out by itself after a Cancel or the import.
     card_out: eject::CardOut,
-    /// The Wizard was opened after the copy (Breaking news), once.
+    /// The form of Breaking news was opened after the copy, once.
     desktop_opened: bool,
 }
 
@@ -218,11 +218,13 @@ impl eframe::App for Window {
         // copied, the work goes on in the background (user 2026-11-18). Once a card.
         let copied = status.progress.clips > 0 && status.progress.imported > 0 && status.progress.imported + status.progress.failed >= status.progress.clips;
         let breaking = qnc_tray_mode::read(&self.root).ok().flatten().filter(|mode| matches!(mode, qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews }));
-        if let Some(mode) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened) {
+        if let Some(form) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened).and_then(qnc_tray_mode::Mode::opens) {
             self.desktop_opened = true;
-            match qnc_wizard_open::open(&self.root, mode.opens()) {
-                Ok(opened) => log(format!("ai-card-ingest breaking news: the Wizard {opened:?}")),
-                Err(error) => log(format!("ai-card-ingest breaking news: the Wizard not opened: {error}")),
+            // The card's base is what is worked on: it becomes the active project, then the form opens.
+            let opened = qnc_ingest_base::open(&self.root, &self.base).and_then(|_| qnc_wizard_open::open(&self.root, form));
+            match opened {
+                Ok(opened) => log(format!("ai-card-ingest breaking news: {form} {opened:?}")),
+                Err(error) => log(format!("ai-card-ingest breaking news: {form} not opened: {error}")),
             }
         }
         if !self.cancelled && self.card_out.window_closes() {

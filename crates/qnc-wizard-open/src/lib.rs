@@ -1,14 +1,10 @@
-//! Opens the QNC Wizard's desktop (user 2026-11-18, the tray's Breaking news: "čim je kopija
-//! gotova, otvara se aplikacija"). Which forms it shows is the project's template: the desktop
-//! reads it from the active project, this block only starts it.
-//!
-//! The desktop is `qnc-app` beside this program; classic QNC has a program of the same name in
-//! another folder, so a running one counts only when it is this very file.
+//! Opens a form of the QNC Wizard (user 2026-11-18, the tray's Breaking news: "čim je kopija
+//! gotova, otvara se aplikacija", "ide na AI Media Assist"). The Wizard's forms are programs of
+//! their own beside this one (`qnc-media-assist-audio-ai`, `qnc-ingest`, ...); this block starts
+//! the one asked for unless that very file already runs (classic QNC has programs of the same
+//! names in another folder, so a running one counts only when it is this file).
 
 use std::path::{Path, PathBuf};
-
-/// The program of the Wizard's desktop.
-pub const DESKTOP: &str = "qnc-app";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opened {
@@ -17,45 +13,41 @@ pub enum Opened {
     Started,
 }
 
-/// Starts the Wizard's desktop for the QNC root `root` unless it already runs.
-/// `application` (its `application_id`) is the form it shows first.
-pub fn open(root: &Path, application: Option<&str>) -> Result<Opened, String> {
-    let desktop = qnc_plugin_process::beside_application(DESKTOP)?;
-    if runs(&desktop) {
+/// Starts the Wizard's form `program` (its program's name) for the QNC root `root` unless it already runs.
+pub fn open(root: &Path, program: &str) -> Result<Opened, String> {
+    let form = qnc_plugin_process::beside_application(program)?;
+    if runs(&form) {
         return Ok(Opened::Running);
     }
-    let mut command = std::process::Command::new(&desktop);
+    let mut command = std::process::Command::new(&form);
     command.current_dir(root).env("QNC_ROOT", root);
-    if let Some(application) = application {
-        command.arg("--open").arg(application);
-    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x0000_0008); // detached: it outlives the window that started it
     }
-    command.spawn().map(|_| Opened::Started).map_err(|error| format!("{}: {error}", desktop.display()))
+    command.spawn().map(|_| Opened::Started).map_err(|error| format!("{}: {error}", form.display()))
 }
 
 /// Whether a process of this very program runs now.
 fn runs(program: &Path) -> bool {
     let wanted = normal(program);
-    running_paths().iter().any(|path| normal(path) == wanted)
+    running_paths(program).iter().any(|path| normal(path) == wanted)
 }
 
 fn normal(path: &Path) -> String {
     let path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    path.to_string_lossy().trim_start_matches(r"\?\").to_lowercase()
+    path.to_string_lossy().trim_start_matches(r"\\?\").to_lowercase()
 }
 
 /// The full paths of the running programs (those this user may ask about).
 #[cfg(windows)]
-fn running_paths() -> Vec<PathBuf> {
+fn running_paths(program: &Path) -> Vec<PathBuf> {
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
     use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
     let mut paths = Vec::new();
-    let name = format!("{DESKTOP}.exe");
+    let name = program.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
     // SAFETY: a snapshot this function owns and closes; the entry and the buffer are sized; each
     // handle is closed.
     unsafe {
@@ -87,7 +79,7 @@ fn running_paths() -> Vec<PathBuf> {
 }
 
 #[cfg(not(windows))]
-fn running_paths() -> Vec<PathBuf> {
+fn running_paths(_program: &Path) -> Vec<PathBuf> {
     Vec::new()
 }
 

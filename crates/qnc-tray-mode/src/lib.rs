@@ -45,12 +45,12 @@ impl Mode {
         }
     }
 
-    /// The application the Wizard shows when this mode opens it (its `application_id`): Breaking
+    /// The Wizard's form this mode opens once a card is copied (its program's name): Breaking
     /// news opens AI Media Assist (user 2026-11-18: "otvoriti u brejking news ide na AI Media
     /// Assist"); the others open none.
     pub fn opens(self) -> Option<&'static str> {
         match self {
-            Mode::Local { work: Work::BreakingNews } => Some("qnc.media-assist-audio-ai"),
+            Mode::Local { work: Work::BreakingNews } => Some("qnc-media-assist-audio-ai"),
             Mode::Local { work: Work::Story } | Mode::Net => None,
         }
     }

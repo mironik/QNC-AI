@@ -103,9 +103,6 @@ pub struct QncShell {
     /// The program on an external screen (laptop + HDMI), its own process.
     program_output: qnc_program_output::ProgramOutput,
     paint_rate: paint_rate::PaintRate,
-    /// The application shown first once the active project has it (`--open <application_id>`; the
-    /// tray's Breaking news opens AI Media Assist, user 2026-11-18); cleared once shown or not there.
-    start_app: Option<String>,
 }
 
 /// How often the launch bar reads the active project again (the database is the truth).
@@ -139,14 +136,7 @@ impl QncShell {
             tabs_watch: None,
             program_output: qnc_program_output::ProgramOutput::default(),
             paint_rate: Default::default(),
-            start_app: None,
         }
-    }
-
-    /// Shows the application `application_id` first, once the active project has it.
-    pub fn opening(mut self, application_id: Option<String>) -> Self {
-        self.start_app = application_id;
-        self
     }
 
     fn activate_tab(&mut self, tab_id: &str) {
@@ -343,22 +333,6 @@ impl QncShell {
         }
         if let Some(error) = &self.tabs.error {
             self.status = error.clone();
-        }
-        if let Some(application_id) = self.start_app.clone() {
-            let tab = self.app_registry.entries().iter().find(|app| app.application_id == application_id).map(|app| app.tab_id.clone());
-            match tab {
-                Some(tab) if self.tabs.tab_ids.contains(&tab) => {
-                    self.start_app = None;
-                    self.activate_tab(&tab);
-                    return;
-                }
-                // The project is read and has no such application: the desktop shows what it does.
-                _ if self.tabs.project_open => {
-                    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("shell start application {application_id} is not an application of the project"));
-                    self.start_app = None;
-                }
-                _ => {}
-            }
         }
         if !self.tabs.tab_ids.contains(&self.active_tab) {
             if let Some(first) = self.tabs.tab_ids.first().cloned() {

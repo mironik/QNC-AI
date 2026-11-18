@@ -2,7 +2,7 @@
 name = "qnc-wizard-open"
 version = "0.1.0"
 edition = "2021"
-description = "QNC Wizard block: opens the Wizard's desktop (qnc-app beside this program) unless that very program already runs; the tray in Breaking news opens it once a card is copied"
+description = "QNC Wizard block: opens a form of the Wizard (its program beside this one) unless that very program already runs; the tray in Breaking news opens AI Media Assist once a card is copied"
 
 [dependencies]
 qnc-plugin-process = { workspace = true }
