@@ -137,6 +137,8 @@
     "card_ingest.done": "Ingest done",
     "card_ingest.cancel": "Cancel",
     "card_ingest.card_ejected": "The card is ejected: it can be taken out",
+    "card_ingest.card_out_notice": "The card is ejected and can be taken out. The import goes on in the background.",
+    "card_ingest.window_closes_in": "The window closes in {seconds} s",
     "card_ingest.card_not_ejected": "The card was not ejected: {error}",
     "card_ingest.cancel_title": "Cancel the ingest?",
     "card_ingest.cancel_subject": "All work still running stops; what is already made stays.",

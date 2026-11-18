@@ -199,6 +199,21 @@ impl eframe::App for Window {
             log("ai-card-ingest the card is out: the window closes".into());
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
+        // While it waits to close, the window says the card is out and the work goes on (user
+        // 2026-11-18: "treba dati obavijest koja traje desetak sekundi").
+        if let Some((notice, left)) = self.card_out.notice() {
+            egui::Area::new(egui::Id::new("card_out_notice")).order(egui::Order::Foreground).anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO).show(ctx, |ui| {
+                egui::Frame::popup(ui.style()).inner_margin(egui::Margin::same(24)).show(ui, |ui| {
+                    ui.set_max_width(420.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(egui::RichText::new(notice).size(20.0).strong());
+                        ui.add_space(8.0);
+                        ui.label(qnc_wizard_text::fill("card_ingest.window_closes_in", &[("seconds", &left.to_string())]));
+                    });
+                });
+            });
+            ctx.request_repaint_after(std::time::Duration::from_millis(250));
+        }
         if self.last != Some(status.phase) {
             log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
             self.last = Some(status.phase);

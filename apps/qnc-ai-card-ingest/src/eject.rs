@@ -11,6 +11,8 @@ use std::time::Duration;
 /// How long a disk still in use (the work stopping after a Cancel) is tried again.
 const TRIES: u32 = 40;
 const AGAIN: Duration = Duration::from_millis(500);
+/// How long the window shows that the card is out before it closes.
+const NOTICE: Duration = Duration::from_secs(10);
 
 pub(crate) struct CardOut {
     /// The card's volume serial (the window's `--card`); none for a folder.
@@ -24,11 +26,13 @@ pub(crate) struct CardOut {
     closes_window: bool,
     answer: Option<Receiver<Result<(), String>>>,
     said: Option<Result<(), String>>,
+    /// When the card was out after the import (the notice's start).
+    out_at: Option<std::time::Instant>,
 }
 
 impl CardOut {
     pub(crate) fn new(serial: Option<String>, free_when_imported: bool) -> Self {
-        Self { serial, free_when_imported, started: false, closes_window: false, answer: None, said: None }
+        Self { serial, free_when_imported, started: false, closes_window: false, answer: None, said: None, out_at: None }
     }
 
     /// The import has copied `imported` of `clips` clips, `failed` failed: the card goes out once
@@ -40,14 +44,25 @@ impl CardOut {
         }
     }
 
-    /// The card is out after the import: the window closes (said once; a window still waiting for
-    /// its base's name asks for it as at any close).
+    /// The card is out after the import: the window shows that for `NOTICE` (user 2026-11-18:
+    /// "treba dati obavijest koja traje desetak sekundi"), then closes (said once; a window still
+    /// waiting for its base's name asks for it as at any close).
     pub(crate) fn window_closes(&mut self) -> bool {
-        let closes = self.closes_window && matches!(self.said, Some(Ok(())));
+        if self.closes_window && matches!(self.said, Some(Ok(()))) && self.out_at.is_none() {
+            self.out_at = Some(std::time::Instant::now());
+        }
+        let closes = self.closes_window && self.out_at.is_some_and(|at| at.elapsed() >= NOTICE);
         if closes {
             self.closes_window = false;
         }
         closes
+    }
+
+    /// The notice the window shows over its view while it waits to close: the text and the seconds left.
+    pub(crate) fn notice(&self) -> Option<(String, u64)> {
+        let at = self.out_at.filter(|_| self.closes_window)?;
+        let left = NOTICE.saturating_sub(at.elapsed()).as_secs() + 1;
+        Some((qnc_wizard_text::text("card_ingest.card_out_notice").to_string(), left))
     }
 
     /// The card goes out (once).
