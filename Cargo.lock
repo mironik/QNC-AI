@@ -5533,6 +5533,7 @@ dependencies = [
  "qnc-missing-posters",
  "qnc-playback-activity",
  "qnc-player-clip-content",
+ "qnc-process-job",
  "qnc-record-completion",
  "qnc-shot-analysis",
  "qnc-shot-caption-run",

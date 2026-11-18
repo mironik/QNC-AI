@@ -240,7 +240,9 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             others.sort_by(|a, b| b.1.total_cmp(&a.1));
                             let others: Vec<String> = others.iter().take(6).map(|(name, cores)| format!("{name}={cores:.2}")).collect();
                             let all: f64 = used.iter().map(|(_, cores)| cores).sum();
-                            trace(format!("cpu cores {} | others {} | all={all:.2} of {cores}", ours.join(" "), others.join(" ")));
+                            // The job counts every program of the ingest, the short ones ended between two looks too.
+                            let job = programs.job_cores().map_or_else(|| "?".to_string(), |cores| format!("{cores:.2}"));
+                            trace(format!("cpu cores {} | others {} | all={all:.2} job={job} of {cores}", ours.join(" "), others.join(" ")));
                         }
                     }
                     if let Some(decision) = conductor.tick(now) {

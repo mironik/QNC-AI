@@ -9,6 +9,7 @@ name = "qnc-ingest-worker"
 path = "src/main.rs"
 
 [dependencies]
+qnc-process-job = { workspace = true }
 qnc-done-count = { workspace = true }
 qnc-ingest-plan = { workspace = true }
 qnc-ui-text = { workspace = true }

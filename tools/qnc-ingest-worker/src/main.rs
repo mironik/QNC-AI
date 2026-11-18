@@ -503,10 +503,13 @@ fn times() -> Option<(u64, u64)> {
 }
 
 /// What each program of the ingest uses of the processor (user 2026-11-17: "i dalje ne mjeriš"):
-/// the processor time of every process by its name, between two calls, in cores.
+/// the processor time of every process by its name, between two calls, in cores; and the job's,
+/// which counts the programs that started and ended between two calls too.
 pub(crate) struct Programs {
     last: std::collections::HashMap<u32, (String, u64)>,
     at: std::time::Instant,
+    job: Option<u64>,
+    job_cores: Option<f64>,
 }
 
 /// The ingest's own programs (their executables' names without the extension); every other
@@ -515,7 +518,7 @@ pub(crate) const MEASURED: [&str; 7] = ["qnc-transcribe-parakeet", "ffmpeg", "qn
 
 impl Programs {
     pub(crate) fn new() -> Self {
-        Self { last: Default::default(), at: std::time::Instant::now() }
+        Self { last: Default::default(), at: std::time::Instant::now(), job: qnc_process_job::Job::own_processor_time(), job_cores: None }
     }
 
     /// Cores each measured program used since the last call, by name (the first call: none).
@@ -523,6 +526,9 @@ impl Programs {
         let now = process_times();
         let span = self.at.elapsed().as_secs_f64();
         self.at = std::time::Instant::now();
+        let job = qnc_process_job::Job::own_processor_time();
+        self.job_cores = job.zip(self.job).map(|(now, was)| now.saturating_sub(was) as f64 / 1e7 / span.max(0.001));
+        self.job = job;
         let mut used: std::collections::BTreeMap<String, f64> = Default::default();
         for (pid, (name, time)) in &now {
             if let Some((_, was)) = self.last.get(pid) {
@@ -535,6 +541,11 @@ impl Programs {
             return Vec::new();
         }
         used.into_iter().collect()
+    }
+
+    /// Cores every process of the job used over the last `used` span (ended ones too).
+    pub(crate) fn job_cores(&self) -> Option<f64> {
+        self.job_cores
     }
 }
 

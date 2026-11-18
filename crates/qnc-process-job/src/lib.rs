@@ -56,6 +56,27 @@ impl Job {
         Ok(())
     }
 
+    /// The processor time (100 ns units, user and kernel) of every process ever in the job of the
+    /// calling process, ended ones too; none outside a job or where it is not read (user
+    /// 2026-11-18: short programs ended between two looks at the processes were never counted).
+    pub fn own_processor_time() -> Option<u64> {
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::System::JobObjects::{JobObjectBasicAccountingInformation, QueryInformationJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION};
+            // SAFETY: the structure is zeroed and sized; a null handle is the caller's own job.
+            unsafe {
+                let mut info: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = std::mem::zeroed();
+                let size = std::mem::size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32;
+                if QueryInformationJobObject(std::ptr::null_mut(), JobObjectBasicAccountingInformation, std::ptr::from_mut(&mut info).cast(), size, std::ptr::null_mut()) == 0 {
+                    return None;
+                }
+                Some((info.TotalUserTime + info.TotalKernelTime) as u64)
+            }
+        }
+        #[cfg(not(windows))]
+        None
+    }
+
     /// How many processes of the job run now.
     pub fn active(&self) -> usize {
         #[cfg(windows)]
