@@ -44,6 +44,13 @@ impl CardOut {
         }
     }
 
+    /// The card's eject is over, or none comes (no card, or the base still reads it): what holds the
+    /// card (a form opened over it) may start now without vetoing the eject (2026-11-18 log: AI Media
+    /// Assist opened 40 ms before the eject and the system refused it, the card in use).
+    pub(crate) fn settled(&self) -> bool {
+        self.serial.is_none() || !self.free_when_imported || self.said.is_some()
+    }
+
     /// The card is out after the import: the window shows that for `NOTICE` (user 2026-11-18:
     /// "treba dati obavijest koja traje desetak sekundi"), then closes (said once; a window still
     /// waiting for its base's name asks for it as at any close).
