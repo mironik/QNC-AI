@@ -16,6 +16,12 @@ const OVER: u32 = 4;
 
 /// The mark, `size` x `size` pixels, rows top to bottom, four bytes a pixel (R, G, B, A).
 pub fn qnc_mark(size: u32) -> Vec<u8> {
+    qnc_mark_on(size, BACK)
+}
+
+/// The mark on a square of the colour `colour` (user 2026-11-18: the shortcuts of QNC, QNC Wizard
+/// and QNC Tray differ only in the colour behind the letters).
+pub fn qnc_mark_on(size: u32, colour: [u8; 3]) -> Vec<u8> {
     let size = size.max(8);
     let big = size * OVER;
     let mut cover = vec![0f32; (big * big) as usize];
@@ -45,7 +51,7 @@ pub fn qnc_mark(size: u32) -> Vec<u8> {
             let (alpha, text) = (back / samples, text / samples);
             let share = if alpha > 0.0 { (text / alpha).min(1.0) } else { 0.0 };
             for channel in 0..3 {
-                let value = f32::from(BACK[channel]) * (1.0 - share) + f32::from(TEXT[channel]) * share;
+                let value = f32::from(colour[channel]) * (1.0 - share) + f32::from(TEXT[channel]) * share;
                 pixels.push(value.round() as u8);
             }
             pixels.push((alpha * 255.0).round() as u8);
