@@ -28,8 +28,7 @@
   },
   "transcribe": {
     "selected": "wav2vec2.parlaspeech-hr.cpu",
-    "fast": "parakeet.tdt-0.6b-v3-fp32.directml",
-    "fast_with": ["parakeet.tdt-0.6b-v3.cpu"],
+    "fast": "parakeet.tdt-0.6b-v3.cpu",
     "engines": [
       {
         "id": "whisper.large-v3-turbo.vulkan",
@@ -60,7 +59,7 @@
         "backend": "cpu",
         "model": "share:models/parakeet-tdt-0.6b-v3-int8",
         "threads": 2,
-        "parallel": 2
+        "parallel": 3
       },
       {
         "id": "parakeet.tdt-0.6b-v3-fp32.directml",
