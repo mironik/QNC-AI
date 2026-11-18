@@ -6,6 +6,8 @@
 
 #![windows_subsystem = "windows"]
 
+mod eject;
+
 use eframe::egui::{self, RichText};
 use qnc_card_ingest::{CardIngest, Phase, Status};
 use qnc_wizard_text::{fill, text};
@@ -44,6 +46,8 @@ struct Window {
     /// After the cancel: whether the partial import of the base is deleted or kept (user
     /// 2026-11-17: "pitaj hoćete li obrisati ili zadržati djelomični import baze").
     delete_asked: bool,
+    /// The card taken out by itself after a Cancel or the import.
+    card_out: eject::CardOut,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -187,6 +191,14 @@ impl eframe::App for Window {
                 self.info.keep(&self.root, &self.base);
             }
         }
+        // The card out once the import has copied it whole (when the base needs it no more); the
+        // window closes when it is out, the work goes on in the background.
+        self.card_out.imported(status.progress.clips, status.progress.imported, status.progress.failed);
+        let card_said = self.card_out.said();
+        if !self.cancelled && self.card_out.window_closes() {
+            log("ai-card-ingest the card is out: the window closes".into());
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
         if self.last != Some(status.phase) {
             log(format!("ai-card-ingest {:?} {:?} cameras={:?}", status.phase, status.progress, status.cameras));
             self.last = Some(status.phase);
@@ -273,6 +285,9 @@ impl eframe::App for Window {
             if let Some(time) = self.took.or(elapsed) {
                 sub.push(fill("card_ingest.elapsed", &[("time", &clock(time))]));
             }
+            if let Some(said) = &card_said {
+                sub.push(said.clone());
+            }
             if !sub.is_empty() {
                 let sub = ui.label(RichText::new(sub.join("   ·   ")).size(theme.font_ui + look.get("subtitle_size")).color(theme.text_muted));
                 look.mark(ui, sub.rect, "subtitle_size", Grows::Up);
@@ -346,6 +361,8 @@ impl eframe::App for Window {
                     let running: Vec<&'static str> = status.progress.bars().iter().filter(|bar| !bar.stopped && bar.done < status.progress.clips).map(|bar| bar.function).collect();
                     log(format!("ai-card-ingest cancelled by the user: stops {running:?}"));
                     qnc_card_ingest::stop_all(&self.root, running);
+                    // The card goes out (tried again while the stopping work still has it open).
+                    self.card_out.start("cancel");
                     self.cancel_asked = false;
                     self.cancelled = true;
                     self.delete_asked = true;
@@ -482,7 +499,8 @@ fn main() -> eframe::Result<()> {
             return Ok(());
         }
     };
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false };
+    let card_out = eject::CardOut::new(card.clone(), card.is_some() && eject::free_when_imported(&root, &base));
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false, card_out };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;

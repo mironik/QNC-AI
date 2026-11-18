@@ -3753,6 +3753,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-base-admin",
+ "qnc-card-eject",
  "qnc-card-ingest",
  "qnc-confirm-dialog",
  "qnc-dev-diagnostics",
@@ -3761,6 +3762,8 @@ dependencies = [
  "qnc-ingest-base",
  "qnc-ingest-blocks",
  "qnc-ingest-layout",
+ "qnc-ingest-work-plan",
+ "qnc-source-volumes",
  "qnc-title-bar",
  "qnc-tray",
  "qnc-ui-kit",

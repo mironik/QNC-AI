@@ -22,3 +22,6 @@ qnc-ui-kit = { workspace = true }
 qnc-form-look = { workspace = true }
 qnc-confirm-dialog = { workspace = true }
 qnc-base-admin = { workspace = true }
+qnc-card-eject = { workspace = true }
+qnc-source-volumes = { workspace = true }
+qnc-ingest-work-plan = { workspace = true }

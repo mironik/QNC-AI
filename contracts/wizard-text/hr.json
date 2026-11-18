@@ -136,6 +136,8 @@
     "card_ingest.running": "Ingest u tijeku",
     "card_ingest.done": "Ingest je gotov",
     "card_ingest.cancel": "Odustani",
+    "card_ingest.card_ejected": "Kartica je izbačena: može se izvaditi",
+    "card_ingest.card_not_ejected": "Kartica nije izbačena: {error}",
     "card_ingest.cancel_title": "Prekinuti ingest?",
     "card_ingest.cancel_subject": "Sav rad koji još traje se zaustavlja; ono što je napravljeno ostaje.",
     "card_ingest.cancel_no": "Nastavi",
