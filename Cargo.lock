@@ -3766,8 +3766,10 @@ dependencies = [
  "qnc-source-volumes",
  "qnc-title-bar",
  "qnc-tray",
+ "qnc-tray-mode",
  "qnc-ui-kit",
  "qnc-window-front",
+ "qnc-wizard-open",
  "qnc-wizard-text",
  "qnc-work-progress-view",
  "qnc-work-settings",
@@ -8475,6 +8477,14 @@ dependencies = [
  "qnc-wizard-steps",
  "qnc-wizard-text",
  "rusqlite",
+]
+
+[[package]]
+name = "qnc-wizard-open"
+version = "0.1.0"
+dependencies = [
+ "qnc-plugin-process",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

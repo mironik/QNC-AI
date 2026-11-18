@@ -48,6 +48,8 @@ struct Window {
     delete_asked: bool,
     /// The card taken out by itself after a Cancel or the import.
     card_out: eject::CardOut,
+    /// The Wizard was opened after the copy (Breaking news), once.
+    desktop_opened: bool,
 }
 
 /// The name, place and description of the base, typed and written.
@@ -212,6 +214,16 @@ impl eframe::App for Window {
         // window closes when it is out, the work goes on in the background.
         self.card_out.imported(status.progress.clips, status.progress.imported, status.progress.failed);
         let card_said = self.card_out.said();
+        // Breaking news on this computer (the tray's setting): the Wizard opens as soon as the card is
+        // copied, the work goes on in the background (user 2026-11-18). Once a card.
+        let copied = status.progress.clips > 0 && status.progress.imported > 0 && status.progress.imported + status.progress.failed >= status.progress.clips;
+        if !self.cancelled && copied && !self.desktop_opened && matches!(qnc_tray_mode::read(&self.root), Ok(Some(qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews }))) {
+            self.desktop_opened = true;
+            match qnc_wizard_open::open(&self.root) {
+                Ok(opened) => log(format!("ai-card-ingest breaking news: the Wizard {opened:?}")),
+                Err(error) => log(format!("ai-card-ingest breaking news: the Wizard not opened: {error}")),
+            }
+        }
         if !self.cancelled && self.card_out.window_closes() {
             log("ai-card-ingest the card is out: the window closes".into());
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -532,7 +544,7 @@ fn main() -> eframe::Result<()> {
         }
     };
     let card_out = eject::CardOut::new(card.clone(), card.is_some() && eject::free_when_imported(&root, &base));
-    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false, card_out };
+    let app = Window { root, contracts, ingest, last: None, started: None, took: None, done_after: Default::default(), on_top: Default::default(), folder_asked, base, info, label, look, cancel_asked: false, cancelled: false, delete_asked: false, card_out, desktop_opened: false };
     // `--place <n>`: the n-th ingest window open (the tray counts them); each opens down and to
     // the right of the one before, not behind it (user 2026-11-14).
     let place = std::env::args().skip_while(|arg| arg != "--place").nth(1).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0) % 8;
