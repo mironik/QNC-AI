@@ -100,6 +100,7 @@ mod tests {
             location: location.into(),
             description: String::new(),
             analysis: analysis.into(),
+            operator: String::new(),
         }
     }
 
