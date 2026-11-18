@@ -1,4 +1,4 @@
-//! Writes the mark as a Windows icon (16 to 256 pixels in one file) for the shortcuts on the desktop
+//! Writes the mark as a Windows icon (assets/qnc.ico) (16 to 256 pixels in one file) for the shortcuts on the desktop
 //! and in the Start menu (user 2026-11-18): `save_ico <file.ico>`.
 
 fn main() -> Result<(), String> {
