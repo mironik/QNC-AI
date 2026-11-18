@@ -65,6 +65,10 @@ impl StreamTranscript {
             }
             _ => {}
         }
+        // A clip shown: the engine is loaded before its play.
+        if let (Some(locator), Some(_)) = (locator, clip) {
+            warm(locator);
+        }
         if self.running.is_some() || !plays {
             return;
         }
@@ -134,4 +138,24 @@ fn stream(locator: &StillLocator, clip_id: &str, start: u64, playhead: &AtomicU6
         qnc_transcript_db::save(&target, transcript)?;
         at = to;
     }
+}
+
+/// Loads the fine engine's model once per process, before the first play (user 2026-11-18: the
+/// first piece waited 19 s for it): one second of silence heard on a thread of its own.
+fn warm(locator: &StillLocator) {
+    static WARMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    let settings = locator.settings();
+    if !settings.ai_feature(qnc_ai_features::TRANSCRIPTION).unwrap_or(false) || WARMED.swap(true, Ordering::Relaxed) {
+        return;
+    }
+    let Ok(language) = settings.speech_language() else { return };
+    if language != "hr" {
+        return;
+    }
+    let _ = std::thread::Builder::new().name("qnc-stream-transcript-warm".into()).spawn(move || {
+        let silence = vec![0.0f32; qnc_transcribe_jobs::WHISPER_RATE as usize];
+        let began = std::time::Instant::now();
+        let result = qnc_transcribe_run::hear_samples(&silence, &language, &AtomicBool::new(false));
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("stream-transcript warm ms={} ok={}", began.elapsed().as_millis(), result.is_ok()));
+    });
 }

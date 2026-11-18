@@ -81,11 +81,9 @@ fn segments(words: Vec<Word>) -> Vec<Segment> {
 
 fn main() {
     qnc_dev_diagnostics::log_panics("qnc-transcribe-wav2vec2");
-    #[cfg(windows)]
-    unsafe {
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
-        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
-    }
+    // Normal priority (user 2026-11-18): it hears the clip while it plays, ahead of the playhead,
+    // and must not wait behind the background's below-normal programs (the 2026-11-18 log: 6 s of
+    // speech took 6 s beside SigLIP).
     let mut engine = Wav2Vec2Engine::default();
     if let Err(error) = qnc_transcribe_jobs::serve(&mut engine, "qnc.transcribe.wav2vec2", env!("CARGO_PKG_VERSION"), "wav2vec2 ctc parlaspeech-hr (candle)") {
         eprintln!("{error}");

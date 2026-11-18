@@ -720,6 +720,7 @@ mod tests {
             language: "hr".into(),
             engine: "e".into(),
             lines: vec![line(0, 100, "prva"), line(200, 300, "druga"), line(400, 500, "treca")],
+            fine: false,
         }];
         let heard = [line(210, 290, "nova druga")];
         let shown = lines(&kept, Some(((150, 350), &heard)));

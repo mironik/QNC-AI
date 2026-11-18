@@ -12,4 +12,5 @@ qnc-db-broker = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-still-locator = { workspace = true }
 qnc-transcribe-run = { workspace = true }
+qnc-transcribe-jobs = { workspace = true }
 qnc-transcript-db = { workspace = true }

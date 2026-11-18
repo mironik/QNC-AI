@@ -91,6 +91,7 @@ fn a_statement_shows_the_words_of_its_range_with_their_timecodes() {
         language: "hr".into(),
         engine: "test".into(),
         lines: vec![line(vec![word(90, 100, "prije"), word(100, 120, "Dobar"), word(120, 140, "dan.")]), line(vec![word(150, 170, "Kako"), word(170, 195, "ste?"), word(300, 320, "poslije")])],
+        fine: false,
     }];
     let words = crate::view::timed_words(&transcripts, &part("c", 100, 200, 0), &[], |frame| format!("tc{frame}"));
     let shown: Vec<(&str, &str, bool)> = words.iter().map(|w| (w.text.as_str(), w.tc.as_str(), w.line)).collect();
@@ -104,7 +105,7 @@ fn a_word_cut_by_letters_shows_the_letters_the_part_still_says() {
     use qnc_letter_db::{Letter, WordLetters};
     let word = qnc_transcript_db::Word { from: 100, to: 120, text: "pa,".into() };
     let line = qnc_transcript_db::Line { from: 100, to: 120, text: "pa,".into(), words: vec![word] };
-    let transcript = qnc_transcript_db::ClipTranscript { clip_id: "c".into(), from_frame: 0, to_frame: 500, language: "hr".into(), engine: "e".into(), lines: vec![line] };
+    let transcript = qnc_transcript_db::ClipTranscript { clip_id: "c".into(), from_frame: 0, to_frame: 500, language: "hr".into(), engine: "e".into(), lines: vec![line], fine: false };
     let letter = |letter: char, from: Option<f64>, to: Option<f64>| Letter { letter, from, to };
     let laid = [WordLetters { word_from: 100, text: "pa,".into(), letters: vec![letter('p', Some(100.0), Some(108.0)), letter('a', Some(108.0), Some(120.0)), letter(',', None, None)] }];
     let words = crate::view::timed_words(std::slice::from_ref(&transcript), &part("c", 108, 200, 0), &laid, |_| String::new());

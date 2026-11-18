@@ -7821,6 +7821,7 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-media-metadata",
  "qnc-still-locator",
+ "qnc-transcribe-jobs",
  "qnc-transcribe-run",
  "qnc-transcript-db",
 ]

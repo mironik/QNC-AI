@@ -125,6 +125,8 @@ pub fn transcribe(locator: &StillLocator, ask: &Ask, quality: Quality, pace: Pac
         // pieces of a clip went to more than one).
         engine: made_by,
         lines,
+        // The fine engine of the language: a later fast transcript never says over it.
+        fine: quality == Quality::Best,
     })
 }
 

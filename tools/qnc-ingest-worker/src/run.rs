@@ -161,7 +161,12 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             _ => false,
         }
     };
-    let held = |step: Step| if breaking { breaking_held(step) } else { ai_before_busy(step) };
+    // While a clip plays all the background waits (user 2026-11-18: "pozadinske zaustavi dok radi
+    // play"): the conductor gives no place, the transcription and the AI hold; the copy and the
+    // records do not wait (their own rules).
+    let level = qnc_playback_activity::playback_level(stop_target.clone());
+    let playing = || level() == qnc_playback_activity::PlaybackLevel::Playing;
+    let held = |step: Step| playing() || if breaking { breaking_held(step) } else { ai_before_busy(step) };
     let may_start = |step: Step| match plan.stage_of(step) {
         Some(0) | None => true,
         Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
@@ -273,7 +278,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         // queue still hears it (2026-11-17 test: the last two clips held for ever); the queue ends
                         // the transcription itself.
                         // In Breaking news it waits for the steps before it.
-                        let places = if breaking && held(Step::Transcripts) { 0 } else { conductor.places(Step::Transcripts.code()).max(1) };
+                        let places = if (breaking || playing()) && held(Step::Transcripts) { 0 } else { conductor.places(Step::Transcripts.code()).max(1) };
                         qnc_transcribe_run::set_places(places);
                     }
                 }

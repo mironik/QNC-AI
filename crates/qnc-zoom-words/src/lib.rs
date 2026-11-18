@@ -344,7 +344,7 @@ mod tests {
         // A 25p clip in a 50p story: two program frames per clip frame.
         assert_eq!(to_source(1000, 1200, 300, 400, 1100), 350);
         assert_eq!(to_axis(1000, 1200, 300, 400, 350), 1100);
-        let kept = vec![ClipTranscript { clip_id: "c".into(), from_frame: 200, to_frame: 500, language: "hr".into(), engine: "e".into(), lines: Vec::new() }];
+        let kept = vec![ClipTranscript { clip_id: "c".into(), from_frame: 200, to_frame: 500, language: "hr".into(), engine: "e".into(), lines: Vec::new(), fine: false }];
         let need = |first, last| Need { clip_id: "c".into(), channel: 0, first, last, piece: (0, 0, 0, 0) };
         assert!(covered(&kept, &need(300, 400)));
         assert!(!covered(&kept, &need(450, 550)));

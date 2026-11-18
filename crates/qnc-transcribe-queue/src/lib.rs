@@ -302,6 +302,7 @@ fn keep_part(db: &ProjectDbTarget, asked: &Queued, until: u64, lines: &[Line], l
         language: language.to_string(),
         engine: PART_ENGINE.to_string(),
         lines: lines.iter().filter(|line| line.from >= asked.from_frame && line.to <= until).cloned().collect(),
+        fine: asked.quality == QueueQuality::Best,
     };
     if let Err(error) = qnc_transcript_db::save(db, part) {
         log(&format!("transcribe-queue keep part {} ..{until}: {error}", asked.clip_id));

@@ -560,6 +560,7 @@ mod tests {
             language: "hr".into(),
             engine: "e".into(),
             lines: vec![Line { from: 0, to: 300, text: String::new(), words: vec![word(0, 40, "prije"), word(100, 140, "luka"), word(150, 190, "i"), word(200, 260, "brodovi"), word(400, 420, "poslije")] }],
+            fine: false,
         };
         let heard = vec![qnc_script_db::HeardWord { text: "more".into(), start: 1.0, end: 1.4 }, qnc_script_db::HeardWord { text: "kasnije".into(), start: 9.0, end: 9.5 }];
         let pieces = [Piece { clip_id: "voice-off1".into(), from: 0, to: 100 }, Piece { clip_id: "c".into(), from: 90, to: 300 }];

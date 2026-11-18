@@ -599,6 +599,7 @@ mod tests {
             language: "hr".into(),
             engine: "e".into(),
             lines: vec![Line { from: 0, to: 300, text: "w w".into(), words: vec![word(0, 100), word(50, 200)] }],
+            fine: false,
         };
         assert_eq!(spoken_share(&[transcript.clone()], 0, 400), Some(0.5), "words overlapping are counted once");
         assert_eq!(spoken_share(&[transcript.clone()], 500, 900), Some(0.0));
