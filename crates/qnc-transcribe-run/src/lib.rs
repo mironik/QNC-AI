@@ -571,7 +571,7 @@ struct Job<'a> {
 impl Job<'_> {
     /// Clip frames `[from, to)` now: read where they are and transcribed.
     fn piece(&self, from: u64, to: u64, cancel: &AtomicBool, on_line: &mut dyn FnMut(&Line)) -> Result<(Vec<Line>, String, String), String> {
-        let sound = qnc_sound_range::read(self.place, self.channel, from, to, &mut |_| !cancel.load(Ordering::Relaxed))?;
+        let sound = qnc_sound_range::read_quick(self.place, self.channel, from, to, cancel)?;
         if cancel.load(Ordering::Relaxed) {
             return Err(qnc_ui_text::text("transcribe.cancelled").into());
         }

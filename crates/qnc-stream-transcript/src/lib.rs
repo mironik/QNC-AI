@@ -162,7 +162,32 @@ fn stream(locator: &StillLocator, clip_id: &str, playhead: &AtomicU64, plays: &A
         let to = end.map_or(at + PIECE_SECONDS * second, |end| (at + PIECE_SECONDS * second).min(end));
         let ask = qnc_transcribe_run::Ask { clip_id: clip_id.to_string(), from: at.saturating_sub(LEAD_SECONDS * second), to };
         let began = std::time::Instant::now();
-        let mut transcript = qnc_transcribe_run::transcribe(locator, &ask, quality, qnc_transcribe_run::Pace::Now, stop, &mut |_| {}, &mut |_| {})?;
+        // A piece ends when the streaming ends or the clip starts or stops playing (live
+        // 2026-11-19: a fine piece begun in a pause took 23 s once the player played): the next
+        // piece is then heard by the engine of the new state.
+        let (cut, done) = (AtomicBool::new(false), AtomicBool::new(false));
+        let heard = std::thread::scope(|scope| {
+            scope.spawn(|| {
+                while !done.load(Ordering::Relaxed) {
+                    if stop.load(Ordering::Relaxed) || (live && plays.load(Ordering::Relaxed) != now_live) {
+                        cut.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+            });
+            let heard = qnc_transcribe_run::transcribe(locator, &ask, quality, qnc_transcribe_run::Pace::Now, &cut, &mut |_| {}, &mut |_| {});
+            done.store(true, Ordering::Relaxed);
+            heard
+        });
+        let mut transcript = match heard {
+            Ok(transcript) => transcript,
+            Err(_) if cut.load(Ordering::Relaxed) => {
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("stream-transcript {clip_id} {quality:?} {at}..{to} cut after ms={}", began.elapsed().as_millis()));
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         transcript.lines = qnc_transcript_db::lines_cut(&transcript.lines, at, to, true);
         (transcript.from_frame, transcript.to_frame) = (at, to);
         qnc_dev_diagnostics::log_line(
