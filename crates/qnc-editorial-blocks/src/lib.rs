@@ -132,14 +132,14 @@ fn source_dock(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view:
 /// The statements made (the shorts, no B-roll), beside the media pool; a click opens one.
 fn statements(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view: &EditorialView) -> Option<EditorialIntent> {
     let spec = contracts.pool_spec();
+    let column = view.focus.statement_column(view.shorts.iter().filter(|shot| !shot.b_roll).collect(), &view.clips);
     let now = qnc_media_pool_panel::PoolNow {
-        chosen_id: view.chosen_shot_id.as_deref().unwrap_or(""),
+        chosen_id: column.chosen(view.chosen_shot_id.as_deref()),
         panel_focused: view.focus.panel == Panel::Statements,
         step: (view.focus.panel == Panel::Statements).then_some(view.focus.pool_step).flatten(),
         empty_message: contracts.editorial.media_card.empty_message(LibraryTab::Virtual, view.loading, &view.message),
         id_salt: "editorial_statement_grid",
     };
-    let column = view.focus.statement_column(view.shorts.iter().filter(|shot| !shot.b_roll).collect(), &view.clips);
     let answer = match qnc_media_pool_panel::show_removable(ui, (theme, LibraryTab::Virtual.corner()), &spec, &now, &column.items())? {
         CardGridAction::Remove(id) => column.answer(id, true)?,
         CardGridAction::Activate(id) | CardGridAction::ToggleSelection(id) => column.answer(id, false)?,

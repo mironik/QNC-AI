@@ -186,6 +186,8 @@ pub struct ScriptView {
     /// The compound statement shown (`SHOW_COMPOUND`): its first part's clip and the ranges of its
     /// parts in that clip, marked in the transcript.
     pub compound_parts: Option<(String, Vec<(u64, u64)>)>,
+    /// The compound statement shown (its block): the chosen card of the statements' column.
+    pub compound_block: Option<i64>,
     /// The posters of the compound statements: block, where it is from and the picture.
     pub compound_posters: Vec<(i64, String, std::sync::Arc<qnc_image_assets::RgbaImage>)>,
     /// The script profile of the project (none until it is read).

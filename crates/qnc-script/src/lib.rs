@@ -596,7 +596,7 @@ impl Script {
                 let Some(first) = block.block.pieces.first() else { return Some(false) };
                 let parts = block.block.pieces.iter().filter(|piece| piece.clip_id == first.clip_id).map(|piece| (piece.from_frame, piece.to_frame)).collect();
                 self.source_request = Some((first.clip_id.clone(), first.from_frame, first.to_frame));
-                (self.view.compound_parts, self.compound_seen) = (Some((first.clip_id.clone(), parts)), false);
+                (self.view.compound_parts, self.view.compound_block, self.compound_seen) = (Some((first.clip_id.clone(), parts)), Some(block.block.id), false);
                 true
             }
             OPEN => match id().and_then(|id| self.view.blocks.iter().find(|row| row.block.id == id && row.is_clip())) {
@@ -978,7 +978,7 @@ impl Script {
         }
         self.view.blocks = rows(&self.blocks, self.view.profile.as_ref(), self.reading_speed());
         self.follow_posters(preview);
-        self.follow_compound(preview);
+        self.follow_compound(preview, timeline);
         for row in &mut self.view.blocks {
             row.voice = self.voices.iter().find(|(voice, _)| voice.block_id == row.block.id).map(|(voice, present)| {
                 let mut shown = VoiceRow::of(voice, *present, &row.block.text);
@@ -1199,12 +1199,16 @@ impl Script {
 impl Script {
     /// The parts of the compound shown stay marked while its clip is on the preview; another clip
     /// lets them go.
-    fn follow_compound(&mut self, preview: &SourcePreview) {
-        let Some((clip, _)) = &self.view.compound_parts else { return };
-        match preview.view().clip_id.as_deref() {
-            Some(shown) if shown == clip => self.compound_seen = true,
-            _ if self.compound_seen => (self.view.compound_parts, self.compound_seen) = (None, false),
-            _ => {}
+    fn follow_compound(&mut self, preview: &SourcePreview, timeline: &TimelineProjection) {
+        let Some((clip, parts)) = &self.view.compound_parts else { return };
+        // It is shown while its clip is on the preview with its first part's IN/OUT; another
+        // statement or a new cut (other IN/OUT) lets it go, so only that IN/OUT is lit (user
+        // 2026-11-19: on clip 3882 the parts stayed lit under another statement of the man).
+        let shown = preview.view().clip_id.as_deref() == Some(clip.as_str()) && timeline.visible_source_marks() == parts.first().copied();
+        match shown {
+            true => self.compound_seen = true,
+            false if self.compound_seen => (self.view.compound_parts, self.view.compound_block, self.compound_seen) = (None, None, false),
+            false => {}
         }
     }
 }

@@ -139,7 +139,7 @@ impl FocusView {
     /// bazi"): the statements made (`shorts`, no B-roll), then one card for each compound statement
     /// of the script, with the poster of its first clip.
     pub fn statement_column<'a, S: qnc_clip_row::PoolItem>(&'a self, shorts: Vec<&'a S>, clips: &'a [qnc_clip_row::ClipRow]) -> StatementColumn<'a, S> {
-        StatementColumn { shorts, compounds: self.script.pool_cards(clips) }
+        StatementColumn { shorts, compounds: self.script.pool_cards(clips), chosen_compound: self.script.compound_block.map(|id| id.to_string()) }
     }
 
     /// The catalog scope that reads the keys first: the source timeline's own while it (or
@@ -153,9 +153,16 @@ impl FocusView {
 pub struct StatementColumn<'a, S> {
     shorts: Vec<&'a S>,
     compounds: Vec<qnc_clip_row::TabCard<'a>>,
+    /// The compound statement shown, when one is: the chosen card.
+    chosen_compound: Option<String>,
 }
 
 impl<'a, S: qnc_clip_row::PoolItem> StatementColumn<'a, S> {
+    /// The chosen card: the compound statement shown, otherwise the statement `short` chosen.
+    pub fn chosen<'b>(&'b self, short: Option<&'b str>) -> &'b str {
+        self.chosen_compound.as_deref().or(short).unwrap_or("")
+    }
+
     /// Its cards in order: the statements, then the compound statements.
     pub fn items(&self) -> Vec<&dyn qnc_clip_row::PoolItem> {
         let shorts = self.shorts.iter().map(|short| *short as &dyn qnc_clip_row::PoolItem);
