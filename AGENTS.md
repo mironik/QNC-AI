@@ -29,6 +29,14 @@ QNC-AI je samostalna aplikacija: AI wizard koji novinara vodi od kartice do expo
   Automatsko pokrivanje mozda kasnije, nije prioritet.
 - 2026-11-11: AI server nije obavezan; moze biti samostalni lokalni server bez QNC-a.
 - 2026-11-11: wav2vec2 ParlaSpeech se koristi bez obzira na nenavedenu licencu.
+- 2026-11-20: Tray (`apps/qnc-ai-tray`, `contracts/wizard-text`) i Ingest Wizard
+  (`apps/qnc-ai-card-ingest`, pozadinski radnik `tools/qnc-ingest-worker`) su samostalni projekti
+  i ZAKLJUCANI su (commit ba707ca). Ne mijenjaju se bez izricitog korisnikova otkljucavanja koje ih
+  imenuje. Kocka koju dijele s drugim formama (npr. `qnc-transcribe-run`, `qnc-sound-range`,
+  kocke u QNC-shared) mijenja se samo ako se time ne mijenja rad traya i Ingest Wizarda; inace
+  stati i pitati.
+- 2026-11-20: AI Media Assist vracen na kod od 2026-11-19 12:00 (commit 810e1b6, u QNC-shared
+  10462cb); rad poslije podne (slozene izjave, potpisi, prozor izjave 10 %) ostaje u povijesti.
 
 ## 3. Rad
 
