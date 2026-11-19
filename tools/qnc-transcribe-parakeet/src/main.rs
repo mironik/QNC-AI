@@ -14,11 +14,15 @@ fn main() {
     // The same priority as the ingest's worker, below normal: the processor shared even, its
     // priority given by the conductor's places, not by Windows (user 2026-11-17: "treba biti
     // balansirano, da se ništa ne čeka previše"; at normal it starved the filmstrips, 7 s a clip).
-    // The player and the editing stay above it.
+    // The player and the editing stay above it. Started by a form for the live transcript of the
+    // clip being played (`QNC_TRANSCRIBE_PRIORITY=normal`) it stays at normal (live 2026-11-19:
+    // below normal beside SigLIP and the form its model took 40 s to load and no piece kept up).
     #[cfg(windows)]
-    unsafe {
+    if std::env::var("QNC_TRANSCRIBE_PRIORITY").as_deref() != Ok("normal") {
+        unsafe {
         use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS};
         SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+        }
     }
     let mut engine = engine::Parakeet::default();
     if let Err(error) = qnc_transcribe_jobs::serve(&mut engine, "qnc.transcribe.parakeet", env!("CARGO_PKG_VERSION"), "sherpa-onnx parakeet-tdt") {

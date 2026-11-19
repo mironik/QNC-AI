@@ -519,6 +519,12 @@ impl ProjectArtifacts {
         self.assets.reset();
     }
 
+    /// Hands the first camera channel of every wave read to `sink` (user 2026-11-19: the
+    /// statements are transcribed from the sound the wave read, not read again).
+    pub fn set_first_channel(&mut self, sink: Option<qnc_wave_worker::FirstChannelSink>) {
+        self.artifacts.set_first_channel(sink);
+    }
+
     pub fn set_host_root(&mut self, root: impl Into<PathBuf>) {
         self.host_root = Some(root.into());
     }
