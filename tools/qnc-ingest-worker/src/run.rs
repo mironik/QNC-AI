@@ -384,7 +384,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             }
                         }
                         Step::Posters => crate::make_posters(root, config, lease, stops) > 0,
-                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || held(step), breaking) > 0,
+                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || held(step), breaking, &|| not_done(Step::Transcripts)) > 0,
                         Step::Import => match crate::import_waiting(root) {
                             // Working from the start of the round, not from its end (the conductor
                             // saw the copy idle while it copied: 2026-11-17 log).

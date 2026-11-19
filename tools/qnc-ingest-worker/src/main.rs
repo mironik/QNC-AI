@@ -331,6 +331,8 @@ pub(crate) fn make_shots(
     // Breaking news (the tray's setting): the transcription comes last, so the AI never waits for
     // it and judges a statement by its picture first (user 2026-11-18).
     breaking: bool,
+    // The transcription of the clips runs now: the AI shots get no worker.
+    transcription_runs: &(dyn Fn() -> bool + Sync),
 ) -> usize {
     let config = &sources_now(root, config);
     let result = (|| -> Result<usize, String> {
@@ -370,9 +372,13 @@ pub(crate) fn make_shots(
         // A clip whose first channel holds a statement is not looked at (user 2026-11-12); with
         // transcription on, a clip is taken once it is heard.
         let takes = transcribe::ai_takes(root, breaking || stops.is(qnc_stopped_work::TRANSCRIPTS))?;
+        // How many clips the AI shots analyse at once (user 2026-11-19): none while the
+        // transcription runs ("dok traje prijepis ne daj mu ništa"), then all the computer has
+        // ("kad završi prijepis AI kadrovima daš maksimalnu raspoloživu snagu").
+        let workers = || if transcription_runs() { 0 } else { qnc_shot_analysis::most_workers() };
         let pace = |function| {
-            let takes: &dyn Fn(&str) -> bool = if function == qnc_stopped_work::SHOTS { &*takes.shots } else { &*takes.content };
-            qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes, cancel: stops.flag(function) }
+            let takes: &(dyn Fn(&str) -> bool + Sync) = if function == qnc_stopped_work::SHOTS { &*takes.shots } else { &*takes.content };
+            qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes, workers: &workers, cancel: stops.flag(function) }
         };
         let (reader, settings, lease) = (active.settings_reader(), &snapshot.settings, Some(lease.write_lease()));
         // Only the step of the plan this turn is for (the order is the template's).

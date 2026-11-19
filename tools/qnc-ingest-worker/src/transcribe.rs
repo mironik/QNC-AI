@@ -135,8 +135,8 @@ pub(crate) fn run(root: &Path, running: &std::sync::atomic::AtomicBool, stop: &s
 
 /// Which clips the AI steps take: `shots` for the shot analysis, `content` for what the shots show.
 pub(crate) struct AiTakes {
-    pub(crate) shots: Box<dyn Fn(&str) -> bool>,
-    pub(crate) content: Box<dyn Fn(&str) -> bool>,
+    pub(crate) shots: Box<dyn Fn(&str) -> bool + Send + Sync>,
+    pub(crate) content: Box<dyn Fn(&str) -> bool + Send + Sync>,
 }
 
 /// The shot analysis takes every clip. With transcription on, what the shots show is looked at for a clip that is no statement, and for a statement only when
