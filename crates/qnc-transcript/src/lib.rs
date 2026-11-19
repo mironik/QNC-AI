@@ -214,6 +214,10 @@ pub struct Transcript {
     built: Option<(u64, u64, Option<String>)>,
     /// The streaming of what the source timeline plays.
     stream: qnc_stream_transcript::StreamTranscript,
+    /// Clips just asked of the Croatian model: the form keeps showing what it shows of them
+    /// (user 2026-11-08: "ne bi se smjela osvježavati na trenutnoj formi"; 2026-11-19: the text came
+    /// and went and the chosen statement was undone while it corrected the clip shown).
+    repassed: Vec<String>,
     /// What the name of the Croatian engine's model is (its transcripts are the fine pass), once.
     fine_mark: Option<Option<String>>,
 }
@@ -236,6 +240,7 @@ impl Default for Transcript {
             rev: 0,
             built: None,
             stream: Default::default(),
+            repassed: Vec::new(),
             fine_mark: None,
         }
     }
@@ -420,6 +425,7 @@ impl Transcript {
     /// `[from_frame, to_frame)` of `clip_id` queued with the best engine, quietly (user
     /// 2026-11-08: the panel does not change for a repass, nothing is said).
     fn queue_repass(&mut self, target: ProjectDbTarget, clip_id: String, from_frame: u64, to_frame: u64) {
+        self.repassed.push(clip_id.clone());
         let queued = Queued { clip_id, from_frame, to_frame, quality: QueueQuality::Best, state: QueueState::Waiting, error: String::new(), took_ms: 0 };
         self.ask(target, Box::new(move |target| qnc_transcript_db::enqueue(target, vec![queued])));
     }
@@ -492,6 +498,11 @@ impl Transcript {
         }
         if let (Some(project), Some(locator)) = (project.as_ref(), preview.still_locator()) {
             self.read_queue(project, preview);
+            // A clip asked of the Croatian model now: its corrected text is written to the
+            // database only, shown once the clip is opened again.
+            for clip in self.repassed.drain(..) {
+                transcripts.hold(&clip);
+            }
             if pending(&self.queue) {
                 self.runner.ensure(&locator, project);
             }
