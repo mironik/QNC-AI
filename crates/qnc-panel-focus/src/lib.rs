@@ -127,6 +127,11 @@ impl PanelFocus {
         &self.source
     }
 
+    /// Opens a statement of several parts (clip, IN, OUT) part after part (user 2026-11-19).
+    pub fn open_statement(&mut self, parts: &[(String, u64, u64)], clips: &[qnc_clip_row::ClipRow]) {
+        self.side.open_statement(parts, clips);
+    }
+
     /// A clip and IN/OUT a chosen statement of the transcript or a usable part of the shot
     /// analysis opens (once).
     pub fn take_source_request(&mut self) -> Option<(String, u64, u64)> {
