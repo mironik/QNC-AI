@@ -81,7 +81,7 @@ pub fn transcribe(locator: &StillLocator, ask: &Ask, quality: Quality, pace: Pac
     // processor's (user 2026-11-18: "grafička i procesor zajedno").
     let engines = match quality {
         Quality::Fast => qnc_ai_catalog::installed_fast_transcribers()?,
-        Quality::Best => vec![qnc_ai_catalog::installed_transcriber_for(quality)?],
+        Quality::Best | Quality::Live => vec![qnc_ai_catalog::installed_transcriber_for(quality)?],
     };
     let place = locator.locate_sound(&ask.clip_id)?;
     let job = Job {
@@ -628,7 +628,12 @@ fn run_engine(engines: &[qnc_ai_catalog::Transcriber], language: &str, samples: 
 /// What the Best engine of this computer hears in `samples` (16 kHz) that are not of a clip: a
 /// take of the voice-over (user 2026-11-08). Its words are seconds of `samples`.
 pub fn hear_samples(samples: &[f32], language: &str, cancel: &AtomicBool) -> Result<qnc_transcribe_jobs::Transcript, String> {
-    let engine = qnc_ai_catalog::installed_transcriber_for(Quality::Best)?;
+    hear_samples_with(Quality::Best, samples, language, cancel)
+}
+
+/// `samples` heard by the engine of `quality` (the first of the fast ones for `Fast`).
+pub fn hear_samples_with(quality: Quality, samples: &[f32], language: &str, cancel: &AtomicBool) -> Result<qnc_transcribe_jobs::Transcript, String> {
+    let engine = qnc_ai_catalog::installed_transcriber_for(quality)?;
     run_engine(std::slice::from_ref(&engine), language, samples, cancel, &mut |_| {}).inspect_err(|_| forget_transcriber(&engine.program))
 }
 

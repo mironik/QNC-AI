@@ -3,6 +3,7 @@
   "programs": [
     { "program": "qnc-transcribe-parakeet", "beside": ["sherpa-onnx-c-api.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"], "licence": "QNC", "status": "known" },
     { "program": "qnc-transcribe-parakeet-dml", "beside": ["directml/onnxruntime.dll", "directml/DirectML.dll", "onnxruntime.dll"], "licence": "QNC (ONNX Runtime MIT; DirectML: Microsoft DirectML licence)", "status": "known" },
+    { "program": "qnc-transcribe-nemotron", "beside": ["sherpa-onnx-c-api.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"], "licence": "QNC (sherpa-onnx 2.0.2 or later: Nemotron needs it)", "status": "known" },
     { "program": "qnc-transcribe-wav2vec2", "beside": [], "licence": "QNC", "status": "known" },
     { "program": "qnc-transcribe-whisper", "beside": [], "licence": "QNC (whisper.cpp MIT)", "status": "known" },
     { "program": "qnc-align-wav2vec2", "beside": [], "licence": "QNC", "status": "known" },
@@ -28,6 +29,7 @@
     { "model": "opus-mt-tc-big-sh-en", "licence": "CC-BY-4.0", "source": "https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-sh-en", "attribution": "Helsinki-NLP, OPUS-MT (Tiedemann and Thottingal); the authors are to be named", "status": "known" },
     { "model": "parakeet-tdt-0.6b-v3-onnx-fp32", "licence": "CC-BY-4.0", "source": "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 (fp32 ONNX by istupakov/onnx-asr)", "attribution": "NVIDIA; the authors are to be named", "status": "known" },
     { "model": "parakeet-tdt-0.6b-v3-int8", "licence": "CC-BY-4.0", "source": "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 (int8 by k2-fsa/sherpa-onnx)", "attribution": "NVIDIA; the authors are to be named", "status": "known" },
+    { "model": "nemotron-3.5-asr-streaming-0.6b-560ms-int8", "licence": "NVIDIA Open Model License (base model nvidia/nemotron-3.5-asr-streaming-0.6b; the ONNX export says other)", "source": "https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b (int8 sherpa-onnx export for WinSTT)", "attribution": "NVIDIA", "status": "check" },
     { "model": "wav2vec2-parlaspeech-hr", "licence": "not stated on the model page", "source": "https://huggingface.co/classla/wav2vec2-xls-r-parlaspeech-hr", "attribution": "CLASSLA", "status": "check" },
     { "model": "ggml-large-v3-turbo.bin", "licence": "MIT", "source": "https://huggingface.co/ggerganov/whisper.cpp (OpenAI Whisper)", "attribution": "OpenAI", "status": "known" },
     { "model": "ggml-large-v3-turbo-q5_0.bin", "licence": "MIT", "source": "https://huggingface.co/ggerganov/whisper.cpp (OpenAI Whisper)", "attribution": "OpenAI", "status": "known" },

@@ -8046,6 +8046,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-transcribe-nemotron"
+version = "0.1.0"
+dependencies = [
+ "libloading",
+ "qnc-dev-diagnostics",
+ "qnc-transcribe-jobs",
+]
+
+[[package]]
 name = "qnc-transcribe-parakeet"
 version = "0.1.0"
 dependencies = [
@@ -8392,6 +8401,7 @@ version = "0.1.0"
 dependencies = [
  "candle-core",
  "candle-nn",
+ "rayon",
  "serde_json",
 ]
 
