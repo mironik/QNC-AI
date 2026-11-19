@@ -126,6 +126,11 @@ impl PanelFocus {
 
     /// A clip and IN/OUT a chosen statement of the transcript or a usable part of the shot
     /// analysis opens (once).
+    /// The parts of the chosen statement in the clip shown, lit in the transcript.
+    pub fn show_statement_parts(&mut self, parts: Option<(String, Vec<(u64, u64)>)>) {
+        self.side.show_statement_parts(parts);
+    }
+
     pub fn take_source_request(&mut self) -> Option<(String, u64, u64)> {
         self.side.take_source_request()
     }

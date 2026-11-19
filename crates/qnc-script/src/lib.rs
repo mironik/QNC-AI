@@ -71,13 +71,6 @@ pub const ADD_CLIP: &str = "script_add_clip";
 pub const ADD_QUOTE: &str = "script_add_quote";
 /// SubSegment: the shown IN/OUT is the next part of the chosen clip block, or a new one.
 pub const SUBSEGMENT: &str = "script_subsegment";
-/// The caption of a new compound statement written (target: the fields) or given up (user
-/// 2026-11-19: who speaks and their role, for the director's on-screen caption).
-pub const CAPTION_SAVE: &str = "script_caption_save";
-pub const CAPTION_CANCEL: &str = "script_caption_cancel";
-/// The fields of a clip kind that are its caption (the profile's SOT: who speaks, their role).
-const CAPTION_NAME: &str = "caption_name";
-const CAPTION_ROLE: &str = "caption_role";
 /// A block is chosen (target: its id); a text block's text goes into the editor.
 pub const SELECT: &str = "script_select";
 /// A block goes one place up or down, or leaves (target: its id).
@@ -86,10 +79,6 @@ pub const MOVE_DOWN: &str = "script_move_down";
 pub const REMOVE: &str = "script_remove";
 /// A clip block opens its clip with its IN/OUT (target: its id).
 pub const OPEN: &str = "script_open";
-/// A compound statement shown as statements are (user 2026-11-19: "klik na njenu ikonu otvori
-/// orginalni prijepis sa selektiranim djelovima"): the clip of its first part opens with that
-/// part's IN/OUT, and the transcript marks every part of it in that clip (target: block id).
-pub const SHOW_COMPOUND: &str = "script_show_compound";
 /// A click on a word of a statement in the script (user 2026-11-04: edited by its text): the
 /// statement opens in place of the source timeline and the playhead goes to the word. `target`
 /// is `block:part:frame`.
@@ -218,18 +207,12 @@ pub struct Script {
     message_after_write: Option<String>,
     /// The editor is emptied once the write in progress is done (a saved text).
     clear_after_write: bool,
-    /// The posters of the compound statements: the picture at the IN of the first part.
-    posters: qnc_compound_posters::CompoundPosters,
-    /// The clip of the compound shown has been on the preview (its parts are let go once it is not).
-    compound_seen: bool,
-    /// A new compound statement waiting for its caption, and the block it goes after.
-    captioning: Option<(Block, Option<i64>)>,
 }
 
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false, posters: qnc_compound_posters::CompoundPosters::new(), compound_seen: false, captioning: None }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
     }
 }
 
@@ -591,14 +574,6 @@ impl Script {
                     }
                 }
             }
-            SHOW_COMPOUND => {
-                let Some(block) = id().and_then(|id| self.view.blocks.iter().find(|row| row.block.id == id)) else { return Some(false) };
-                let Some(first) = block.block.pieces.first() else { return Some(false) };
-                let parts = block.block.pieces.iter().filter(|piece| piece.clip_id == first.clip_id).map(|piece| (piece.from_frame, piece.to_frame)).collect();
-                self.source_request = Some((first.clip_id.clone(), first.from_frame, first.to_frame));
-                (self.view.compound_parts, self.view.compound_block, self.compound_seen) = (Some((first.clip_id.clone(), parts)), Some(block.block.id), false);
-                true
-            }
             OPEN => match id().and_then(|id| self.view.blocks.iter().find(|row| row.block.id == id && row.is_clip())) {
                 Some(row) => {
                     self.source_request = Some((row.block.clip_id.clone(), row.block.from_frame, row.block.to_frame));
@@ -641,23 +616,8 @@ impl Script {
             return true;
         };
         let block = Block::of_pieces(kind, vec![piece]);
-        // Who speaks and their role are asked before it is written (user 2026-11-19: one person or
-        // several, the director's caption); the last ones written for this clip are offered.
-        let clip = block.pieces.first().map(|piece| piece.clip_id.clone()).unwrap_or_default();
-        let last = self.blocks.iter().rev().find(|old| old.pieces.iter().any(|piece| piece.clip_id == clip) && old.fields.contains_key(CAPTION_NAME));
-        let value = |code: &str| last.and_then(|old| old.fields.get(code)).cloned().unwrap_or_default();
-        let field = |label: &'static str, code: &str| qnc_notice::ChoiceField { label: qnc_ui_text::text(label).into(), value: value(code) };
-        let option = |action: &str, label: &'static str, strong: bool| qnc_notice::ChoiceOption::new(action, qnc_ui_text::text(label), strong);
-        qnc_notice::ask(qnc_notice::Choice {
-            title: qnc_ui_text::text("statement.caption_title").into(),
-            message: qnc_ui_text::text("statement.caption_message").into(),
-            items: vec![block.pieces.first().map(|piece| piece.clip_name.clone()).unwrap_or_default()],
-            options: vec![option(CAPTION_CANCEL, "common.cancel", false), option(CAPTION_SAVE, "common.save", true).taking_fields()],
-            fields: vec![field("statement.caption_name", CAPTION_NAME), field("statement.caption_role", CAPTION_ROLE)],
-            ..qnc_notice::Choice::default()
-        });
-        self.captioning = Some((block, self.view.selected));
-        true
+        let after = self.view.selected;
+        self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some))
     }
 
     /// The shown clip's IN/OUT as a part, with the words said there (none, and the reason in
@@ -977,8 +937,6 @@ impl Script {
             }
         }
         self.view.blocks = rows(&self.blocks, self.view.profile.as_ref(), self.reading_speed());
-        self.follow_posters(preview);
-        self.follow_compound(preview, timeline);
         for row in &mut self.view.blocks {
             row.voice = self.voices.iter().find(|(voice, _)| voice.block_id == row.block.id).map(|(voice, present)| {
                 let mut shown = VoiceRow::of(voice, *present, &row.block.text);
@@ -1175,40 +1133,3 @@ impl Script {
 
 #[cfg(test)]
 mod tests;
-
-impl Script {
-    /// The poster of each compound statement: the picture at the IN of its first part, decoded
-    /// in the background (user 2026-11-19: "poster sa slike na IN-u prvog dijela").
-    fn follow_posters(&mut self, preview: &SourcePreview) {
-        let firsts: Vec<(i64, String, u64)> = self
-            .view
-            .blocks
-            .iter()
-            .filter(|row| row.is_subsegment())
-            .filter_map(|row| row.block.pieces.first().map(|piece| (row.block.id, piece.clip_id.clone(), piece.from_frame)))
-            .collect();
-        let wanted: Vec<(String, u64)> = firsts.iter().map(|(_, clip, frame)| (clip.clone(), *frame)).collect();
-        self.posters.poll(preview.still_locator().as_ref(), &wanted);
-        self.view.compound_posters = firsts
-            .into_iter()
-            .filter_map(|(id, clip, frame)| Some((id, format!("compound:{clip}:{frame}"), self.posters.get(&clip, frame)?.clone())))
-            .collect();
-    }
-}
-
-impl Script {
-    /// The parts of the compound shown stay marked while its clip is on the preview; another clip
-    /// lets them go.
-    fn follow_compound(&mut self, preview: &SourcePreview, timeline: &TimelineProjection) {
-        let Some((clip, parts)) = &self.view.compound_parts else { return };
-        // It is shown while its clip is on the preview with its first part's IN/OUT; another
-        // statement or a new cut (other IN/OUT) lets it go, so only that IN/OUT is lit (user
-        // 2026-11-19: on clip 3882 the parts stayed lit under another statement of the man).
-        let shown = preview.view().clip_id.as_deref() == Some(clip.as_str()) && timeline.visible_source_marks() == parts.first().copied();
-        match shown {
-            true => self.compound_seen = true,
-            false if self.compound_seen => (self.view.compound_parts, self.view.compound_block, self.compound_seen) = (None, None, false),
-            false => {}
-        }
-    }
-}

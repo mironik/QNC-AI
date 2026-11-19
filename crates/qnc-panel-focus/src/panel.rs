@@ -135,50 +135,9 @@ impl FocusView {
         }
     }
 
-    /// The statements' column (AI Media Assist, user 2026-11-19: "jedan poster koji vodi na zapise u
-    /// bazi"): the statements made (`shorts`, no B-roll), then one card for each compound statement
-    /// of the script, with the poster of its first clip.
-    pub fn statement_column<'a, S: qnc_clip_row::PoolItem>(&'a self, shorts: Vec<&'a S>, clips: &'a [qnc_clip_row::ClipRow]) -> StatementColumn<'a, S> {
-        StatementColumn { shorts, compounds: self.script.pool_cards(clips), chosen_compound: self.script.compound_block.map(|id| id.to_string()) }
-    }
-
     /// The catalog scope that reads the keys first: the source timeline's own while it (or
     /// its buttons) has the keyboard (piece `qnc-source-timeline`).
     pub fn key_scope(&self) -> Option<&'static str> {
         matches!(self.panel, Panel::SourceTimeline | Panel::SourceButtons | Panel::Transcript).then_some(qnc_source_timeline::KEY_SCOPE)
-    }
-}
-
-/// The statements' column: the statements made and the compound statements of the script.
-pub struct StatementColumn<'a, S> {
-    shorts: Vec<&'a S>,
-    compounds: Vec<qnc_clip_row::TabCard<'a>>,
-    /// The compound statement shown, when one is: the chosen card.
-    chosen_compound: Option<String>,
-}
-
-impl<'a, S: qnc_clip_row::PoolItem> StatementColumn<'a, S> {
-    /// The chosen card: the compound statement shown, otherwise the statement `short` chosen.
-    pub fn chosen<'b>(&'b self, short: Option<&'b str>) -> &'b str {
-        self.chosen_compound.as_deref().or(short).unwrap_or("")
-    }
-
-    /// Its cards in order: the statements, then the compound statements.
-    pub fn items(&self) -> Vec<&dyn qnc_clip_row::PoolItem> {
-        let shorts = self.shorts.iter().map(|short| *short as &dyn qnc_clip_row::PoolItem);
-        shorts.chain(self.compounds.iter().map(|card| card as &dyn qnc_clip_row::PoolItem)).collect()
-    }
-
-    /// What a click on card `id` asks (`remove`: its X): a statement's id to preview, or the
-    /// action of a compound statement (opened from its records, or removed) or of a statement's X.
-    pub fn answer(&self, id: String, remove: bool) -> Option<Result<String, qnc_action_event::ActionEvent>> {
-        let compound = self.compounds.iter().any(|card| card.id == id);
-        let action = match (compound, remove) {
-            (false, false) => return Some(Ok(id)),
-            (false, true) => qnc_pool_tabs::LibraryTab::Virtual.remove_action()?,
-            (true, false) => qnc_script::SHOW_COMPOUND,
-            (true, true) => qnc_pool_tabs::LibraryTab::Subsegment.remove_action()?,
-        };
-        Some(Err(qnc_action_event::ActionEvent::key(action).with_target(id)))
     }
 }

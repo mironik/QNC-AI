@@ -69,7 +69,6 @@ qnc-clip-posters = { path = "../QNC-shared/crates/qnc-clip-posters" }
 qnc-clip-row = { path = "../QNC-shared/crates/qnc-clip-row" }
 qnc-clip-sound = { path = "../QNC-shared/crates/qnc-clip-sound" }
 qnc-clip-window = { path = "crates/qnc-clip-window" }
-qnc-compound-posters = { path = "crates/qnc-compound-posters" }
 qnc-confirm-dialog = { path = "../QNC-shared/crates/qnc-confirm-dialog" }
 qnc-content-artifacts = { path = "crates/qnc-content-artifacts" }
 qnc-content-read = { path = "../QNC-shared/crates/qnc-content-read" }
