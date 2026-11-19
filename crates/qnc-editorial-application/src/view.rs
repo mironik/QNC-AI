@@ -53,6 +53,7 @@ impl EditorialView {
     pub fn action_enabled(&self, action_id: &str) -> bool {
         match action_id {
             action_ids::SAVE_VIRTUAL_SHOT | action_ids::ADD_TON_SEGMENT | action_ids::ADD_OFF_SEGMENT | "script_subsegment" => self.chosen_clip_id().is_some(),
+            qnc_short_save::ADD_PART => qnc_short_save::can_add_part(qnc_virtual_short_cards::chosen(&self.shorts, self.chosen_shot_id.as_deref()), self.chosen_clip_id(), self.preview.timeline.visible_source_marks()),
             qnc_short_save::UPDATE => qnc_short_save::changed(qnc_virtual_short_cards::chosen(&self.shorts, self.chosen_shot_id.as_deref()), self.chosen_clip_id(), self.preview.timeline.visible_source_marks()),
             action if self.focus.decides(action) => self.focus.enabled(action, self.chosen_clip_id().is_some()),
             action_ids::DELETE_SEGMENT | action_ids::DELETE_PART => self.segments.selected().is_some(),

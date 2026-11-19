@@ -389,6 +389,7 @@ impl EditorialApplication {
                 true
             }
             qnc_pool_tabs::REMOVE_SHORT => { self.pool_shots.remove(self.content_target.as_ref().map(|targets| &targets.1), target); self.view.chosen_shot_id = None; true }
+            qnc_short_save::ADD_PART => self.short_save.add_part(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
             qnc_short_save::UPDATE => self.short_save.update(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
             other => self.short_save.answer(other, target), // Overwrite or Cancel of the same statement (user 2026-11-01), the caption of a new one
         }
@@ -400,7 +401,7 @@ impl EditorialApplication {
             Ok(saved) => saved,
             Err(error) => { qnc_virtual_short_cards::drop_saving(&mut self.view.shorts); return self.view.message = qnc_notice::raised(error) }
         };
-        self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks)));
+        if !saved.part { self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks))) } // a part keeps the statement's own stills
         self.reload_shorts();
         if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // the keyboard stays on the panel last clicked (user 2026-11-15); from the transcript more follow (2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);

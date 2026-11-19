@@ -102,7 +102,7 @@ impl PanelFocus {
         // složenu izjavu pokreće i prijepis tog dijela", the trim zoom needs the text laid on the
         // wave; before, 2026-11-08, only a part marked by words), where the form has a transcript.
         // The action itself goes on below.
-        if matches!(action_id, "save_virtual_shot" | qnc_script::SUBSEGMENT | qnc_script::ADD_CLIP) {
+        if matches!(action_id, "save_virtual_shot" | qnc_script::SUBSEGMENT | qnc_script::ADD_CLIP | "statement_add_part") {
             let _ = self.source.take_marked_by_text();
             let timecode = self.source.view().timecode;
             self.side.act(qnc_transcript::REPASS, None, None, pieces.0, pieces.3, timecode.as_ref());

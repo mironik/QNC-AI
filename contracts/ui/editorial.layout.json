@@ -181,7 +181,7 @@
         "actions_rtl": [
           {
             "label": "@script.subsegment",
-            "action_id": "script_subsegment"
+            "action_id": "statement_add_part"
           },
           {
             "label": "@story.update_statement",
