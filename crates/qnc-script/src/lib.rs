@@ -71,6 +71,13 @@ pub const ADD_CLIP: &str = "script_add_clip";
 pub const ADD_QUOTE: &str = "script_add_quote";
 /// SubSegment: the shown IN/OUT is the next part of the chosen clip block, or a new one.
 pub const SUBSEGMENT: &str = "script_subsegment";
+/// The caption of a new compound statement written (target: the fields) or given up (user
+/// 2026-11-19: who speaks and their role, for the director's on-screen caption).
+pub const CAPTION_SAVE: &str = "script_caption_save";
+pub const CAPTION_CANCEL: &str = "script_caption_cancel";
+/// The fields of a clip kind that are its caption (the profile's SOT: who speaks, their role).
+const CAPTION_NAME: &str = "caption_name";
+const CAPTION_ROLE: &str = "caption_role";
 /// A block is chosen (target: its id); a text block's text goes into the editor.
 pub const SELECT: &str = "script_select";
 /// A block goes one place up or down, or leaves (target: its id).
@@ -215,12 +222,14 @@ pub struct Script {
     posters: qnc_compound_posters::CompoundPosters,
     /// The clip of the compound shown has been on the preview (its parts are let go once it is not).
     compound_seen: bool,
+    /// A new compound statement waiting for its caption, and the block it goes after.
+    captioning: Option<(Block, Option<i64>)>,
 }
 
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false, posters: qnc_compound_posters::CompoundPosters::new(), compound_seen: false }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false, posters: qnc_compound_posters::CompoundPosters::new(), compound_seen: false, captioning: None }
     }
 }
 
@@ -632,8 +641,23 @@ impl Script {
             return true;
         };
         let block = Block::of_pieces(kind, vec![piece]);
-        let after = self.view.selected;
-        self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some))
+        // Who speaks and their role are asked before it is written (user 2026-11-19: one person or
+        // several, the director's caption); the last ones written for this clip are offered.
+        let clip = block.pieces.first().map(|piece| piece.clip_id.clone()).unwrap_or_default();
+        let last = self.blocks.iter().rev().find(|old| old.pieces.iter().any(|piece| piece.clip_id == clip) && old.fields.contains_key(CAPTION_NAME));
+        let value = |code: &str| last.and_then(|old| old.fields.get(code)).cloned().unwrap_or_default();
+        let field = |label: &'static str, code: &str| qnc_notice::ChoiceField { label: qnc_ui_text::text(label).into(), value: value(code) };
+        let option = |action: &str, label: &'static str, strong: bool| qnc_notice::ChoiceOption::new(action, qnc_ui_text::text(label), strong);
+        qnc_notice::ask(qnc_notice::Choice {
+            title: qnc_ui_text::text("statement.caption_title").into(),
+            message: qnc_ui_text::text("statement.caption_message").into(),
+            items: vec![block.pieces.first().map(|piece| piece.clip_name.clone()).unwrap_or_default()],
+            options: vec![option(CAPTION_CANCEL, "common.cancel", false), option(CAPTION_SAVE, "common.save", true).taking_fields()],
+            fields: vec![field("statement.caption_name", CAPTION_NAME), field("statement.caption_role", CAPTION_ROLE)],
+            ..qnc_notice::Choice::default()
+        });
+        self.captioning = Some((block, self.view.selected));
+        true
     }
 
     /// The shown clip's IN/OUT as a part, with the words said there (none, and the reason in
