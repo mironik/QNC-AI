@@ -5,13 +5,11 @@
 //! each piece is kept in the project's database at once: the transcript panel reads it from there
 //! (the one truth), so the text comes as the clip is heard.
 //!
-//! Two engines (user 2026-11-19: Nemotron while it plays, wav2vec2 in the pauses): while the clip
-//! plays, the live engine of the AI catalog (Nemotron streaming, real time beside the player)
-//! hears the pieces, as rough transcripts; in a pause the fine engine of the project's language
-//! (the Croatian model for Croatian) hears them from the playhead on, as fine transcripts that a
-//! rough one never says over. A catalog without a live engine hears with the fine one in both. A
-//! playhead that jumps takes the pieces with it. A part a fine transcript already says is not heard
-//! again. Another clip ends it. It draws nothing.
+//! The live engine of the AI catalog hears the pieces (user 2026-11-19: Parakeet; Nemotron did not
+//! keep up beside the player, and the Croatian model in a pause wrote its lower case over
+//! Parakeet's sentences); a catalog without one hears with the fine engine of the language. A
+//! playhead that jumps takes the pieces with it. A part any transcript already says (the
+//! statements heard with the waves) is not heard again. Another clip ends it. It draws nothing.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -123,11 +121,10 @@ fn stream(locator: &StillLocator, clip_id: &str, playhead: &AtomicU64, plays: &A
         _ => None,
     });
     let target = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), settings)?;
-    // What a transcript of the fine engine already says is not heard again.
-    let fine = qnc_ai_catalog::installed_transcriber_for(fine_quality).ok().and_then(|engine| engine.model.file_name().map(|name| name.to_string_lossy().into_owned()));
+    // What any transcript already says is not heard again (Parakeet's of the import, the statements).
     let mut fine_heard: Vec<(u64, u64)> = qnc_transcript_db::read_spans(&target)?
         .into_iter()
-        .filter(|span| span.clip_id == clip_id && fine.as_deref().is_some_and(|fine| span.engine.contains(fine)))
+        .filter(|span| span.clip_id == clip_id)
         .map(|span| (span.from_frame, span.to_frame))
         .collect();
     // What the live engine heard in this streaming (a pause hears it again, finely).
@@ -139,7 +136,10 @@ fn stream(locator: &StillLocator, clip_id: &str, playhead: &AtomicU64, plays: &A
             return Ok(());
         }
         let head = playhead.load(Ordering::Relaxed);
-        let now_live = live && plays.load(Ordering::Relaxed);
+        // The live engine in a pause too (user 2026-11-19: the Croatian model in a pause wrote its
+        // lower case over Parakeet's sentences); without one, the fine engine.
+        let now_live = live;
+        let _ = plays;
         // The engine changed (play or pause): from the playhead on.
         if now_live != was_live {
             at = head;
@@ -169,7 +169,7 @@ fn stream(locator: &StillLocator, clip_id: &str, playhead: &AtomicU64, plays: &A
         let heard = std::thread::scope(|scope| {
             scope.spawn(|| {
                 while !done.load(Ordering::Relaxed) {
-                    if stop.load(Ordering::Relaxed) || (live && plays.load(Ordering::Relaxed) != now_live) {
+                    if stop.load(Ordering::Relaxed) {
                         cut.store(true, Ordering::Relaxed);
                         return;
                     }
@@ -216,10 +216,8 @@ fn warm(locator: &StillLocator) {
     // The transcription programs this form starts stay at normal priority (the live transcript
     // keeps up with the player; the background worker's own stay below normal).
     std::env::set_var("QNC_TRANSCRIBE_PRIORITY", "normal");
-    let mut qualities = vec![fine_quality(&language)];
-    if qnc_ai_catalog::installed_transcriber_for(Quality::Live).is_ok() {
-        qualities.insert(0, Quality::Live);
-    }
+    // The engine the streaming hears with: the live one, else the fine one.
+    let qualities = if qnc_ai_catalog::installed_transcriber_for(Quality::Live).is_ok() { vec![Quality::Live] } else { vec![fine_quality(&language)] };
     // One after the other, the live engine first (live 2026-11-19: loaded at the same time each
     // took 25-40 s).
     let _ = std::thread::Builder::new().name("qnc-stream-transcript-warm".into()).spawn(move || {
