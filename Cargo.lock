@@ -8102,6 +8102,7 @@ dependencies = [
  "qnc-ai-catalog",
  "qnc-ai-features",
  "qnc-content-store",
+ "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-media-metadata",
  "qnc-playback-activity",

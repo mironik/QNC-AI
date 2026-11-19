@@ -55,6 +55,8 @@ pub const DELETE_QUOTE: &str = "transcript_delete_quote";
 pub const FORGET_CLIP: &str = "transcript_forget_clip";
 /// The panel the transcript is shown on.
 pub const PANEL: &str = "transcript";
+/// The least part the fine pass asks of the Croatian model (frames).
+const LEAST_PLAYED: u64 = 25;
 /// How often the queue is read again.
 const QUEUE_EVERY: Duration = Duration::from_secs(1);
 
@@ -212,6 +214,8 @@ pub struct Transcript {
     built: Option<(u64, u64, Option<String>)>,
     /// The streaming of what the source timeline plays.
     stream: qnc_stream_transcript::StreamTranscript,
+    /// What the name of the Croatian engine's model is (its transcripts are the fine pass), once.
+    fine_mark: Option<Option<String>>,
 }
 
 impl Default for Transcript {
@@ -232,6 +236,7 @@ impl Default for Transcript {
             rev: 0,
             built: None,
             stream: Default::default(),
+            fine_mark: None,
         }
     }
 }
@@ -419,6 +424,35 @@ impl Transcript {
         self.ask(target, Box::new(move |target| qnc_transcript_db::enqueue(target, vec![queued])));
     }
 
+    /// The fine pass (user 2026-11-16: "isti proces bi trebao nakon grubog prepisa s Parakeetom;
+    /// ako ništa ne radi treba također raditi u pozadini; kad klikne na poster također može u
+    /// pozadini odmah krenuti"): once nothing waits in the queue, the next part of a clip that only
+    /// the rough engine heard is asked of the Croatian model, the clip on the preview (the poster
+    /// clicked) first. The queue's runner gives way to the player, so it works while the user does
+    /// not. A part whose repass failed is not asked again. Only in a Croatian project with the
+    /// transcription on. Nothing is said.
+    fn fine_pass(&mut self, preview: &SourcePreview, spans: &[qnc_transcript_db::Span]) {
+        if pending(&self.queue) || self.asking.is_some() || !self.asks.is_empty() {
+            return;
+        }
+        let settings = preview.still_locator().map(|locator| locator.settings().clone());
+        let croatian = settings.as_ref().is_some_and(|settings| {
+            settings.ai_feature(qnc_ai_features::TRANSCRIPTION).unwrap_or(false) && settings.speech_language().is_ok_and(|language| language == "hr")
+        });
+        let Some(target) = preview.project_target().cloned().filter(|_| croatian) else { return };
+        let mark = self.fine_mark.get_or_insert_with(|| {
+            qnc_ai_catalog::installed_transcriber_for(qnc_ai_catalog::Quality::Best).ok().and_then(|engine| engine.model.file_name().map(|name| name.to_string_lossy().into_owned()))
+        });
+        let Some(mark) = mark.clone() else { return };
+        let failed = |clip: &str, from: u64, to: u64| self.queue.iter().any(|q| q.quality == QueueQuality::Best && q.state == QueueState::Failed && q.clip_id == clip && q.from_frame < to && from < q.to_frame);
+        let left: Vec<_> = qnc_transcript_db::not_heard_by(spans, &mark, LEAST_PLAYED).into_iter().filter(|(clip, from, to)| !failed(clip, *from, *to)).collect();
+        let shown = preview.view().clip_id.clone();
+        let next = left.iter().find(|(clip, _, _)| Some(clip) == shown.as_ref()).or(left.first()).cloned();
+        if let Some((clip, from, to)) = next {
+            self.queue_repass(target, clip, from, to);
+        }
+    }
+
     /// While the source timeline plays, what it plays is transcribed as it goes (user 2026-11-16:
     /// "striming je bitan, jer novinar neće zbog stiske s vremenom moći čekati AI agente";
     /// "korisnik u timeline preslušava izjavu, ne u zoomu"; piece `qnc-stream-transcript`); the
@@ -589,10 +623,7 @@ impl Transcript {
                                 self.view.all_done |= self.queue.iter().any(|q| q.state == QueueState::Done && q.quality == QueueQuality::Fast);
                                 self.write(preview, qnc_transcript_db::clear_done);
                             }
-                            // No automatic fine pass any more (user 2026-11-19: Parakeet's text, with
-                            // its sentences and capitals, was replaced clip by clip with the Croatian
-                            // model's lower case, "nesređeni text"); a repass is asked by hand.
-                            let _ = &spans;
+                            self.fine_pass(preview, &spans);
                         }
                         Err(error) => self.view.message = error,
                     }
