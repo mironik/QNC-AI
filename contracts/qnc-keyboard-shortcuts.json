@@ -97,12 +97,6 @@
     "ai_tab_video": {
       "label": "Tab Video AI desnog panela"
     },
-    "statement_add_part": {
-      "label": "IN/OUT kao novi dio izabrane izjave (slozena izjava)"
-    },
-    "ai_tab_script": {
-      "label": "Tab Slozene izjave desnog panela"
-    },
     "shot_cue": {
       "label": "Playhead na pocetak kadra (Video AI)"
     },

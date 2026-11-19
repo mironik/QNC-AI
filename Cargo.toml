@@ -289,7 +289,6 @@ qnc-ingest-conductor = { path = "crates/qnc-ingest-conductor" }
 qnc-process-job = { path = "crates/qnc-process-job" }
 qnc-work-info = { path = "crates/qnc-work-info" }
 qnc-stream-transcript = { path = "crates/qnc-stream-transcript" }
-qnc-statement-letters = { path = "crates/qnc-statement-letters" }
 qnc-window-front = { path = "crates/qnc-window-front" }
 qnc-work-settings = { path = "../QNC-shared/crates/qnc-work-settings" }
 qnc-worker-wake = { path = "../QNC-shared/crates/qnc-worker-wake" }

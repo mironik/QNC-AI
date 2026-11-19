@@ -619,27 +619,9 @@ impl SubsegmentEdit {
             SUBSEGMENT_SELECT => {
                 let index = target.and_then(|index| index.parse::<usize>().ok()).filter(|index| *index < pieces.len())?;
                 (self.chosen, self.chosen_to) = (Some(index), None);
-                // In the zoom (a picture clicked) with an edge taken: the slot clicked takes its own
-                // edge at that cut, the edge moved before is kept first (user 2026-11-19: "u zumu
-                // slot mora raditi na svakom klipu"). The playhead does not move.
-                if let Some(old) = self.trim {
-                    // The cut is before part `cut`: a part before it takes its OUT, after it its IN.
-                    let cut = if old.out || old.roll.is_some() { old.index + 1 } else { old.index };
-                    let out = index < cut;
-                    if old.roll.is_some() || (index, out) != (old.index, old.out) {
-                        self.trim = None;
-                        let new = match old.index == index && old.roll.is_none() {
-                            true => Some(Trim { out, ..old }),
-                            false => {
-                                self.write_trim(preview, &block, &pieces, old);
-                                take(index, out)
-                            }
-                        };
-                        (self.sound, self.join_sound, self.slide, self.trim) = (None, None, None, new);
-                    }
-                    return Some(true);
-                }
-                if self.join_sound.is_some() {
+                // In the zoom (a picture clicked): the slot is chosen, the edge taken stays and the
+                // playhead does not move.
+                if self.trim.is_some() || self.join_sound.is_some() {
                     return Some(true);
                 }
                 let start = self.view.subsegment.as_ref().and_then(|view| view.parts.get(index)).map_or(0, |part| part.start);

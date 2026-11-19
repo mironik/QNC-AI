@@ -202,11 +202,9 @@ fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectRe
                 heard.insert(entry.clip_id.clone());
             }
         }
-        // A long clip is heard in pieces: it is heard once none of them waits or runs. A fine pass
-        // of a clip already heard (the Croatian model after Parakeet) does not take it back
-        // (live 2026-11-19: the bar went 106, 105, 106 as AI Media Assist refined clip by clip).
+        // A long clip is heard in pieces: it is heard once none of them waits or runs.
         for entry in &queue {
-            if entry.quality == qnc_transcript_db::QueueQuality::Fast && matches!(entry.state, qnc_transcript_db::QueueState::Waiting | qnc_transcript_db::QueueState::Running) {
+            if matches!(entry.state, qnc_transcript_db::QueueState::Waiting | qnc_transcript_db::QueueState::Running) {
                 heard.remove(&entry.clip_id);
             }
         }

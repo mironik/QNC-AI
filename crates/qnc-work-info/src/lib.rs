@@ -26,9 +26,7 @@ pub struct WorkInfo {
 
 impl WorkInfo {
     pub fn new(root: &Path) -> Self {
-        // It opens minimized, a chip in the header (user 2026-11-19: "Rad u pozadini otvaraj
-        // minimiziran"); a click opens it.
-        Self { root: root.to_path_buf(), follower: None, minimized: true }
+        Self { root: root.to_path_buf(), follower: None, minimized: false }
     }
 
     /// What is done now, while something is left to do.

@@ -44,8 +44,6 @@ qnc-ingest-conductor = { workspace = true }
 qnc-ai-catalog = { workspace = true }
 qnc-work-progress = { workspace = true }
 qnc-transcribe-run = { workspace = true }
-qnc-transcribe-jobs = { workspace = true }
-qnc-wave-worker = { workspace = true }
 qnc-tray-mode = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]

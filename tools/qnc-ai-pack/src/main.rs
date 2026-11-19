@@ -113,7 +113,6 @@ fn used() -> Vec<(&'static str, Result<Used, String>)> {
     let mut used = vec![
         ("transcribe.best", transcriber("transcribe.best", Quality::Best)),
         ("transcribe.fast", transcriber("transcribe.fast", Quality::Fast)),
-        ("transcribe.live", transcriber("transcribe.live", Quality::Live)),
         ("letters", qnc_ai_catalog::installed_letter_aligner().map(|engine| Used { job: "letters", program: engine.program, models: vec![engine.model] })),
         ("shot_content", qnc_ai_catalog::installed_shot_content().map(|engine| Used { job: "shot_content", program: engine.program, models: vec![engine.model] })),
         ("shot_caption", qnc_ai_catalog::installed_shot_captioner().map(|engine| Used { job: "shot_caption", program: engine.program, models: vec![engine.model] })),

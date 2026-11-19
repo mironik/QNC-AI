@@ -200,7 +200,6 @@ impl EditorialApplication {
         if self.short_stills.take_published() { self.reload_shorts() } // a poster was written
         changed |= self.pool_shots.take().map(|rows| self.apply_shorts(rows)).is_some();
         changed |= self.short_save.follow(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1)).map(|saved| self.short_saved(saved)).is_some();
-        self.focus.show_statement_parts(qnc_virtual_short_cards::chosen_parts(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref())); // a compound statement lights its parts (user 2026-11-19)
         qnc_dev_diagnostics::timed_block("poll-sync", || self.sync_preview_view());
         changed
     }
@@ -390,9 +389,8 @@ impl EditorialApplication {
                 true
             }
             qnc_pool_tabs::REMOVE_SHORT => { self.pool_shots.remove(self.content_target.as_ref().map(|targets| &targets.1), target); self.view.chosen_shot_id = None; true }
-            qnc_short_save::ADD_PART => self.short_save.add_part(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
             qnc_short_save::UPDATE => self.short_save.update(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
-            other => self.short_save.answer(other, target), // Overwrite or Cancel of the same statement (user 2026-11-01), the caption of a new one
+            other => self.short_save.answer(other), // Overwrite or Cancel of the same statement (user 2026-11-01)
         }
     }
 
@@ -402,7 +400,7 @@ impl EditorialApplication {
             Ok(saved) => saved,
             Err(error) => { qnc_virtual_short_cards::drop_saving(&mut self.view.shorts); return self.view.message = qnc_notice::raised(error) }
         };
-        if !saved.part { self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks))) } // a part keeps the statement's own stills
+        self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks)));
         self.reload_shorts();
         if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // the keyboard stays on the panel last clicked (user 2026-11-15); from the transcript more follow (2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);
@@ -427,13 +425,7 @@ impl EditorialApplication {
                 return true;
             }
         };
-        self.view.chosen_shot_id = Some(shot.shot_id.clone());
-        // A statement of several parts plays and shows part after part, never joined (user 2026-11-19).
-        if !shot.parts.is_empty() {
-            let parts: Vec<(String, u64, u64)> = std::iter::once((shot.clip_id.clone(), shot.in_frame, shot.out_frame)).chain(shot.parts.iter().map(|part| (part.clip_id.clone(), part.in_frame, part.out_frame))).collect();
-            self.focus.open_statement(&parts, &self.view.clips);
-            return true;
-        }
+        self.view.chosen_shot_id = Some(shot.shot_id);
         self.open_marked(&shot.clip_id, (shot.in_frame, shot.out_frame), None)
     }
 

@@ -63,7 +63,7 @@ impl ClipWindow {
             self.forget();
             return None;
         };
-        let (from, to) = qnc_timeline_model::enlarged_by(start, end, total, qnc_timeline_model::STATEMENT_AROUND);
+        let (from, to) = qnc_timeline_model::enlarged(start, end, total);
         let key = (clip.to_string(), from, to);
         let fresh = self.shown.as_ref() != Some(&key);
         if fresh {
@@ -212,11 +212,11 @@ mod tests {
     }
 
     #[test]
-    fn a_window_is_eighty_percent_around_the_marks_and_goes_without_them() {
+    fn a_window_is_seventy_percent_around_the_marks_and_goes_without_them() {
         let mut window = ClipWindow::default();
         let stored = SourceTimelineAssets::empty_for("c");
         let shown = window.follow(Some("c"), Some((700, 1400)), 5000, &stored, || None).expect("a window");
-        assert_eq!((shown.from, shown.to), (612, 1488), "10 % on each side (user 2026-11-19)");
+        assert_eq!((shown.from, shown.to), (550, 1550));
         assert!(window.follow(Some("c"), None, 5000, &stored, || None).is_none());
     }
 }

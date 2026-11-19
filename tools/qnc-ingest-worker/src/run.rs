@@ -157,10 +157,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
             Step::Waves => false,
             Step::PosterLook | Step::Shots => waves || not_done(Step::Import),
             Step::Filmstrips | Step::Content => waves || not_done(Step::Import) || not_done(Step::Shots),
-            // The statements are heard with the waves, from their sound (user 2026-11-19); the queue
-            // takes the clips they did not decide once the waves are done.
-            Step::Transcripts => false,
-            Step::Captions => waves || not_done(Step::Import) || not_done(Step::Shots) || not_done(Step::Content),
+            Step::Transcripts | Step::Captions => waves || not_done(Step::Import) || not_done(Step::Shots) || not_done(Step::Content),
             _ => false,
         }
     };
@@ -174,7 +171,6 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         Some(0) | None => true,
         Some(stage) => plan.stages[stage - 1].iter().all(|before| begun[at(*before)].load(Relaxed)),
     };
-    let hear_programs = qnc_ai_catalog::installed_fast_transcribers().map_or(1, |engines| engines.iter().map(|engine| engine.parallel.max(1) as usize).sum::<usize>()).max(1);
     let stuck_records = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
     let failure = std::sync::Mutex::new(None::<String>);
     let result = std::thread::scope(|scope| {
@@ -284,9 +280,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         // queue still hears it (2026-11-17 test: the last two clips held for ever); the queue ends
                         // the transcription itself.
                         // In Breaking news it waits for the steps before it.
-                        // At least as many as the fast engine has programs: the statements heard with the
-                        // waves (one clip a program) take no place of the conductor's steps.
-                        let places = if (breaking || playing()) && held(Step::Transcripts) { 0 } else { conductor.places(Step::Transcripts.code()).max(hear_programs) };
+                        let places = if (breaking || playing()) && held(Step::Transcripts) { 0 } else { conductor.places(Step::Transcripts.code()).max(1) };
                         qnc_transcribe_run::set_places(places);
                     }
                 }
@@ -384,7 +378,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             }
                         }
                         Step::Posters => crate::make_posters(root, config, lease, stops) > 0,
-                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || held(step), breaking, &|| not_done(Step::Transcripts)) > 0,
+                        Step::PosterLook | Step::Shots | Step::Content | Step::Captions => crate::make_shots(root, config, lease, stops, step, &|| places(step) == 0 || held(step), breaking) > 0,
                         Step::Import => match crate::import_waiting(root) {
                             // Working from the start of the round, not from its end (the conductor
                             // saw the copy idle while it copied: 2026-11-17 log).
@@ -414,10 +408,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                         Step::Transcripts => {
                             drop(in_round);
                             begun.store(true, Relaxed);
-                            // The clips whose wave this run reads are heard from its sound (statements only); the
-                            // queue takes the rest once the copy and the waves are done (live 2026-11-19: before
-                            // anything was copied the waves looked done and a long clip was heard twice).
-                            crate::transcribe::run(root, going, stops.flag(qnc_stopped_work::TRANSCRIPTS), idle, &|| !not_done(Step::Import) && !not_done(Step::Waves));
+                            crate::transcribe::run(root, going, stops.flag(qnc_stopped_work::TRANSCRIPTS), idle);
                             idle.store(true, Relaxed);
                             return;
                         }

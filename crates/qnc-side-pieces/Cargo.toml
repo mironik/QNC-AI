@@ -18,6 +18,3 @@ qnc-source-preview = { workspace = true }
 qnc-source-timecode = { workspace = true }
 qnc-timeline-model = { workspace = true }
 qnc-transcript = { workspace = true }
-qnc-subsegment-edit = { workspace = true }
-qnc-script-db = { workspace = true }
-serde_json = { workspace = true }

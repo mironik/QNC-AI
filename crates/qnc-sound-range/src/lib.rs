@@ -65,23 +65,6 @@ pub fn stream_from_start(place: &LocatedSound, channel: u16, from: u64, to: u64,
     }
 }
 
-/// The samples of camera channel `channel` over clip frames `[from, to)`, read the quickest way:
-/// a frame-wrapped MXF whose channel is uncompressed mono through its sound elements of those
-/// frames only (live 2026-11-19: a few seconds read through the decoder took 5-10 s beside the
-/// player, ffmpeg at 1.5 cores, while the engine itself took 1 s), any other through [`read`].
-pub fn read_quick(place: &LocatedSound, channel: u16, from: u64, to: u64, cancel: &std::sync::atomic::AtomicBool) -> Result<SoundRange, String> {
-    let (stream_index, _, width, rate) = place.channel(channel).ok_or_else(|| format!("no camera channel {}", channel + 1))?;
-    if let Some((elements, bytes)) = qnc_mxf_sound::sound_elements(&place.media, &[stream_index]).filter(|_| width == 1) {
-        let mut samples = Vec::new();
-        qnc_mxf_sound::read_element_frames_each(&place.file, elements[0], bytes, from, to, cancel, &mut |frame| samples.extend_from_slice(frame))?;
-        if samples.is_empty() {
-            return Err("no sound in the asked part".into());
-        }
-        return Ok(SoundRange { from_seconds: place.seconds_of(from as f64), rate, samples, frames: (from, to) });
-    }
-    read(place, channel, from, to, &mut |_| !cancel.load(std::sync::atomic::Ordering::Relaxed))
-}
-
 /// The samples of camera channel `channel` of the clip `place` locates, over clip frames
 /// `[from, to)`. `on_progress` hears the seconds read so far and stops the read with `false`.
 pub fn read(place: &LocatedSound, channel: u16, from: u64, to: u64, on_progress: &mut dyn FnMut(f64) -> bool) -> Result<SoundRange, String> {

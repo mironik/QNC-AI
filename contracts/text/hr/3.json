@@ -88,7 +88,6 @@
     "transcribe.done": "Prepisano.",
     "transcribe.empty_range": "Nema što prepisati: OUT nije iza IN.",
     "transcribe.off_in_project": "Prijepis je isključen u ovom projektu (Project, Advanced: AI prekidači).",
-    "transcribe.no_statement": "Na prvom kanalu nema izjave: nije prepisano.",
     "transcribe.repass_marks": "Označi dio za ponovni prijepis s IN i OUT na source timelineu.",
     "transcribe.repass_croatian": "Ponovo (HR) čuje samo hrvatski: jezik govora projekta nije hrvatski.",
     "transcribe.repass_queued": "Označeni dio ponovo sluša hrvatski model; novi tekst zamjenjuje stari na tom mjestu.",

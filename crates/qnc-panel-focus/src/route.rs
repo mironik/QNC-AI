@@ -97,13 +97,11 @@ impl PanelFocus {
         if matches!(action_id, "play_pause" | "timeline_cue_frame") {
             self.moves.stop(pieces.0);
         }
-        // The part added as a statement or to a composite statement is heard again with the
-        // Croatian model, however its IN/OUT were set (user 2026-11-19: "Dodaj izjavu ili dodaj
-        // složenu izjavu pokreće i prijepis tog dijela", the trim zoom needs the text laid on the
-        // wave; before, 2026-11-08, only a part marked by words), where the form has a transcript.
-        // The action itself goes on below.
-        if matches!(action_id, "save_virtual_shot" | qnc_script::SUBSEGMENT | qnc_script::ADD_CLIP | "statement_add_part") {
-            let _ = self.source.take_marked_by_text();
+        // The text chosen (a pair of words marked IN/OUT) is heard again with the Croatian model
+        // once it is added as a statement or to a composite statement (user 2026-11-08: not at the
+        // double click, only at Add statement / Add to composite statement), where the form has a
+        // transcript. The action itself goes on below.
+        if matches!(action_id, "save_virtual_shot" | qnc_script::SUBSEGMENT | qnc_script::ADD_CLIP) && self.source.take_marked_by_text().is_some() {
             let timecode = self.source.view().timecode;
             self.side.act(qnc_transcript::REPASS, None, None, pieces.0, pieces.3, timecode.as_ref());
         }
