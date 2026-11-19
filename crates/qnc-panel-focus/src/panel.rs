@@ -169,7 +169,7 @@ impl<'a, S: qnc_clip_row::PoolItem> StatementColumn<'a, S> {
         let action = match (compound, remove) {
             (false, false) => return Some(Ok(id)),
             (false, true) => qnc_pool_tabs::LibraryTab::Virtual.remove_action()?,
-            (true, false) => qnc_script::OPEN,
+            (true, false) => qnc_script::SHOW_COMPOUND,
             (true, true) => qnc_pool_tabs::LibraryTab::Subsegment.remove_action()?,
         };
         Some(Err(qnc_action_event::ActionEvent::key(action).with_target(id)))

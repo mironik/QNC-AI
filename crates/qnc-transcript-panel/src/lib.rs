@@ -107,12 +107,12 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
             }
             // The marked text is lit in AI Media Assist too, whole (user 2026-11-15: "označeni tekst
             // kompletan markiraj") and in its brackets.
-            let (word, rect, line_rows) = paint_line(ui, line, view, ends, true, found.as_ref(), theme);
+            let (word, rect, line_rows) = paint_line(ui, line, view, &ends, true, found.as_ref(), theme);
             rows.extend(line_rows);
             if found.as_ref().is_some_and(|found| found.bring && line_words(line).iter().any(|w| found.current.first() == Some(&(w.1, w.2)))) {
                 ui.scroll_to_rect(rect, Some(egui::Align::Center));
             }
-            if bring && ends.is_some_and(|(first, _)| line_words(line).iter().any(|w| (w.1, w.2) == first)) {
+            if bring && ends.first().is_some_and(|(first, _)| line_words(line).iter().any(|w| (w.1, w.2) == *first)) {
                 ui.scroll_to_rect(rect, Some(egui::Align::Center));
             }
             if let Some(word) = word {
@@ -143,7 +143,7 @@ fn paint_silence(ui: &mut egui::Ui, from: &str, to: &str, theme: &qnc_desktop_th
 /// One line as one text wrapped at the panel's width (user 2026-10-26: "sentences go out of the
 /// panel, they should wrap"), the word said at the playhead lit; returns the first frame of a
 /// clicked word.
-fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Option<((u64, u64), (u64, u64))>, show_marks: bool, found: Option<&search::Shown>, theme: &qnc_desktop_theme::Theme) -> (Option<(u64, u64, bool)>, egui::Rect, Vec<Vec<(u64, u64)>>) {
+fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: &[((u64, u64), (u64, u64))], show_marks: bool, found: Option<&search::Shown>, theme: &qnc_desktop_theme::Theme) -> (Option<(u64, u64, bool)>, egui::Rect, Vec<Vec<(u64, u64)>>) {
     let running = view.running.is_some_and(|(from, to)| line.from >= from && line.to <= to);
     let base = if running { theme.text_muted } else { theme.text };
     let font = egui::FontId::proportional(theme.font_ui);
@@ -155,7 +155,7 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
     let bracket = |job: &mut egui::text::LayoutJob, mark: &str| {
         job.append(mark, 0.0, egui::TextFormat::simple(egui::FontId::proportional(theme.font_ui + 2.0), theme.danger));
     };
-    let is_marked = |from: u64, to: u64| show_marks && view.marks.is_some_and(|(a, b)| (a..b).contains(&((from + to) / 2)));
+    let is_marked = |from: u64, to: u64| show_marks && ranges(view).any(|(a, b)| (a..b).contains(&((from + to) / 2)));
     // The marked text in one colour, its spaces too (user 2026-11-15).
     let mark_fill = theme.focus.gamma_multiply(0.35);
     for (at, (text, from, to)) in words.iter().enumerate() {
@@ -166,7 +166,7 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
             }
             job.append(" ", 0.0, space);
         }
-        if ends.is_some_and(|(first, _)| first == (*from, *to)) {
+        if ends.iter().any(|(first, _)| *first == (*from, *to)) {
             bracket(&mut job, "[ ");
         }
         let lit = said(view, *from, *to);
@@ -189,7 +189,7 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
         let start = job.text.chars().count();
         job.append(text, 0.0, format);
         spans.push((start, start + text.chars().count(), (*from, *to)));
-        if ends.is_some_and(|(_, last)| last == (*from, *to)) {
+        if ends.iter().any(|(_, last)| *last == (*from, *to)) {
             bracket(&mut job, " ]");
         }
     }
@@ -248,11 +248,23 @@ fn shown_rows(galley: &egui::Galley, spans: &[(usize, usize, (u64, u64))]) -> Ve
 
 /// The words of a line with their frames (a line without words is one word).
 /// The first and the last word between IN and OUT, by the middle of the word.
-fn marked_ends(view: &TranscriptView) -> Option<((u64, u64), (u64, u64))> {
-    let (a, b) = view.marks?;
-    let mut inside = view.lines.iter().flat_map(line_words).map(|(_, from, to)| (from, to)).filter(|(from, to)| (a..b).contains(&((from + to) / 2)));
-    let first = inside.next()?;
-    Some((first, inside.last().unwrap_or(first)))
+/// The ranges whose words are lit: the IN/OUT and the parts of the compound statement shown.
+fn ranges(view: &TranscriptView) -> impl Iterator<Item = (u64, u64)> + '_ {
+    view.marks.into_iter().chain(view.parts.iter().copied())
+}
+
+/// The first and the last word of each lit range (IN/OUT, each part of a compound statement),
+/// by the middle of the word: where the red brackets go.
+fn marked_ends(view: &TranscriptView) -> Vec<((u64, u64), (u64, u64))> {
+    let mut ends: Vec<((u64, u64), (u64, u64))> = ranges(view)
+        .filter_map(|(a, b)| {
+            let mut inside = view.lines.iter().flat_map(line_words).map(|(_, from, to)| (from, to)).filter(|(from, to)| (a..b).contains(&((from + to) / 2)));
+            let first = inside.next()?;
+            Some((first, inside.last().unwrap_or(first)))
+        })
+        .collect();
+    ends.dedup();
+    ends
 }
 
 fn said(view: &TranscriptView, from: u64, to: u64) -> bool {
@@ -273,10 +285,12 @@ mod tests {
             words: words.iter().map(|&(from, to)| Word { from, to, text: "w".into() }).collect(),
         };
         let mut view = TranscriptView { lines: std::sync::Arc::new(vec![line(&[(0, 10), (10, 20)]), line(&[(30, 40), (40, 50)])]), ..TranscriptView::default() };
-        assert_eq!(marked_ends(&view), None, "no IN/OUT, no brackets");
+        assert_eq!(marked_ends(&view), vec![], "no IN/OUT, no brackets");
         view.marks = Some((12, 46));
-        assert_eq!(marked_ends(&view), Some(((10, 20), (40, 50))));
+        assert_eq!(marked_ends(&view), vec![((10, 20), (40, 50))]);
         view.marks = Some((31, 39));
-        assert_eq!(marked_ends(&view), Some(((30, 40), (30, 40))), "one word is both");
+        assert_eq!(marked_ends(&view), vec![((30, 40), (30, 40))], "one word is both");
+        view.parts = vec![(1, 19)];
+        assert_eq!(marked_ends(&view), vec![((30, 40), (30, 40)), ((0, 10), (10, 20))], "each part of a compound has its brackets");
     }
 }

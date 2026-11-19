@@ -183,6 +183,9 @@ pub use qnc_clip_row::TabCard as SubsegmentCard;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScriptView {
     pub blocks: Vec<BlockRow>,
+    /// The compound statement shown (`SHOW_COMPOUND`): its first part's clip and the ranges of its
+    /// parts in that clip, marked in the transcript.
+    pub compound_parts: Option<(String, Vec<(u64, u64)>)>,
     /// The posters of the compound statements: block, where it is from and the picture.
     pub compound_posters: Vec<(i64, String, std::sync::Arc<qnc_image_assets::RgbaImage>)>,
     /// The script profile of the project (none until it is read).

@@ -163,11 +163,6 @@
           "label": "@ai.tab_video",
           "action_id": "ai_tab_video",
           "panel": "video_ai_panel"
-        },
-        {
-          "label": "@pool.tab.subsegment",
-          "action_id": "ai_tab_script",
-          "panel": "script_panel"
         }
       ],
       "tab_order": [

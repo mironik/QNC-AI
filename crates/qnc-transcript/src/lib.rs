@@ -112,6 +112,8 @@ pub struct TranscriptView {
     pub ticked: usize,
     /// The shown clip's IN/OUT (`[from, to)`): its words are lit as what a statement takes.
     pub marks: Option<(u64, u64)>,
+    /// The parts of the compound statement shown (user 2026-11-19), lit as the marks are.
+    pub parts: Vec<(u64, u64)>,
     /// The statements chosen (user 2026-10-26), in the order they were added.
     pub quotes: Vec<Quote>,
     /// The clips whose kept transcript has words (the pool's Transcript tab, user 2026-10-28;
@@ -190,6 +192,8 @@ struct Running {
 
 pub struct Transcript {
     view: TranscriptView,
+    /// The compound statement shown: its clip and the ranges of its parts there.
+    parts: Option<(String, Vec<(u64, u64)>)>,
     ticks: BTreeSet<String>,
     quality: QueueQuality,
     runner: QueueRunner,
@@ -239,6 +243,7 @@ impl Default for Transcript {
             stream: Default::default(),
             letters: Default::default(),
             repassed: Default::default(),
+            parts: None,
         }
     }
 }
@@ -496,6 +501,7 @@ impl Transcript {
         // timeline shows as IN/OUT is not a selection.
         // The words are marked only once IN and OUT are both set (user 2026-11-15: "kursor u tekstu
         // je indikator položaja, ne riječi markirati dok ne postoje dva markera in/out").
+        self.view.parts = self.parts.as_ref().filter(|(clip, _)| Some(clip) == clip_id.as_ref()).map(|(_, parts)| parts.clone()).unwrap_or_default();
         self.view.marks = match (timeline.source_in_frame, timeline.source_out_frame) {
             (Some(from), Some(to)) if to > from => Some((from, to)),
             _ => None,
@@ -761,5 +767,13 @@ mod quote_tests {
             ..TranscriptView::default()
         };
         assert_eq!(view.quotes_text(), "00:21:56:17\ndosad njih\n00:21:56:35");
+    }
+}
+
+impl Transcript {
+    /// The compound statement shown (its clip and the ranges of its parts there), or none: its
+    /// parts are lit while that clip is shown.
+    pub fn show_parts(&mut self, parts: Option<(String, Vec<(u64, u64)>)>) {
+        self.parts = parts;
     }
 }

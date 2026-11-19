@@ -79,6 +79,10 @@ pub const MOVE_DOWN: &str = "script_move_down";
 pub const REMOVE: &str = "script_remove";
 /// A clip block opens its clip with its IN/OUT (target: its id).
 pub const OPEN: &str = "script_open";
+/// A compound statement shown as statements are (user 2026-11-19: "klik na njenu ikonu otvori
+/// orginalni prijepis sa selektiranim djelovima"): the clip of its first part opens with that
+/// part's IN/OUT, and the transcript marks every part of it in that clip (target: block id).
+pub const SHOW_COMPOUND: &str = "script_show_compound";
 /// A click on a word of a statement in the script (user 2026-11-04: edited by its text): the
 /// statement opens in place of the source timeline and the playhead goes to the word. `target`
 /// is `block:part:frame`.
@@ -209,12 +213,14 @@ pub struct Script {
     clear_after_write: bool,
     /// The posters of the compound statements: the picture at the IN of the first part.
     posters: qnc_compound_posters::CompoundPosters,
+    /// The clip of the compound shown has been on the preview (its parts are let go once it is not).
+    compound_seen: bool,
 }
 
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false, posters: qnc_compound_posters::CompoundPosters::new() }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false, posters: qnc_compound_posters::CompoundPosters::new(), compound_seen: false }
     }
 }
 
@@ -575,6 +581,14 @@ impl Script {
                         true
                     }
                 }
+            }
+            SHOW_COMPOUND => {
+                let Some(block) = id().and_then(|id| self.view.blocks.iter().find(|row| row.block.id == id)) else { return Some(false) };
+                let Some(first) = block.block.pieces.first() else { return Some(false) };
+                let parts = block.block.pieces.iter().filter(|piece| piece.clip_id == first.clip_id).map(|piece| (piece.from_frame, piece.to_frame)).collect();
+                self.source_request = Some((first.clip_id.clone(), first.from_frame, first.to_frame));
+                (self.view.compound_parts, self.compound_seen) = (Some((first.clip_id.clone(), parts)), false);
+                true
             }
             OPEN => match id().and_then(|id| self.view.blocks.iter().find(|row| row.block.id == id && row.is_clip())) {
                 Some(row) => {
@@ -940,6 +954,7 @@ impl Script {
         }
         self.view.blocks = rows(&self.blocks, self.view.profile.as_ref(), self.reading_speed());
         self.follow_posters(preview);
+        self.follow_compound(preview);
         for row in &mut self.view.blocks {
             row.voice = self.voices.iter().find(|(voice, _)| voice.block_id == row.block.id).map(|(voice, present)| {
                 let mut shown = VoiceRow::of(voice, *present, &row.block.text);
@@ -1154,5 +1169,18 @@ impl Script {
             .into_iter()
             .filter_map(|(id, clip, frame)| Some((id, format!("compound:{clip}:{frame}"), self.posters.get(&clip, frame)?.clone())))
             .collect();
+    }
+}
+
+impl Script {
+    /// The parts of the compound shown stay marked while its clip is on the preview; another clip
+    /// lets them go.
+    fn follow_compound(&mut self, preview: &SourcePreview) {
+        let Some((clip, _)) = &self.view.compound_parts else { return };
+        match preview.view().clip_id.as_deref() {
+            Some(shown) if shown == clip => self.compound_seen = true,
+            _ if self.compound_seen => (self.view.compound_parts, self.compound_seen) = (None, false),
+            _ => {}
+        }
     }
 }

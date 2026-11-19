@@ -86,7 +86,9 @@ impl SidePieces {
             transcripts: ClipTranscripts::new(),
             transcript: (has(TRANSCRIPT_PANEL) || has(TRANSCRIPT_SEARCH_PANEL) || has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL)).then(Transcript::new),
             shots: has(VIDEO_AI_PANEL).then(ClipShots::default),
-            script: (has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL)).then(Script::new),
+            // The transcript panel (AI Media Assist) keeps its compound statements in the script,
+            // without showing it (user 2026-11-19).
+            script: (has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL) || has(TRANSCRIPT_PANEL)).then(Script::new),
             versions: has(DRAFT_SEGMENT_PANEL).then(SkeletonVersions::new),
             ai_broll: has(AI_BROLL_TAB).then(AiBroll::new),
             views: SideViews::default(),
@@ -136,6 +138,10 @@ impl SidePieces {
             let shown = self.transcript.as_ref().and(preview.view().clip_id.clone());
             let statements = self.script.as_ref().map(Script::transcript_clips).unwrap_or_default();
             self.transcripts.poll(preview.project_target(), shown.into_iter().chain(statements));
+        }
+        // The parts of the compound statement shown are lit in the transcript (user 2026-11-19).
+        if let (Some(transcript), Some(script)) = (&mut self.transcript, &self.script) {
+            transcript.show_parts(script.view().compound_parts.clone());
         }
         // The pool's ticks are the transcript's.
         if let Some(transcript) = &mut self.transcript {
@@ -326,7 +332,8 @@ mod tests {
         let story = SidePieces::for_panels([SEGMENT_PANEL]);
         assert!(story.transcript.is_none() && story.shots.is_none() && story.script.is_none());
         let ai = SidePieces::for_panels([TRANSCRIPT_PANEL, VIDEO_AI_PANEL]);
-        assert!(ai.transcript.is_some() && ai.shots.is_some() && ai.script.is_none());
+        // AI Media Assist keeps its compound statements in the script (user 2026-11-19).
+        assert!(ai.transcript.is_some() && ai.shots.is_some() && ai.script.is_some());
         let audio = SidePieces::for_panels([SCRIPT_PANEL]);
         assert!(audio.transcript.is_some() && audio.shots.is_none() && audio.script.is_some() && audio.versions.is_none());
         assert_eq!(audio.draft_story(), None);
