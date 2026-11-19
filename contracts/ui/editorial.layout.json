@@ -145,6 +145,10 @@
           {
             "label": "@pool.tab.transcript",
             "action_id": "editorial_tab_transcript"
+          },
+          {
+            "label": "@pool.tab.subsegment",
+            "action_id": "editorial_tab_subsegment"
           }
         ]
       },
@@ -163,6 +167,11 @@
           "label": "@ai.tab_video",
           "action_id": "ai_tab_video",
           "panel": "video_ai_panel"
+        },
+        {
+          "label": "@pool.tab.subsegment",
+          "action_id": "ai_tab_script",
+          "panel": "script_panel"
         }
       ],
       "tab_order": [
@@ -182,6 +191,10 @@
           "@story.broll",
           "@story.voice_over",
           "@story.talking_head",
+          {
+            "label": "@script.subsegment",
+            "action_id": "script_subsegment"
+          },
           {
             "label": "@story.update_statement",
             "action_id": "statement_update"
