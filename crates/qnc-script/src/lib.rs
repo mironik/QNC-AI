@@ -207,12 +207,14 @@ pub struct Script {
     message_after_write: Option<String>,
     /// The editor is emptied once the write in progress is done (a saved text).
     clear_after_write: bool,
+    /// The posters of the compound statements: the picture at the IN of the first part.
+    posters: qnc_compound_posters::CompoundPosters,
 }
 
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false, posters: qnc_compound_posters::CompoundPosters::new() }
     }
 }
 
@@ -937,6 +939,7 @@ impl Script {
             }
         }
         self.view.blocks = rows(&self.blocks, self.view.profile.as_ref(), self.reading_speed());
+        self.follow_posters(preview);
         for row in &mut self.view.blocks {
             row.voice = self.voices.iter().find(|(voice, _)| voice.block_id == row.block.id).map(|(voice, present)| {
                 let mut shown = VoiceRow::of(voice, *present, &row.block.text);
@@ -1133,3 +1136,23 @@ impl Script {
 
 #[cfg(test)]
 mod tests;
+
+impl Script {
+    /// The poster of each compound statement: the picture at the IN of its first part, decoded
+    /// in the background (user 2026-11-19: "poster sa slike na IN-u prvog dijela").
+    fn follow_posters(&mut self, preview: &SourcePreview) {
+        let firsts: Vec<(i64, String, u64)> = self
+            .view
+            .blocks
+            .iter()
+            .filter(|row| row.is_subsegment())
+            .filter_map(|row| row.block.pieces.first().map(|piece| (row.block.id, piece.clip_id.clone(), piece.from_frame)))
+            .collect();
+        let wanted: Vec<(String, u64)> = firsts.iter().map(|(_, clip, frame)| (clip.clone(), *frame)).collect();
+        self.posters.poll(preview.still_locator().as_ref(), &wanted);
+        self.view.compound_posters = firsts
+            .into_iter()
+            .filter_map(|(id, clip, frame)| Some((id, format!("compound:{clip}:{frame}"), self.posters.get(&clip, frame)?.clone())))
+            .collect();
+    }
+}

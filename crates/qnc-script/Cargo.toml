@@ -5,6 +5,8 @@ edition = "2021"
 description = "QNC public piece: the script of a project's story (user 2026-10-28, Media Assist Audio) - OFF text written in the editor and statements of clips put in reading order, kept in the project database, with the length of each block, the whole and the target of the story sheet; it knows no form"
 
 [dependencies]
+qnc-image-assets = { workspace = true }
+qnc-compound-posters = { workspace = true }
 qnc-clip-row = { workspace = true }
 qnc-ai-features = { workspace = true }
 qnc-smooth-joins = { workspace = true }

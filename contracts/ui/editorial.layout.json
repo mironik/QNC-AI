@@ -145,10 +145,6 @@
           {
             "label": "@pool.tab.transcript",
             "action_id": "editorial_tab_transcript"
-          },
-          {
-            "label": "@pool.tab.subsegment",
-            "action_id": "editorial_tab_subsegment"
           }
         ]
       },

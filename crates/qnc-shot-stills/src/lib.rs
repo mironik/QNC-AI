@@ -147,8 +147,8 @@ fn write(locator: Option<&StillLocator>, job: &Job) -> Result<Vec<String>, Strin
             // The OUT of a SubClip without its own OUT is the end of the clip, the bound
             // after its last picture (user 2026-10-23: every clip is virtual, its IN and OUT
             // are its start and end): that still is the last picture.
-            None => decode(locator, &job.clip, *frame).or_else(|error| match frame.checked_sub(1) {
-                Some(last) if name == "out.jpg" => decode(locator, &job.clip, last),
+            None => decode_still(locator, &job.clip, *frame).or_else(|error| match frame.checked_sub(1) {
+                Some(last) if name == "out.jpg" => decode_still(locator, &job.clip, last),
                 _ => Err(error),
             })?,
         };
@@ -160,7 +160,7 @@ fn write(locator: Option<&StillLocator>, job: &Job) -> Result<Vec<String>, Strin
 
 /// One exact frame of the clip from the media the project plays, through the decoder
 /// catalog; no probe, nothing written but a scratch file of the system that is removed.
-fn decode(locator: Option<&StillLocator>, clip: &str, frame: u64) -> Result<RgbaImage, String> {
+pub fn decode_still(locator: Option<&StillLocator>, clip: &str, frame: u64) -> Result<RgbaImage, String> {
     let failed = |error: &str| qnc_ui_text::fill("stills.picture_not_decoded", &[("frame", &frame.to_string()), ("error", error)]);
     let locator = locator.ok_or_else(|| failed(&qnc_ui_text::text("stills.clip_open_broadcast_player")))?;
     let place = locator.locate(clip).map_err(|error| failed(&error))?;
