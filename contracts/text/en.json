@@ -808,6 +808,7 @@
     "transcribe.done": "Transcribed.",
     "transcribe.empty_range": "Nothing to transcribe: OUT is not after IN.",
     "transcribe.off_in_project": "Transcription is off in this project (Project, Advanced: AI switches).",
+    "transcribe.no_statement": "No statement on the first channel: not transcribed.",
     "transcribe.repass_marks": "Mark the part to hear again with IN and OUT on the source timeline.",
     "transcribe.repass_croatian": "Again (HR) hears Croatian only: the project's language of speech is not Croatian.",
     "transcribe.repass_queued": "The marked part is heard again with the Croatian model; its new text replaces the old there.",

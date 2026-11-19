@@ -183,6 +183,22 @@ pub(crate) fn run_artifacts(
     }
     let mut settings = without(stopped);
     let target = qnc_content_store::ContentTarget::for_project(&reader, &settings)?;
+    // The statements are heard from the sound the waves read (user 2026-11-19: "val i prijepis
+    // zajedno", "prijepisi samo izjava s prvim kanalom"); the hearers end with this step.
+    let hear_stopped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(stops.is(qnc_stopped_work::TRANSCRIPTS)));
+    let statements = if step == qnc_ingest_plan::Step::Waves {
+        let flag = hear_stopped.clone();
+        match transcribe::Statements::start(root, std::sync::Arc::new(move || flag.load(std::sync::atomic::Ordering::Relaxed))) {
+            Ok(statements) => statements,
+            Err(error) => {
+                trace(format!("statements not heard with the waves: {error}"));
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let sink = statements.as_ref().map(transcribe::Statements::sink);
     // Any player of any form announces itself in the project database; the
     // generators give way while it prepares or plays.
     // While the user edits two workers, while the player plays only the open clip's (user
@@ -209,6 +225,7 @@ pub(crate) fn run_artifacts(
         artifacts.set_write_lease(lease.write_lease());
         artifacts.set_playback_priority(player_works());
         artifacts.set_cap(cap());
+        artifacts.set_first_channel(sink.clone());
         artifacts.sync(&reader, settings, target.clone(), false)?;
         Ok(artifacts)
     };
@@ -218,11 +235,15 @@ pub(crate) fn run_artifacts(
     let mut synced = std::time::Instant::now();
     loop {
         let still_completing = going.load(std::sync::atomic::Ordering::Relaxed);
-        idle.store(!artifacts.has_pending_work(), std::sync::atomic::Ordering::Relaxed);
-        if !still_completing && !artifacts.has_pending_work() {
+        // The statements heard from the waves' sound belong to this step: it is done when they are.
+        let pending = artifacts.has_pending_work() || statements.as_ref().is_some_and(transcribe::Statements::busy);
+        idle.store(!pending, std::sync::atomic::Ordering::Relaxed);
+        if !still_completing && !pending {
             break;
         }
+        hear_stopped.store(stops.is(qnc_stopped_work::TRANSCRIPTS), std::sync::atomic::Ordering::Relaxed);
         if closed.load(std::sync::atomic::Ordering::Relaxed) {
+            hear_stopped.store(true, std::sync::atomic::Ordering::Relaxed);
             return Ok(()); // dropping the artifacts cancels their workers
         }
         // The user stopped the filmstrips or the waves: the workers of both are cancelled (by

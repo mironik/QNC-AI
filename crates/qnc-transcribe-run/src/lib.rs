@@ -625,6 +625,92 @@ fn run_engine(engines: &[qnc_ai_catalog::Transcriber], language: &str, samples: 
     Ok(transcript)
 }
 
+/// How many seconds of the first channel are heard to know whether a clip is a statement.
+const PROBE_SECONDS: usize = 15;
+/// A clip this long or shorter is heard whole at once.
+const WHOLE_SECONDS: usize = 20;
+/// The share of the probe its words must cover for the clip to be a statement (the same as the
+/// rule that keeps statements from the AI shots, user 2026-11-12).
+pub const STATEMENT_SHARE: f32 = 0.3;
+
+/// Whether the clip `clip_id` is a statement and, when it is, its transcript (user 2026-11-19:
+/// "prijepisi samo izjava s prvim kanalom"; the sound the wave read, so the medium is not read
+/// again). `samples`: its first camera channel at 16 kHz from the medium's start. The loudest
+/// `PROBE_SECONDS` are heard by the fast engine; when their words cover `STATEMENT_SHARE` of
+/// them the whole clip is heard and its transcript returned (rough, never over a fine one);
+/// otherwise none. With the clip's frames the samples cover.
+pub fn hear_statement(locator: &StillLocator, clip_id: &str, samples: &[f32], cancel: &AtomicBool) -> Result<(Option<ClipTranscript>, u64), String> {
+    let settings = locator.settings();
+    if !settings.ai_feature(qnc_ai_features::TRANSCRIPTION).map_err(|e| e.to_string())? {
+        return Err(qnc_ui_text::text("transcribe.off_in_project").into());
+    }
+    let place = locator.locate_sound(clip_id)?;
+    let engines = qnc_ai_catalog::installed_fast_transcribers()?;
+    let job = Job {
+        locator,
+        engines: &engines,
+        language: settings.speech_language().map_err(|e| e.to_string())?,
+        channel: 0,
+        place: &place,
+    };
+    let rate = qnc_transcribe_jobs::WHISPER_RATE as usize;
+    let fps = f64::from(place.fps.0) / f64::from(place.fps.1.max(1));
+    let frame_of = |sample: usize| (sample as f64 / rate as f64 * fps).round() as u64;
+    let end = frame_of(samples.len());
+    let start = place.seconds_of(0.0);
+    let whole = |job: &Job| -> Result<ClipTranscript, String> {
+        let (lines, language, engine) = job.transcribe(samples, start, (0, end), cancel, &mut |_| {})?;
+        Ok(ClipTranscript { clip_id: clip_id.to_string(), from_frame: 0, to_frame: end, language, engine, lines, fine: false })
+    };
+    if samples.len() <= WHOLE_SECONDS * rate {
+        let transcript = whole(&job)?;
+        return Ok(((spoken(&transcript.lines, 0, end) >= STATEMENT_SHARE).then_some(transcript), end));
+    }
+    // The loudest window: the statement, when there is one, is where the voice is.
+    let window = PROBE_SECONDS * rate;
+    let tenth = rate / 10;
+    let energy: Vec<f64> = samples.chunks(tenth).map(|chunk| chunk.iter().map(|s| f64::from(*s) * f64::from(*s)).sum()).collect();
+    let span = window / tenth;
+    let mut best = (0usize, f64::MIN);
+    let mut sum: f64 = energy.iter().take(span).sum();
+    for first in 0..=energy.len().saturating_sub(span) {
+        if first > 0 {
+            sum += energy.get(first + span - 1).copied().unwrap_or_default() - energy[first - 1];
+        }
+        if sum > best.1 {
+            best = (first, sum);
+        }
+    }
+    let from = best.0 * tenth;
+    let to = (from + window).min(samples.len());
+    let (from_frame, to_frame) = (frame_of(from), frame_of(to));
+    let (lines, _, _) = job.transcribe(&samples[from..to], place.seconds_of(from_frame as f64), (from_frame, to_frame), cancel, &mut |_| {})?;
+    let share = spoken(&lines, from_frame, to_frame);
+    log(&format!("transcribe statement {clip_id} probe {from_frame}..{to_frame} share={share:.2}"));
+    if share < STATEMENT_SHARE {
+        return Ok((None, end));
+    }
+    whole(&job).map(|transcript| (Some(transcript), end))
+}
+
+/// The share of clip frames `[from, to)` the words of `lines` cover.
+fn spoken(lines: &[Line], from: u64, to: u64) -> f32 {
+    if to <= from {
+        return 0.0;
+    }
+    let mut spans: Vec<(u64, u64)> = lines.iter().flat_map(|line| line.words.iter()).map(|word| (word.from.max(from), word.to.min(to))).filter(|(a, b)| a < b).collect();
+    spans.sort_unstable();
+    let (mut covered, mut until) = (0u64, from);
+    for (a, b) in spans {
+        let a = a.max(until);
+        if b > a {
+            covered += b - a;
+            until = b;
+        }
+    }
+    covered as f32 / (to - from) as f32
+}
+
 /// What the Best engine of this computer hears in `samples` (16 kHz) that are not of a clip: a
 /// take of the voice-over (user 2026-11-08). Its words are seconds of `samples`.
 pub fn hear_samples(samples: &[f32], language: &str, cancel: &AtomicBool) -> Result<qnc_transcribe_jobs::Transcript, String> {
