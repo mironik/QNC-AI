@@ -59,8 +59,8 @@ impl StreamTranscript {
                 self.running = None;
             }
         }
-        // A clip shown: the engines are loaded before they are needed.
-        if let (Some(locator), Some(_)) = (locator, clip) {
+        // A project open: the engines are loaded before a clip is played.
+        if let Some(locator) = locator {
             warm(locator);
         }
         if let (Some(running), Some(frame)) = (&self.running, frame) {
@@ -213,17 +213,21 @@ fn warm(locator: &StillLocator) {
         return;
     }
     let Ok(language) = settings.speech_language() else { return };
+    // The transcription programs this form starts stay at normal priority (the live transcript
+    // keeps up with the player; the background worker's own stay below normal).
+    std::env::set_var("QNC_TRANSCRIBE_PRIORITY", "normal");
     let mut qualities = vec![fine_quality(&language)];
     if qnc_ai_catalog::installed_transcriber_for(Quality::Live).is_ok() {
         qualities.insert(0, Quality::Live);
     }
-    for quality in qualities {
-        let language = language.clone();
-        let _ = std::thread::Builder::new().name("qnc-stream-transcript-warm".into()).spawn(move || {
+    // One after the other, the live engine first (live 2026-11-19: loaded at the same time each
+    // took 25-40 s).
+    let _ = std::thread::Builder::new().name("qnc-stream-transcript-warm".into()).spawn(move || {
+        for quality in qualities {
             let silence = vec![0.0f32; qnc_transcribe_jobs::WHISPER_RATE as usize];
             let began = std::time::Instant::now();
             let result = qnc_transcribe_run::hear_samples_with(quality, &silence, &language, &AtomicBool::new(false));
             qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("stream-transcript warm {quality:?} ms={} ok={}", began.elapsed().as_millis(), result.is_ok()));
-        });
-    }
+        }
+    });
 }
