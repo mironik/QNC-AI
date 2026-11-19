@@ -428,7 +428,13 @@ impl EditorialApplication {
             }
         };
         self.view.chosen_shot_id = Some(shot.shot_id.clone());
-        self.open_marked(&shot.clip_id, qnc_virtual_short_cards::span(&shot), None) // a compound statement: from its first IN to its last OUT
+        // A statement of several parts plays and shows part after part, never joined (user 2026-11-19).
+        if !shot.parts.is_empty() {
+            let parts: Vec<(String, u64, u64)> = std::iter::once((shot.clip_id.clone(), shot.in_frame, shot.out_frame)).chain(shot.parts.iter().map(|part| (part.clip_id.clone(), part.in_frame, part.out_frame))).collect();
+            self.focus.open_statement(&parts, &self.view.clips);
+            return true;
+        }
+        self.open_marked(&shot.clip_id, (shot.in_frame, shot.out_frame), None)
     }
 
     /// Opens a clip in the source view with IN/OUT (a short, an edited segment).

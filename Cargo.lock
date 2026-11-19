@@ -7418,11 +7418,14 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-notice",
  "qnc-script",
+ "qnc-script-db",
  "qnc-skeleton-versions",
  "qnc-source-preview",
  "qnc-source-timecode",
+ "qnc-subsegment-edit",
  "qnc-timeline-model",
  "qnc-transcript",
+ "serde_json",
 ]
 
 [[package]]

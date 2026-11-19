@@ -5,6 +5,9 @@
 //! Video AI tab, the script (Media Assist Audio, which also puts in the statements of the
 //! transcript). Their views are shared snapshots, renewed only when a poll changed them.
 
+mod statement;
+pub use statement::StatementPlay;
+
 use std::sync::Arc;
 
 use qnc_ai_broll::{AiBroll, AiBrollView};
@@ -75,6 +78,8 @@ pub struct SidePieces {
     gate_of: Option<String>,
     /// The parts of the chosen statement in the clip shown (its record), lit in the transcript.
     statement_parts: Option<(String, Vec<(u64, u64)>)>,
+    /// A statement of several parts played and shown part after part (user 2026-11-19).
+    statement: StatementPlay,
     features: Option<Result<qnc_ai_features::Features, String>>,
 }
 
@@ -98,6 +103,7 @@ impl SidePieces {
             plans: 0,
             gate_of: None,
             statement_parts: None,
+            statement: StatementPlay::new(),
             features: None,
         }
     }
@@ -117,6 +123,12 @@ impl SidePieces {
     }
 
     /// The parts of the chosen statement in the clip shown (`qnc-virtual-short-cards`).
+    /// Opens the statement of `parts` (clip, IN, OUT; its own first) part after part in place of
+    /// the source timeline.
+    pub fn open_statement(&mut self, parts: &[(String, u64, u64)], clips: &[ClipRow]) {
+        self.statement.open(parts, clips);
+    }
+
     pub fn show_statement_parts(&mut self, parts: Option<(String, Vec<(u64, u64)>)>) {
         self.statement_parts = parts;
     }
@@ -134,6 +146,8 @@ impl SidePieces {
     /// Polls the pieces; a view is renewed only when its piece changed it.
     pub fn poll(&mut self, preview: &mut SourcePreview, timeline: &TimelineProjection, clips: &mut [ClipRow]) {
         self.follow_ai(preview);
+        self.statement.poll(preview);
+        self.show_statement();
         // The transcripts the pieces show, read once for all of them.
         if self.transcript.is_some() || self.script.is_some() {
             // No clip on the preview: the form was left or opened again; what a repass wrote is
@@ -237,6 +251,12 @@ impl SidePieces {
 
     /// The pieces' own actions; `None` for any other.
     pub fn act(&mut self, action_id: &str, value: Option<i64>, target: Option<&str>, preview: &mut SourcePreview, timeline: &TimelineProjection, timecode: Option<&SourceTimecode>) -> Option<bool> {
+        // The statement of several parts open in place of the source timeline takes its own keys.
+        self.statement.set_value(value);
+        if let Some(done) = self.statement.act(action_id, target, preview) {
+            self.show_statement();
+            return Some(done);
+        }
         if let Some(transcript) = &mut self.transcript {
             if let Some(done) = transcript.act(action_id, value, target, preview, timeline, timecode) {
                 // A statement sent to the repass is shown corrected as soon as it is written (user
@@ -386,5 +406,19 @@ impl SidePieces {
             }
         }
         self.views.ai = Arc::new(gate);
+    }
+}
+
+impl SidePieces {
+    /// The SubSegment view of the statement of several parts open, in the script's view the board
+    /// draws in place of the source timeline (a form with a script shows the script's own).
+    fn show_statement(&mut self) {
+        if self.script.is_some() {
+            return;
+        }
+        let shown = self.statement.view().cloned();
+        if self.views.script.subsegment != shown {
+            self.views.script = Arc::new(ScriptView { subsegment: shown, ..(*self.views.script).clone() });
+        }
     }
 }
