@@ -188,9 +188,6 @@
         "show_story_actions": true,
         "show_ingest_actions": false,
         "actions_rtl": [
-          "@story.broll",
-          "@story.voice_over",
-          "@story.talking_head",
           {
             "label": "@script.subsegment",
             "action_id": "script_subsegment"
