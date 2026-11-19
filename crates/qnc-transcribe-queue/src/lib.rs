@@ -112,9 +112,10 @@ fn run(locator: &StillLocator, db: &ProjectDbTarget, cancel: &AtomicBool, send: 
     // so the engine never waits for a read (live: 46 s of 193 s went to waiting for the read).
     let workers = qnc_ai_catalog::installed_fast_transcribers().map_or(1, |engines| engines.iter().map(|engine| engine.parallel.max(1)).sum::<u32>() as usize + 1);
     let picking = std::sync::Mutex::new(std::collections::BTreeSet::<String>::new());
+    let clicked = Clicked { target: qnc_content_store::ContentTarget::for_project(locator.reader(), locator.settings()).ok(), order: Default::default() };
     std::thread::scope(|scope| {
         for _ in 0..workers {
-            scope.spawn(|| work(locator, db, cancel, send, &lease, &picking, workers == 1));
+            scope.spawn(|| work(locator, db, cancel, send, &lease, &picking, &clicked, workers == 1));
         }
     });
     if cancel.load(Ordering::Relaxed) || !lease.held() {
@@ -143,8 +144,40 @@ impl Drop for Claim<'_> {
     }
 }
 
+/// The clips the user clicked while this runner works (user 2026-11-19: "prednost imaju klipovi
+/// koje je korisnik kliknuo"): the clip on the preview is read from the project's database, the
+/// one truth, each time a worker picks; the latest clicked comes first, then the earlier ones.
+struct Clicked {
+    target: Option<qnc_content_store::ContentTarget>,
+    order: std::sync::Mutex<Vec<String>>,
+}
+
+impl Clicked {
+    /// The clicked clips, the latest first.
+    fn latest_first(&self) -> Vec<String> {
+        let mut order = self.order.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(clip) = self.target.as_ref().and_then(|target| qnc_playback_activity::read(target, qnc_playback_activity::PLAYBACK_CLIP)) {
+            if order.last() != Some(&clip) {
+                order.retain(|kept| *kept != clip);
+                order.push(clip);
+            }
+        }
+        order.iter().rev().cloned().collect()
+    }
+}
+
+/// The waiting piece a worker takes: of the latest clicked clip that has one (its earliest piece),
+/// else the shortest waiting piece.
+fn next_waiting<'q>(waiting: impl Iterator<Item = &'q Queued> + Clone, clicked: &[String]) -> Option<&'q Queued> {
+    clicked
+        .iter()
+        .find_map(|clip| waiting.clone().filter(|q| q.clip_id == *clip).min_by_key(|q| q.from_frame))
+        .or_else(|| waiting.min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)))
+}
+
 /// One worker of the runner: clip after clip until nothing waits that no other worker has.
 /// `alone`: the only worker (a long clip then gives way to a shorter one waiting).
+#[allow(clippy::too_many_arguments)]
 fn work(
     locator: &StillLocator,
     db: &ProjectDbTarget,
@@ -152,6 +185,7 @@ fn work(
     send: &mpsc::Sender<Heard>,
     lease: &qnc_playback_activity::Lease,
     picking: &std::sync::Mutex<std::collections::BTreeSet<String>>,
+    clicked: &Clicked,
     alone: bool,
 ) {
     loop {
@@ -174,8 +208,9 @@ fn work(
             // every worker at once (user 2026-11-17: the long clips held the end of the ingest).
             let free = |q: &&Queued| !taken.contains(&piece_key(q));
             let running_one = queue.iter().filter(free).find(|q| q.state == QueueState::Running).cloned();
-            let shortest = queue.iter().filter(free).filter(|q| q.state == QueueState::Waiting).min_by_key(|q| q.to_frame.saturating_sub(q.from_frame)).cloned();
-            let Some(next) = running_one.or(shortest) else { break 'pick Err(!taken.is_empty()) };
+            let waiting = queue.iter().filter(free).filter(|q| q.state == QueueState::Waiting);
+            let first = next_waiting(waiting, &clicked.latest_first()).cloned();
+            let Some(next) = running_one.or(first) else { break 'pick Err(!taken.is_empty()) };
             taken.insert(piece_key(&next));
             let claim = Claim { picking, clip_id: piece_key(&next) };
             Ok((next, claim))
@@ -355,5 +390,24 @@ impl StopWhen<'_> {
 fn log(line: &str) {
     if qnc_dev_diagnostics::player_diagnostics_enabled() {
         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn piece(clip: &str, from: u64, to: u64) -> Queued {
+        Queued { clip_id: clip.into(), from_frame: from, to_frame: to, quality: QueueQuality::Fast, state: QueueState::Waiting, error: String::new(), took_ms: 0 }
+    }
+
+    #[test]
+    fn a_clicked_clip_goes_first_the_latest_clicked_before_the_earlier_ones() {
+        let queue = [piece("short", 0, 10), piece("a", 3000, 6000), piece("a", 0, 3000), piece("b", 0, 3000)];
+        let pick = |clicked: &[&str]| next_waiting(queue.iter(), &clicked.iter().map(|c| c.to_string()).collect::<Vec<_>>()).map(|q| (q.clip_id.clone(), q.from_frame));
+        assert_eq!(pick(&[]), Some(("short".into(), 0)), "nothing clicked: the shortest");
+        assert_eq!(pick(&["a"]), Some(("a".into(), 0)), "the clicked clip from its start");
+        assert_eq!(pick(&["b", "a"]), Some(("b".into(), 0)), "the latest clicked first");
+        assert_eq!(pick(&["gone", "a"]), Some(("a".into(), 0)), "a clicked clip with nothing waiting is passed");
     }
 }

@@ -29,7 +29,7 @@
   "transcribe": {
     "selected": "wav2vec2.parlaspeech-hr.cpu",
     "fast": "parakeet.tdt-0.6b-v3.cpu",
-    "live": "nemotron.3.5-asr-streaming-560ms.cpu",
+    "live": "parakeet.tdt-0.6b-v3.cpu",
     "engines": [
       {
         "id": "whisper.large-v3-turbo.vulkan",
