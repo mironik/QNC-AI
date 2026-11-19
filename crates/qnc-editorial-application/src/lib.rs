@@ -199,8 +199,8 @@ impl EditorialApplication {
         }
         if self.short_stills.take_published() { self.reload_shorts() } // a poster was written
         changed |= self.pool_shots.take().map(|rows| self.apply_shorts(rows)).is_some();
+        self.focus.set_chosen_statement(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()).and_then(|(shot, _, _)| self.view.shorts.iter().find(|card| card.shot_id == shot)).map(|card| qnc_panel_focus::ChosenStatement { clip_id: card.clip_id.clone(), from_frame: card.in_frame, to_frame: card.out_frame, caption_name: card.caption_name.clone(), caption_role: card.caption_role.clone() })); // a compound statement grows from it (user 2026-11-19)
         changed |= self.short_save.follow(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1)).map(|saved| self.short_saved(saved)).is_some();
-        self.focus.show_statement_parts(qnc_virtual_short_cards::chosen_parts(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref())); // a compound statement lights its parts (user 2026-11-19)
         qnc_dev_diagnostics::timed_block("poll-sync", || self.sync_preview_view());
         changed
     }
@@ -228,7 +228,7 @@ impl EditorialApplication {
         let timebase = self.preview.player_view().source_timebase();
         let timeline = self.view.preview.timeline;
         let source = self.focus.source_timeline_mut(); // the one source timeline: lanes, channels, timecode
-        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref())).clone()).with_question(self.short_save.question());
+        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, self.view.focus.compound_marks(self.view.preview.clip_id.as_deref()).or_else(|| qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref()))).clone()).with_question(self.short_save.question());
         self.segments.set_source(SourcePick::new(
             self.view.chosen_clip_id(),
             self.view.current_clip_label(),
@@ -390,7 +390,6 @@ impl EditorialApplication {
                 true
             }
             qnc_pool_tabs::REMOVE_SHORT => { self.pool_shots.remove(self.content_target.as_ref().map(|targets| &targets.1), target); self.view.chosen_shot_id = None; true }
-            qnc_short_save::ADD_PART => self.short_save.add_part(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
             qnc_short_save::UPDATE => self.short_save.update(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
             other => self.short_save.answer(other, target), // Overwrite or Cancel of the same statement (user 2026-11-01), the caption of a new one
         }

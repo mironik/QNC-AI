@@ -25,6 +25,8 @@ mod text;
 mod walk;
 
 pub use panel::*;
+/// A compound statement grows from the statement chosen in the statements' column (user 2026-11-19).
+pub use qnc_script::{ChosenStatement, ADD_PART};
 
 /// Actions of the segment panel that also run from the other panels: they use
 /// the source the user marked (v5 dispatches them whatever the focus).
@@ -124,13 +126,13 @@ impl PanelFocus {
         &self.source
     }
 
-    /// A clip and IN/OUT a chosen statement of the transcript or a usable part of the shot
-    /// analysis opens (once).
-    /// The parts of the chosen statement in the clip shown, lit in the transcript.
-    pub fn show_statement_parts(&mut self, parts: Option<(String, Vec<(u64, u64)>)>) {
-        self.side.show_statement_parts(parts);
+    /// The statement chosen in the statements' column (a compound statement grows from it).
+    pub fn set_chosen_statement(&mut self, chosen: Option<qnc_script::ChosenStatement>) {
+        self.side.set_chosen_statement(chosen);
     }
 
+    /// A clip and IN/OUT a chosen statement of the transcript or a usable part of the shot
+    /// analysis opens (once).
     pub fn take_source_request(&mut self) -> Option<(String, u64, u64)> {
         self.side.take_source_request()
     }

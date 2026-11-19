@@ -22,7 +22,7 @@ pub fn render_desktop(
     view: &EditorialView,
 ) -> Option<EditorialIntent> {
     // The statements' column only while there are statements (user 2026-11-14).
-    let any_statement = view.shorts.iter().any(|shot| !shot.b_roll);
+    let any_statement = view.shorts.iter().any(|shot| !shot.b_roll) || view.focus.script.subsegment_count() > 0;
     // The panels as the user dragged their borders (a view choice of this window, user 2026-11-14).
     let sizes_id = egui::Id::new(("qnc-editorial-panels", contracts.group.as_str()));
     let sizes: qnc_editorial_layout::PanelSizes = ui.ctx().data(|data| data.get_temp(sizes_id)).unwrap_or_default();
@@ -132,18 +132,19 @@ fn source_dock(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view:
 /// The statements made (the shorts, no B-roll), beside the media pool; a click opens one.
 fn statements(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view: &EditorialView) -> Option<EditorialIntent> {
     let spec = contracts.pool_spec();
+    let column = view.focus.statement_column(view.shorts.iter().filter(|shot| !shot.b_roll).collect(), &view.clips);
     let now = qnc_media_pool_panel::PoolNow {
-        chosen_id: view.chosen_shot_id.as_deref().unwrap_or(""),
+        chosen_id: column.chosen(view.chosen_shot_id.as_deref()),
         panel_focused: view.focus.panel == Panel::Statements,
         step: (view.focus.panel == Panel::Statements).then_some(view.focus.pool_step).flatten(),
         empty_message: contracts.editorial.media_card.empty_message(LibraryTab::Virtual, view.loading, &view.message),
         id_salt: "editorial_statement_grid",
     };
-    let shown: Vec<_> = view.shorts.iter().filter(|shot| !shot.b_roll).collect();
-    match qnc_media_pool_panel::show_removable(ui, (theme, LibraryTab::Virtual.corner()), &spec, &now, &shown)? {
-        CardGridAction::Remove(id) => Some(EditorialIntent::Action(qnc_action_event::ActionEvent::key(LibraryTab::Virtual.remove_action()?).with_target(id))),
-        CardGridAction::Activate(id) | CardGridAction::ToggleSelection(id) => Some(EditorialIntent::PreviewShort(id)),
-    }
+    let answer = match qnc_media_pool_panel::show_removable(ui, (theme, LibraryTab::Virtual.corner()), &spec, &now, &column.items())? {
+        CardGridAction::Remove(id) => column.answer(id, true)?,
+        CardGridAction::Activate(id) | CardGridAction::ToggleSelection(id) => column.answer(id, false)?,
+    };
+    Some(answer.map_or_else(EditorialIntent::Action, EditorialIntent::PreviewShort))
 }
 
 fn pool(ui: &mut Ui, contracts: &EditorialContracts, theme: &Theme, view: &EditorialView) -> Option<EditorialIntent> {

@@ -4467,6 +4467,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-compound-posters"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "qnc-image-assets",
+ "qnc-shot-stills",
+ "qnc-still-locator",
+]
+
+[[package]]
 name = "qnc-confirm-dialog"
 version = "0.1.0"
 dependencies = [
@@ -6927,10 +6937,12 @@ dependencies = [
  "qnc-clip-row",
  "qnc-clip-sound",
  "qnc-clip-transcripts",
+ "qnc-compound-posters",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-edit-words",
  "qnc-export-launch",
+ "qnc-image-assets",
  "qnc-letter-db",
  "qnc-letter-times",
  "qnc-newsroom-sheet-db",
