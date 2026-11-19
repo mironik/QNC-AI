@@ -20,6 +20,9 @@ const QUIT: u32 = 3;
 const ADMIN: u32 = 4;
 const INGEST_FOLDER: u32 = 8;
 const STOP_ALL: u32 = 9;
+/// Opens again the form the mode opens after a copy (user 2026-11-19: "nemam šortkat za povratak
+/// u aplikaciju ako iz nje izađem").
+const OPEN_FORM: u32 = 10;
 /// The first of the tray's modes in the menu (`qnc_tray_mode::ALL` in order).
 const MODE_FIRST: u32 = 20;
 /// How often the disks are looked at.
@@ -50,6 +53,7 @@ fn menu(running: usize, active: usize, mode: Option<qnc_tray_mode::Mode>) -> Vec
         items.push(MenuItem { id: MODE_FIRST + i as u32, text: text(choice.label()), enabled: true, check: Some(mode == Some(choice)) });
     }
     items.extend([
+        MenuItem { id: OPEN_FORM, text: text("tray.open_form"), enabled: mode.and_then(qnc_tray_mode::Mode::opens).is_some(), check: None },
         // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
         // browser (user 2026-11-13).
         MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true, check: None },
@@ -221,6 +225,7 @@ fn main() {
                     stop_asked = Some((ask_stop(&tray, "tray.stop_ask"), false));
                 }
                 TrayEvent::Menu(ADMIN) => open_admin(&tray, &root, &mut ingest),
+                TrayEvent::Menu(OPEN_FORM) => open_form(&tray, &root, mode),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
                 // asked whether into a new base or the one Ingest works in (user 2026-11-16).
                 TrayEvent::Menu(INGEST_FOLDER) if folder_asked.is_none() => match orchestrator(&tray, &root).map(|orchestrator| orchestrator.folder_choice(&root)) {
@@ -507,4 +512,15 @@ const DELETE: &str = "delete";
 fn ask_stop(tray: &Tray, question: &str) -> std::sync::mpsc::Receiver<Option<String>> {
     let buttons = [(KEEP, text("card_ingest.partial_keep")), (DELETE, text("card_ingest.partial_delete")), ("cancel", text("ask.cancel"))];
     tray.choose(&text("tray.title"), &text(question), &buttons, "cancel")
+}
+
+/// The form the tray's mode opens after a copy, on the active project of the database (user
+/// 2026-11-19): nothing when it already runs, the user is told so.
+fn open_form(tray: &Tray, root: &std::path::Path, mode: Option<qnc_tray_mode::Mode>) {
+    let Some((program, args)) = mode.and_then(qnc_tray_mode::Mode::opens) else { return };
+    match qnc_wizard_open::open(root, program, args) {
+        Ok(qnc_wizard_open::Opened::Started) => log(format!("form opened {program}")),
+        Ok(qnc_wizard_open::Opened::Running) => tray.notify(&text("tray.title"), &text("tray.form_open")),
+        Err(error) => fail(tray, fill("tray.form_failed", &[("error", &error)])),
+    }
 }

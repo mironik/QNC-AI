@@ -3952,6 +3952,7 @@ dependencies = [
  "qnc-source-volumes",
  "qnc-tray",
  "qnc-tray-mode",
+ "qnc-wizard-open",
  "qnc-wizard-text",
  "qnc-work-settings",
 ]
