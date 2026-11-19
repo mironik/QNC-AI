@@ -44,6 +44,7 @@ fn virtual_tab_is_a_separate_list_and_a_short_duration_is_seconds_and_frames() {
             b_roll: false,
             caption_name: String::new(),
             caption_role: String::new(),
+            parts: Vec::new(),
         }],
         &[clip("clip-a", "Mironik")],
         &[],
