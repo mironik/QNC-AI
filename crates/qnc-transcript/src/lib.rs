@@ -506,7 +506,13 @@ impl Transcript {
         let kept = clip_id.as_deref().and_then(|clip| transcripts.of(clip)).map(|kept| kept.as_slice()).unwrap_or_default();
         // A held clip (its statement transcribed again, user 2026-11-08) shows no running lines:
         // the new transcript goes to the database only.
-        let running = self.running.as_ref().filter(|run| Some(&run.clip_id) == clip_id.as_ref() && !transcripts.is_held(&run.clip_id));
+        // A Croatian repass of a part (Best) shows nothing while it runs: the text is already there
+        // and only its correction comes (user 2026-11-19: "ne smije nestajati").
+        let repass = |run: &Running| {
+            self.repassed.contains(&(run.clip_id.clone(), run.range.0, run.range.1))
+                || self.queue.iter().any(|q| q.clip_id == run.clip_id && (q.from_frame, q.to_frame) == run.range && q.quality == QueueQuality::Best)
+        };
+        let running = self.running.as_ref().filter(|run| Some(&run.clip_id) == clip_id.as_ref() && !transcripts.is_held(&run.clip_id) && !repass(run));
         self.view.running = running.map(|run| run.range);
         let key = (self.rev, transcripts.rev(), clip_id.clone());
         if self.built.as_ref() == Some(&key) {
