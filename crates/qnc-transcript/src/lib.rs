@@ -55,8 +55,6 @@ pub const DELETE_QUOTE: &str = "transcript_delete_quote";
 pub const FORGET_CLIP: &str = "transcript_forget_clip";
 /// The panel the transcript is shown on.
 pub const PANEL: &str = "transcript";
-/// The least part the fine pass asks of the Croatian model (frames).
-const LEAST_PLAYED: u64 = 25;
 /// How often the queue is read again.
 const QUEUE_EVERY: Duration = Duration::from_secs(1);
 
@@ -171,7 +169,7 @@ fn said_between(lines: &[Line], from: u64, to: u64) -> String {
 }
 
 /// The queue, the statements and the transcribed clips, read together.
-type QueueRead = (Vec<Queued>, Vec<Quote>, Vec<String>, Vec<qnc_transcript_db::Span>);
+type QueueRead = (Vec<Queued>, Vec<Quote>, Vec<String>);
 
 /// Whether something of the queue still waits or runs.
 fn pending(queue: &[Queued]) -> bool {
@@ -214,12 +212,6 @@ pub struct Transcript {
     built: Option<(u64, u64, Option<String>)>,
     /// The streaming of what the source timeline plays.
     stream: qnc_stream_transcript::StreamTranscript,
-    /// Clips just asked of the Croatian model: the form keeps showing what it shows of them
-    /// (user 2026-11-08: "ne bi se smjela osvježavati na trenutnoj formi"; 2026-11-19: the text came
-    /// and went and the chosen statement was undone while it corrected the clip shown).
-    repassed: Vec<String>,
-    /// What the name of the Croatian engine's model is (its transcripts are the fine pass), once.
-    fine_mark: Option<Option<String>>,
 }
 
 impl Default for Transcript {
@@ -240,8 +232,6 @@ impl Default for Transcript {
             rev: 0,
             built: None,
             stream: Default::default(),
-            repassed: Vec::new(),
-            fine_mark: None,
         }
     }
 }
@@ -425,38 +415,8 @@ impl Transcript {
     /// `[from_frame, to_frame)` of `clip_id` queued with the best engine, quietly (user
     /// 2026-11-08: the panel does not change for a repass, nothing is said).
     fn queue_repass(&mut self, target: ProjectDbTarget, clip_id: String, from_frame: u64, to_frame: u64) {
-        self.repassed.push(clip_id.clone());
         let queued = Queued { clip_id, from_frame, to_frame, quality: QueueQuality::Best, state: QueueState::Waiting, error: String::new(), took_ms: 0 };
         self.ask(target, Box::new(move |target| qnc_transcript_db::enqueue(target, vec![queued])));
-    }
-
-    /// The fine pass (user 2026-11-16: "isti proces bi trebao nakon grubog prepisa s Parakeetom;
-    /// ako ništa ne radi treba također raditi u pozadini; kad klikne na poster također može u
-    /// pozadini odmah krenuti"): once nothing waits in the queue, the next part of a clip that only
-    /// the rough engine heard is asked of the Croatian model, the clip on the preview (the poster
-    /// clicked) first. The queue's runner gives way to the player, so it works while the user does
-    /// not. A part whose repass failed is not asked again. Only in a Croatian project with the
-    /// transcription on. Nothing is said.
-    fn fine_pass(&mut self, preview: &SourcePreview, spans: &[qnc_transcript_db::Span]) {
-        if pending(&self.queue) || self.asking.is_some() || !self.asks.is_empty() {
-            return;
-        }
-        let settings = preview.still_locator().map(|locator| locator.settings().clone());
-        let croatian = settings.as_ref().is_some_and(|settings| {
-            settings.ai_feature(qnc_ai_features::TRANSCRIPTION).unwrap_or(false) && settings.speech_language().is_ok_and(|language| language == "hr")
-        });
-        let Some(target) = preview.project_target().cloned().filter(|_| croatian) else { return };
-        let mark = self.fine_mark.get_or_insert_with(|| {
-            qnc_ai_catalog::installed_transcriber_for(qnc_ai_catalog::Quality::Best).ok().and_then(|engine| engine.model.file_name().map(|name| name.to_string_lossy().into_owned()))
-        });
-        let Some(mark) = mark.clone() else { return };
-        let failed = |clip: &str, from: u64, to: u64| self.queue.iter().any(|q| q.quality == QueueQuality::Best && q.state == QueueState::Failed && q.clip_id == clip && q.from_frame < to && from < q.to_frame);
-        let left: Vec<_> = qnc_transcript_db::not_heard_by(spans, &mark, LEAST_PLAYED).into_iter().filter(|(clip, from, to)| !failed(clip, *from, *to)).collect();
-        let shown = preview.view().clip_id.clone();
-        let next = left.iter().find(|(clip, _, _)| Some(clip) == shown.as_ref()).or(left.first()).cloned();
-        if let Some((clip, from, to)) = next {
-            self.queue_repass(target, clip, from, to);
-        }
     }
 
     /// While the source timeline plays, what it plays is transcribed as it goes (user 2026-11-16:
@@ -498,11 +458,6 @@ impl Transcript {
         }
         if let (Some(project), Some(locator)) = (project.as_ref(), preview.still_locator()) {
             self.read_queue(project, preview);
-            // A clip asked of the Croatian model now: its corrected text is written to the
-            // database only, shown once the clip is opened again.
-            for clip in self.repassed.drain(..) {
-                transcripts.hold(&clip);
-            }
             if pending(&self.queue) {
                 self.runner.ensure(&locator, project);
             }
@@ -618,7 +573,7 @@ impl Transcript {
             match done.try_recv() {
                 Ok(read) => {
                     match read {
-                        Ok((queue, quotes, transcribed, spans)) => {
+                        Ok((queue, quotes, transcribed)) => {
                             // All that was asked is transcribed (user 2026-10-28): its list goes
                             // and the Transcript tab opens; failed entries stay, with why.
                             let finished = pending(&self.queue) && !pending(&queue) && queue.iter().any(|q| q.state == QueueState::Done);
@@ -634,7 +589,6 @@ impl Transcript {
                                 self.view.all_done |= self.queue.iter().any(|q| q.state == QueueState::Done && q.quality == QueueQuality::Fast);
                                 self.write(preview, qnc_transcript_db::clear_done);
                             }
-                            self.fine_pass(preview, &spans);
                         }
                         Err(error) => self.view.message = error,
                     }
@@ -648,7 +602,7 @@ impl Transcript {
         }
         let (send, done) = mpsc::channel();
         let target = project.clone();
-        if std::thread::Builder::new().name("qnc-transcript-queue-read".into()).spawn(move || _ = send.send(qnc_transcript_db::read_queue(&target).and_then(|queue| Ok((queue, qnc_transcript_db::read_quotes(&target)?, qnc_transcript_db::read_spoken(&target)?, qnc_transcript_db::read_spans(&target)?))))).is_ok() {
+        if std::thread::Builder::new().name("qnc-transcript-queue-read".into()).spawn(move || _ = send.send(qnc_transcript_db::read_queue(&target).and_then(|queue| Ok((queue, qnc_transcript_db::read_quotes(&target)?, qnc_transcript_db::read_spoken(&target)?))))).is_ok() {
             self.queue_read = Some(done);
             self.queue_at = Some(Instant::now());
         }
