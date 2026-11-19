@@ -91,10 +91,12 @@ impl Transcription {
         Ok(count)
     }
 
-    /// Whether the queue still has clips to hear.
+    /// Whether the queue still has clips to hear the first time. A correction by the Croatian
+    /// model (Best) does not count (live 2026-11-19: the fine pass over 104 clips held the AI
+    /// shots at no worker and the filmstrips behind them); the form's runner hears it.
     pub(crate) fn busy(&self) -> bool {
         qnc_transcript_db::read_queue(&self.db)
-            .is_ok_and(|queue| queue.iter().any(|entry| matches!(entry.state, QueueState::Waiting | QueueState::Running)))
+            .is_ok_and(|queue| queue.iter().any(|entry| entry.quality == QueueQuality::Fast && matches!(entry.state, QueueState::Waiting | QueueState::Running)))
     }
 }
 
