@@ -415,8 +415,9 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                             drop(in_round);
                             begun.store(true, Relaxed);
                             // The clips whose wave this run reads are heard from its sound (statements only); the
-                            // queue takes the rest once the waves are done.
-                            crate::transcribe::run(root, going, stops.flag(qnc_stopped_work::TRANSCRIPTS), idle, &|| !not_done(Step::Waves));
+                            // queue takes the rest once the copy and the waves are done (live 2026-11-19: before
+                            // anything was copied the waves looked done and a long clip was heard twice).
+                            crate::transcribe::run(root, going, stops.flag(qnc_stopped_work::TRANSCRIPTS), idle, &|| !not_done(Step::Import) && !not_done(Step::Waves));
                             idle.store(true, Relaxed);
                             return;
                         }
