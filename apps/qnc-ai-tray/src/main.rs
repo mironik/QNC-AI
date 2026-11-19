@@ -53,12 +53,12 @@ fn menu(running: usize, active: usize, mode: Option<qnc_tray_mode::Mode>) -> Vec
         items.push(MenuItem { id: MODE_FIRST + i as u32, text: text(choice.label()), enabled: true, check: Some(mode == Some(choice)) });
     }
     items.extend([
-        MenuItem { id: OPEN_FORM, text: text("tray.open_form"), enabled: mode.and_then(qnc_tray_mode::Mode::opens).is_some(), check: None },
         // A source that is no card (a folder on a disk, the LAN): the user picks it in Ingest's
         // browser (user 2026-11-13).
         MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true, check: None },
         // The administrator's way in: the bases and, from there, the settings (user 2026-11-16).
         MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true, check: None },
+        MenuItem { id: OPEN_FORM, text: text("tray.open_form"), enabled: mode.and_then(qnc_tray_mode::Mode::opens).is_some(), check: None },
         MenuItem { id: QUIT, text: text("tray.quit"), enabled: true, check: None },
     ]);
     items
