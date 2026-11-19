@@ -212,6 +212,8 @@ pub struct Transcript {
     built: Option<(u64, u64, Option<String>)>,
     /// The streaming of what the source timeline plays.
     stream: qnc_stream_transcript::StreamTranscript,
+    /// The letter times of the statements added (the zoom is precise at once).
+    letters: qnc_statement_letters::StatementLetters,
 }
 
 impl Default for Transcript {
@@ -232,6 +234,7 @@ impl Default for Transcript {
             rev: 0,
             built: None,
             stream: Default::default(),
+            letters: Default::default(),
         }
     }
 }
@@ -408,6 +411,11 @@ impl Transcript {
             self.view.message = qnc_ui_text::text("transcribe.repass_marks").into();
             return true;
         };
+        // Its words get their letter times as soon as the correction is kept (user 2026-11-19:
+        // the trim zoom needs the text laid on the wave at once).
+        if let Some(fps) = self.names.get(&clip_id).and_then(|(_, frames, seconds)| (*seconds > 0.0).then(|| *frames as f64 / seconds)) {
+            self.letters.ask(&clip_id, from_frame, to_frame, fps);
+        }
         self.queue_repass(target, clip_id, from_frame, to_frame);
         true
     }
@@ -446,6 +454,13 @@ impl Transcript {
         let clip_id = preview.view().clip_id.clone();
         self.stream_played(preview);
         self.take_heard(transcripts);
+        if self.letters.working() {
+            if let Some(locator) = preview.still_locator() {
+                let idle = !preview.playing_at().is_some_and(|(_, _, plays)| plays);
+                let kept = |clip: &str| transcripts.of(clip).map(|kept| kept.as_ref().clone());
+                self.letters.poll(&locator, &kept, idle);
+            }
+        }
         if let Some(done) = &self.asking {
             if let Ok(result) = done.try_recv() {
                 if let Err(error) = result {

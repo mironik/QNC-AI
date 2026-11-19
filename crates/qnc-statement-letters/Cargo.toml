@@ -1,0 +1,10 @@
+[package]
+name = "qnc-statement-letters"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the letter times of a statement's words laid as soon as the Croatian model corrected it, so the trim zoom is precise at once; no GUI"
+
+[dependencies]
+qnc-letter-times = { workspace = true }
+qnc-still-locator = { workspace = true }
+qnc-transcript-db = { workspace = true }

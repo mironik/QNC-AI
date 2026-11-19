@@ -7737,6 +7737,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-statement-letters"
+version = "0.1.0"
+dependencies = [
+ "qnc-letter-times",
+ "qnc-still-locator",
+ "qnc-transcript-db",
+]
+
+[[package]]
 name = "qnc-status-line"
 version = "0.1.0"
 
@@ -8143,6 +8152,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-source-preview",
  "qnc-source-timecode",
+ "qnc-statement-letters",
  "qnc-stream-transcript",
  "qnc-text-cursor",
  "qnc-timeline-model",
