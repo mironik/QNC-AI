@@ -183,13 +183,6 @@ pub use qnc_clip_row::TabCard as SubsegmentCard;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScriptView {
     pub blocks: Vec<BlockRow>,
-    /// The compound statement shown (`SHOW_COMPOUND`): its first part's clip and the ranges of its
-    /// parts in that clip, marked in the transcript.
-    pub compound_parts: Option<(String, Vec<(u64, u64)>)>,
-    /// The compound statement shown (its block): the chosen card of the statements' column.
-    pub compound_block: Option<i64>,
-    /// The posters of the compound statements: block, where it is from and the picture.
-    pub compound_posters: Vec<(i64, String, std::sync::Arc<qnc_image_assets::RgbaImage>)>,
     /// The script profile of the project (none until it is read).
     pub profile: Option<ScriptProfile>,
     /// The chosen block: new blocks go after it.
@@ -288,7 +281,7 @@ impl ScriptView {
 
     /// The SubSegments of the script as cards of the pool, in reading order; `clips` gives each
     /// its first clip's poster.
-    pub fn pool_cards<'a>(&'a self, clips: &'a [qnc_clip_row::ClipRow]) -> Vec<SubsegmentCard<'a>> {
+    pub fn pool_cards<'a>(&self, clips: &'a [qnc_clip_row::ClipRow]) -> Vec<SubsegmentCard<'a>> {
         self.blocks
             .iter()
             .filter(|row| row.is_subsegment())
@@ -298,7 +291,7 @@ impl ScriptView {
                 seconds: row.seconds,
                 clip: clips.iter().find(|clip| clip.clip_id == row.block.clip_id),
                 icon: qnc_clip_row::PoolIcon::None,
-                poster: self.compound_posters.iter().find(|(id, _, _)| *id == row.block.id).map(|(_, uri, picture)| (uri.as_str(), picture.as_ref())),
+                poster: None,
             })
             .collect()
     }
@@ -323,7 +316,7 @@ impl ScriptView {
 
     /// The cards of the pool's SubSegment tab or Voice tab (`voice`) and the action a click
     /// sends with the card's id.
-    pub fn tab_cards<'a>(&'a self, voice: bool, clips: &'a [qnc_clip_row::ClipRow]) -> (Vec<SubsegmentCard<'a>>, &'static str) {
+    pub fn tab_cards<'a>(&self, voice: bool, clips: &'a [qnc_clip_row::ClipRow]) -> (Vec<SubsegmentCard<'a>>, &'static str) {
         if voice {
             (self.voice_cards(), crate::VOICE_TAKE)
         } else {
