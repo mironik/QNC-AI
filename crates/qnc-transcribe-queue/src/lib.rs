@@ -327,7 +327,9 @@ fn kept_part(db: &ProjectDbTarget, asked: &Queued) -> Option<qnc_transcript_db::
 /// Keeps what is heard of `asked` up to clip frame `until` (a newer part replaces the older:
 /// it holds its range). Nothing for an empty part; a failed keep is only logged.
 fn keep_part(db: &ProjectDbTarget, asked: &Queued, until: u64, lines: &[Line], language: &str) {
-    if until <= asked.from_frame || until >= asked.to_frame || language.is_empty() {
+    // A Croatian repass of a part keeps only its finished result: a part of it would win over
+    // Parakeet's words of the same range and hide them until it is done (user 2026-11-19).
+    if asked.quality == QueueQuality::Best || until <= asked.from_frame || until >= asked.to_frame || language.is_empty() {
         return;
     }
     let part = qnc_transcript_db::ClipTranscript {

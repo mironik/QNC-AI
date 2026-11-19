@@ -214,6 +214,9 @@ pub struct Transcript {
     stream: qnc_stream_transcript::StreamTranscript,
     /// The letter times of the statements added (the zoom is precise at once).
     letters: qnc_statement_letters::StatementLetters,
+    /// The parts already sent to the Croatian repass in this run: the same part is not sent twice
+    /// (a dvoklik on words and then Add statement ask for the same range; user 2026-11-19).
+    repassed: std::collections::HashSet<(String, u64, u64)>,
 }
 
 impl Default for Transcript {
@@ -235,6 +238,7 @@ impl Default for Transcript {
             built: None,
             stream: Default::default(),
             letters: Default::default(),
+            repassed: Default::default(),
         }
     }
 }
@@ -416,7 +420,9 @@ impl Transcript {
         if let Some(fps) = self.names.get(&clip_id).and_then(|(_, frames, seconds)| (*seconds > 0.0).then(|| *frames as f64 / seconds)) {
             self.letters.ask(&clip_id, from_frame, to_frame, fps);
         }
-        self.queue_repass(target, clip_id, from_frame, to_frame);
+        if self.repassed.insert((clip_id.clone(), from_frame, to_frame)) {
+            self.queue_repass(target, clip_id, from_frame, to_frame);
+        }
         true
     }
 
