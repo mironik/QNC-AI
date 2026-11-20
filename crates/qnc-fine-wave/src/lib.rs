@@ -98,12 +98,15 @@ impl FineWave {
                 continue;
             };
             let seconds = |frame: f64| zero + frame * f64::from(fps.1) / f64::from(fps.0.max(1));
-            let chunk = self.chunks.get(&key).and_then(|chunks| chunks.iter().find(|chunk| chunk.answers(first, last, seconds)));
-            let Some(chunk) = chunk.cloned() else {
+            // Found by its place, not cloned (live 2026-11-20: a whole clip's samples were copied
+            // for every lane at every frame, 450 ms a second of the form while the zoom was open).
+            let found = self.chunks.get(&key).and_then(|chunks| chunks.iter().position(|chunk| chunk.answers(first, last, seconds)));
+            let Some(index) = found else {
                 complete &= self.failed.iter().any(|ask| ask.within(&piece.clip_id, piece.channel, first, last));
                 self.ask(locator, &piece.clip_id, piece.channel, first, last);
                 continue;
             };
+            let chunk = &self.chunks[&key][index];
             let span = (to - from) as f64 / columns as f64;
             for (column, peak) in peaks.iter_mut().enumerate() {
                 let (c0, c1) = (from as f64 + column as f64 * span, from as f64 + (column + 1) as f64 * span);
@@ -120,6 +123,29 @@ impl FineWave {
             }
         }
         (peaks, complete)
+    }
+
+    /// Asks the sound of program frames `[from, to)` to be read ahead, without working out any
+    /// peaks (a played window reads on; computing its peaks every frame cost the form its time).
+    pub fn read_ahead(&mut self, locator: &StillLocator, pieces: &[Placement], from: u64, to: u64) {
+        self.take_done(locator);
+        for piece in pieces.iter().filter(|piece| !piece.off && piece.program_start < to && from < piece.program_end) {
+            let length = piece.program_end - piece.program_start;
+            let source_length = piece.source_out.saturating_sub(piece.source_in);
+            let source_at = |p: u64| piece.source_in + (p - piece.program_start) * source_length / length.max(1);
+            let (first, last) = (source_at(piece.program_start.max(from)), source_at(piece.program_end.min(to)) + 1);
+            let key = (piece.clip_id.clone(), piece.channel);
+            let read = match self.timing.get(&piece.clip_id) {
+                Some(&(zero, fps)) => {
+                    let seconds = |frame: f64| zero + frame * f64::from(fps.1) / f64::from(fps.0.max(1));
+                    self.chunks.get(&key).is_some_and(|chunks| chunks.iter().any(|chunk| chunk.answers(first, last, seconds)))
+                }
+                None => false,
+            };
+            if !read {
+                self.ask(locator, &piece.clip_id, piece.channel, first, last);
+            }
+        }
     }
 
     /// Queues a read of clip frames `[first, last)` with a margin, unless one covering it is

@@ -195,7 +195,7 @@ impl TrimStills {
                 // While the window follows the play its sound is read ahead (user 2026-10-30).
                 let reach = qnc_program_view::zoom_reach(sound.from, sound.to, sound.playhead);
                 if reach > sound.to {
-                    self.fine.lane_peaks(&locator, &sound.lanes[lane], sound.from, reach, 1);
+                    self.fine.read_ahead(&locator, &sound.lanes[lane], sound.from, reach);
                 }
                 let (peaks, complete) = self.fine.lane_peaks(&locator, &sound.lanes[lane], sound.from, sound.to, ZOOM_COLUMNS);
                 sound.peaks[lane] = peaks.iter().map(|peak| (peak * 1000.0).round() as u16).collect();
