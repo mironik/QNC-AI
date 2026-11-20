@@ -57,6 +57,9 @@ pub struct SidePieces {
     /// The one reader of the transcripts the pieces show (the transcript panel's clip, the
     /// script's statements): read from the database, given to both.
     transcripts: ClipTranscripts,
+    /// The clip whose transcript is open and held as shown (user 2026-11-20: the corrections
+    /// of wav2vec2 written meanwhile are shown once it is opened again).
+    held_clip: Option<String>,
     transcript: Option<Transcript>,
     shots: Option<ClipShots>,
     script: Option<Script>,
@@ -84,6 +87,7 @@ impl SidePieces {
         let has = |kind: &str| kinds.contains(&kind);
         Self {
             transcripts: ClipTranscripts::new(),
+            held_clip: None,
             transcript: (has(TRANSCRIPT_PANEL) || has(TRANSCRIPT_SEARCH_PANEL) || has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL)).then(Transcript::new),
             shots: has(VIDEO_AI_PANEL).then(ClipShots::default),
             script: (has(SCRIPT_PANEL) || has(SCRIPT_WRITER_PANEL)).then(Script::new),
@@ -130,12 +134,24 @@ impl SidePieces {
         if self.transcript.is_some() || self.script.is_some() {
             // No clip on the preview: the form was left or opened again; what a repass wrote is
             // read now (user 2026-11-08: the truth is in the database, shown then).
-            if preview.view().clip_id.is_none() {
-                self.transcripts.let_go();
-            }
             let shown = self.transcript.as_ref().and(preview.view().clip_id.clone());
+            // Another clip (or none) shown: the one held takes the database's answer again.
+            if preview.view().clip_id.is_none() || self.held_clip != shown {
+                self.transcripts.let_go();
+                self.held_clip = None;
+            }
             let statements = self.script.as_ref().map(Script::transcript_clips).unwrap_or_default();
-            self.transcripts.poll(preview.project_target(), shown.into_iter().chain(statements));
+            self.transcripts.poll(preview.project_target(), shown.clone().into_iter().chain(statements));
+            // The transcript of the clip shown does not change while it is open (user
+            // 2026-11-20): once a whole transcript of it is read, it is held. One still being
+            // written (its first pass, part by part) is shown as it comes.
+            if let Some(clip) = shown.as_deref().filter(|_| self.held_clip.is_none()) {
+                let whole = self.transcripts.of(clip).is_some_and(|read| read.iter().any(|transcript| !transcript.engine.contains("still being transcribed")));
+                if whole {
+                    self.transcripts.hold(clip);
+                    self.held_clip = Some(clip.to_string());
+                }
+            }
         }
         // The pool's ticks are the transcript's.
         if let Some(transcript) = &mut self.transcript {
