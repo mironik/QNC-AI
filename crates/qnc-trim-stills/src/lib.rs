@@ -202,6 +202,9 @@ impl TrimStills {
                 a1_read |= lane == 0 && complete;
             }
             self.words.fill(&locator, sound, a1_read);
+        } else {
+            // No zoom: its passing cache of words goes (user 2026-11-20).
+            self.words.close();
         }
         for still in view.edit_stills.iter_mut().chain(view.source_edit_stills.iter_mut()).filter(|still| !still.live) {
             still.image = still.picture.as_ref().and_then(|picture| self.cache.get(picture).cloned());

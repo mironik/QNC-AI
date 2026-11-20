@@ -68,6 +68,12 @@ pub struct ZoomWords {
     said: String,
     /// The last placing of the words logged (diagnostics only).
     placed: String,
+    /// While the zoom is open, the last words and letters each clip had (user 2026-11-20: "the
+    /// database is the truth, but a passing cache, cleared when the zoom closes"): a read in
+    /// progress or a clip briefly not asked never takes the words away. `close` clears it.
+    session: HashMap<String, Arc<Vec<ClipTranscript>>>,
+    /// Clips whose letters were laid again: read again, the old ones shown until then.
+    stale_letters: HashSet<String>,
 }
 
 /// How often the voice records are read again.
@@ -98,9 +104,14 @@ impl ZoomWords {
         let (voice, needs): (Vec<Need>, Vec<Need>) = needs(sound).into_iter().partition(|need| need.clip_id.starts_with("voice-"));
         let target = locator.clone();
         self.transcripts.poll_from(locator.project_id(), move || qnc_db_broker::ProjectDbTarget::for_project(target.reader(), target.settings()).map_err(|error| error), needs.iter().map(|need| need.clip_id.clone()));
+        for need in &needs {
+            if let Some(kept) = self.transcripts.of(&need.clip_id).filter(|kept| !kept.is_empty()) {
+                self.session.insert(need.clip_id.clone(), kept.clone());
+            }
+        }
         let settled = self.kept_at.is_none_or(|at| self.transcripts.read_since(at));
         for need in &needs {
-            if !self.letters.contains_key(&need.clip_id) {
+            if !self.letters.contains_key(&need.clip_id) || self.stale_letters.contains(&need.clip_id) {
                 self.read(locator, &need.clip_id);
             }
             if let Some(kept) = self.transcripts.of(&need.clip_id) {
@@ -158,7 +169,7 @@ impl ZoomWords {
         let missing: Vec<qnc_letter_times::Need> = needs.iter().filter_map(|need| self.missing_letters(need)).collect();
         if self.letter_times.poll(locator, &missing, true) {
             for need in &needs {
-                self.letters.remove(&need.clip_id);
+                self.stale_letters.insert(need.clip_id.clone());
             }
         }
     }
@@ -222,6 +233,18 @@ impl ZoomWords {
         (!words.is_empty()).then(|| qnc_letter_times::Need::few(need.clip_id.clone(), words))
     }
 
+    /// The zoom closed: its passing cache of words and letters goes, the next zoom reads the
+    /// database again.
+    pub fn close(&mut self) {
+        if self.session.is_empty() && self.letters.is_empty() {
+            return;
+        }
+        self.stop();
+        self.session.clear();
+        self.letters.clear();
+        self.stale_letters.clear();
+    }
+
     /// Stops a running transcription (the zoom closed or another project).
     pub fn stop(&mut self) {
         if let Some(job) = self.job.take() {
@@ -236,7 +259,16 @@ impl ZoomWords {
                     if let Err(error) = &read {
                         log(&format!("zoom-words read {clip}: {error}"));
                     }
-                    self.letters.insert(clip.clone(), read.unwrap_or_default());
+                    // While the zoom is open letters are only added: what was shown stays when a
+                    // read gives less (a read that failed gives nothing).
+                    let mut letters = read.unwrap_or_default();
+                    for old in self.letters.remove(clip).unwrap_or_default() {
+                        if !letters.iter().any(|new| new.word_from == old.word_from && new.text == old.text) {
+                            letters.push(old);
+                        }
+                    }
+                    self.stale_letters.remove(clip);
+                    self.letters.insert(clip.clone(), letters);
                     self.reading = None;
                 }
                 Err(mpsc::TryRecvError::Disconnected) => self.reading = None,
@@ -302,7 +334,8 @@ impl ZoomWords {
 
     /// The words of `need`'s clip in its part, on the zoom's axis.
     fn words_of(&self, sound: &ZoomSound, need: &Need) -> Vec<ZoomWord> {
-        let Some(kept) = self.transcripts.of(&need.clip_id) else { return Vec::new() };
+        let read = self.transcripts.of(&need.clip_id).filter(|kept| !kept.is_empty());
+        let Some(kept) = read.or_else(|| self.session.get(&need.clip_id)) else { return Vec::new() };
         // Every transcript that touches the part: the reader already cut an older one where a
         // newer one says the words (live 2026-11-20: the whole clip's Parakeet transcript covered
         // the window, its words there were the corrections', and the zoom showed none).
