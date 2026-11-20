@@ -153,11 +153,11 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
     // The IN and OUT of the text are red brackets, the words between them lit (user 2026-11-01:
     // a statement clicked shows where its text starts and ends).
     let bracket = |job: &mut egui::text::LayoutJob, mark: &str| {
-        job.append(mark, 0.0, egui::TextFormat::simple(egui::FontId::proportional(theme.font_ui + 2.0), theme.danger));
+        job.append(mark, 0.0, egui::TextFormat::simple(egui::FontId::monospace(theme.font_ui + 8.0), theme.danger));
     };
     let is_marked = |from: u64, to: u64| show_marks && view.marks.is_some_and(|(a, b)| (a..b).contains(&((from + to) / 2)));
     // The marked text in one colour, its spaces too (user 2026-11-15).
-    let mark_fill = theme.focus.gamma_multiply(0.35);
+    let mark_fill = theme.focus.gamma_multiply(0.65); // well seen (user 2026-11-20: 0.35 was too weak)
     for (at, (text, from, to)) in words.iter().enumerate() {
         if at > 0 {
             let mut space = egui::TextFormat::simple(font.clone(), base);
