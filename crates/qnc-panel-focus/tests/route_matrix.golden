@@ -485,8 +485,8 @@ PoolTabs marked wheel_source_back => Some(true)/SourceTimeline/None | button=Non
 PoolTabs marked wheel_source_ctrl_back => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 PoolTabs marked wheel_source_ctrl_forward => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 PoolTabs marked wheel_source_forward => Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-PoolTabs marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-PoolTabs marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
+PoolTabs marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(11) out=Some(50) playhead=Some(20) wrap=false
+PoolTabs marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(49) playhead=Some(20) wrap=false
 PoolTabs marked select_mark_in+clear_focus => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 PoolTabs marked step_forward_frame+activate_focused_item => None/PoolTabs/Some("editorial_tab_virtual") Some(true)/Pool/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 PoolTabs marked step_back_frame+activate_focused_item => None/PoolTabs/Some("editorial_tab_all") Some(true)/Pool/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
@@ -568,8 +568,8 @@ Pool marked wheel_source_back => Some(true)/SourceTimeline/None | button=None po
 Pool marked wheel_source_ctrl_back => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 Pool marked wheel_source_ctrl_forward => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 Pool marked wheel_source_forward => Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-Pool marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-Pool marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
+Pool marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(11) out=Some(50) playhead=Some(20) wrap=false
+Pool marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(49) playhead=Some(20) wrap=false
 Pool marked select_mark_in+clear_focus => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 Pool marked step_forward_frame+activate_focused_item => Some(true)/Pool/None Some(true)/Pool/None | button=None pool=Some((Open, 2)) in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 Pool marked step_back_frame+activate_focused_item => Some(true)/Pool/None Some(true)/Pool/None | button=None pool=Some((Open, 2)) in=Some(10) out=Some(50) playhead=Some(20) wrap=false
@@ -651,8 +651,8 @@ SourceTimeline marked wheel_source_back => Some(true)/SourceTimeline/None | butt
 SourceTimeline marked wheel_source_ctrl_back => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceTimeline marked wheel_source_ctrl_forward => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceTimeline marked wheel_source_forward => Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-SourceTimeline marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-SourceTimeline marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
+SourceTimeline marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(11) out=Some(50) playhead=Some(20) wrap=false
+SourceTimeline marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(49) playhead=Some(20) wrap=false
 SourceTimeline marked select_mark_in+clear_focus => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceTimeline marked step_forward_frame+activate_focused_item => Some(true)/SourceTimeline/None Some(true)/SourceButtons/None | button=Some("save_virtual_shot") pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceTimeline marked step_back_frame+activate_focused_item => Some(true)/SourceTimeline/None Some(true)/SourceButtons/None | button=Some("save_virtual_shot") pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
@@ -734,8 +734,8 @@ SourceButtons marked wheel_source_back => Some(true)/SourceTimeline/None | butto
 SourceButtons marked wheel_source_ctrl_back => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceButtons marked wheel_source_ctrl_forward => Some(false)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceButtons marked wheel_source_forward => Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-SourceButtons marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
-SourceButtons marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
+SourceButtons marked select_mark_in+step_forward_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(11) out=Some(50) playhead=Some(20) wrap=false
+SourceButtons marked select_mark_out+step_back_frame => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(49) playhead=Some(20) wrap=false
 SourceButtons marked select_mark_in+clear_focus => Some(true)/SourceTimeline/None Some(true)/SourceTimeline/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceButtons marked step_forward_frame+activate_focused_item => Some(true)/SourceButtons/None Some(true)/Segments/None | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false
 SourceButtons marked step_back_frame+activate_focused_item => Some(true)/SourceButtons/None None/Segments/Some("save_virtual_shot") | button=None pool=None in=Some(10) out=Some(50) playhead=Some(20) wrap=false

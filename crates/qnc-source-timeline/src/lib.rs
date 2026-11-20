@@ -709,7 +709,7 @@ mod tests {
         assert!(source.mark_taken(&timeline));
         assert_eq!(source.route_input("activate_focused_item", None, &mut preview, &mut timeline), Some(true), "Enter keeps the edit");
         assert!(!source.mark_taken(&timeline));
-        assert_eq!(timeline.source_in_frame, Some(10), "the arrow moved the playhead, not the IN (user 2026-11-20)");
+        assert_eq!(timeline.source_in_frame, Some(11), "the moved IN stays");
         assert_eq!(source.route_input("activate_focused_item", None, &mut preview, &mut timeline), None, "nothing taken: the form's Enter");
     }
 

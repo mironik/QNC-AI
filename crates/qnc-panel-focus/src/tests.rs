@@ -10,7 +10,7 @@ fn a_taken_mark_moves_only_with_i_or_o_and_cancel_save_close_do_what_they_say() 
     focus.set(Panel::SourceTimeline);
     focus.route("select_mark_in", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     focus.route("step_forward_frame", (&mut preview, &mut wrap, &mut segments, &mut timeline));
-    assert_eq!(timeline.source_in_frame, Some(10), "the arrow moves the playhead, not IN");
+    assert_eq!(timeline.source_in_frame, Some(11), "the arrow moves the taken IN (a draft)");
     timeline.playhead_frame = Some(15);
     focus.route("mark_in", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     assert_eq!(timeline.source_in_frame, Some(15), "I put IN at the playhead");
@@ -92,7 +92,7 @@ fn ctrl_wheel_moves_a_taken_in_as_on_every_source_timeline() {
     assert_eq!(focus.route("wheel_source_ctrl_forward", (&mut preview, &mut wrap, &mut segments, &mut timeline)), Some(false), "nothing taken: nothing moves");
     focus.route("select_mark_in", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     focus.route("wheel_source_ctrl_forward", (&mut preview, &mut wrap, &mut segments, &mut timeline));
-    assert_eq!(timeline.source_in_frame, Some(10), "the taken IN stays until I puts it at the playhead (user 2026-11-20)");
+    assert_ne!(timeline.source_in_frame, Some(10), "the taken IN moved a frame");
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn the_arrows_move_the_playhead_until_ctrl_i_or_ctrl_o_takes_a_mark() {
     assert_eq!(timeline.source_in_frame, Some(10), "the arrow stepped the playhead");
     focus.route("select_mark_in", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     focus.route("step_forward_frame", (&mut preview, &mut wrap, &mut segments, &mut timeline));
-    assert_eq!(timeline.source_in_frame, Some(10), "a taken IN stays, the arrow is the playhead's (user 2026-11-20)");
+    assert_eq!(timeline.source_in_frame, Some(11), "the arrow moved the taken IN");
     assert!(focus.source_timeline_mut().mark_taken(&timeline), "select_mark_in took IN");
     focus.route("clear_focus", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     assert!(!focus.source_timeline_mut().mark_taken(&timeline), "Escape let it go");

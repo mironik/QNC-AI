@@ -139,9 +139,18 @@ impl SourcePanel {
     pub fn route(&mut self, action_id: &str, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
         Some(match action_id {
             "play_pause" => preview.toggle_play(),
-            // The arrows move the playhead, also while IN or OUT is taken (user 2026-11-20: the
-            // marks stay until they are saved; I or O puts one at the playhead).
-            "step_back_frame" | "step_forward_frame" => preview.step(qnc_edit_step::frames(action_id).unwrap_or(1)),
+            // The arrows (and the wheel, which is the arrows) move a taken IN or OUT, in the timeline
+            // and in its zoom alike (AGENTS 0.12; user 2026-11-20: "strelice u timeline pomiču
+            // IN/OUT, mora i u zumu"); with nothing taken the playhead. Save writes, Cancel gives
+            // back, Close gives back what was not saved.
+            "step_back_frame" | "step_forward_frame" => {
+                let frames = qnc_edit_step::frames(action_id).unwrap_or(1);
+                if self.mark_taken(timeline) {
+                    mark_cue(preview, qnc_source_mark_focus::nudge(timeline, frames))
+                } else {
+                    preview.step(frames)
+                }
+            }
             // A taken mark: I or O puts that mark at the playhead and it stays taken, a draft
             // until Save.
             "mark_in" | "mark_out" if self.mark_taken(timeline) => {
