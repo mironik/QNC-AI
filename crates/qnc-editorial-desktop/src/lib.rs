@@ -31,10 +31,10 @@ impl EditorialForm {
 
     /// The Tab walk of this group's form (its layout contract).
     pub(crate) fn focus_layout(&self) -> qnc_editorial_application::FocusLayout {
-        // `--pool-tab <tab action>`: the tab the opener asks for (the tray's Breaking news opens All,
-        // there is no transcript yet; user 2026-11-18), else the layout's own.
+        // The layout's own opening tab first (user 2026-11-20: AI Media Assist opens on Transcript
+        // however it is started); `--pool-tab <tab action>` only for a form whose layout names none.
         let asked = std::env::args().skip_while(|arg| arg != "--pool-tab").nth(1);
-        let opening = asked.as_deref().or(self.contracts.opening_tab());
+        let opening = self.contracts.opening_tab().or(asked.as_deref());
         qnc_editorial_application::FocusLayout::new(self.contracts.focus_names()).with_opening_tab(opening)
     }
 
