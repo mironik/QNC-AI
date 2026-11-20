@@ -128,7 +128,12 @@ pub struct TranscriptView {
 impl TranscriptView {
     /// The clips the pool shows: on the Transcript tab those with a kept transcript, else all.
     pub fn pool_clips<'a>(&self, transcript_tab: bool, clips: &'a [ClipRow]) -> Vec<&'a ClipRow> {
-        clips.iter().filter(|clip| !transcript_tab || self.transcribed.contains(&clip.clip_id)).collect()
+        let mut shown: Vec<&ClipRow> = clips.iter().filter(|clip| !transcript_tab || self.transcribed.contains(&clip.clip_id)).collect();
+        // The transcribed clips longest first (user 2026-11-20: the statements are the long ones).
+        if transcript_tab {
+            shown.sort_by(|a, b| b.duration_frames.cmp(&a.duration_frames).then_with(|| b.duration_seconds.total_cmp(&a.duration_seconds)));
+        }
+        shown
     }
 
     /// The words of the shown clip said between clip frames `from` and `to` (empty when none
@@ -730,10 +735,10 @@ mod tests {
 
     #[test]
     fn the_transcript_tab_shows_only_the_transcribed_clips() {
-        let clips: Vec<ClipRow> = ["a", "b", "c"].iter().map(|id| ClipRow { clip_id: (*id).into(), ..ClipRow::default() }).collect();
+        let clips: Vec<ClipRow> = [("a", 50), ("b", 100), ("c", 300)].iter().map(|(id, frames)| ClipRow { clip_id: (*id).into(), duration_frames: *frames, ..ClipRow::default() }).collect();
         let view = TranscriptView { transcribed: Arc::new(["b".to_string(), "c".to_string()].into_iter().collect()), ..TranscriptView::default() };
         let ids = |shown: Vec<&ClipRow>| shown.iter().map(|c| c.clip_id.clone()).collect::<Vec<_>>();
-        assert_eq!(ids(view.pool_clips(true, &clips)), ["b", "c"]);
+        assert_eq!(ids(view.pool_clips(true, &clips)), ["c", "b"], "the longest first");
         assert_eq!(ids(view.pool_clips(false, &clips)), ["a", "b", "c"], "the other tabs show all");
     }
 
