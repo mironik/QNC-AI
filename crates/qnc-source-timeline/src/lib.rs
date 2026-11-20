@@ -16,6 +16,7 @@ use std::time::Duration;
 
 mod assist;
 mod level;
+mod voice_end;
 
 /// The clip's wave read for the sound assistant (with its loudness).
 #[derive(Default)]
@@ -130,6 +131,8 @@ pub struct SourceTimeline {
     waves: AssistWaves,
     /// The IN/OUT a pair of words of the transcript marked, until taken.
     marked_by_text: Option<(u64, u64)>,
+    /// The OUT words of the transcript marked, moved on to the end of the voice once it is read.
+    voice_end: voice_end::VoiceEnd,
 }
 
 impl SourceTimeline {
@@ -325,6 +328,7 @@ impl SourceTimeline {
         *timeline = match self.first_word.give((), qnc_edit_words::Word::new(from, to)) {
             qnc_edit_words::Paired::Range(range) => {
                 self.marked_by_text = Some((range.from, range.to));
+                self.voice_end.ask(self.clip.as_deref(), range.to);
                 timeline.clone().with_second_cut(range.from, range.to)
             }
             qnc_edit_words::Paired::First(word) => timeline.clone().with_first_cut_at(word.from),
@@ -341,8 +345,16 @@ impl SourceTimeline {
         self.first_cut = None;
         self.first_word = qnc_edit_words::WordPair::default();
         self.marked_by_text = Some((first.0, last.1));
+        self.voice_end.ask(self.clip.as_deref(), last.1);
         *timeline = timeline.clone().with_second_cut(first.0, last.1);
         true
+    }
+
+    /// Once a frame: an OUT words of the transcript marked goes on to the end of the word's voice
+    /// on A1, when it is read (user 2026-11-20); one the user moved since stays.
+    pub fn settle_voice_end(&mut self, preview: &SourcePreview, timeline: &mut TimelineProjection) {
+        let channel = self.kept_lanes()[0].channel;
+        self.voice_end.settle(self.clip.as_deref(), channel, preview, timeline);
     }
 
     /// The IN/OUT the last pair of words of the transcript marked, once (user 2026-11-08: the
@@ -697,7 +709,7 @@ mod tests {
         assert!(source.mark_taken(&timeline));
         assert_eq!(source.route_input("activate_focused_item", None, &mut preview, &mut timeline), Some(true), "Enter keeps the edit");
         assert!(!source.mark_taken(&timeline));
-        assert_eq!(timeline.source_in_frame, Some(11), "the moved IN stays");
+        assert_eq!(timeline.source_in_frame, Some(10), "the arrow moved the playhead, not the IN (user 2026-11-20)");
         assert_eq!(source.route_input("activate_focused_item", None, &mut preview, &mut timeline), None, "nothing taken: the form's Enter");
     }
 

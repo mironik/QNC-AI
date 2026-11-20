@@ -150,6 +150,8 @@ impl PanelFocus {
         &mut self,
         (preview, wrap, segments, timeline, clips): (&mut SourcePreview, &mut WrapSession, &mut ProgramSegments, &mut TimelineProjection, &mut [qnc_clip_row::ClipRow]),
     ) -> FocusView {
+        // An OUT marked by words goes on to the end of their voice once it is read (user 2026-11-20).
+        self.source.settle_voice_end(preview, timeline);
         // Another S-Story version opened (user 2026-10-31): the Story machinery turns to its story.
         if let Some(version) = self.side.take_version_switch() {
             wrap.leave();
