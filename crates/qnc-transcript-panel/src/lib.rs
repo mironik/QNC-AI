@@ -152,12 +152,16 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
     let mut spans = Vec::with_capacity(words.len());
     // The IN and OUT of the text are red brackets, the words between them lit (user 2026-11-01:
     // a statement clicked shows where its text starts and ends).
+    // Close to the text, centred on its row (user 2026-11-20: they looked lost beside it).
     let bracket = |job: &mut egui::text::LayoutJob, mark: &str| {
-        job.append(mark, 0.0, egui::TextFormat::simple(egui::FontId::monospace(theme.font_ui + 8.0), theme.danger));
+        let mut format = egui::TextFormat::simple(egui::FontId::proportional(theme.font_ui + 4.0), theme.danger);
+        format.valign = egui::Align::Center;
+        job.append(mark, 1.0, format);
     };
     let is_marked = |from: u64, to: u64| show_marks && view.marks.is_some_and(|(a, b)| (a..b).contains(&((from + to) / 2)));
-    // The marked text in one colour, its spaces too (user 2026-11-15).
-    let mark_fill = theme.focus.gamma_multiply(0.65); // well seen (user 2026-11-20: 0.35 was too weak)
+    // The marked text in one colour, its spaces too (user 2026-11-15): a dark half transparent
+    // orange-yellow under the white letters (user 2026-11-20: grey had little contrast).
+    let mark_fill = qnc_desktop_theme::text_marked();
     for (at, (text, from, to)) in words.iter().enumerate() {
         if at > 0 {
             let mut space = egui::TextFormat::simple(font.clone(), base);
@@ -167,7 +171,7 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
             job.append(" ", 0.0, space);
         }
         if ends.is_some_and(|(first, _)| first == (*from, *to)) {
-            bracket(&mut job, "[ ");
+            bracket(&mut job, "[");
         }
         let lit = said(view, *from, *to);
         let marked = is_marked(*from, *to);
@@ -190,7 +194,7 @@ fn paint_line(ui: &mut egui::Ui, line: &Line, view: &TranscriptView, ends: Optio
         job.append(text, 0.0, format);
         spans.push((start, start + text.chars().count(), (*from, *to)));
         if ends.is_some_and(|(_, last)| last == (*from, *to)) {
-            bracket(&mut job, " ]");
+            bracket(&mut job, "]");
         }
     }
     job.wrap.max_width = ui.available_width().max(1.0);

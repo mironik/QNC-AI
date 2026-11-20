@@ -212,11 +212,11 @@ mod tests {
     }
 
     #[test]
-    fn a_window_is_seventy_percent_around_the_marks_and_goes_without_them() {
+    fn a_window_has_one_filmstrip_picture_around_the_marks_and_goes_without_them() {
         let mut window = ClipWindow::default();
         let stored = SourceTimelineAssets::empty_for("c");
         let shown = window.follow(Some("c"), Some((700, 1400)), 5000, &stored, || None).expect("a window");
-        assert_eq!((shown.from, shown.to), (550, 1550));
+        assert_eq!((shown.from, shown.to), (636, 1464));
         assert!(window.follow(Some("c"), None, 5000, &stored, || None).is_none());
     }
 }
