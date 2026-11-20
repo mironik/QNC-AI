@@ -64,6 +64,8 @@ pub struct ZoomWords {
     voices: Vec<qnc_script_db::Voice>,
     voices_at: Option<std::time::Instant>,
     reading_voices: Option<mpsc::Receiver<Vec<qnc_script_db::Voice>>>,
+    /// What the last fill gave, written to the log when it changes (live 2026-11-20: no words).
+    said: String,
 }
 
 /// How often the voice records are read again.
@@ -106,6 +108,20 @@ impl ZoomWords {
             }
         }
         sound.words = needs.iter().flat_map(|need| self.words_of(sound, need)).chain(voice.iter().flat_map(|need| self.voice_words(sound, need, fps))).collect();
+        let said = format!(
+            "zoom-words window={}..{} lanes={:?} needs={:?} kept={:?} words={} error={:?}",
+            sound.from,
+            sound.to,
+            sound.lanes[0].iter().map(|at| (at.clip_id.as_str(), at.program_start, at.program_end, at.source_in, at.source_out, at.off)).collect::<Vec<_>>(),
+            needs.iter().map(|need| (need.first, need.last)).collect::<Vec<_>>(),
+            needs.iter().map(|need| self.transcripts.of(&need.clip_id).map(|kept| kept.len())).collect::<Vec<_>>(),
+            sound.words.len(),
+            self.transcripts.error()
+        );
+        if said != self.said {
+            log(&said);
+            self.said = said;
+        }
         sound.words.sort_by_key(|word| word.from);
         sound.words.dedup_by(|a, b| a.from == b.from && a.text == b.text);
         sound.unheard.clear();
@@ -268,11 +284,10 @@ impl ZoomWords {
     /// The words of `need`'s clip in its part, on the zoom's axis.
     fn words_of(&self, sound: &ZoomSound, need: &Need) -> Vec<ZoomWord> {
         let Some(kept) = self.transcripts.of(&need.clip_id) else { return Vec::new() };
-        // The one transcript covering the part, else every one that touches it.
-        let covering: Vec<&ClipTranscript> = match kept.iter().find(|t| t.from_frame <= need.first && need.last <= t.to_frame) {
-            Some(one) => vec![one],
-            None => kept.iter().filter(|t| t.from_frame < need.last && need.first < t.to_frame).collect(),
-        };
+        // Every transcript that touches the part: the reader already cut an older one where a
+        // newer one says the words (live 2026-11-20: the whole clip's Parakeet transcript covered
+        // the window, its words there were the corrections', and the zoom showed none).
+        let covering: Vec<&ClipTranscript> = kept.iter().filter(|t| t.from_frame < need.last && need.first < t.to_frame).collect();
         let (program_start, program_end, source_in, source_out) = need.piece;
         let axis = |frame: u64| to_axis(program_start, program_end, source_in, source_out, frame).clamp(sound.from, sound.to);
         let kept_letters = self.letters.get(&need.clip_id).map_or(&[][..], Vec::as_slice);
