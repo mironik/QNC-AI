@@ -93,6 +93,8 @@ pub struct TrimStills {
     fine: qnc_fine_wave::FineWave,
     /// The words A1 says there (user 2026-10-26), from the project's transcripts.
     words: qnc_zoom_words::ZoomWords,
+    /// The monitor's picture for a live place (the player in the zoom), copied once per picture.
+    live: Option<((u64, u64), Arc<RgbaImage>)>,
 }
 
 impl TrimStills {
@@ -132,6 +134,28 @@ impl TrimStills {
         self.cache.insert(picture, Arc::new(image));
     }
 
+    /// A live place (the player in the zoom) shows the monitor's picture; it is copied once
+    /// per picture and never decoded.
+    fn show_live(&mut self, view: &mut SegmentsView, monitor: Option<qnc_source_preview::ShownPicture>) {
+        let live_places = view.edit_stills.iter_mut().chain(view.source_edit_stills.iter_mut()).filter(|still| still.live);
+        let mut live_places = live_places.peekable();
+        if live_places.peek().is_none() {
+            self.live = None;
+            return;
+        }
+        if let Some(monitor) = monitor {
+            if self.live.as_ref().map(|(sequence, _)| *sequence) != Some(monitor.sequence) {
+                let content_key = monitor.sequence.0.wrapping_mul(1_000_003) ^ monitor.sequence.1;
+                let image = RgbaImage { size: monitor.size, pixels: monitor.rgba.to_vec(), content_key };
+                self.live = Some((monitor.sequence, Arc::new(image)));
+            }
+        }
+        for still in live_places {
+            still.id = "qnc_edit_still:live".to_string();
+            still.image = self.live.as_ref().map(|(_, image)| image.clone());
+        }
+    }
+
     /// Puts the pictures on the edit pictures of `view` (Wrap rows and source timeline),
     /// decoded here. Returns whether a picture arrived.
     pub fn fill(
@@ -139,8 +163,10 @@ impl TrimStills {
         view: &mut SegmentsView,
         locator: Option<StillLocator>,
         shown: Option<(StillPicture, qnc_source_preview::ShownPicture)>,
+        monitor: Option<qnc_source_preview::ShownPicture>,
     ) -> bool {
         self.offer(view, shown);
+        self.show_live(view, monitor);
         let Some(locator) = locator else {
             return false;
         };
@@ -177,7 +203,7 @@ impl TrimStills {
             }
             self.words.fill(&locator, sound, a1_read);
         }
-        for still in view.edit_stills.iter_mut().chain(view.source_edit_stills.iter_mut()) {
+        for still in view.edit_stills.iter_mut().chain(view.source_edit_stills.iter_mut()).filter(|still| !still.live) {
             still.image = still.picture.as_ref().and_then(|picture| self.cache.get(picture).cloned());
             match (&still.image, still.picture.is_some()) {
                 (Some(image), _) => {
@@ -191,7 +217,7 @@ impl TrimStills {
             }
         }
         let mut missing: Vec<StillPicture> = Vec::new();
-        let stills = view.edit_stills.iter().chain(&view.source_edit_stills);
+        let stills = view.edit_stills.iter().chain(&view.source_edit_stills).filter(|still| !still.live);
         for picture in stills.filter_map(|still| still.picture.as_ref()) {
             if !self.cache.contains_key(picture) && !self.failed.contains(picture) && !missing.contains(picture) {
                 missing.push(picture.clone());
@@ -205,6 +231,7 @@ impl TrimStills {
             .edit_stills
             .iter()
             .chain(&view.source_edit_stills)
+            .filter(|still| !still.live)
             .filter_map(|still| still.picture.clone())
             .collect();
         for picture in shown {

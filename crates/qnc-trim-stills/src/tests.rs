@@ -8,7 +8,7 @@ fn without_a_project_nothing_is_decoded() {
         edit_stills: vec![qnc_program_view::EditStill::new(10, true, Some(picture))],
         ..Default::default()
     };
-    assert!(!stills.fill(&mut view, None, None));
+    assert!(!stills.fill(&mut view, None, None, None));
     assert!(!stills.loading());
     assert!(view.edit_stills[0].image.is_none());
 }

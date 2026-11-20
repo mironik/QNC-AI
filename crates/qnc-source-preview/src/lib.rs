@@ -689,6 +689,13 @@ impl SourcePreview {
         })
     }
 
+    /// The picture on the monitor whatever it shows (a clip or the story), as it plays.
+    pub fn shown_picture(&self) -> Option<ShownPicture> {
+        let picture = self.player_view.picture.as_ref()?;
+        let header = &picture.header;
+        Some(ShownPicture { frame: header.frame, sequence: (header.output_generation, header.sequence), size: [header.width as usize, header.height as usize], rgba: picture.rgba.clone() })
+    }
+
     /// The picture of a clip on the monitor (not of the story), with its clip and frame.
     pub fn shown_clip_picture(&self) -> Option<(String, ShownPicture)> {
         let picture = self.player_view.picture.as_ref()?;

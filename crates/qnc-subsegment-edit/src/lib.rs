@@ -420,7 +420,7 @@ impl SubsegmentEdit {
             }
         }
         shown.zoom = zoom.map(|mut zoom| {
-            self.trim_stills.fill(&mut zoom, preview.still_locator(), None);
+            self.trim_stills.fill(&mut zoom, preview.still_locator(), None, None);
             Box::new(zoom)
         });
         shown.sound = self.sound.map(|sound| sound.index);
