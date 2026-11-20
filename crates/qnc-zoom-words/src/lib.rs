@@ -18,6 +18,9 @@ use qnc_still_locator::StillLocator;
 use qnc_transcript_db::ClipTranscript;
 
 pub const MODULE_ID: &str = "qnc.module.zoom-words";
+
+/// How far (frames) a word's letters may lie from its own times and still be its letters.
+const LETTERS_REACH: u64 = 25;
 /// Seconds transcribed on each side of the part the zoom shows.
 const AROUND_SECONDS: u64 = 5;
 
@@ -350,8 +353,14 @@ impl ZoomWords {
             .map(|word| {
                 // The letters laid for the word (`qnc-letter-db`), on the zoom's axis; with them
                 // the word lasts from its first letter to the end of its last.
+                // Letters laid away from their word (live 2026-11-20: "broju" said 956-967, its
+                // letters past 1012, the word drawn at the window's end and its voice red) are not
+                // its letters: the word is shown on its own times.
+                let near = |(from, to): (u64, u64)| from + LETTERS_REACH >= word.from && from <= word.to.max(word.from + 1) + LETTERS_REACH && to <= word.to.max(word.from + 1) + LETTERS_REACH;
                 let letters: Vec<(char, Option<(u64, u64)>)> = qnc_letter_db::letters_of(kept_letters, word.from, &word.text)
-                    .map(|found| found.spans().into_iter().map(|(letter, span)| (letter, span.map(|(from, to)| (axis(from), axis(to).max(axis(from) + 1))))).collect())
+                    .map(|found| found.spans())
+                    .filter(|spans| spans.iter().filter_map(|(_, span)| *span).all(near))
+                    .map(|spans| spans.into_iter().map(|(letter, span)| (letter, span.map(|(from, to)| (axis(from), axis(to).max(axis(from) + 1))))).collect())
                     .unwrap_or_default();
                 let spans = letters.iter().filter_map(|(_, span)| *span);
                 let (from, to) = spans.fold(None, |edge: Option<(u64, u64)>, (from, to)| Some(edge.map_or((from, to), |(a, b)| (a.min(from), b.max(to)))))
