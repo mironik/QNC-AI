@@ -66,6 +66,8 @@ pub struct ZoomWords {
     reading_voices: Option<mpsc::Receiver<Vec<qnc_script_db::Voice>>>,
     /// What the last fill gave, written to the log when it changes (live 2026-11-20: no words).
     said: String,
+    /// The last placing of the words logged (diagnostics only).
+    placed: String,
 }
 
 /// How often the voice records are read again.
@@ -138,6 +140,18 @@ impl ZoomWords {
                 (word.from, word.to) = (span.from, span.to);
             }
             sound.unheard = aligned.unheard.into_iter().map(|span| (span.from, span.to)).collect();
+        }
+        // Where every word ended up, logged once a change (live 2026-11-20: words lost for a while).
+        let placed = format!(
+            "zoom-words placed window={}..{} fine={fine} words={:?} unheard={:?}",
+            sound.from,
+            sound.to,
+            sound.words.iter().map(|word| (word.text.as_str(), word.from, word.to, word.letters.len())).collect::<Vec<_>>(),
+            sound.unheard
+        );
+        if placed != self.placed {
+            log(&placed);
+            self.placed = placed;
         }
         // The words in the window without letters get them in the background (user
         // 2026-11-05: letters in the zoom too); read again once kept.
