@@ -127,9 +127,14 @@ impl ZoomWords {
         sound.unheard.clear();
         if fine && !sound.words.is_empty() {
             let spans: Vec<qnc_word_align::Span> = sound.words.iter().map(|w| qnc_word_align::Span { from: w.from, to: w.to }).collect();
-            let aligned = qnc_word_align::align(sound.from, sound.to, &sound.peaks[0], &spans);
-            // A word with its letters laid keeps their times: they are finer than the peaks.
-            for (word, span) in sound.words.iter_mut().zip(aligned.words).filter(|(word, _)| word.letters.is_empty()) {
+            let kept: Vec<bool> = sound.words.iter().map(|word| !word.letters.is_empty()).collect();
+            let aligned = qnc_word_align::align_kept(sound.from, sound.to, &sound.peaks[0], &spans, &kept);
+            // A word with its letters laid keeps their times (finer than the peaks) unless it was
+            // in the quiet (its letters go with it onto its voice) or its voice runs on past them.
+            for (word, span) in sound.words.iter_mut().zip(aligned.words) {
+                if !word.letters.is_empty() {
+                    lay_letters(word, span.from, span.to);
+                }
                 (word.from, word.to) = (span.from, span.to);
             }
             sound.unheard = aligned.unheard.into_iter().map(|span| (span.from, span.to)).collect();
@@ -363,5 +368,33 @@ mod tests {
         let need = |first, last| Need { clip_id: "c".into(), channel: 0, first, last, piece: (0, 0, 0, 0) };
         assert!(covered(&kept, &need(300, 400)));
         assert!(!covered(&kept, &need(450, 550)));
+    }
+}
+
+/// The letters of `word` on its aligned span `[from, to)`: moved onto voice elsewhere (no
+/// overlap with where they were), each letter keeps its place in the word; on voice running on
+/// past them, the first letter starts and the last one ends with the voice.
+fn lay_letters(word: &mut ZoomWord, from: u64, to: u64) {
+    let (old_from, old_to) = (word.from, word.to.max(word.from + 1));
+    if (from, to) == (old_from, old_to) {
+        return;
+    }
+    if to <= old_from || from >= old_to {
+        let place = |frame: u64| from + (frame.saturating_sub(old_from)) * (to - from) / (old_to - old_from);
+        for (_, span) in word.letters.iter_mut() {
+            if let Some((a, b)) = span {
+                *span = Some((place(*a), place(*b).max(place(*a) + 1)));
+            }
+        }
+        return;
+    }
+    let timed: Vec<usize> = word.letters.iter().enumerate().filter(|(_, (_, span))| span.is_some()).map(|(index, _)| index).collect();
+    if let (Some(&first), Some(&last)) = (timed.first(), timed.last()) {
+        if let Some((a, _)) = &mut word.letters[first].1 {
+            *a = (*a).min(from);
+        }
+        if let Some((_, b)) = &mut word.letters[last].1 {
+            *b = (*b).max(to);
+        }
     }
 }
