@@ -179,9 +179,6 @@
         "show_story_actions": true,
         "show_ingest_actions": false,
         "actions_rtl": [
-          "@story.broll",
-          "@story.voice_over",
-          "@story.talking_head",
           {
             "label": "@story.update_statement",
             "action_id": "statement_update"
