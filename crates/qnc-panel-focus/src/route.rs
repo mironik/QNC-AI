@@ -161,10 +161,9 @@ impl PanelFocus {
             if pieces.2.save_and_keep() {
                 return Some(true);
             }
-            if self.source.mark_taken(pieces.3) {
-                return Some(true);
-            }
-            return Some(false);
+            // A taken IN or OUT: Save lets the marks go where they are and the owner writes
+            // them (user 2026-11-20: the marks change only on Save).
+            return Some(self.source.keep_marks(pieces.3));
         }
         // A double click on a word is a cut (user 2026-10-26): IN at its start, OUT at the end
         // of a word after the first cut; the source timeline keeps the pair as for scissors.
@@ -445,7 +444,11 @@ impl PanelFocus {
             // `qnc-source-panel`; the stills follow the monitor, `qnc-virtual-short-stills`). I/O mark
             // the chosen clip from the pool too (user 2026-10-16).
             "mark_in" | "mark_out" => {
-                qnc_source_mark_focus::release(timeline); // a new mark lets go of a taken one
+                // A taken IN or OUT: I or O puts it at the playhead and it stays taken (user
+                // 2026-11-20); otherwise a new mark lets go of a mark the timeline still draws.
+                if !self.source.mark_taken(timeline) {
+                    qnc_source_mark_focus::release(timeline);
+                }
                 if action_id == "mark_in" {
                     qnc_sync_session::armed_by_in(segments, preview, wrap); // v5: every IN arms Sync/B-roll
                 }

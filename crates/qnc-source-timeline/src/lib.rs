@@ -236,6 +236,12 @@ impl SourceTimeline {
         self.keys.mark_taken(timeline)
     }
 
+    /// Save (Enter, the zoom's Save; user 2026-11-20): the taken marks stay where they are and
+    /// are let go, the owner writes them. False with no mark taken.
+    pub fn keep_marks(&mut self, timeline: &mut TimelineProjection) -> bool {
+        self.keys.keep_marks(timeline)
+    }
+
     /// A mark was taken or let go by someone else (a segment edge opened with its mark).
     pub fn set_mark_taken(&mut self, taken: bool) {
         self.keys.set_mark_taken(taken);
@@ -259,14 +265,19 @@ impl SourceTimeline {
             return Some(self.drag(action_id == DRAG_IN, frame, preview, timeline));
         }
         let channel = value.and_then(|channel| u16::try_from(channel).ok());
+        // Enter while IN or OUT is taken is Save (user 2026-11-20): the marks stay where they are
+        // and are let go; the owner writes them.
         if action_id == "activate_focused_item" && !self.lane_taken() && self.keys.mark_taken(timeline) {
-            return self.keys.route("clear_focus", preview, timeline);
+            return Some(self.keys.keep_marks(timeline));
         }
         if action_id == KEEP_MARK {
-            // A left click while something is taken keeps it, then the playhead goes where it
-            // was clicked (user rule 2026-10-20); the end of a drag only keeps.
+            // A left click while a lane is taken keeps it, then the playhead goes where it was
+            // clicked (user rule 2026-10-20). While IN or OUT is taken a click only moves the
+            // playhead (user 2026-11-20: the marks stay until Save, I or O moves one).
             let kept = if self.lane_taken() {
                 self.route_lane("activate_focused_item", preview).unwrap_or(false)
+            } else if self.keys.mark_taken(timeline) {
+                false
             } else {
                 // The timeline draws the mark taken: let it go whoever took it.
                 self.keys.set_mark_taken(false);

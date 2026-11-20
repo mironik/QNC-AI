@@ -97,23 +97,36 @@ impl SourcePanel {
 
     /// Before IN (`in_mark`) or OUT is taken: where it is now, kept while marks stay taken.
     pub fn remember(&mut self, timeline: &TimelineProjection, in_mark: bool) {
+        // Both, when the first mark is taken: Cancel and Close give back IN and OUT.
         if !self.mark_taken(timeline) {
-            self.origin = [None, None];
+            self.origin = [Some(timeline.source_in_frame), Some(timeline.source_out_frame)];
         }
         let now = if in_mark { timeline.source_in_frame } else { timeline.source_out_frame };
         self.origin[usize::from(!in_mark)].get_or_insert(now);
     }
 
-    /// The taken mark back where it was when it was first taken; it stays taken.
+    /// IN and OUT back where they were when a mark was first taken (Cancel, user 2026-11-20:
+    /// "odustani vraća stare postavke"); the mark stays taken.
     fn back_to_origin(&mut self, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> bool {
         let in_mark = timeline.source_mark_focus == qnc_timeline_model::TimelineSourceMarkFocus::In;
-        let Some(origin) = self.origin[usize::from(!in_mark)] else { return false };
-        let (from, to) = if in_mark { (origin, timeline.source_out_frame) } else { (timeline.source_in_frame, origin) };
-        if from.zip(to).is_some_and(|(from, to)| from >= to) {
-            return false; // the other mark has moved past where this one was
+        let from = self.origin[0].unwrap_or(timeline.source_in_frame);
+        let to = self.origin[1].unwrap_or(timeline.source_out_frame);
+        if from.zip(to).is_some_and(|(from, to)| from >= to) || (from, to) == (timeline.source_in_frame, timeline.source_out_frame) {
+            return false;
         }
         (timeline.source_in_frame, timeline.source_out_frame) = (from, to);
         mark_cue(preview, qnc_source_mark_focus::take(timeline, in_mark))
+    }
+
+    /// Save (Enter, the zoom's Save): the marks stay where they are now and are let go; the
+    /// owner writes them (a statement's new IN/OUT).
+    pub fn keep_marks(&mut self, timeline: &mut TimelineProjection) -> bool {
+        if !self.mark_taken(timeline) {
+            return false;
+        }
+        self.mark_taken = false;
+        qnc_source_mark_focus::release(timeline);
+        true
     }
 
     /// A mark was taken by someone else (a segment edge opened with its mark taken).
@@ -126,13 +139,18 @@ impl SourcePanel {
     pub fn route(&mut self, action_id: &str, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
         Some(match action_id {
             "play_pause" => preview.toggle_play(),
-            "step_back_frame" | "step_forward_frame" => {
-                let frames = qnc_edit_step::frames(action_id).unwrap_or(1);
-                if self.mark_taken(timeline) {
-                    mark_cue(preview, qnc_source_mark_focus::nudge(timeline, frames))
-                } else {
-                    preview.step(frames)
-                }
+            // The arrows move the playhead, also while IN or OUT is taken (user 2026-11-20: the
+            // marks stay until they are saved; I or O puts one at the playhead).
+            "step_back_frame" | "step_forward_frame" => preview.step(qnc_edit_step::frames(action_id).unwrap_or(1)),
+            // A taken mark: I or O puts that mark at the playhead and it stays taken, a draft
+            // until Save.
+            "mark_in" | "mark_out" if self.mark_taken(timeline) => {
+                let in_mark = action_id == "mark_in";
+                let moved = if in_mark { timeline.with_source_in_at_confirmed() } else { timeline.with_source_out_at_confirmed() };
+                let changed = (moved.source_in_frame, moved.source_out_frame) != (timeline.source_in_frame, timeline.source_out_frame);
+                *timeline = moved;
+                qnc_source_mark_focus::take(timeline, in_mark);
+                changed
             }
             "mark_in" => {
                 self.mark_taken = false;
@@ -170,7 +188,9 @@ impl SourcePanel {
             },
             // The monitor's Auto | On switch (`qnc-monitor`), the same in every form.
             "monitor_auto" | "monitor_on" => preview.set_monitor_mode(action_id),
+            // Close (Escape, the zoom's Close): what was not saved goes back, the mark is let go.
             "clear_focus" if self.mark_taken(timeline) => {
+                self.back_to_origin(preview, timeline);
                 self.mark_taken = false;
                 mark_cue(preview, qnc_source_mark_focus::release(timeline))
             }

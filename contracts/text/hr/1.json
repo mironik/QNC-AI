@@ -22,6 +22,8 @@
     "common.cancel": "Odustani",
     "common.save": "Spremi",
     "zoom.close": "Zatvori (Esc)",
+    "zoom.cancel": "Odustani",
+    "zoom.player": "Player",
     "common.export": "Izvoz",
     "export.to_xml": "Export u XML",
     "export.project_settings": "Postavke exporta projekta",
