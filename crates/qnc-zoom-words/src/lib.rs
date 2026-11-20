@@ -77,6 +77,8 @@ pub struct ZoomWords {
     session: HashMap<String, Arc<Vec<ClipTranscript>>>,
     /// Clips whose letters were laid again: read again, the old ones shown until then.
     stale_letters: HashSet<String>,
+    /// Words (clip, start, text) whose letters this zoom asked for: each once.
+    asked_letters: HashSet<(String, u64, String)>,
 }
 
 /// How often the voice records are read again.
@@ -169,7 +171,7 @@ impl ZoomWords {
         }
         // The words in the window without letters get them in the background (user
         // 2026-11-05: letters in the zoom too); read again once kept.
-        let missing: Vec<qnc_letter_times::Need> = needs.iter().filter_map(|need| self.missing_letters(need)).collect();
+        let missing: Vec<qnc_letter_times::Need> = needs.iter().filter_map(|need| self.missing_letters(locator, need)).collect();
         if self.letter_times.poll(locator, &missing, true) {
             for need in &needs {
                 self.stale_letters.insert(need.clip_id.clone());
@@ -223,17 +225,56 @@ impl ZoomWords {
     }
 
     /// The words of `need`'s part without letters, in its clip's frames.
-    fn missing_letters(&self, need: &Need) -> Option<qnc_letter_times::Need> {
-        let kept = self.transcripts.of(&need.clip_id)?;
+    fn missing_letters(&mut self, locator: &StillLocator, need: &Need) -> Option<qnc_letter_times::Need> {
+        if self.letter_times.working() {
+            return None;
+        }
+        let kept = self.transcripts.of(&need.clip_id)?.clone();
         let letters = self.letters.get(&need.clip_id).map_or(&[][..], Vec::as_slice);
-        let words: Vec<qnc_letter_times::Word> = kept
+        let mut words: Vec<&qnc_transcript_db::Word> = kept
             .iter()
             .flat_map(|t| t.lines.iter().flat_map(|line| line.words.iter()))
             .filter(|word| word.from < need.last && need.first < word.to.max(word.from + 1) && !word.text.trim().is_empty())
-            .filter(|word| qnc_letter_db::letters_of(letters, word.from, &word.text).is_none())
+            .collect();
+        words.sort_by_key(|word| word.from);
+        // Any word without letters of its own, not asked yet in this zoom: the whole run of the
+        // window goes, so the aligner hears the words in their order and none is laid onto a
+        // neighbour's voice (each word asked once, a word laid away is not asked again).
+        let missing: Vec<(String, u64, String)> = words
+            .iter()
+            .filter(|word| fitting_letters(letters, word).is_none())
+            .map(|word| (need.clip_id.clone(), word.from, word.text.trim().to_string()))
+            .filter(|key| !self.asked_letters.contains(key))
+            .collect();
+        // Letters kept away from their word are dropped from the project's database (they get
+        // laid again in this run): the database keeps no letters on another word's voice.
+        let away: Vec<(u64, String)> = words
+            .iter()
+            .filter(|word| qnc_letter_db::letters_of(letters, word.from, &word.text).is_some() && fitting_letters(letters, word).is_none())
+            .map(|word| (word.from, word.text.clone()))
+            .collect();
+        if !away.is_empty() {
+            let (locator, clip) = (locator.clone(), need.clip_id.clone());
+            log(&format!("zoom-words letters away from their words dropped {clip}: {away:?}"));
+            if let Some(cache) = self.letters.get_mut(&clip) {
+                cache.retain(|kept| !away.iter().any(|(from, text)| kept.word_from == *from && kept.text == *text));
+            }
+            let _ = std::thread::Builder::new().name("qnc-zoom-words-forget".into()).spawn(move || {
+                let dropped = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings()).and_then(|target| qnc_letter_db::forget(&target, &clip, away));
+                if let Err(error) = dropped {
+                    log(&format!("zoom-words letters not dropped {clip}: {error}"));
+                }
+            });
+        }
+        if missing.is_empty() {
+            return None;
+        }
+        self.asked_letters.extend(missing);
+        let words: Vec<qnc_letter_times::Word> = words
+            .into_iter()
             .map(|word| qnc_letter_times::Word { from: word.from, to: word.to.max(word.from + 1), text: word.text.trim().to_string() })
             .collect();
-        (!words.is_empty()).then(|| qnc_letter_times::Need::few(need.clip_id.clone(), words))
+        Some(qnc_letter_times::Need::few(need.clip_id.clone(), words))
     }
 
     /// The zoom closed: its passing cache of words and letters goes, the next zoom reads the
@@ -246,6 +287,7 @@ impl ZoomWords {
         self.session.clear();
         self.letters.clear();
         self.stale_letters.clear();
+        self.asked_letters.clear();
     }
 
     /// Stops a running transcription (the zoom closed or another project).
@@ -356,10 +398,8 @@ impl ZoomWords {
                 // Letters laid away from their word (live 2026-11-20: "broju" said 956-967, its
                 // letters past 1012, the word drawn at the window's end and its voice red) are not
                 // its letters: the word is shown on its own times.
-                let near = |(from, to): (u64, u64)| from + LETTERS_REACH >= word.from && from <= word.to.max(word.from + 1) + LETTERS_REACH && to <= word.to.max(word.from + 1) + LETTERS_REACH;
-                let letters: Vec<(char, Option<(u64, u64)>)> = qnc_letter_db::letters_of(kept_letters, word.from, &word.text)
+                let letters: Vec<(char, Option<(u64, u64)>)> = fitting_letters(kept_letters, word)
                     .map(|found| found.spans())
-                    .filter(|spans| spans.iter().filter_map(|(_, span)| *span).all(near))
                     .map(|spans| spans.into_iter().map(|(letter, span)| (letter, span.map(|(from, to)| (axis(from), axis(to).max(axis(from) + 1))))).collect())
                     .unwrap_or_default();
                 let spans = letters.iter().filter_map(|(_, span)| *span);
@@ -453,4 +493,11 @@ fn lay_letters(word: &mut ZoomWord, from: u64, to: u64) {
             *b = (*b).max(to);
         }
     }
+}
+
+/// The letters kept for `word` when they lie on its own times (`qnc_letter_db::letters_fit`):
+/// letters laid away from it are not its letters (live 2026-11-20: "broju" said 956-967, its
+/// letters past 1012, drawn at the window's end and its voice red).
+fn fitting_letters<'a>(kept: &'a [qnc_letter_db::WordLetters], word: &qnc_transcript_db::Word) -> Option<&'a qnc_letter_db::WordLetters> {
+    qnc_letter_db::letters_of(kept, word.from, &word.text).filter(|found| qnc_letter_db::letters_fit(&found.letters, word.from, word.to, LETTERS_REACH))
 }

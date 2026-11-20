@@ -20,6 +20,8 @@ pub const MODULE_ID: &str = "qnc.module.letter-times";
 const RUN_SECONDS: f64 = 20.0;
 /// Speech read on each side of a run, in seconds (a word's first sound is often early).
 const MARGIN_SECONDS: f64 = 0.3;
+/// How far (seconds) a word's laid letters may lie from its transcribed times.
+const FIT_SECONDS: f64 = 0.5;
 
 /// A word of a clip without letters: its clip frames and its text, as the transcript has it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -49,7 +51,7 @@ impl Need {
 struct Job {
     clip_id: String,
     words: Vec<Word>,
-    done: mpsc::Receiver<Result<(), String>>,
+    done: mpsc::Receiver<Result<Vec<Word>, String>>,
 }
 
 #[derive(Default)]
@@ -96,7 +98,10 @@ impl LetterTimes {
     fn take_finished(&mut self) -> bool {
         let Some(job) = &self.job else { return false };
         match job.done.try_recv() {
-            Ok(Ok(())) => {
+            Ok(Ok(away)) => {
+                for word in away {
+                    self.failed.insert((job.clip_id.clone(), word));
+                }
                 self.job = None;
                 true
             }
@@ -140,7 +145,7 @@ impl LetterTimes {
 
 /// The letters of `words` of `clip_id`: their speech read where the clip's sound is on this
 /// computer (the project's speech channel), laid on by the aligner and kept.
-fn lay(locator: &StillLocator, aligner: &qnc_letter_align::Aligner, clip_id: &str, words: &[Word]) -> Result<(), String> {
+fn lay(locator: &StillLocator, aligner: &qnc_letter_align::Aligner, clip_id: &str, words: &[Word]) -> Result<Vec<Word>, String> {
     let place = locator.locate_sound(clip_id)?;
     let channel = u16::try_from(locator.settings().transcribe_channel().map_err(|e| e.to_string())?).map_err(|_| "no speech channel".to_string())?;
     let fps = f64::from(place.fps.0) / f64::from(place.fps.1.max(1));
@@ -154,17 +159,30 @@ fn lay(locator: &StillLocator, aligner: &qnc_letter_align::Aligner, clip_id: &st
     let laid = aligner.align(&qnc_letter_align::AlignRequest { model, wav, words: words.iter().map(|word| word.text.clone()).collect() });
     // Seconds of the speech as clip frames, fractions kept: the speech starts at `from_seconds`.
     let frame = |seconds: f64| ((sound.from_seconds + seconds - place.frame_zero_seconds) * fps).max(0.0);
-    let kept: Vec<WordLetters> = words
+    // Only letters laid on their own word are kept (live 2026-11-20: "broju" said 956-967 was
+    // laid past 1012, on the "broj" of the next sentence): a word laid away from its times is
+    // not kept (it stays without letters and is not asked again in this run).
+    let reach = (FIT_SECONDS * fps).round() as u64;
+    let made: Vec<(&Word, WordLetters)> = words
         .iter()
         .zip(laid?)
-        .map(|(word, laid)| WordLetters {
+        .map(|(word, laid)| (word, WordLetters {
             word_from: word.from,
             text: word.text.clone(),
             letters: laid.letters.into_iter().map(|letter| Letter { letter: letter.letter, from: letter.start.map(frame), to: letter.end.map(frame) }).collect(),
-        })
+        }))
         .collect();
-    let target = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings()).map_err(|error| error)?;
-    qnc_letter_db::save(&target, clip_id, "wav2vec2-parlaspeech-hr", kept)
+    let (fit, away): (Vec<_>, Vec<_>) = made.into_iter().partition(|(word, letters)| qnc_letter_db::letters_fit(&letters.letters, word.from, word.to, reach));
+    let away: Vec<Word> = away.into_iter().map(|(word, _)| word.clone()).collect();
+    if !away.is_empty() {
+        log(&format!("letter-times {clip_id} laid away from their words, not kept: {:?}", away.iter().map(|word| (word.text.as_str(), word.from, word.to)).collect::<Vec<_>>()));
+    }
+    let kept: Vec<WordLetters> = fit.into_iter().map(|(_, letters)| letters).collect();
+    if !kept.is_empty() {
+        let target = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings()).map_err(|error| error)?;
+        qnc_letter_db::save(&target, clip_id, "wav2vec2-parlaspeech-hr", kept)?;
+    }
+    Ok(away)
 }
 
 fn log(line: &str) {
