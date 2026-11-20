@@ -390,7 +390,7 @@ impl EditorialApplication {
             }
             qnc_pool_tabs::REMOVE_SHORT => { self.pool_shots.remove(self.content_target.as_ref().map(|targets| &targets.1), target); self.view.chosen_shot_id = None; true }
             qnc_short_save::UPDATE => self.short_save.update(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
-            other => self.short_save.answer(other), // Overwrite or Cancel of the same statement (user 2026-11-01)
+            other => self.short_save.answer(other, target), // Overwrite or Cancel of the same statement (user 2026-11-01), the caption of a new one
         }
     }
 

@@ -71,7 +71,14 @@ pub fn show_with(
     let intent = qnc_source_dock::show_timeline_dock_with(ui, rect, style, title, header, timeline, drawn.as_mut().map(|draw| draw as &mut dyn FnMut(&mut Ui)));
     drop(drawn);
     let norm = toggled.map(qnc_action_event::ActionEvent::key);
-    let asked = view.question.as_ref().and_then(|choice| qnc_choice_box::show(ui.ctx(), theme, choice)).map(qnc_action_event::ActionEvent::key);
+    // The answer carries its target (what was written in the fields of the question).
+    let asked = view.question.as_ref().and_then(|choice| qnc_choice_box::show_option(ui.ctx(), theme, choice)).map(|option| {
+        let event = qnc_action_event::ActionEvent::key(option.action_id);
+        match option.target {
+            Some(target) => event.with_target(target),
+            None => event,
+        }
+    });
     (intent, asked.or(answer).or(norm))
 }
 
