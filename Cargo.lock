@@ -3952,6 +3952,7 @@ dependencies = [
  "qnc-source-volumes",
  "qnc-tray",
  "qnc-tray-mode",
+ "qnc-wizard-open",
  "qnc-wizard-text",
  "qnc-work-settings",
 ]
@@ -5546,11 +5547,13 @@ dependencies = [
  "qnc-source-reader",
  "qnc-still-locator",
  "qnc-stopped-work",
+ "qnc-transcribe-jobs",
  "qnc-transcribe-queue",
  "qnc-transcribe-run",
  "qnc-transcript-db",
  "qnc-tray-mode",
  "qnc-ui-text",
+ "qnc-wave-worker",
  "qnc-work-progress",
  "qnc-work-settings",
  "serde_json",
@@ -7188,6 +7191,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-notice",
+ "qnc-source-timecode",
  "qnc-ui-text",
  "qnc-virtual-short-cards",
  "qnc-virtual-shots",
@@ -8046,6 +8050,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-transcribe-nemotron"
+version = "0.1.0"
+dependencies = [
+ "libloading",
+ "qnc-dev-diagnostics",
+ "qnc-transcribe-jobs",
+]
+
+[[package]]
 name = "qnc-transcribe-parakeet"
 version = "0.1.0"
 dependencies = [
@@ -8091,6 +8104,7 @@ dependencies = [
  "qnc-ai-catalog",
  "qnc-ai-features",
  "qnc-content-store",
+ "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-media-metadata",
  "qnc-playback-activity",
@@ -8392,6 +8406,7 @@ version = "0.1.0"
 dependencies = [
  "candle-core",
  "candle-nn",
+ "rayon",
  "serde_json",
 ]
 

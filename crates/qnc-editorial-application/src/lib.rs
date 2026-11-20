@@ -199,7 +199,7 @@ impl EditorialApplication {
         }
         if self.short_stills.take_published() { self.reload_shorts() } // a poster was written
         changed |= self.pool_shots.take().map(|rows| self.apply_shorts(rows)).is_some();
-        changed |= self.short_save.follow(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1)).map(|saved| self.short_saved(saved)).is_some();
+        changed |= self.short_save.follow(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1), self.view.source_timeline.timecode.as_ref()).map(|saved| self.short_saved(saved)).is_some();
         qnc_dev_diagnostics::timed_block("poll-sync", || self.sync_preview_view());
         changed
     }
