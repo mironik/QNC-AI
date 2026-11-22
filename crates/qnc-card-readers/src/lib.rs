@@ -119,7 +119,7 @@ pub fn cards(root: &Path) -> Vec<qnc_source_volumes::Volume> {
             let name = entry.file_name().to_string_lossy().to_string();
             let Some(serial) = volume_serial(&name) else { continue };
             if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-                cards.push(qnc_source_volumes::Volume { root: entry.path(), serial_number: serial, volume_name: Some(format!("{} {name}", reader.name)) });
+                cards.push(qnc_source_volumes::Volume { root: entry.path(), serial_number: serial, volume_name: Some(reader.name.clone()) });
             }
         }
     }

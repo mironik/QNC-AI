@@ -208,12 +208,15 @@ pub fn with_card_readers(bindings: &mut TransportBindings, readers: &[qnc_card_r
         if !bindings.sources.iter().any(|binding| binding.uri == location.uri) {
             bindings.sources.push(location.clone());
         }
-        if !bindings.registered_sources.iter().any(|source| source.location.uri == location.uri) {
+        // A reader with cards in it is offered as its cards, not twice as its whole folder too
+        // (user 2026-11-22: "ovo je zbunjujuće"); its binding stays for what was taken from it.
+        let has_cards = bindings.registered_sources.iter().any(|source| source.location.file.as_ref().is_some_and(|file| file != &reader.path && file.starts_with(&reader.path)));
+        if !has_cards && !bindings.registered_sources.iter().any(|source| source.location.uri == location.uri) {
             bindings.registered_sources.push(RegisteredSource {
                 location,
                 name: Some(reader.name.clone()),
-                // A reader is its own card: its name stands for the serial of its volume.
-                serial_number: Some(reader.id()),
+                // A folder, not a volume: no serial is shown beside it.
+                serial_number: None,
                 volume_name: None,
                 scope: Some("card_relative".into()),
                 probe: probe.clone(),
@@ -594,7 +597,7 @@ mod reader_tests {
         assert_eq!(bindings.sources.len(), 1);
         let source = &bindings.registered_sources[0];
         assert!(source.location.uri.starts_with("qnc://lan/"));
-        assert_eq!(source.serial_number.as_deref(), Some("jetson"));
+        assert_eq!(source.serial_number, None);
         assert!(source.location.resolver().is_ok());
         assert!(source.location.reader().is_some());
     }
