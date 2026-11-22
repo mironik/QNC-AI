@@ -44,15 +44,32 @@ pub fn make(root: &Path) -> Result<(String, String), String> {
     qnc_ingest_base::keep_projects_apart(root)?;
     let store = ProjectStore::open(root)?;
     let template = store.selected_template_settings()?.settings;
-    let selection: SelectionSnapshot = template
-        .get("workspace")
-        .and_then(|workspace| workspace.get("application_selection"))
-        .cloned()
-        .ok_or("the chosen template has no applications")
-        .and_then(|value| serde_json::from_value(value).map_err(|_| "the chosen template's applications are not readable"))?;
+    let selection: SelectionSnapshot = match template.get("workspace").and_then(|workspace| workspace.get("application_selection")) {
+        Some(value) => serde_json::from_value(value.clone()).map_err(|_| "the chosen template's applications are not readable")?,
+        // A system template names no applications (audit 2026-11-22: breaking news then never
+        // started): every application installed on this computer, one per priority group.
+        None => installed_applications(root)?,
+    };
     let settings = settings_of(root, template);
     let made = store.create_project(&name_at(chrono::Local::now()), "", Some(&settings), &selection)?;
     Ok((made.project_id, made.name))
+}
+
+/// The applications installed on this computer (its application catalog), the first of each
+/// priority group.
+fn installed_applications(root: &Path) -> Result<SelectionSnapshot, String> {
+    let catalog = qnc_application_catalog::read_catalog(&root.join("data").join("application-catalog.json"))
+        .map_err(|error| format!("the chosen template names no applications and the application catalog is not readable: {error}"))?;
+    first_of_each_group(&catalog)
+}
+
+fn first_of_each_group(catalog: &qnc_application_catalog::Catalog) -> Result<SelectionSnapshot, String> {
+    let mut groups = std::collections::BTreeMap::new();
+    for app in &catalog.applications {
+        groups.entry(app.priority_group.clone()).or_insert_with(|| app.application_id.clone());
+    }
+    let ids: Vec<String> = groups.into_values().collect();
+    SelectionSnapshot::from_catalog(catalog, &ids).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -67,5 +84,41 @@ mod tests {
         let root = std::env::temp_dir().join(format!("qnc_breaking_news_{}", std::process::id()));
         let settings = settings_of(&root, serde_json::json!({ "storage": { "ingest_media": "original" } }));
         assert_eq!(settings["storage"]["ingest_media"], LINKS);
+    }
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::*;
+    use qnc_application_catalog::{Application, Catalog, HostMode};
+
+    #[test]
+    fn a_template_without_applications_takes_the_first_installed_of_each_group() {
+        let app = |id: &str, group: &str| Application {
+            application_id: format!("qnc.{id}"),
+            tab_id: id.into(),
+            label: id.into(),
+            priority_group: group.into(),
+            system: false,
+            removable: true,
+            host_mode: HostMode::ExternalComponent,
+            desktop_entry: id.into(),
+            standalone_executable: id.into(),
+        };
+        let catalog = Catalog {
+            catalog_id: qnc_application_catalog::CATALOG_ID.into(),
+            schema_version: 1,
+            catalog_uri: qnc_application_catalog::DEFAULT_URI.into(),
+            selection_policy: "one_per_priority_group".into(),
+            observed_at_unix_ms: 1,
+            target_os: "windows".into(),
+            target_cpu: "x86_64".into(),
+            applications: vec![app("project", "a"), app("ai", "e"), app("story", "o"), app("story-lite", "o")],
+            unavailable: vec![],
+        };
+        let selection = first_of_each_group(&catalog).unwrap();
+        let ids: Vec<_> = selection.applications.iter().map(|app| app.application_id.as_str()).collect();
+        assert_eq!(ids, ["qnc.project", "qnc.ai", "qnc.story"]);
+        selection.validate().unwrap();
     }
 }

@@ -917,3 +917,8 @@ newsa, jer tamo prijepis ide zadnji). (2) Preview klipa ciji zapis jos nije goto
 `retry_incomplete_record`): radnik se budi odmah i zatim svakih 5 s po svom satu (prije je pokusaj svakih 250 ms
 pomicao isto vrijeme, pa se radnik nikad nije ponovno probudio), a klip se otvara na slici na kojoj je bio otvoren,
 ne na pocetku. Testovi `qnc-source-preview`, gradnja radnika. Uzivo nije provjereno.
+Ispravak 2026-11-22 (audit greska 12.1): Breaking news radi i sa sistemskim predloskom. Predlozak bez
+`workspace.application_selection` (nijedan sistemski ga nema) uzima aplikacije instalirane na ovom racunalu iz kataloga
+aplikacija (`data/application-catalog.json`), prvu iz svake prioritetne grupe (`qnc-breaking-news`
+`installed_applications`). Prije je Breaking news s takvim predloskom javljao "the chosen template has no applications"
+i nije nastajao. Test `a_template_without_applications_takes_the_first_installed_of_each_group`. Uzivo nije provjereno.
