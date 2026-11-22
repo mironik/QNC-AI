@@ -1768,6 +1768,7 @@
     "project.msg.opened": "Project opened: {name}",
     "project.msg.story_saved": "Story sheet saved.",
     "project.msg.sheet_not_kept": "The project was created, but its story sheet was not kept: {error}",
+    "project.msg.name_is_base": "A project name cannot start with \"{prefix}\": such a name is an Ingest base.",
     "project.store.template_not_deleted": "Template '{template}' was not deleted.",
     "project.store.unknown_location": "Unknown project location: {location}",
     "project.store.export_dir_rule": "The export folder must be relative inside the project or absolute: {export_directory}",

@@ -931,3 +931,6 @@ Provjera 2026-11-22 (audit greska 12.3): zastita mapa vec se postavlja samo kad 
 predlosci se namjerno ponovno upisuju iz seeda. Ispravljeno samo to da se `attrib +h` vise ne pokrece za svaki
 projekt pri svakom otvaranju: mapa koja je vec skrivena se preskace (`set_project_hidden`, atribut iz metapodataka).
 Testovi `qnc-project-store` (43).
+Ispravak 2026-11-22 (audit greska 12.4): novi projekt iz Projecta s imenom koje pocinje s "Ingest" se odbija
+(`qnc-project-jobs` Create, tekst `project.msg.name_is_base`), jer bi postao Ingest baza (baza se razlikuje samo po
+imenu). Ingest baze i dalje nastaju kroz `qnc-ingest-base`. Test u `a_new_project_keeps_its_story_sheet_in_its_own_database`.

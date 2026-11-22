@@ -85,7 +85,13 @@ pub fn run(store: &mut Result<ProjectStore, String>, request: Request) -> Answer
             // could not be kept is still there, and says so.
             // The AI it turns on keeps the rule of the features (docs/102): what a feature needs is on.
             let chosen = qnc_ai_features::chosen_of(&settings);
-            let checked = if chosen.is_empty() { Ok(()) } else { qnc_ai_features::Features::load(store.root()).and_then(|features| features.check(&chosen)) };
+            // A name an Ingest base has would make the project a base (audit 2026-11-22).
+            let named = if name.trim().starts_with(qnc_ingest_base::NAME_PREFIX) {
+                Err(qnc_ui_text::fill("project.msg.name_is_base", &[("prefix", qnc_ingest_base::NAME_PREFIX)]))
+            } else {
+                Ok(())
+            };
+            let checked = named.and_then(|()| if chosen.is_empty() { Ok(()) } else { qnc_ai_features::Features::load(store.root()).and_then(|features| features.check(&chosen)) });
             let created = checked.and_then(|()| store.create_project(&name, &template_id, Some(&settings), &selection).and_then(|project| {
                 save_sheet(store, &project.project_id, sheet)
                     .map_err(|error| qnc_ui_text::fill("project.msg.sheet_not_kept", &[("error", &error)]))?;
@@ -241,6 +247,9 @@ mod tests {
             sheet: serde_json::json!({ "sheet_id": "minimal", "name": "Minimal", "fields": [] }),
             values: [("slug".to_string(), serde_json::json!("TRZNICA"))].into_iter().collect(),
         };
+        let base_named = Request::Create { name: "Ingest kamera".into(), template_id: template.template_id.clone(), settings: settings.clone(), selection: selection.clone(), sheet: sheet.clone() };
+        jobs.submit(move |store| run(store, base_named));
+        assert!(matches!(answers_of(&mut jobs, 1).remove(0).0, Reply::Created(Err(_))), "a project is never named as a base");
         let create = Request::Create { name: "Prilog".into(), template_id: template.template_id, settings, selection, sheet: sheet.clone() };
         jobs.submit(move |store| run(store, create));
         let project = match answers_of(&mut jobs, 1).remove(0).0 {

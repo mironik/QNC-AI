@@ -255,6 +255,7 @@
     "project.msg.opened": "Projekt otvoren: {name}",
     "project.msg.story_saved": "Obrazac priloga spremljen.",
     "project.msg.sheet_not_kept": "Projekt je kreiran, ali njegov obrazac priloga nije spremljen: {error}",
+    "project.msg.name_is_base": "Ime projekta ne smije počinjati s \"{prefix}\": takvo ime ima Ingest baza.",
     "project.store.template_not_deleted": "Template '{template}' nije obrisan.",
     "project.store.unknown_location": "Nepoznata lokacija projekta: {location}",
     "project.store.export_dir_rule": "Mapa exporta mora biti relativna unutar projekta ili apsolutna: {export_directory}",
