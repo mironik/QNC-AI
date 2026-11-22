@@ -941,3 +941,7 @@ Ispravak 2026-11-22 (audit greska 12.18): poruke panela scenarija (MA Audio, MA 
 koja kaze da posao ide kako treba (izvezeno, poslano u S-Story, ponisteno, snima se, trazim pokrivalice...) crta se
 obicnom bojom, ostale crveno (`qnc-script` `is_plain`, popis sifri u `plain.rs`, poruka s vrijednostima se prepoznaje
 po dijelovima teksta). Test `done_and_under_way_are_plain_a_refusal_is_not`.
+Ispravak 2026-11-22 (audit greska 12.16): prva snimka OFF-a dobiva ime `<projekt>_<oznaka>` samo kad nijedna datoteka
+mape glasa vec ne pocinje tim imenom; inace `_2`, `_3`... (`qnc-voice-take` `free_name`). Prije je drugi OFF s istom
+oznakom (profil bez rednog cuea, ili blokovi prebrojani nakon dodavanja ili brisanja) prepisivao `_T1` datoteke i
+klip kataloga prvoga. Snimke koje blok vec ima zadrzavaju svoje ime. Test `a_name_whose_files_are_there_is_taken_with_a_number`.

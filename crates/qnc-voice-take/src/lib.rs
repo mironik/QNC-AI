@@ -129,6 +129,19 @@ pub fn record_name(project: &str, mark: &str) -> String {
     qnc_work_settings::export_file_name(&format!("{}_{mark}", project.trim()))
 }
 
+/// `name`, or `name_2`, `name_3`... when files of another record already start with it in
+/// `folder` (audit 2026-11-22: a profile without numbered cues, or blocks renumbered after an
+/// add or a removal, gave a second OFF the name of the first, and its takes wrote over them).
+pub fn free_name(folder: &Path, name: &str) -> String {
+    let taken: Vec<String> = std::fs::read_dir(folder)
+        .map(|entries| entries.filter_map(|entry| entry.ok()).map(|entry| entry.file_name().to_string_lossy().into_owned()).collect())
+        .unwrap_or_default();
+    (1..)
+        .map(|n| if n == 1 { name.to_string() } else { format!("{name}_{n}") })
+        .find(|candidate| !taken.iter().any(|file| file.starts_with(&format!("{candidate}_")) || file.starts_with(&format!("{candidate}."))))
+        .unwrap_or_else(|| name.to_string())
+}
+
 /// The catalog record of a voice record's clip as it stands (its takes' lengths, its first
 /// take's timecode), from the project's settings as saved: what `finish` wrote, nothing probed.
 /// A record made before the catalog knew voice clips is described the same way.
@@ -175,7 +188,7 @@ impl Take {
     pub fn start(locator: &StillLocator, mark: &str, earlier: Option<Earlier>, setting: &Path) -> Result<Self> {
         let settings = locator.settings();
         let maker = ReadingMaker::for_project(locator)?;
-        let name = earlier.as_ref().map_or_else(|| record_name(&settings.project_name, mark), |earlier| earlier.name.clone());
+        let name = earlier.as_ref().map_or_else(|| free_name(&maker.folder, &record_name(&settings.project_name, mark)), |earlier| earlier.name.clone());
         let number = earlier.as_ref().map_or(0, |earlier| earlier.takes) + 1;
         let raw = format!("{name}_recording_{number}.wav");
         let recorder = Recorder::start(maker.folder.join(&raw), &maker.project_dir, maker.rate, maker.fps, setting)?;
@@ -247,6 +260,19 @@ mod tests {
     fn a_record_is_named_after_the_project_and_the_mark_as_every_os_takes_it() {
         assert_eq!(record_name("Mironik teniski centar", "OFF 2"), "Mironik_teniski_centar_OFF2");
         assert_eq!(record_name("2026/10/30 Vijesti", "Take VO 1"), "2026_10_30_Vijesti_TakeVO1");
+    }
+
+    #[test]
+    fn a_name_whose_files_are_there_is_taken_with_a_number() {
+        let dir = std::env::temp_dir().join(format!("qnc-voice-free-name-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(free_name(&dir, "P_OFF1"), "P_OFF1");
+        std::fs::write(dir.join("P_OFF1_recording_1.wav"), b"").unwrap();
+        std::fs::write(dir.join("P_OFF10_T1.wav"), b"").unwrap();
+        assert_eq!(free_name(&dir, "P_OFF1"), "P_OFF1_2", "another record holds the name");
+        assert_eq!(free_name(&dir, "P_OFF2"), "P_OFF2", "OFF10 is not OFF1 and OFF2 is free");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
