@@ -401,8 +401,9 @@ impl PanelFocus {
             // Enter is the confirmation of the panel in focus only.
             "activate_focused_item" if on_source => {
                 let confirmed = segments.confirm_source();
-                // A taken mark is let go; with nothing to confirm Enter goes on round the walk.
-                let released = self.taken(timeline) && self.source.route("clear_focus", preview, timeline).unwrap_or(false);
+                // Enter is the confirmation (user 2026-11-22): a taken mark is kept where it is and
+                // let go (Esc puts it back); with nothing to confirm Enter goes on round the walk.
+                let released = self.taken(timeline) && self.source.keep_marks(timeline);
                 let back = self.back_to_wrap(segments, wrap, timeline);
                 return Some(confirmed || released || back || self.advance(preview, wrap, segments));
             }

@@ -953,3 +953,9 @@ kodek, velicinu, stopu, poluslike, format zvuka i bitrate (`qnc-program-render` 
 sadrzavao cijeli blok exporta, pa je novi pocetni timecode, mapa exporta ili ime preseta trazio da se svi dijelovi
 renderiraju iznova. Postojeci dijelovi jednom se renderiraju ponovno (novi oblik kljuca). Test
 `only_what_changes_the_picture_and_sound_changes_a_units_fingerprint`. Vrijedi i za klasicni QNC.
+Odluke 2026-11-22: (1) proxy nije prioritet (snimatelji ga rijetko koriste; postaje vazan tek u Intranet okruzenju
+TV kuce), pa greske 12.9 i 12.20 cekaju. (2) Enter je potvrda (spremanje). (3) OFF koji nije procitan ide i u XML i u
+S-Story kao prazno mjesto duljine citanja.
+Ispravak 2026-11-22 (audit greska 12.14): Enter na source timelineu s uzetim IN-om ili OUT-om sprema oznaku gdje jest i
+pusta je (`qnc-panel-focus` route: `keep_marks` umjesto `clear_focus`); prije ju je vracao na prvi polozaj. Esc i dalje
+vraca. Testovi `qnc-panel-focus` (zlatna tablica tipki prolazi).
