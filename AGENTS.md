@@ -978,3 +978,5 @@ Izmjena 2026-11-22 (korisnik): u zoomu izjave (IN slika, player, OUT slika) klik
 stavlja playhead na nju, kao Ctrl+I / Ctrl+O (`select_mark_in`, `select_mark_out`); klik na srednju sliku (player)
 pusta uzetu oznaku gdje jest (`zoom_save`). Prije je klik samo pomicao playhead (`qnc-program-segments`
 `source_stills`, QNC-shared). Test `a_click_on_the_in_or_out_picture_takes_the_mark_the_player_lets_it_go`.
+Izmjena 2026-11-22 (korisnik): uzeti IN ili OUT na source timelineu crta se crveno (`TimelineTheme.cut`), da se vidi
+da je oznaka u uredivanju; prije boja fokusa (`qnc-timeline` `paint_in_out_handles`, QNC-shared).
