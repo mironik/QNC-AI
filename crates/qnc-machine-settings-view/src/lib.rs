@@ -168,7 +168,7 @@ fn readers(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, t
         metrics,
         theme,
         |ui, field_width| {
-            ui.add(qnc_ui_kit::text_field(&mut drafts.path).desired_width(field_width.max(40.0)).hint_text("\\\\192.168.100.28\\kartica"));
+            ui.add(qnc_ui_kit::text_field(&mut drafts.path).desired_width(field_width.max(40.0)).hint_text(text("machine.reader_path_hint")));
         },
         |ui, _| add = qnc_settings_rows::primary_btn(ui, &text("machine.reader_add"), can_add, theme).clicked(),
     );
