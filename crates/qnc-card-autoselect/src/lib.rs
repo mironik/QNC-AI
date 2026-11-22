@@ -19,7 +19,7 @@ enum Step {
     /// Ingest lists the computer's disks.
     Disks,
     /// The card's disk is opened.
-    Open { since: Instant },
+    Open { since: Instant, lan: bool },
     /// Select of the card's disk.
     Select,
     /// Select runs; the next card waits for its end.
@@ -86,12 +86,12 @@ impl AutoSelect {
             Step::Disks => {
                 self.sent = Some(Instant::now());
                 if browser.roots && !browser.entries.is_empty() {
-                    self.step = Step::Open { since: Instant::now() };
+                    self.step = Step::Open { since: Instant::now(), lan: false };
                     return self.next(view);
                 }
                 Some(IngestIntent::empty(action_ids::INGEST_SOURCE_KIND_LOCAL))
             }
-            Step::Open { since } => {
+            Step::Open { since, lan } => {
                 if !browser.roots && browser.current_uri.as_deref().is_some_and(|uri| uri.contains(&serial)) {
                     self.step = Step::Select;
                     return self.next(view);
@@ -107,9 +107,13 @@ impl AutoSelect {
                         self.done_with_card();
                         None
                     }
+                    // A card in a card reader on the network is listed under LAN (user 2026-11-22):
+                    // not found, it is looked for under LAN and the computer's disks in turn (each
+                    // listed again when its tab is taken).
                     None => {
+                        self.step = Step::Open { since, lan: !lan };
                         self.sent = Some(Instant::now());
-                        Some(IngestIntent::empty(action_ids::INGEST_DIR_ROOTS))
+                        Some(IngestIntent::empty(if lan { action_ids::INGEST_SOURCE_KIND_LOCAL } else { action_ids::INGEST_SOURCE_KIND_LAN }))
                     }
                 }
             }
