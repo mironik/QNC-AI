@@ -147,7 +147,7 @@ const FOLDER_SIGNAL: &str = "QNC-AI-card-ingest-folder";
 
 /// The measures this window asks of its look file.
 const LOOK_KEYS: &[&str] = &[
-    "window_width", "window_height", "margin_left", "margin_right", "margin_top", "margin_bottom", "browser_margin",
+    "window_width", "window_height", "browser_width", "browser_height", "margin_left", "margin_right", "margin_top", "margin_bottom", "browser_margin",
     "title_size", "subtitle_size", "header_gap", "card_gap", "card_padding", "card_corner", "card_frame", "card_title_size",
     "card_title_gap", "line_gap", "bars_gap", "after_bars_gap", "bar_row", "bar_name_at", "bar_track_from", "bar_track_to", "bar_count_at", "bar_time_at", "bar_x_at", "bar_x",
     "bar_thickness", "field_label_size", "field_gap", "cancel_width",
@@ -166,9 +166,8 @@ impl eframe::App for Window {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let theme = qnc_ingest_layout::theme::Theme::from_contract(&self.contracts.shell);
         qnc_ingest_layout::theme::apply(ctx, &theme);
-        // The look editor beside the window, and the window's size as the look says.
+        // The look editor beside the window (its size as the look says, after the phase is known).
         self.look.editor(ctx);
-        self.look.window(ctx, qnc_title_bar::HEIGHT);
         // The tray's "Import from a folder" while this window runs (a card being ingested): the
         // browser is shown here, the card's import goes on (user 2026-11-13).
         if self.folder_asked.as_ref().is_some_and(qnc_tray::Signal::fired) {
@@ -178,6 +177,10 @@ impl eframe::App for Window {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
         let status: Status = self.ingest.poll();
+        // Choosing a folder has a window of its own size (user 2026-11-22: "za Uvoz iz direktorija
+        // napravi manji prozor"; "sam ću podešavati": `browser_width`, `browser_height`).
+        let size = if status.phase == Phase::Choosing { ("browser_width", "browser_height") } else { ("window_width", "window_height") };
+        self.look.window_of(ctx, qnc_title_bar::HEIGHT, size);
         // Its base is no longer the active project (closed to be deleted): the window ends and
         // lets the base's database go.
         if status.progress.left {

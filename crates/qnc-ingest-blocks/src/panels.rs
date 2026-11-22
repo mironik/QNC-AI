@@ -10,6 +10,8 @@ use qnc_source_timeline_view::HeaderAction;
 
 /// The source tabs in the order of the contract's labels.
 const KINDS: [SourceKind; 4] = [SourceKind::Local, SourceKind::Lan, SourceKind::Internet, SourceKind::Bases];
+/// The space between the tabs of the sources (Computer, LAN, Internet, Bases).
+const SOURCE_TAB_GAP: f32 = 28.0;
 
 pub(super) fn preview(ui: &mut Ui, rect: Rect, contracts: &IngestContracts, theme: &Theme, view: &IngestViewModel) -> Option<IngestIntent> {
     let label = if view.preview_clip_id.is_some() { view.current_clip_label() } else { contracts.ingest.preview.empty_label.as_str() };
@@ -78,7 +80,8 @@ pub(super) fn browser(
         focused: [true, false].into_iter().find(|confirm| on_bar(if *confirm { action_ids::INGEST_DIR_CONFIRM } else { action_ids::INGEST_DIR_CANCEL })),
     };
     let open = |uri| IngestIntent::new(action_ids::INGEST_DIR_OPEN, IngestPayload::LocationUri(uri));
-    match qnc_dir_browser_panel::show_with_confirm(ui, rect, (theme, contracts.ingest.board.block_pad), input, &words, &bar) {
+    // The tabs of the sources further apart (user 2026-11-22: "razmakni tabove izvora").
+    match qnc_dir_browser_panel::show_with_confirm_spaced(ui, rect, (theme, contracts.ingest.board.block_pad, SOURCE_TAB_GAP), input, &words, &bar) {
         Some(BrowserAnswer::Browser(BrowserAction::Kind(index))) => KINDS.get(index).map(|kind| IngestIntent::new(kind.action_id(), IngestPayload::SourceKind(*kind))),
         Some(BrowserAnswer::Browser(BrowserAction::Open(uri))) => Some(open(uri)),
         Some(BrowserAnswer::Browser(BrowserAction::Parent)) => Some(IngestIntent::empty(action_ids::INGEST_DIR_UP)),

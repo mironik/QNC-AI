@@ -245,7 +245,13 @@ impl FormLook {
     /// The window's size as the look says (`window_width`, `window_height`), given to the window
     /// when it changed; `extra` is what the window adds above its content (a title bar).
     pub fn window(&self, ctx: &egui::Context, extra: f32) {
-        let size = egui::vec2(self.get("window_width"), self.get("window_height"));
+        self.window_of(ctx, extra, ("window_width", "window_height"));
+    }
+
+    /// The window's size from the look's values `width` and `height` (a form whose window has
+    /// another size while it shows another thing, user 2026-11-22: the folder chooser).
+    pub fn window_of(&self, ctx: &egui::Context, extra: f32, (width, height): (&str, &str)) {
+        let size = egui::vec2(self.get(width), self.get(height));
         if self.sized.get() != Some(size) {
             self.sized.set(Some(size));
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size + egui::vec2(0.0, extra)));

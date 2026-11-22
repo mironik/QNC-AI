@@ -50,6 +50,22 @@
       "step": 1.0
     },
     {
+      "key": "browser_width",
+      "label": "Izbor direktorija: širina prozora",
+      "value": 540.0,
+      "min": 360.0,
+      "max": 1400.0,
+      "step": 1.0
+    },
+    {
+      "key": "browser_height",
+      "label": "Izbor direktorija: visina prozora",
+      "value": 520.0,
+      "min": 300.0,
+      "max": 1400.0,
+      "step": 1.0
+    },
+    {
       "key": "browser_margin",
       "label": "Preglednik mapa: margina",
       "value": 16.0,
