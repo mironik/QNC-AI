@@ -110,7 +110,7 @@ impl PanelFocus {
         // once it is added as a statement or to a composite statement (user 2026-11-08: not at the
         // double click, only at Add statement / Add to composite statement), where the form has a
         // transcript. The action itself goes on below.
-        if matches!(action_id, "save_virtual_shot" | qnc_script::SUBSEGMENT | qnc_script::ADD_CLIP) && self.source.take_marked_by_text().is_some() {
+        if matches!(action_id, "save_virtual_shot" | qnc_script::SUBSEGMENT | qnc_script::ADD_CLIP | "statement_add_part") && self.source.take_marked_by_text().is_some() {
             let timecode = self.source.view().timecode;
             self.side.act(qnc_transcript::REPASS, None, None, pieces.0, pieces.3, timecode.as_ref());
         }

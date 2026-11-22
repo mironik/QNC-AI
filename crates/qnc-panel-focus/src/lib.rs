@@ -96,9 +96,7 @@ impl PanelFocus {
     pub fn with_layout(layout: FocusLayout) -> Self {
         let panel = layout.order.first().copied().unwrap_or_default();
         Self { panel, walk: walk_of(&layout), opening_tab: layout.opening_tab.clone(), side: qnc_side_pieces::SidePieces::for_panels(layout.right_panels.iter().map(String::as_str).chain(layout.tabs.iter().any(|tab| tab == qnc_pool_tabs::AI_BROLL).then_some(qnc_side_pieces::AI_BROLL_TAB))
-            // A form with the button "Dodaj složenu izjavu" writes the script (user 2026-11-22:
-            // AI Media Assist), its panel shown or not.
-            .chain(layout.buttons.iter().any(|button| button == qnc_script::SUBSEGMENT).then_some(qnc_side_pieces::SCRIPT_PANEL))), ..Self::default() }
+        ), ..Self::default() }
     }
 
     /// The story the form's segment panel shows in project database `target` (the draft story
