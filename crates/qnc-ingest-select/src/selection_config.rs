@@ -284,7 +284,7 @@ impl SelectionConfig {
                 || !s.location.uri.starts_with("qnc://local/")
                 || attached.iter().any(|volume| volume.serial_number.eq_ignore_ascii_case(s.serial_number.trim()))
                 // A card in a card reader on the network (its folder there, user 2026-11-22).
-                || s.location.file.as_ref().is_some_and(|file| file.to_string_lossy().starts_with(r"\\") && file.is_dir())
+                || s.location.file.as_ref().is_some_and(|file| on_network(file) && file.is_dir())
         };
         let sources = self
             .sources
@@ -310,6 +310,11 @@ impl SelectionConfig {
                 );
                 if let Some(path) = &s.location.file {
                     browser_source = browser_source.with_private_local_root(path.clone());
+                    // A card of this computer in a card reader on the network is shown under LAN
+                    // (user 2026-11-22: it stood under Computer); it stays the same source.
+                    if on_network(path) {
+                        browser_source = browser_source.on_tab("lan");
+                    }
                 }
                 browser_source
             })
@@ -364,4 +369,23 @@ pub fn stream_of(sources: &[SourceConfig], media_uri: &str) -> Option<Box<dyn qn
         .iter()
         .find(|source| source.location.uri == reference.source_uri())?
         .poster_bytes(media_uri)
+}
+
+/// Whether a folder is on another computer of the network (`\\host\share`, `\\?\UNC\host\share`);
+/// a long path of this computer (`\\?\C:\...`) is not.
+fn on_network(path: &Path) -> bool {
+    let text = path.to_string_lossy();
+    text.starts_with(r"\\?\UNC\") || (text.starts_with(r"\\") && !text.starts_with(r"\\?\") && !text.starts_with(r"\\.\"))
+}
+
+#[cfg(test)]
+mod network_tests {
+    #[test]
+    fn a_share_is_on_the_network_a_long_path_of_this_computer_is_not() {
+        let on = |text: &str| super::on_network(std::path::Path::new(text));
+        assert!(on(r"\\192.168.100.28\kartice\0473-9A66"));
+        assert!(on(r"\\?\UNC\192.168.100.28\kartice"));
+        assert!(!on(r"\\?\C:\Users\Public\QNC-IngestBase\base"));
+        assert!(!on(r"C:\Users\Public"));
+    }
 }
