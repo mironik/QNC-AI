@@ -93,6 +93,12 @@ impl Delete {
 }
 
 fn delete(root: &Path, base: &IngestBase) -> Result<(), String> {
+    // A base deleted meanwhile (its ingest window deleted it the same moment, 2026-11-22: the
+    // administration then said "NoOwner") is deleted: nothing to refuse.
+    if qnc_ingest_base::by_id(root, &base.id).is_err_and(|error| error.starts_with("no Ingest base")) {
+        log(format!("base {} was deleted already", base.label()));
+        return Ok(());
+    }
     qnc_ingest_base::may_delete(root, &base.id).map_err(|refusal| format!("{refusal:?}"))?;
     // Its window ends and its worker stops once the base says it closes.
     if let Err(error) = qnc_ingest_base::mark_closing(root, &base.id) {
