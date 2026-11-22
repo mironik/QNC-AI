@@ -59,6 +59,15 @@ impl PanelFocus {
     ) -> Option<bool> {
         let event = event.into();
         let action_id = event.action_id.as_str();
+        // "Idi na Script (OFF)" (user 2026-11-22): MA Script opens, this form stays.
+        if action_id == qnc_ai_open::GO_TO_SCRIPT {
+            let opened = qnc_ai_open::go_to_script();
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("go-to-script {opened:?}"));
+            if let Err(error) = opened {
+                qnc_notice::raise(error);
+            }
+            return Some(true);
+        }
         // Alt + arrows and a click in a panel choose the panel (user 2026-11-15), whatever has it.
         if let Some(done) = self.choose_panel(&event, pieces.0, pieces.1, pieces.2) {
             return Some(done);

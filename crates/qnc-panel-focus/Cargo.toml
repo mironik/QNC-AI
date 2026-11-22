@@ -35,6 +35,8 @@ qnc-edit-verbs = { workspace = true }
 qnc-snap = { workspace = true }
 qnc-keyframe-jump = { workspace = true }
 qnc-playhead-moves = { workspace = true }
+qnc-ai-open = { workspace = true }
+qnc-notice = { workspace = true }
 
 [dev-dependencies]
 qnc-mouse-map = { workspace = true }

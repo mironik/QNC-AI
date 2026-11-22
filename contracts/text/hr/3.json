@@ -19,6 +19,8 @@
     "script.choose_to_record": "Najprije odaberite blok za snimanje.",
     "script.no_clip_kind": "Profil scenarija ovog projekta nema vrstu klipa.",
     "script.subsegment": "Složena izjava",
+    "script.add_subsegment": "Dodaj složenu izjavu",
+    "script.go_to_script": "Idi na Script (OFF)",
     "script.pieces_length": "{n} dijelova",
     "script.open_subsegment": "Otvori SubSegment",
     "script.word_cut_first": "Rez po tekstu: dvoklik na drugu riječ ovog dijela.",

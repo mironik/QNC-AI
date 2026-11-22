@@ -3840,6 +3840,7 @@ dependencies = [
 name = "qnc-ai-open"
 version = "0.1.0"
 dependencies = [
+ "qnc-dev-diagnostics",
  "qnc-work-settings",
 ]
 
@@ -6216,6 +6217,7 @@ dependencies = [
  "qnc-action-event",
  "qnc-ai-broll",
  "qnc-ai-features",
+ "qnc-ai-open",
  "qnc-clip-row",
  "qnc-clip-shots",
  "qnc-db-broker",
@@ -6227,6 +6229,7 @@ dependencies = [
  "qnc-key-list",
  "qnc-keyframe-jump",
  "qnc-mouse-map",
+ "qnc-notice",
  "qnc-panel-map",
  "qnc-playhead-moves",
  "qnc-pool-tabs",

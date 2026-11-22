@@ -180,8 +180,16 @@
         "show_ingest_actions": false,
         "actions_rtl": [
           {
+            "label": "@script.go_to_script",
+            "action_id": "go_to_script"
+          },
+          {
             "label": "@story.update_statement",
             "action_id": "statement_update"
+          },
+          {
+            "label": "@script.add_subsegment",
+            "action_id": "script_subsegment"
           },
           {
             "label": "@story.add_statement",

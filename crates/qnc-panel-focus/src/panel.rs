@@ -117,7 +117,7 @@ impl FocusView {
     /// Whether this view decides whether `action` can be done: an action of an AI feature the
     /// project has off (docs/102 step 3), or a Transcribe button.
     pub fn decides(&self, action: &str) -> bool {
-        !self.ai.allows(action) || matches!(action, "transcribe_marks" | "transcribe_fast" | "transcribe_best")
+        !self.ai.allows(action) || matches!(action, "transcribe_marks" | "transcribe_fast" | "transcribe_best" | qnc_ai_open::GO_TO_SCRIPT)
     }
 
     /// Whether `action` it decides can be done now; `clip_chosen`: a clip is on the preview.

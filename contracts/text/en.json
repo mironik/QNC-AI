@@ -745,6 +745,8 @@
     "script.choose_to_record": "Choose the block to record first.",
     "script.no_clip_kind": "The script profile of this project has no clip kind.",
     "script.subsegment": "SubSegment",
+    "script.add_subsegment": "Add composite statement",
+    "script.go_to_script": "Go to Script (OFF)",
     "script.pieces_length": "{n} parts",
     "script.open_subsegment": "Open SubSegment",
     "script.word_cut_first": "Cut by text: double click the other word of this part.",

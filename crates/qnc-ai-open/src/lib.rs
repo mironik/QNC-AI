@@ -22,6 +22,17 @@ pub fn open(root: &Path, name: &str) -> Result<PathBuf, String> {
         .map_err(|error| format!("{}: {error}", program.display()))
 }
 
+/// The action of a form's button that opens MA Script (user 2026-11-22: "Idi na Script (OFF)"
+/// after Ažuriraj in AI Media Assist): the statements made are in the project's database,
+/// MA Script reads them from there.
+pub const GO_TO_SCRIPT: &str = "go_to_script";
+
+/// Opens MA Script in the QNC-AI root the running program works in; the form asking stays open.
+pub fn go_to_script() -> Result<PathBuf, String> {
+    let root = qnc_dev_diagnostics::resolve_qnc_root().ok_or("no QNC root for MA Script")?;
+    open(&root, "qnc-ma-script")
+}
+
 /// The environment variable a program opened for a new story carries (user 2026-11-15: "Novi
 /// projekt" of the Projects form: Uvezi of Ingest makes a new project, offering none to go on).
 pub const NEW_STORY: &str = "QNC_NEW_STORY";
