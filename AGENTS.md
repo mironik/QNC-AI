@@ -906,3 +906,8 @@ Prije se klip s greskom vracao u red pri svakom sync-u i servis artefakata radio
 (`worker.artifacts_timeout`). Sljedeci rad radnika (novi proces) pokusava ga ponovno. Testovi `qnc-background-jobs`
 (novi `a_clip_that_failed_twice_is_given_up_until_another_project`), `qnc-filmstrip-worker`, `qnc-wave-worker`.
 Uzivo nije provjereno.
+Ispravak 2026-11-22 (audit greska 12.6): kopija uvoza i dovrsetak zapisa klipova cekaju samo dok player priprema ili
+svira, vise ne i dok korisnik montira (korak, oznaka). Nova `qnc-playback-activity::playback_plays` (QNC-shared;
+`playback_pause` ostaje za klasicni QNC); koriste je `tools/qnc-ingest-worker` (zapisi) i
+`qnc-ingest-import-worker` (kopija). Test `the_copy_waits_while_a_player_plays_not_while_the_user_edits`. Uzivo nije
+provjereno.

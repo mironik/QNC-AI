@@ -44,7 +44,7 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
     let plan = Plan::of_settings(&snapshot.settings.artifacts)?;
     let reader = active_project.settings_reader().clone();
     let target = qnc_content_store::ContentTarget::for_project(&reader, &snapshot.settings)?;
-    let player_works = qnc_playback_activity::playback_pause(target.clone());
+    let player_works = qnc_playback_activity::playback_plays(target.clone());
     let stop_target = target.clone();
     // The transcription queue of the base: its clips heard whole (done or failed) are the transcription's count.
     let transcripts = qnc_db_broker::ProjectDbTarget::for_project(active_project.settings_reader(), &snapshot.settings);

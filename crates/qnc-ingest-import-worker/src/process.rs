@@ -54,7 +54,7 @@ impl Project {
         Ok(Self {
             dir,
             queue: TransportQueue::start_leased(target.clone(), lease)?,
-            opener: ConfigMediaOpener::of_root(root, qnc_playback_activity::playback_pause(target.clone())),
+            opener: ConfigMediaOpener::of_root(root, qnc_playback_activity::playback_plays(target.clone())),
         })
     }
 }

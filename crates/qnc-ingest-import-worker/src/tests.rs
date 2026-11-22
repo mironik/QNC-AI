@@ -571,14 +571,15 @@ fn without_a_lease_and_without_its_executable_launching_says_so() {
 }
 
 #[test]
-fn the_copy_waits_while_the_database_says_a_player_works() {
+fn the_copy_waits_while_a_player_plays_not_while_the_user_edits() {
     let f = fixture();
-    let pause = qnc_playback_activity::playback_pause(f.target.clone());
-    assert!(!pause());
-    let mut writer = qnc_playback_activity::Writer::start(f.target).unwrap();
+    let mut writer = qnc_playback_activity::Writer::start(f.target.clone()).unwrap();
+    writer.set(qnc_playback_activity::PLAYBACK, "on:editing").unwrap();
+    let pause = qnc_playback_activity::playback_plays(f.target.clone());
+    assert!(!pause(), "editing does not stop the copy");
     writer.set(qnc_playback_activity::PLAYBACK, "on").unwrap();
     std::thread::sleep(std::time::Duration::from_millis(600));
-    assert!(pause());
+    assert!(pause(), "a playing player does");
 }
 
 #[test]
