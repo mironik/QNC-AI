@@ -100,7 +100,7 @@ fn paint(ui: &mut egui::Ui, view: &TranscriptView, theme: &qnc_desktop_theme::Th
         // The rows the words are shown in, for the keyboard cursor (piece `qnc-text-cursor`).
         let mut rows = Vec::new();
         // By sentences, a space between them (user 2026-11-15).
-        let shown = qnc_transcript::sentences(&view.lines);
+        let shown = qnc_transcript::sentences(&view.lines, timecode.and_then(|tc| qnc_transcript::sentence_pause(tc.fps)));
         for line in shown.iter() {
             while let Some((from, to)) = silences.next_if(|(from, _)| *from < line.from) {
                 paint_silence(ui, &at(*from), &at(*to), theme);

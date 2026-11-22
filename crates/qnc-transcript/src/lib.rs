@@ -22,7 +22,7 @@ pub use qnc_transcribe_queue::{QueueQuality, QueueState};
 pub use qnc_transcript_db::{ClipTranscript, Line, Quote, Word};
 mod search;
 mod sentences;
-pub use sentences::sentences;
+pub use sentences::{sentence_pause, sentences, SENTENCE_PAUSE_SECONDS};
 pub use search::{finds, line_words, SearchView, SEARCH_NEXT, SEARCH_TERM};
 use qnc_source_timecode::SourceTimecode;
 
