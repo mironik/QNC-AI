@@ -702,6 +702,12 @@ impl ProjectStore {
             )
             .map_err(|error| error.to_string())?;
         }
+        // The folder is first set aside under another name (one step, refused while a program
+        // holds a file in it: the project then stays whole), then the registry forgets the project,
+        // and only then are the files removed (audit 2026-11-22: the files went before the commit,
+        // so a failure left a listed project without its files). A folder that cannot be removed
+        // after the commit stays aside: no project is listed without its files.
+        let mut aside = None;
         if project_dir.exists() {
             unlock_projects_root_dir(projects_root)?;
             if let Err(error) = unlock_project_dir(&project_dir) {
@@ -713,22 +719,36 @@ impl ProjectStore {
                 let _ = lock_projects_root_dir(projects_root);
                 return Err(error);
             }
-            if let Err(error) = delete_project_database_files(&workspace_db) {
+            let renamed = deleting_dir(&project_dir);
+            if let Err(error) = fs::rename(&project_dir, &renamed) {
                 let _ = lock_project_dir(&project_dir);
                 let _ = lock_projects_root_dir(projects_root);
-                return Err(error);
+                return Err(qnc_ui_text::fill("project.store.folder_delete_failed", &[("v0", &(project_dir.display()).to_string()), ("error", &(error).to_string())]));
             }
-            let remove_result = fs::remove_dir_all(&project_dir).map_err(|error| {
-                qnc_ui_text::fill("project.store.folder_delete_failed", &[("v0", &(project_dir.display()).to_string()), ("error", &(error).to_string())])
-            });
-            let lock_result = lock_projects_root_dir(projects_root);
-            if let Err(error) = remove_result {
-                let _ = lock_project_dir(&project_dir);
-                return Err(error);
-            }
-            lock_result?;
+            aside = Some(renamed);
         }
-        tx.commit().map_err(|error| error.to_string())?;
+        if let Err(error) = tx.commit() {
+            if let Some(renamed) = &aside {
+                let _ = fs::rename(renamed, &project_dir);
+                let _ = lock_project_dir(&project_dir);
+            }
+            let _ = lock_projects_root_dir(projects_root);
+            return Err(error.to_string());
+        }
+        let removed = match &aside {
+            Some(renamed) => {
+                // The workspace database is in the folder: it went aside with it.
+                let db_aside = workspace_db.strip_prefix(&project_dir).map(|inside| renamed.join(inside)).unwrap_or_else(|_| workspace_db.clone());
+                delete_project_database_files(&db_aside).and_then(|()| {
+                    fs::remove_dir_all(renamed).map_err(|error| qnc_ui_text::fill("project.store.folder_delete_failed", &[("v0", &(renamed.display()).to_string()), ("error", &(error).to_string())]))
+                })
+            }
+            None => delete_project_database_files(&workspace_db),
+        };
+        if let Err(error) = removed {
+            eprintln!("project deleted from the registry, its files left aside: {error}");
+        }
+        lock_projects_root_dir(projects_root)?;
         self.lock_registered_project_dirs(&conn)?;
 
         Ok(project)
@@ -1074,6 +1094,14 @@ fn clear_path_read_only_for_delete(path: &Path) -> Result<(), String> {
     fs::set_permissions(path, permissions).map_err(|error| {
         qnc_ui_text::fill("project.store.readonly_clear_failed", &[("v0", &(path.display()).to_string()), ("error", &(error).to_string())])
     })
+}
+
+/// The name a project folder is set aside under while it is deleted (beside it, so the rename is
+/// one step on the same disk).
+fn deleting_dir(project_dir: &Path) -> PathBuf {
+    let name = project_dir.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|time| time.as_millis()).unwrap_or(0);
+    project_dir.with_file_name(format!("{name}.deleting-{}-{stamp}", std::process::id()))
 }
 
 fn delete_project_database_files(workspace_db: &Path) -> Result<(), String> {

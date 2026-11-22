@@ -922,3 +922,8 @@ Ispravak 2026-11-22 (audit greska 12.1): Breaking news radi i sa sistemskim pred
 aplikacija (`data/application-catalog.json`), prvu iz svake prioritetne grupe (`qnc-breaking-news`
 `installed_applications`). Prije je Breaking news s takvim predloskom javljao "the chosen template has no applications"
 i nije nastajao. Test `a_template_without_applications_takes_the_first_installed_of_each_group`. Uzivo nije provjereno.
+Ispravak 2026-11-22 (audit greska 12.2): brisanje projekta (`qnc-project-store` `delete_project`) najprije u jednom
+koraku premjesti mapu projekta u stranu (`<mapa>.deleting-<pid>-<ms>`; dok program drzi datoteku u njoj, premjestanje
+se odbija i projekt ostaje cijel), zatim potvrdi brisanje u registru, i tek onda brise datoteke. Prije su se datoteke
+brisale prije potvrde, pa je greska ostavljala projekt u popisu bez datoteka. Mapa koja se nakon potvrde ne da
+obrisati ostaje u strani (zapis na stderr). Testovi `qnc-project-store` (43). Uzivo nije provjereno.
