@@ -121,7 +121,8 @@ pub fn transcribe(locator: &StillLocator, ask: &Ask, quality: Quality, pace: Pac
     let made_by = if made_by.is_empty() { engines.first().map(engine_name).unwrap_or_default() } else { made_by };
     // The fine engine corrects the rough transcript of the part, it does not write over it (user
     // 2026-11-19: "wav2vec bi trebao zadržati Paraketovo poravnanje... ispraviti, a ne prepisati").
-    let lines = if quality == Quality::Best { corrected_by_fine(locator, &ask.clip_id, ask.from, ask.to, lines) } else { lines };
+    let second = u64::from(place.fps.0 / place.fps.1.max(1)).max(1);
+    let lines = if quality == Quality::Best { corrected_by_fine(locator, &ask.clip_id, ask.from, ask.to, second, lines) } else { lines };
     Ok(ClipTranscript {
         clip_id: ask.clip_id.clone(),
         from_frame: ask.from,
@@ -145,14 +146,16 @@ fn engine_name(engine: &qnc_ai_catalog::Transcriber) -> String {
 /// `fine` (the lines the fine engine heard in frames `[from, to)`) written into the rough
 /// transcript of that part already kept, when there is one: its sentences, capitals and
 /// punctuation stay, its words are corrected; without one (or unread) `fine` as it is.
-fn corrected_by_fine(locator: &StillLocator, clip_id: &str, from: u64, to: u64, fine: Vec<Line>) -> Vec<Line> {
+fn corrected_by_fine(locator: &StillLocator, clip_id: &str, from: u64, to: u64, second: u64, fine: Vec<Line>) -> Vec<Line> {
     let Ok(db) = qnc_db_broker::ProjectDbTarget::for_project(locator.reader(), locator.settings()) else { return fine };
     let Ok(kept) = qnc_transcript_db::read_clip(&db, clip_id) else { return fine };
-    let rough: Vec<Line> = kept.iter().filter(|transcript| !transcript.fine).flat_map(|transcript| qnc_transcript_db::lines_cut(&transcript.lines, from, to, true)).collect();
+    // What is kept there, Parakeet's or already corrected (a part heard again by the fine engine
+    // keeps the punctuation the first correction kept; user 2026-11-22).
+    let rough: Vec<Line> = kept.iter().flat_map(|transcript| qnc_transcript_db::lines_cut(&transcript.lines, from, to, true)).collect();
     if rough.is_empty() || fine.is_empty() {
         return fine;
     }
-    qnc_transcript_db::corrected(&rough, &fine)
+    qnc_transcript_db::corrected(&rough, &fine, second)
 }
 
 /// `ask` with a second of the clip either side (within the clip's saved frames; a range from the
