@@ -1,0 +1,13 @@
+[package]
+name = "qnc-llm-place"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the LLM model of this computer (its path or its address), a setting of this computer kept for when QNC-AI uses one"
+
+[dependencies]
+qnc-dev-diagnostics = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

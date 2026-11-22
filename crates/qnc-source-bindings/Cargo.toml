@@ -10,6 +10,8 @@ qnc-contracts = { workspace = true }
 qnc-transport-resolver = { workspace = true }
 qnc-source-volumes = { workspace = true }
 qnc-base-cards = { workspace = true }
+qnc-card-readers = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
 qnc-source-reader = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -4357,6 +4357,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-card-readers"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-card-watch"
 version = "0.1.0"
 dependencies = [
@@ -5764,6 +5774,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-llm-place"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-location-field"
 version = "0.1.0"
 dependencies = [
@@ -5811,6 +5831,20 @@ dependencies = [
  "qnc-editorial-desktop",
  "qnc-shell-desktop-api",
  "qnc-status-line",
+]
+
+[[package]]
+name = "qnc-machine-settings-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-place",
+ "qnc-card-readers",
+ "qnc-desktop-theme",
+ "qnc-llm-place",
+ "qnc-settings-rows",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
 ]
 
 [[package]]
@@ -6691,6 +6725,7 @@ dependencies = [
  "qnc-language-choice",
  "qnc-location-field",
  "qnc-location-field-view",
+ "qnc-machine-settings-view",
  "qnc-newsroom-sheet",
  "qnc-project-application",
  "qnc-project-session",
@@ -7525,7 +7560,9 @@ name = "qnc-source-bindings"
 version = "0.1.0"
 dependencies = [
  "qnc-base-cards",
+ "qnc-card-readers",
  "qnc-contracts",
+ "qnc-dev-diagnostics",
  "qnc-source-reader",
  "qnc-source-volumes",
  "qnc-transport-resolver",

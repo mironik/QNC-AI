@@ -313,6 +313,8 @@ impl Blocks<'_> {
             // QNC-AI: the ingest orchestrator of each form, a setting of this computer.
             ui.add_space(8.0);
             qnc_ingest_orchestrator_view::show(ui, &self.session.component.root, width, settings, &self.contracts.theme);
+            // QNC-AI: the external AI agent, the LLM model and the card readers on the network.
+            qnc_machine_settings_view::show(ui, &self.session.component.root, width, settings, &self.contracts.theme);
         }
     }
 

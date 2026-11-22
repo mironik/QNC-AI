@@ -6,6 +6,7 @@ description = "QNC Project blocks on the desktop board: project list, settings w
 
 [dependencies]
 qnc-ingest-orchestrator-view = { workspace = true }
+qnc-machine-settings-view = { workspace = true }
 qnc-location-field-view = { workspace = true }
 qnc-ui-text = { workspace = true }
 eframe = { workspace = true }

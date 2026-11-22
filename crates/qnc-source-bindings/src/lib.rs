@@ -184,7 +184,41 @@ pub fn load(root: &Path) -> Result<TransportBindings, String> {
     let mut bindings = parse(&bytes, base)?;
     with_attached(&mut bindings, &qnc_source_volumes::mounted());
     with_card_bases(&mut bindings, root);
+    match qnc_card_readers::readers_of(root) {
+        Ok(readers) => with_card_readers(&mut bindings, &readers),
+        // A setting that cannot be read leaves the readers out and says why; the other sources stay.
+        Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("card readers not read: {error}")),
+    }
     Ok(bindings)
+}
+
+/// The card readers on the network of this computer as LAN sources (user 2026-11-22: "import kroz
+/// čitač kartica spojen na udaljenoj lokaciji"): each its shared folder,
+/// `qnc://lan/<host>/source/reader-<name>`, read by Select as any card with the probe of the local
+/// sources. A reader whose folder is not reachable now is listed and says so when it is opened.
+pub fn with_card_readers(bindings: &mut TransportBindings, readers: &[qnc_card_readers::CardReader]) {
+    let probe = bindings
+        .registered_sources
+        .iter()
+        .find(|source| source.location.uri.starts_with("qnc://local/") && source.probe.is_some())
+        .and_then(|source| source.probe.clone());
+    for reader in readers {
+        let location = SourceBinding { uri: reader.source_uri(), file: Some(reader.path.clone()), endpoint: None, token_env: None };
+        if !bindings.sources.iter().any(|binding| binding.uri == location.uri) {
+            bindings.sources.push(location.clone());
+        }
+        if !bindings.registered_sources.iter().any(|source| source.location.uri == location.uri) {
+            bindings.registered_sources.push(RegisteredSource {
+                location,
+                name: Some(reader.name.clone()),
+                // A reader is its own card: its name stands for the serial of its volume.
+                serial_number: Some(reader.id()),
+                volume_name: None,
+                scope: Some("card_relative".into()),
+                probe: probe.clone(),
+            });
+        }
+    }
 }
 
 /// The card bases of this computer as sources (user 2026-11-15: "tray-ingest stvara kvazi karticu
@@ -544,5 +578,23 @@ mod tests {
         ));
         assert_eq!(bindings.sources[0].file, Some(PathBuf::from("G:/")));
         assert!(bindings.media_records.is_some());
+    }
+}
+
+#[cfg(test)]
+mod reader_tests {
+    #[test]
+    fn a_card_reader_on_the_network_is_a_lan_source_read_from_its_folder() {
+        let folder = std::env::temp_dir();
+        let mut bindings = super::TransportBindings { config_version: "0.1.0".into(), catalog: None, source_index: None, sources: Vec::new(), registered_sources: Vec::new(), media_records: None, parallelism: None };
+        let reader = qnc_card_readers::CardReader { name: "Jetson".into(), path: folder.clone() };
+        super::with_card_readers(&mut bindings, std::slice::from_ref(&reader));
+        super::with_card_readers(&mut bindings, std::slice::from_ref(&reader));
+        assert_eq!(bindings.sources.len(), 1);
+        let source = &bindings.registered_sources[0];
+        assert!(source.location.uri.starts_with("qnc://lan/"));
+        assert_eq!(source.serial_number.as_deref(), Some("jetson"));
+        assert!(source.location.resolver().is_ok());
+        assert!(source.location.reader().is_some());
     }
 }
