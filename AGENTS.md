@@ -934,3 +934,6 @@ Testovi `qnc-project-store` (43).
 Ispravak 2026-11-22 (audit greska 12.4): novi projekt iz Projecta s imenom koje pocinje s "Ingest" se odbija
 (`qnc-project-jobs` Create, tekst `project.msg.name_is_base`), jer bi postao Ingest baza (baza se razlikuje samo po
 imenu). Ingest baze i dalje nastaju kroz `qnc-ingest-base`. Test u `a_new_project_keeps_its_story_sheet_in_its_own_database`.
+Odluka 2026-11-22 (audit 12.12): prozor izjave i uvecani slot su 1/13 sa svake strane, ne 70/15/15 (korisnik:
+"filmstrip ima 13 slicica, pa sa svake strane, ispred IN i iza OUT, ostaje jedna slicica";
+`qnc-timeline-model` `enlarged`). Raniji zapisi koji kazu 70/15/15 su zastarjeli; nije greska.
