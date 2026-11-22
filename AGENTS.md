@@ -927,3 +927,7 @@ koraku premjesti mapu projekta u stranu (`<mapa>.deleting-<pid>-<ms>`; dok progr
 se odbija i projekt ostaje cijel), zatim potvrdi brisanje u registru, i tek onda brise datoteke. Prije su se datoteke
 brisale prije potvrde, pa je greska ostavljala projekt u popisu bez datoteka. Mapa koja se nakon potvrde ne da
 obrisati ostaje u strani (zapis na stderr). Testovi `qnc-project-store` (43). Uzivo nije provjereno.
+Provjera 2026-11-22 (audit greska 12.3): zastita mapa vec se postavlja samo kad je nema (`icacls_has`), a sistemski
+predlosci se namjerno ponovno upisuju iz seeda. Ispravljeno samo to da se `attrib +h` vise ne pokrece za svaki
+projekt pri svakom otvaranju: mapa koja je vec skrivena se preskace (`set_project_hidden`, atribut iz metapodataka).
+Testovi `qnc-project-store` (43).

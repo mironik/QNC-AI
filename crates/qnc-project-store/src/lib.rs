@@ -1267,6 +1267,14 @@ fn set_project_hidden(path: &Path, hidden: bool) -> Result<(), String> {
     if !path.exists() {
         return Ok(());
     }
+    // Already as asked: no attrib (audit 2026-11-22: every open ran it for every project).
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+        if fs::metadata(path).is_ok_and(|metadata| (metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0) == hidden) {
+            return Ok(());
+        }
+    }
     let flag = if hidden { "+h" } else { "-h" };
     let status = hidden_tool("attrib")
         .arg(flag)
