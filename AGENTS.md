@@ -911,3 +911,9 @@ svira, vise ne i dok korisnik montira (korak, oznaka). Nova `qnc-playback-activi
 `playback_pause` ostaje za klasicni QNC); koriste je `tools/qnc-ingest-worker` (zapisi) i
 `qnc-ingest-import-worker` (kopija). Test `the_copy_waits_while_a_player_plays_not_while_the_user_edits`. Uzivo nije
 provjereno.
+Ispravak 2026-11-22 (audit greske 12.7 i 12.13): (1) u Breaking newsu analiza kadrova zadrzava radnike i dok prijepis
+radi (`tools/qnc-ingest-worker` `make_shots`: pravilo "0 radnika dok traje prijepis" vrijedi samo izvan Breaking
+newsa, jer tamo prijepis ide zadnji). (2) Preview klipa ciji zapis jos nije gotov (`qnc-source-preview`
+`retry_incomplete_record`): radnik se budi odmah i zatim svakih 5 s po svom satu (prije je pokusaj svakih 250 ms
+pomicao isto vrijeme, pa se radnik nikad nije ponovno probudio), a klip se otvara na slici na kojoj je bio otvoren,
+ne na pocetku. Testovi `qnc-source-preview`, gradnja radnika. Uzivo nije provjereno.

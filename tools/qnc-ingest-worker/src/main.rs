@@ -375,7 +375,9 @@ pub(crate) fn make_shots(
         // How many clips the AI shots analyse at once (user 2026-11-19): none while the
         // transcription runs ("dok traje prijepis ne daj mu ništa"), then all the computer has
         // ("kad završi prijepis AI kadrovima daš maksimalnu raspoloživu snagu").
-        let workers = || if transcription_runs() { 0 } else { qnc_shot_analysis::most_workers() };
+        // In Breaking news the AI never waits for the transcription (it comes last), so the shots
+        // keep their workers while it runs.
+        let workers = || if !breaking && transcription_runs() { 0 } else { qnc_shot_analysis::most_workers() };
         let pace = |function| {
             let takes: &(dyn Fn(&str) -> bool + Sync) = if function == qnc_stopped_work::SHOTS { &*takes.shots } else { &*takes.content };
             qnc_shot_analysis::Pace { player_plays: &player_plays, wanted: &wanted, takes, workers: &workers, cancel: stops.flag(function) }

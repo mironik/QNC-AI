@@ -240,8 +240,9 @@ pub struct SourcePreview {
     bed_wanted: Option<(u64, u64)>,
     bed_launched: Option<(u64, u64)>,
     bed_playing: bool,
-    /// The clip whose record is still completed, since when and the last try.
-    record_wait: Option<(String, std::time::Instant, std::time::Instant)>,
+    /// The clip whose record is still completed, since when, the last try and the last wake of
+    /// the worker.
+    record_wait: Option<(String, std::time::Instant, std::time::Instant, std::time::Instant)>,
     /// What wakes the background worker that completes the record a shown clip waits for
     /// (given by the module that composes this preview; it knows where QNC is).
     record_waker: Option<RecordWaker>,
@@ -1197,27 +1198,31 @@ impl SourcePreview {
             return false;
         };
         let now = std::time::Instant::now();
-        let (since, last) = match &self.record_wait {
-            Some((id, since, last)) if *id == clip_id => (*since, *last),
-            _ => (now, now),
+        let (since, last, mut woken) = match &self.record_wait {
+            Some((id, since, last, woken)) if *id == clip_id => (*since, *last, Some(*woken)),
+            _ => (now, now, None),
         };
         // The worker that completes the record is woken at once and every few seconds while
-        // the clip waits (user 2026-10-18: nothing woke it, the clip never played).
-        let new_wait = since == now;
-        if new_wait || now.duration_since(last) >= WAKE_AGAIN {
+        // the clip waits (user 2026-10-18: nothing woke it, the clip never played). Its own
+        // time: the tries every 250 ms never hold it back (audit 2026-11-22).
+        if woken.is_none_or(|at| now.duration_since(at) >= WAKE_AGAIN) {
             if let Some(RecordWaker(wake)) = self.record_waker.clone() {
                 let _ = std::thread::Builder::new().name("qnc-record-wake".into()).spawn(move || wake());
             }
+            woken = Some(now);
         }
-        self.record_wait = Some((clip_id.clone(), since, last));
+        let woken = woken.unwrap_or(now);
+        self.record_wait = Some((clip_id.clone(), since, last, woken));
         self.view.message = record_wait_text().into();
         if now.duration_since(since) > std::time::Duration::from_secs(180)
             || now.duration_since(last) < RECORD_RETRY
         {
             return false;
         }
-        self.record_wait = Some((clip_id.clone(), since, now));
-        self.open_at(&clip_id, 0)
+        self.record_wait = Some((clip_id.clone(), since, now, woken));
+        // Opened again on the picture it was asked for, not on frame 0.
+        let frame = self.opening_at.as_ref().filter(|(id, _)| *id == clip_id).map_or(0, |(_, frame)| *frame);
+        self.open_at(&clip_id, frame)
     }
 
     /// What wakes the background worker when a shown clip waits for its record.
