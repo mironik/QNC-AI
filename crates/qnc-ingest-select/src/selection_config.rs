@@ -283,6 +283,8 @@ impl SelectionConfig {
                 || s.serial_number.trim().is_empty()
                 || !s.location.uri.starts_with("qnc://local/")
                 || attached.iter().any(|volume| volume.serial_number.eq_ignore_ascii_case(s.serial_number.trim()))
+                // A card in a card reader on the network (its folder there, user 2026-11-22).
+                || s.location.file.as_ref().is_some_and(|file| file.to_string_lossy().starts_with(r"\\") && file.is_dir())
         };
         let sources = self
             .sources

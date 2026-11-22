@@ -105,8 +105,55 @@ pub fn set_readers_of(root: &Path, readers: &[CardReader]) -> Result<(), String>
     std::fs::write(&path, text).map_err(|error| format!("{}: {error}", path.display()))
 }
 
+/// The cards in the card readers on the network of this computer (user 2026-11-22: "i dalje ne
+/// zna koja je kamera, koji je serijski broj kartice"): a card reader mounts each card in a folder
+/// named by the serial of its volume (`A815-5186`, the exFAT UUID; the same number this computer
+/// reads when the card is in its own reader), so a card is the same card wherever it is put in.
+/// Each is a volume of this computer read over the network. A reader not reachable now has none.
+pub fn cards(root: &Path) -> Vec<qnc_source_volumes::Volume> {
+    let Ok(readers) = readers_of(root) else { return Vec::new() };
+    let mut cards = Vec::new();
+    for reader in readers {
+        let Ok(entries) = std::fs::read_dir(&reader.path) else { continue };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let Some(serial) = volume_serial(&name) else { continue };
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                cards.push(qnc_source_volumes::Volume { root: entry.path(), serial_number: serial, volume_name: Some(format!("{} {name}", reader.name)) });
+            }
+        }
+    }
+    cards
+}
+
+/// The disks attached to this computer and the cards in its card readers on the network.
+pub fn mounted_and_cards(root: &Path) -> Vec<qnc_source_volumes::Volume> {
+    let mut all = qnc_source_volumes::mounted();
+    for card in cards(root) {
+        if !all.iter().any(|volume| volume.serial_number == card.serial_number) {
+            all.push(card);
+        }
+    }
+    all
+}
+
+/// The volume serial a folder named `XXXX-XXXX` (hex) stands for, as this computer writes it
+/// (lower case, no dash).
+fn volume_serial(name: &str) -> Option<String> {
+    let (high, low) = name.split_once('-')?;
+    let hex = |part: &str| part.len() == 4 && part.chars().all(|c| c.is_ascii_hexdigit());
+    (hex(high) && hex(low)).then(|| format!("{high}{low}").to_ascii_lowercase())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_folder_named_by_a_volume_serial_is_that_card() {
+        assert_eq!(super::volume_serial("A815-5186").as_deref(), Some("a8155186"));
+        assert_eq!(super::volume_serial("kartica"), None);
+        assert_eq!(super::volume_serial("A815-518"), None);
+    }
+
     use super::*;
 
     fn reader(name: &str, path: &str) -> CardReader {

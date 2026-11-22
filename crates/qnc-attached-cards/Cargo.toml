@@ -9,3 +9,4 @@ qnc-camera-profiles = { workspace = true }
 qnc-ingest-base = { workspace = true }
 qnc-card-watch = { workspace = true }
 qnc-source-volumes = { workspace = true }
+qnc-card-readers = { workspace = true }

@@ -6,6 +6,7 @@ description = "QNC-AI block: the card readers on the network of this computer (a
 
 [dependencies]
 qnc-dev-diagnostics = { workspace = true }
+qnc-source-volumes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

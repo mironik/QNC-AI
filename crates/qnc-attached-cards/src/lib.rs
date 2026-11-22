@@ -62,7 +62,8 @@ impl AttachedCards {
                     }
                 }
                 if let Some(catalog) = &catalog {
-                    let cards: Vec<AttachedCard> = qnc_source_volumes::mounted()
+                    // The cards in the card readers on the network too (user 2026-11-22).
+                    let cards: Vec<AttachedCard> = qnc_card_readers::mounted_and_cards(&root)
                         .into_iter()
                         .filter(|volume| matches!(qnc_card_watch::card_patterns(catalog, &volume.root, &volume.source_uri()), Ok(patterns) if !patterns.is_empty()))
                         .map(|volume| {

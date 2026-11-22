@@ -4079,6 +4079,7 @@ name = "qnc-attached-cards"
 version = "0.1.0"
 dependencies = [
  "qnc-camera-profiles",
+ "qnc-card-readers",
  "qnc-card-watch",
  "qnc-ingest-base",
  "qnc-source-volumes",
@@ -4361,6 +4362,7 @@ name = "qnc-card-readers"
 version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
+ "qnc-source-volumes",
  "serde",
  "serde_json",
  "tempfile",
@@ -4373,6 +4375,7 @@ dependencies = [
  "qnc-camera-detector",
  "qnc-camera-patterns",
  "qnc-camera-profiles",
+ "qnc-card-readers",
  "qnc-source-bindings",
  "qnc-source-reader",
  "qnc-source-volumes",

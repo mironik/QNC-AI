@@ -182,7 +182,8 @@ pub fn load(root: &Path) -> Result<TransportBindings, String> {
         .parent()
         .ok_or(qnc_ui_text::text("source.source_configuration_folder"))?;
     let mut bindings = parse(&bytes, base)?;
-    with_attached(&mut bindings, &qnc_source_volumes::mounted());
+    // The disks of this computer and the cards in its card readers on the network (user 2026-11-22).
+    with_attached(&mut bindings, &qnc_card_readers::mounted_and_cards(root));
     with_card_bases(&mut bindings, root);
     match qnc_card_readers::readers_of(root) {
         Ok(readers) => with_card_readers(&mut bindings, &readers),

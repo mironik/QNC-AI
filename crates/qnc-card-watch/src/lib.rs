@@ -30,11 +30,20 @@ pub enum Found {
 #[derive(Debug, Default)]
 pub struct CardWatch {
     seen: Option<Vec<Volume>>,
+    /// The QNC root whose card readers on the network are looked at too (none: only this
+    /// computer's disks).
+    root: Option<std::path::PathBuf>,
 }
 
 impl CardWatch {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// A watch that looks at the cards in the card readers on the network of `root` too (user
+    /// 2026-11-22: a card put in the Jetson's reader is a card as one put in this computer).
+    pub fn with_root(root: &std::path::Path) -> Self {
+        Self { root: Some(root.to_path_buf()), ..Self::default() }
     }
 
     /// The disks of `attached` that were not there at the last look (all at the first look: a card
@@ -58,7 +67,11 @@ impl CardWatch {
 
     /// One look at the disks attached now: what each new disk is, and the disks taken out.
     pub fn look(&mut self, catalog: &Catalog) -> Vec<Found> {
-        let (fresh, gone) = self.changes(qnc_source_volumes::mounted());
+        let attached = match &self.root {
+            Some(root) => qnc_card_readers::mounted_and_cards(root),
+            None => qnc_source_volumes::mounted(),
+        };
+        let (fresh, gone) = self.changes(attached);
         gone.into_iter().map(|volume| Found::Gone { volume }).chain(fresh.into_iter().map(|volume| what_is(catalog, volume))).collect()
     }
 

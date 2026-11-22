@@ -11,3 +11,4 @@ qnc-camera-profiles = { workspace = true }
 qnc-source-bindings = { workspace = true }
 qnc-source-reader = { workspace = true }
 qnc-source-volumes = { workspace = true }
+qnc-card-readers = { workspace = true }

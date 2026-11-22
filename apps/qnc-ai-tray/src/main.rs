@@ -140,7 +140,7 @@ fn main() {
     let mut quit_when_deleted = false;
     let mut catalog = None;
     let mut catalog_read: Option<Instant> = None;
-    let mut watch = CardWatch::new();
+    let mut watch = CardWatch::with_root(&root);
     let mut tries: std::collections::BTreeMap<String, u32> = Default::default();
     // The cards put in that have not settled yet, by volume serial: since when, and when last seen.
     let mut settling: std::collections::BTreeMap<String, (Instant, Instant)> = Default::default();
