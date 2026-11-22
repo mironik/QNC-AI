@@ -23,7 +23,12 @@ impl IngestApplication {
         let step = match target {
             None => {
                 // The disks attached now are listed (user 2026-10-16), not those at the start.
-                if let Some(browser) = self.refresh_sources() { self.browse.connect(browser) }
+                match self.refresh_sources() {
+                    Some(browser) => self.browse.connect(browser),
+                    // The sources that cannot be read say why (a card reader of a wrong name left
+                    // the old list without a word, user 2026-11-22).
+                    None => if let Some(error) = &self.selection_config_error { self.view.message = error.clone() },
+                }
                 self.clear_source_browser_state();
                 qnc_source_browse::Step::Roots(
                     match kind {

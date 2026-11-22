@@ -598,3 +598,12 @@ mod reader_tests {
         assert!(source.location.reader().is_some());
     }
 }
+
+#[cfg(test)]
+mod reader_uri_tests {
+    #[test]
+    fn the_source_of_a_reader_shared_by_an_address_is_a_valid_source_reference() {
+        let reader = qnc_card_readers::CardReader { name: "Jetson".into(), path: r"\192.168.100.28\kartice".into() };
+        assert!(qnc_source_reader::SourceReader::local(&reader.source_uri(), std::env::temp_dir()).is_ok(), "{}", reader.source_uri());
+    }
+}

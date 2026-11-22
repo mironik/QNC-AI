@@ -37,14 +37,16 @@ impl CardReader {
         id.trim_matches('-').to_string()
     }
 
-    /// The host the folder is shared from (`\\host\share`), else `share`.
+    /// The host the folder is shared from (`\\host\share`), else `share`; as a source URI names
+    /// it: letters, digits, `-` and `_` (a dot of an address is `-`: `192-168-100-28`).
     pub fn host(&self) -> String {
         let text = self.path.to_string_lossy().replace('/', "\\");
-        text.strip_prefix("\\\\")
-            .and_then(|rest| rest.split('\\').next())
-            .filter(|host| !host.is_empty() && host.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')))
-            .unwrap_or("share")
-            .to_ascii_lowercase()
+        let host = text.strip_prefix("\\\\").and_then(|rest| rest.split('\\').next()).unwrap_or_default();
+        let host: String = host.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' { c.to_ascii_lowercase() } else { '-' }).collect();
+        match host.trim_matches('-') {
+            "" => "share".into(),
+            host => host.into(),
+        }
     }
 
     /// The LAN source of Ingest this reader is.
@@ -114,7 +116,7 @@ mod tests {
     #[test]
     fn a_reader_is_a_lan_source_named_by_its_host_and_name() {
         let jetson = reader("Jetson kartica", r"\\192.168.100.28\kartica");
-        assert_eq!(jetson.source_uri(), "qnc://lan/192.168.100.28/source/reader-jetson-kartica");
+        assert_eq!(jetson.source_uri(), "qnc://lan/192-168-100-28/source/reader-jetson-kartica");
     }
 
     #[test]
