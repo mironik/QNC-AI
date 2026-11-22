@@ -280,6 +280,11 @@ impl TrimStills {
         let mut ahead = Vec::new();
         let mut seen = HashSet::new();
         for still in view.edit_stills.iter().chain(&view.source_edit_stills) {
+            // The live place shows the monitor: nothing is decoded for it, nor ahead of it
+            // (live 2026-11-22: passes of 25 pictures ran after the player and slowed it).
+            if still.live {
+                continue;
+            }
             let Some(picture) = &still.picture else { continue };
             seen.insert(still.label.clone());
             if still.clip_edge.is_some() {
