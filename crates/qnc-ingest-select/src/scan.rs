@@ -45,12 +45,25 @@ pub(crate) fn scan_source(
         bases.push(".".into());
     }
     let mut scan = None;
+    let mut card_found = false;
     for base in &bases {
         let found = qnc_scanner::scan_roles_at(&catalog, source, source_config.scope, base, &indexes, Default::default())?;
-        let card = found.detection.roots.iter().any(|root| root.has_original_candidates());
+        card_found = found.detection.roots.iter().any(|root| root.has_original_candidates());
         scan = Some(found);
-        if card {
+        if card_found {
             break;
+        }
+    }
+    // A card in a folder under the chosen one (user 2026-11-22: the root of a card reader shared
+    // on the network was chosen, its card in `kartica`; each file was taken as a clip, the
+    // originals and the proxies, not the camera's block): the folders one and two levels down.
+    if !card_found {
+        for base in folders_below(source, selected, 2) {
+            let found = qnc_scanner::scan_roles_at(&catalog, source, source_config.scope, &base, &indexes, Default::default())?;
+            if found.detection.roots.iter().any(|root| root.has_original_candidates()) {
+                scan = Some(found);
+                break;
+            }
         }
     }
     let scan = scan.ok_or("no card base")?;
@@ -160,4 +173,27 @@ fn confirm_missing(
         }
     }
     Ok(missing)
+}
+
+/// The folders under `selected`, level by level down to `levels`, at most a few dozen; folders of
+/// the system (`$RECYCLE.BIN`, `System Volume Information`, a hidden one) are left out. Read only.
+fn folders_below(source: &SourceReader, selected: &SourceReference, levels: usize) -> Vec<String> {
+    const MOST: usize = 64;
+    let mut found = Vec::new();
+    let mut level = vec![selected.clone()];
+    for _ in 0..levels {
+        let mut next = Vec::new();
+        for folder in &level {
+            let Ok(listing) = source.list(folder, 4096) else { continue };
+            for entry in listing.entries {
+                let system = entry.name.starts_with(['.', '$']) || entry.name.eq_ignore_ascii_case("System Volume Information");
+                if entry.kind == qnc_source_reader::EntryKind::Directory && !system && found.len() < MOST {
+                    found.push(entry.reference.relative_path().to_string());
+                    next.push(entry.reference);
+                }
+            }
+        }
+        level = next;
+    }
+    found
 }
