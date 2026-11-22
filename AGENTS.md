@@ -948,3 +948,8 @@ klip kataloga prvoga. Snimke koje blok vec ima zadrzavaju svoje ime. Test `a_nam
 Ispravak 2026-11-22 (audit greska 12.11): XML export vise ne pada cijeli kad neki klip nije na ovom racunalu
 (kartica nije spojena). Takav klip ulazi u XML kao offline, s putanjom kakva je na kartici, pa ga program za montazu
 ponovno veze po imenu; zapis `export xml offline` u player logu (`tools/qnc-export`). Gradnja; uzivo nije provjereno.
+Ispravak 2026-11-22 (audit greska 12.8): kljuc (otisak) dijela prerendera sadrzi samo ono sto mijenja sliku i zvuk:
+kodek, velicinu, stopu, poluslike, format zvuka i bitrate (`qnc-program-render` `Delivery::key`, QNC-shared). Prije je
+sadrzavao cijeli blok exporta, pa je novi pocetni timecode, mapa exporta ili ime preseta trazio da se svi dijelovi
+renderiraju iznova. Postojeci dijelovi jednom se renderiraju ponovno (novi oblik kljuca). Test
+`only_what_changes_the_picture_and_sound_changes_a_units_fingerprint`. Vrijedi i za klasicni QNC.
