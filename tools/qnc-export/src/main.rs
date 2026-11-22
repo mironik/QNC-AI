@@ -101,7 +101,18 @@ fn run() -> Result<PathBuf> {
             .find(|source| source.video_layer.is_none())
             .map(|source| source.media.media_uri.clone())
             .unwrap_or_else(|| input.snapshot.binding.original_uri.clone());
-        let path = local_path(&roots, &uri)?;
+        // A clip whose card is not attached here is written offline by its path on the card
+        // (audit 2026-11-22: one missing clip failed the whole XML); the editing program links
+        // it again by its name.
+        let path = match local_path(&roots, &uri) {
+            Ok(path) => path,
+            Err(error) => {
+                let offline = SourceReference::from_uri(&uri).map(|reference| PathBuf::from(reference.relative_path())).map_err(|e| e.to_string())?;
+                qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("export xml offline clip={clip_id} path={} why={error}", offline.display()));
+                eprintln!("qnc-export: {clip_id} is offline ({error})");
+                offline
+            }
+        };
         let video = original_picture(clip_id, input)?;
         files.insert(
             clip_id.clone(),

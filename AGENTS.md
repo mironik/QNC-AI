@@ -945,3 +945,6 @@ Ispravak 2026-11-22 (audit greska 12.16): prva snimka OFF-a dobiva ime `<projekt
 mape glasa vec ne pocinje tim imenom; inace `_2`, `_3`... (`qnc-voice-take` `free_name`). Prije je drugi OFF s istom
 oznakom (profil bez rednog cuea, ili blokovi prebrojani nakon dodavanja ili brisanja) prepisivao `_T1` datoteke i
 klip kataloga prvoga. Snimke koje blok vec ima zadrzavaju svoje ime. Test `a_name_whose_files_are_there_is_taken_with_a_number`.
+Ispravak 2026-11-22 (audit greska 12.11): XML export vise ne pada cijeli kad neki klip nije na ovom racunalu
+(kartica nije spojena). Takav klip ulazi u XML kao offline, s putanjom kakva je na kartici, pa ga program za montazu
+ponovno veze po imenu; zapis `export xml offline` u player logu (`tools/qnc-export`). Gradnja; uzivo nije provjereno.
