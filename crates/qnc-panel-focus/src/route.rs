@@ -163,7 +163,15 @@ impl PanelFocus {
             }
             // A taken IN or OUT: Save lets the marks go where they are and the owner writes
             // them (user 2026-11-20: the marks change only on Save).
-            return Some(self.source.keep_marks(pieces.3));
+            let kept = self.source.keep_marks(pieces.3);
+            // The player of a statement's zoom (user 2026-11-22): the mark goes, the playhead goes
+            // on IN, the zoom stays open.
+            let cued = event.unsigned().is_some_and(|frame| self.source.cue(&qnc_timeline_model::TimelineIntent::CueFrame(frame), pieces.0));
+            return Some(kept || cued);
+        }
+        // Esc or the zoom's Close also closes a statement's zoom left open with no mark taken.
+        if action_id == "clear_focus" {
+            pieces.2.close_statement_zoom();
         }
         // A double click on a word is a cut (user 2026-10-26): IN at its start, OUT at the end
         // of a word after the first cut; the source timeline keeps the pair as for scissors.

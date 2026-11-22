@@ -982,4 +982,6 @@ Izmjena 2026-11-22 (korisnik): uzeti IN ili OUT na source timelineu crta se crve
 da je oznaka u uredivanju; prije boja fokusa (`qnc-timeline` `paint_in_out_handles`, QNC-shared).
 Ispravak 2026-11-22 (ziva proba): zoom za zivu sliku (player u zoomu izjave) vise ne dekodira slike unaprijed
 (`qnc-trim-stills` `ahead`); prolazi od 25 slika trcali su za playerom i usporavali prelazak s oznake na oznaku.
-Otvoreno: klik na player u zoomu treba ostaviti zoom otvoren i staviti playhead na IN bez uzete oznake.
+Ispravljeno isti dan: klik na player u zoomu izjave pusta oznaku, playhead ide na IN, a zoom ostaje otvoren bez uzete
+oznake dok se ne zatvori s Esc ili Zatvori (`qnc-program-segments` `statement_zoom`, `close_statement_zoom`;
+`qnc-panel-focus` `zoom_save` s vrijednoscu IN). Test `a_statements_zoom_stays_open_after_its_mark_is_let_go_until_it_is_closed`.
