@@ -876,6 +876,8 @@ impl Script {
                     origin: part.origin,
                     marks: part.marks,
                     parts: compound,
+                    // An OFF not read yet: an empty place of its reading time (user 2026-11-22).
+                    pause_millis: part.pause_millis,
                 });
             }
             let version = qnc_skeleton_db::new_version(target)?;

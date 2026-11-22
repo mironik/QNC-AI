@@ -959,3 +959,12 @@ S-Story kao prazno mjesto duljine citanja.
 Ispravak 2026-11-22 (audit greska 12.14): Enter na source timelineu s uzetim IN-om ili OUT-om sprema oznaku gdje jest i
 pusta je (`qnc-panel-focus` route: `keep_marks` umjesto `clear_focus`); prije ju je vracao na prvi polozaj. Esc i dalje
 vraca. Testovi `qnc-panel-focus` (zlatna tablica tipki prolazi).
+Ispravak 2026-11-22 (audit greska 12.17, odluka korisnika): OFF koji nije snimljen ide u S-Story kao prazno mjesto
+duljine citanja, kao u Nacrtu XML (prije se izostavljao). U bazi price to je Off klipa susjednog dijela (iza, inace
+ispred) s iskljucenim A1, od slike 0 i duljine u slikama price, bez provjere duljine klipa (kao pauza slozene izjave):
+`qnc-program-db` `AppendSegment.pause_millis`, `qnc-script-draft` `SkeletonPart.pause_millis`, `qnc-script`
+salje ga. "Posalji u Story" iz S-Storyja salje takvo mjesto opet kao pauzu (`qnc-program-segments` writes). Testovi
+`an_off_not_read_yet_is_an_empty_place_of_its_reading_time_held_by_a_clip`,
+`the_skeleton_is_the_script_as_story_segments_with_an_empty_place_for_an_off_not_recorded`. Napomena: klasicni QNC
+(`QNC/crates/qnc-script`, zamrznut) se s danasnjim QNC-sharedom vec nije gradio (nedostaje polje `fine` u
+`qnc-transcribe-run`), a sada mu treba i `pause_millis`; nije diran. Uzivo nije provjereno.
