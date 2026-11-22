@@ -968,3 +968,9 @@ salje ga. "Posalji u Story" iz S-Storyja salje takvo mjesto opet kao pauzu (`qnc
 `the_skeleton_is_the_script_as_story_segments_with_an_empty_place_for_an_off_not_recorded`. Napomena: klasicni QNC
 (`QNC/crates/qnc-script`, zamrznut) se s danasnjim QNC-sharedom vec nije gradio (nedostaje polje `fine` u
 `qnc-transcribe-run`), a sada mu treba i `pause_millis`; nije diran. Uzivo nije provjereno.
+Izmjena 2026-11-22 (korisnik nakon zive probe: "ingest qnc-pro bio je znatno brzi... pravilo ocito nije bilo dobro,
+koristi system koji koristi qnc-pro"): u Breaking newsu radnik (`tools/qnc-ingest-worker` `breaking_held`) radi klip
+po klip kao QNC-pro: valovi i filmstrip uzimaju svaki klip cim je kopiran, nikad ne cekaju kopiju cijele kartice;
+AI kadrovi kad valovi nemaju posla, SigLIP iza kadrova, opisi zadnji. Prije su filmstrip i AI kadrovi cekali kraj
+kopije svih klipova (log: 118 klipova, kopija ~30 MB/s kao QNC-pro, filmstrip 0 od 118 kroz cijelu kopiju).
+Brzina kopije je ista (citac kartice).

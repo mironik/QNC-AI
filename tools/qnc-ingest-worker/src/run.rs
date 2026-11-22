@@ -146,21 +146,26 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
         _ => false,
     };
     // Breaking news on this computer (the tray's setting; user 2026-11-18): the waves first, every
-    // other step waits while they have work ("bitno je da val bude što prije gotov"); then the AI
-    // shots, which make the filmstrip in the same pass (the filmstrips wait for them); then SigLIP;
-    // the transcript and the captions last. Another mode keeps the order below.
+    // AI step waits while they have work ("bitno je da val bude što prije gotov"); the filmstrips
+    // beside them; then the AI shots, SigLIP, the captions; each clip by clip (below). Another mode
+    // keeps the order below.
     let breaking = matches!(qnc_tray_mode::read(root), Ok(Some(qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews })));
     trace(format!("order {}", if breaking { "breaking_news" } else { "level" }));
+    // Clip by clip, as QNC-pro does (user 2026-11-22: "pravilo očito nije bilo dobro, koristi
+    // system koji koristi qnc-pro, to je brže"; live: no filmstrip for the whole copy of a card):
+    // every step reads the copies, so the waves and the filmstrips take each clip as soon as it is
+    // copied, never waiting for the whole card; the AI shots take the clips whose wave is made
+    // while the waves have nothing to do, SigLIP after the shots, the captions last.
     let breaking_held = |step: Step| {
         let waves = not_done(Step::Waves);
         match step {
-            Step::Waves => false,
-            Step::PosterLook | Step::Shots => waves || not_done(Step::Import),
-            Step::Filmstrips | Step::Content => waves || not_done(Step::Import) || not_done(Step::Shots),
+            Step::Waves | Step::Filmstrips => false,
+            Step::PosterLook | Step::Shots => waves,
+            Step::Content => waves || not_done(Step::Shots),
             // The statements are heard with the waves, from their sound (user 2026-11-19); the queue
             // takes the clips they did not decide once the waves are done.
             Step::Transcripts => false,
-            Step::Captions => waves || not_done(Step::Import) || not_done(Step::Shots) || not_done(Step::Content),
+            Step::Captions => waves || not_done(Step::Shots) || not_done(Step::Content),
             _ => false,
         }
     };
