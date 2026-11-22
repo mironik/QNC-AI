@@ -37,6 +37,10 @@ QNC-AI je samostalna aplikacija: AI wizard koji novinara vodi od kartice do expo
   stati i pitati.
 - 2026-11-20: AI Media Assist vracen na kod od 2026-11-19 12:00 (commit 810e1b6, u QNC-shared
   10462cb); rad poslije podne (slozene izjave, potpisi, prozor izjave 10 %) ostaje u povijesti.
+- 2026-11-22: korisnik je odlucio nastaviti razvoj u QNC-AI (ne u QNC-pro) i OTKLJUCAO tray i Ingest
+  Wizard (`apps/qnc-ai-tray`, `apps/qnc-ai-card-ingest`, `tools/qnc-ingest-worker`). Plan: ispraviti
+  greske iz audita (`QNC-pro/docs/08-cjeloviti-audit-qnc-ai-2026-11-22.md`, odjeljak 12) i prenijeti
+  iz QNC-pro ono sto je ondje bolje (citanje samo iz kopije, evidencija kartica).
 
 ## 3. Rad
 
@@ -896,3 +900,9 @@ zatvaranja vizarda"): baza kartice ima svoj naziv i opis u vlastitoj bazi (tabli
 Naziv baze i Opis, zapisuje ih kad se polje napusti i pri zatvaranju; zatvaranje bez naziva se odbija uz crvenu poruku. Popis Baze u
 Ingestu i tray izbornik pokazuju naziv baze uz kameru, datum i vrijeme. Nije izvedeno: opis predložen iz analize kadrova. Test u
 `qnc-ingest-base`. Uživo nije provjereno.
+Ispravak 2026-11-22 (audit QNC-pro docs/08, greska 12.5; tray i wizard otkljucani): filmstrip ili val klipa koji ne
+uspije dva puta odustaje se za taj rad radnika (`qnc-background-jobs` `failed`, `gave_up`, `TRIES` = 2; QNC-shared).
+Prije se klip s greskom vracao u red pri svakom sync-u i servis artefakata radio je do roka od 1 sata
+(`worker.artifacts_timeout`). Sljedeci rad radnika (novi proces) pokusava ga ponovno. Testovi `qnc-background-jobs`
+(novi `a_clip_that_failed_twice_is_given_up_until_another_project`), `qnc-filmstrip-worker`, `qnc-wave-worker`.
+Uzivo nije provjereno.
