@@ -125,7 +125,7 @@ fn paint_script(ui: &mut egui::Ui, view: &ScriptView, transcript: &TranscriptVie
         ui.label(muted(&qnc_ui_text::fill("script.story_cues", &[("in", &view.in_cue), ("out", &view.out_cue)])));
     }
     if !view.message.is_empty() {
-        ui.label(RichText::new(&view.message).color(theme.danger).size(theme.font_ui));
+        ui.label(RichText::new(&view.message).color(if qnc_script::is_plain(&view.message) { theme.text_muted } else { theme.danger }).size(theme.font_ui));
     }
     if let Some(file) = view.exported.as_deref().filter(|_| view.message.is_empty()) {
         let name = std::path::Path::new(file).file_name().map_or_else(|| file.to_string(), |name| name.to_string_lossy().into_owned());

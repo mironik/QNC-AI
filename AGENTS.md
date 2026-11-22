@@ -937,3 +937,7 @@ imenu). Ingest baze i dalje nastaju kroz `qnc-ingest-base`. Test u `a_new_projec
 Odluka 2026-11-22 (audit 12.12): prozor izjave i uvecani slot su 1/13 sa svake strane, ne 70/15/15 (korisnik:
 "filmstrip ima 13 slicica, pa sa svake strane, ispred IN i iza OUT, ostaje jedna slicica";
 `qnc-timeline-model` `enlarged`). Raniji zapisi koji kazu 70/15/15 su zastarjeli; nije greska.
+Ispravak 2026-11-22 (audit greska 12.18): poruke panela scenarija (MA Audio, MA Script) vise nisu sve crvene. Poruka
+koja kaze da posao ide kako treba (izvezeno, poslano u S-Story, ponisteno, snima se, trazim pokrivalice...) crta se
+obicnom bojom, ostale crveno (`qnc-script` `is_plain`, popis sifri u `plain.rs`, poruka s vrijednostima se prepoznaje
+po dijelovima teksta). Test `done_and_under_way_are_plain_a_refusal_is_not`.

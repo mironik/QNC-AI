@@ -220,7 +220,7 @@ fn paint_header(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme
             ui.label(muted(&qnc_ui_text::fill("writer.anchor", &[("anchor", &seconds_label(view.anchor_seconds))])));
         }
         if !view.message.is_empty() {
-            ui.label(RichText::new(&view.message).color(theme.danger).size(theme.font_ui));
+            ui.label(RichText::new(&view.message).color(if qnc_script::is_plain(&view.message) { theme.text_muted } else { theme.danger }).size(theme.font_ui));
         } else if let Some(file) = view.exported.as_deref() {
             let name = std::path::Path::new(file).file_name().map_or_else(|| file.to_string(), |name| name.to_string_lossy().into_owned());
             let link = egui::Label::new(RichText::new(qnc_ui_text::fill("script.exported", &[("file", &name)])).color(theme.focus).underline().size(theme.font_ui)).sense(Sense::click());

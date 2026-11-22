@@ -30,6 +30,8 @@ use qnc_timeline_model::TimelineProjection;
 use qnc_transcript::TranscriptView;
 use qnc_voice_take::{Recorded, Take};
 
+mod plain;
+pub use plain::is_plain;
 mod read;
 mod view;
 mod text_edit;
