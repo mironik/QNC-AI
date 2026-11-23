@@ -12,6 +12,7 @@
 //! QNC reads some of them too, so their names stay.
 
 mod engines;
+mod labels;
 
 use std::path::Path;
 
@@ -48,6 +49,9 @@ struct Draft {
     share: String,
     /// This computer's AI catalog, read when the engines are chosen; what is typed is its draft.
     catalog: Option<Result<qnc_ai_catalog_edit::Catalog, String>>,
+    /// This computer's shot labels, read when they are chosen; what is typed is their draft.
+    labels: Option<Result<qnc_shot_labels_edit::List, String>>,
+    new_label: labels::New,
     said: Option<Result<String, String>>,
 }
 
@@ -142,6 +146,9 @@ fn menu(ui: &mut egui::Ui, root: &Path, style: &Style, theme: &Theme, draft: &mu
             if item == Chosen::Engines {
                 draft.catalog = Some(qnc_ai_catalog_edit::Catalog::installed());
             }
+            if item == Chosen::Labels {
+                draft.labels = Some(qnc_shot_labels_edit::List::installed());
+            }
             draft.chosen = Some(item);
             draft.said = None;
         }
@@ -169,9 +176,15 @@ fn panel(ui: &mut egui::Ui, root: &Path, style: &Style, theme: &Theme, draft: &m
             Some(Err(error)) => draft.said = Some(Err(error.clone())),
             None => {}
         },
-        Some(Chosen::Labels) => {
-            ui.label(RichText::new(text("ai_settings.next_step")).size(style.metrics.label_font_size).color(theme.text_muted));
-        }
+        Some(Chosen::Labels) => match draft.labels.as_mut() {
+            Some(Ok(list)) => {
+                if let Some(said) = labels::show(ui, width, style, theme, list, &mut draft.new_label) {
+                    draft.said = Some(said);
+                }
+            }
+            Some(Err(error)) => draft.said = Some(Err(error.clone())),
+            None => {}
+        },
     }
     said(ui, &draft.said, theme);
 }

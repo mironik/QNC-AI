@@ -1155,3 +1155,9 @@ svakog drugog AI posla (vremena slova, sadrzaj kadra, opis kadra, prijevod, Smoo
 radi opis kadra, slika po kadru. Spremi ne zapisuje promjenu koja bi pokvarila motor koji je radio (iste provjere kao AI
 kocke pri pokretanju); sto vec nije radilo ne smeta. U prozoru AI postavki lijevo "AI motori". Usput: savjet zajednicke AI
 mape imao je `\` bez escapea, pa se rjecnik QNC-AI-ja nije ucitavao (od koraka 1). Uzivo nije provjereno.
+Izvedeno 2026-11-23 (AI postavke, korak 3 od 3: oznake kadrova): nova kocka `qnc-shot-labels-edit` (popis oznaka racunala
+kao JSON, polja koja ne zna ostaju): naziv, upit modelu, izjava da/ne, nova oznaka (sifra iz naziva, nikad dvaput), brisanje
+(s njezinim pravilima), pragovi `least` i `statement_least`, pravila opisa kadra (oznaka i rijeci). Spremi zapisuje samo popis
+koji `qnc_shot_labels::Labels::read` cita. Nova oznaka nema kljuc rjecnika: naziv se pise kako je upisan. U prozoru AI
+postavki lijevo "Oznake kadrova". AI postavke imaju sve sto je trazeno (predlosci, motori, server i LLM, AI mapa, oznake).
+Uzivo nije provjereno.

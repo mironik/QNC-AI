@@ -8,6 +8,8 @@ description = "QNC-AI settings block with its own window: the AI settings of thi
 eframe = { workspace = true }
 qnc-ai-catalog = { workspace = true }
 qnc-ai-catalog-edit = { workspace = true }
+qnc-shot-labels-edit = { workspace = true }
+qnc-ui-text = { workspace = true }
 qnc-ai-features = { workspace = true }
 qnc-ai-server-view = { workspace = true }
 qnc-desktop-theme = { workspace = true }

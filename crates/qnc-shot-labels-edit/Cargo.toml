@@ -1,0 +1,9 @@
+[package]
+name = "qnc-shot-labels-edit"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: the shot labels of this computer edited (labels, what the model is asked, which are statements, thresholds, caption rules); a list the AI pieces would not read is not written"
+
+[dependencies]
+qnc-shot-labels = { workspace = true }
+serde_json = { workspace = true }

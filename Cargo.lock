@@ -3946,7 +3946,9 @@ dependencies = [
  "qnc-settings-form",
  "qnc-settings-rows",
  "qnc-settings-window",
+ "qnc-shot-labels-edit",
  "qnc-ui-kit",
+ "qnc-ui-text",
  "qnc-wizard-text",
  "serde_json",
 ]
@@ -7496,6 +7498,14 @@ name = "qnc-shot-labels"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-shot-labels-edit"
+version = "0.1.0"
+dependencies = [
+ "qnc-shot-labels",
  "serde_json",
 ]
 
