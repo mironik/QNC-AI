@@ -115,6 +115,15 @@
     "transcript_cue_word": {
       "label": "Playhead na rijec transkripta"
     },
+    "statement_add_part": {
+      "label": "IN/OUT kao novi dio izabrane izjave (slozena izjava)"
+    },
+    "statement_join": {
+      "label": "Vrsta reza novog dijela slozene izjave (Cut, Smooth, Blic)"
+    },
+    "statement_join_cancel": {
+      "label": "Odustani od novog dijela slozene izjave"
+    },
     "statement_overwrite": {
       "label": "Ista izjava vec postoji: prepisi je"
     },
