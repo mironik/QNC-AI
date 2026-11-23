@@ -32,7 +32,7 @@ fn as_text(value: Option<&Value>) -> String {
 }
 
 /// Draws the engines of `catalog` and keeps what is typed in it; gives what Save said.
-pub fn show(
+pub(crate) fn show(
     ui: &mut egui::Ui,
     root: &Path,
     pen: &Pen,

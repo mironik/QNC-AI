@@ -40,6 +40,10 @@ qnc-settings-block = { path = "crates/qnc-settings-block" }
 qnc-settings-window = { path = "crates/qnc-settings-window" }
 qnc-ai-catalog-edit = { path = "crates/qnc-ai-catalog-edit" }
 qnc-ai-settings-view = { path = "crates/qnc-ai-settings-view" }
+qnc-ai-engines-view = { path = "crates/qnc-ai-engines-view" }
+qnc-ai-share-view = { path = "crates/qnc-ai-share-view" }
+qnc-ai-templates-view = { path = "crates/qnc-ai-templates-view" }
+qnc-shot-labels-view = { path = "crates/qnc-shot-labels-view" }
 qnc-shot-labels-edit = { path = "crates/qnc-shot-labels-edit" }
 qnc-base-admin = { path = "crates/qnc-base-admin" }
 qnc-base-admin-view = { path = "crates/qnc-base-admin-view" }

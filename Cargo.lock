@@ -3822,6 +3822,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-engines-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-catalog-edit",
+ "qnc-settings-block",
+ "qnc-settings-form",
+ "qnc-wizard-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-ai-features"
 version = "0.1.0"
 dependencies = [
@@ -3933,17 +3945,24 @@ name = "qnc-ai-settings-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "qnc-ai-catalog",
- "qnc-ai-catalog-edit",
- "qnc-ai-features",
+ "qnc-ai-engines-view",
  "qnc-ai-server-view",
+ "qnc-ai-share-view",
+ "qnc-ai-templates-view",
  "qnc-settings-block",
- "qnc-settings-form",
  "qnc-settings-window",
- "qnc-shot-labels-edit",
- "qnc-ui-text",
+ "qnc-shot-labels-view",
  "qnc-wizard-text",
- "serde_json",
+]
+
+[[package]]
+name = "qnc-ai-share-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-catalog",
+ "qnc-settings-block",
+ "qnc-wizard-text",
 ]
 
 [[package]]
@@ -3964,6 +3983,16 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-shot-captions",
  "qnc-shot-examples",
+]
+
+[[package]]
+name = "qnc-ai-templates-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-features",
+ "qnc-settings-block",
+ "qnc-wizard-text",
 ]
 
 [[package]]
@@ -7497,6 +7526,17 @@ version = "0.1.0"
 dependencies = [
  "qnc-shot-labels",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-shot-labels-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-settings-block",
+ "qnc-shot-labels-edit",
+ "qnc-ui-text",
+ "qnc-wizard-text",
 ]
 
 [[package]]

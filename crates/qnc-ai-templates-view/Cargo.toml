@@ -1,0 +1,11 @@
+[package]
+name = "qnc-ai-templates-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI AI settings group: the AI templates of this computer (which AI features a project has, what each needs), drawn with the settings style block"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-ai-features = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-wizard-text = { workspace = true }

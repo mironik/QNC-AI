@@ -33,7 +33,7 @@ fn threshold(ui: &mut egui::Ui, pen: &Pen, code: &str, typed: &mut Option<String
 }
 
 /// Draws `list` and keeps what is typed in it; gives what was said (a label added, Save).
-pub fn show(ui: &mut egui::Ui, pen: &Pen, list: &mut List, new: &mut New) -> Option<Result<String, String>> {
+pub(crate) fn show(ui: &mut egui::Ui, pen: &Pen, list: &mut List, new: &mut New) -> Option<Result<String, String>> {
     let mut said = None;
     pen.section(ui, &text("ai_labels.thresholds"), |ui| {
         threshold(ui, pen, "ai_labels.least", &mut new.least, &mut list.least);

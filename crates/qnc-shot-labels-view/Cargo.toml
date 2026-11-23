@@ -1,0 +1,12 @@
+[package]
+name = "qnc-shot-labels-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI AI settings group: the shot labels of this computer (labels, prompts, statements, thresholds, caption rules), drawn with the settings style block"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-shot-labels-edit = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-wizard-text = { workspace = true }
