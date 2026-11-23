@@ -1010,3 +1010,13 @@ za izjavu s vise dijelova: play krece od IN-a prvog dijela i staje na OUT-u zadn
 (`qnc-side-pieces` `statement.rs`). Obican klip bez izjave radi kao prije (play prije OUT-a staje na OUT-u, s OUT-a svira
 dalje). Testovi `qnc-side-pieces`, `qnc-source-timeline`; test `qnc-source-panel`
 `undo_puts_only_the_taken_mark_back_where_it_was` pada i bez ove izmjene. Uzivo nije provjereno.
+
+Izmjena 2026-11-23 (korisnik: "klik na traku trajanja selektira odabrani slot, to treba obvezno raditi u zoomu"; "ZUM i kod
+Složene izjave treba imati centralno Player kao što je i kod izjave"; log: klik na traku u zoomu slao je `subsegment_select`,
+ali je uzeti rub ostajao i nista se nije vidjelo): zoom dijela slozene izjave je kao zoom izjave: IN slika dijela | Player
+(slika na playheadu) | OUT slika dijela, ispod IN i OUT traka trajanja slota (`qnc-subsegment-edit` `view::part_zoom`).
+Otvara se kad se uzme vlastiti rub dijela i ostaje otvoren (`zoom_part`) dok ga Esc bez uzetog ne zatvori; klik na IN ili OUT
+uzima taj rub (nikad roll), klik na Player sprema i pusta uzeti rub i stavlja playhead na IN dijela, klik na traku bira slot
+i zoom pokazuje taj slot (uzeti rub drugog dijela ili cijeli rez najprije se spremi). Cijeli rez spoja (roll) i ton spoja i
+dalje imaju zoom s dvije slike spoja. Isto u MA Scriptu (ista kocka). Testovi `qnc-subsegment-edit`, `qnc-side-pieces`,
+`qnc-script`. Uzivo nije provjereno.

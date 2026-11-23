@@ -253,11 +253,14 @@ pub struct SubsegmentEdit {
     /// The word of the text a click put the playhead on: its part, the axis frame and the clip
     /// frame past its end (O then puts OUT after the word).
     word: Option<(usize, u64, u64)>,
+    /// The part whose zoom stays open (user 2026-11-23: IN | player | OUT as a statement's zoom):
+    /// set when its own edge is taken or its strip chosen in the zoom, closed by Esc.
+    zoom_part: Option<usize>,
 }
 
 impl Default for SubsegmentEdit {
     fn default() -> Self {
-        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None }
+        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None, zoom_part: None }
     }
 }
 
@@ -300,6 +303,9 @@ impl SubsegmentEdit {
         }
         if self.level.as_ref().is_some_and(|line| line.id.parse::<usize>().map_or(true, |index| index >= count)) {
             self.level = None;
+        }
+        if self.zoom_part.is_some_and(|index| index >= count) {
+            self.zoom_part = None;
         }
     }
 
@@ -352,7 +358,18 @@ impl SubsegmentEdit {
         // same pieces as a cover's (`qnc-trim-stills`).
         let pieces = view::block_pieces(&block);
         let rate = pieces.first().and_then(|piece| names.get(&piece.clip_id)).filter(|(_, _, seconds)| *seconds > 0.0).map_or(25, |(_, frames, seconds)| (*frames as f64 / seconds).round() as u64);
-        let zoom = self.trim.and_then(|trim| view::subsegment_zoom(&shown, &pieces, (trim.index, trim.out), (rate, Some((&self.zoom_follow, preview.playing_at().filter(|(program, _, _)| *program).map(|(_, frame, playing)| (frame, playing))))), |clip| names.get(clip).map(|(_, frames, _)| *frames)));
+        let position = preview.playing_at().filter(|(program, _, _)| *program).map(|(_, frame, playing)| (frame, playing));
+        // A part's own edge taken opens its zoom (IN | player | OUT) and it stays open; a whole cut
+        // or a join's sound taken shows the two pictures of the join.
+        let own = self.trim.filter(|trim| trim.roll.is_none() && self.join_sound.is_none());
+        if let Some(trim) = own {
+            self.zoom_part = Some(trim.index);
+        }
+        let part_zoom = self.zoom_part.filter(|_| self.join_sound.is_none() && self.trim.map_or(true, |trim| trim.roll.is_none()));
+        let zoom = match part_zoom {
+            Some(index) => view::part_zoom(&shown, &pieces, (index, own.filter(|trim| trim.index == index).map(|trim| trim.out)), (rate, &self.zoom_follow, position), |clip| names.get(clip).map(|(_, frames, _)| *frames)),
+            None => self.trim.and_then(|trim| view::subsegment_zoom(&shown, &pieces, (trim.index, trim.out), (rate, Some((&self.zoom_follow, position))), |clip| names.get(clip).map(|(_, frames, _)| *frames))),
+        };
         // A whole cut taken: the zoom's A1 takes its sound (its label, a right click), and the
         // taken join sound shows its J and L there, red, moved by click and drag (user
         // 2026-11-03: the same zoom as a story's cut).
@@ -367,6 +384,10 @@ impl SubsegmentEdit {
         let zoom = zoom.map(|mut zoom| {
             if let Some(sound) = zoom.zoom_sound.as_mut() {
                 sound.lane_choices[0] = a1_lane;
+            }
+            // A part's zoom marks its taken edge's picture itself.
+            if part_zoom.is_some() {
+                return zoom;
             }
             // The side in focus (user 2026-11-04: the zoom frames it red, the same in every zoom):
             // the side of the join sound that moves alone, else the side of the chosen slot.
@@ -607,6 +628,18 @@ impl SubsegmentEdit {
         if action_id == ZOOM_WORD {
             return self.zoom_word(target, &block);
         }
+        // The player of a part's zoom (a value: the part's IN): the edge taken is kept and let go,
+        // the playhead goes on the part's IN, the zoom stays (user 2026-11-23, as a statement's).
+        if action_id == qnc_edit_verbs::SAVE && self.zoom_part.is_some() {
+            if let Some(start) = self.value.and_then(|value| u64::try_from(value).ok()) {
+                if let Some(trim) = self.trim.take() {
+                    self.write_trim(preview, &block, &pieces, trim);
+                }
+                let drafted = self.drafted(block.clone());
+                self.pieces_request = Some((view::piece_inputs(&drafted), start));
+                return Some(true);
+            }
+        }
         if action_id == qnc_edit_verbs::SAVE {
             return self.save_and_keep(&block, &pieces, preview);
         }
@@ -619,9 +652,19 @@ impl SubsegmentEdit {
             SUBSEGMENT_SELECT => {
                 let index = target.and_then(|index| index.parse::<usize>().ok()).filter(|index| *index < pieces.len())?;
                 (self.chosen, self.chosen_to) = (Some(index), None);
-                // In the zoom (a picture clicked): the slot is chosen, the edge taken stays and the
-                // playhead does not move.
-                if self.trim.is_some() || self.join_sound.is_some() {
+                // In the zoom (its strip clicked, user 2026-11-23): the slot is chosen and its zoom
+                // shows it; an edge of another part or a whole cut taken is kept first.
+                if self.zoom_part.is_some() || self.trim.is_some() {
+                    if let Some(old) = self.trim.filter(|trim| trim.roll.is_some() || trim.index != index) {
+                        self.trim = None;
+                        self.write_trim(preview, &block, &pieces, old);
+                    }
+                    if self.join_sound.is_none() {
+                        self.zoom_part = Some(index);
+                    }
+                    return Some(true);
+                }
+                if self.join_sound.is_some() {
                     return Some(true);
                 }
                 let start = self.view.subsegment.as_ref().and_then(|view| view.parts.get(index)).map_or(0, |part| part.start);
@@ -637,6 +680,11 @@ impl SubsegmentEdit {
                     return Some(false);
                 }
                 (self.chosen, self.chosen_to) = (Some(from), (to != from).then_some(to));
+                return Some(true);
+            }
+            // Esc with nothing taken closes a part's zoom, as a statement's zoom closes.
+            "clear_focus" if self.zoom_part.is_some() && self.trim.is_none() && self.sound.is_none() && self.join_sound.is_none() => {
+                (self.zoom_part, self.chosen) = (None, None);
                 return Some(true);
             }
             "clear_focus" if self.chosen.is_some() && self.trim.is_none() && self.sound.is_none() => {
@@ -790,7 +838,7 @@ impl SubsegmentEdit {
         self.open_subsegment = Some(block.id);
         self.enlarged = None;
         (self.chosen, self.join_sound, self.trim, self.sound, self.slide, self.slip_part) = (None, None, None, None, None, None);
-        self.level = None;
+        (self.level, self.zoom_part) = (None, None);
         self.pieces_request = Some((view::piece_inputs(block), at));
         self.view.subsegment = Some(view::subsegment_view(block, None));
     }
