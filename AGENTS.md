@@ -1026,3 +1026,7 @@ desni klik na spoj uzeo je cijeli rez `1:cut`, a zoom cijelog reza imao je samo 
 u sredini: OUT zadnja prethodnog dijela | Player (slika na playheadu) | IN prva sljedeceg (`view::subsegment_zoom`). Klik na
 Player sprema rez, rez ostaje uzet, playhead ide na rez. `qnc-trim-overlay` (QNC-shared): Player u sredini nije strana reza
 (nema crveni okvir fokusa, linija reza ide izmedju dviju strana). Test zooma spoja prilagoden. Uzivo nije provjereno.
+
+Popravak 2026-11-23 (korisnik: "nema playera"; log: `trim-stills asked [Player @318 ...]` svaku slicicu nova slika dok svira,
+dekodiranje ne stize i prozor je crn): Player u sredini zooma slozene izjave dobiva sliku monitora kao zoom izjave
+(`qnc-subsegment-edit`: `trim_stills.fill(.., preview.shown_picture())`, prije `None`). Uzivo nije provjereno.

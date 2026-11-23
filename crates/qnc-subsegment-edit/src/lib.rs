@@ -441,7 +441,8 @@ impl SubsegmentEdit {
             }
         }
         shown.zoom = zoom.map(|mut zoom| {
-            self.trim_stills.fill(&mut zoom, preview.still_locator(), None, None);
+            // The player in the middle shows the monitor's picture as it plays (user 2026-11-23: "nema playera").
+            self.trim_stills.fill(&mut zoom, preview.still_locator(), None, preview.shown_picture());
             Box::new(zoom)
         });
         shown.sound = self.sound.map(|sound| sound.index);
