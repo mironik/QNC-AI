@@ -1125,3 +1125,11 @@ naziv nije upisan): prozor export predlozaka ima fiksnu velicinu i sirinu popisa
 (`export_templates_window`: width, height, list_width), koje uredjuje editor izgleda Postavki (skrivena tocka; vrijednosti
 `export_window_width`, `export_window_height`, `export_list_width` u `contracts/ui/forms/settings.look.json`). Polje naziva ima
 napomenu da Spremi trazi naziv. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik, snimka: "ne vidi se cijela forma, postavi je na sredinu ekrana; lijevi dio je uzak, ne vidi se
+naziv i skrivena tocka nije dostupna; XML isto postavi u lijevi izbornik i linijom ga odvoji od enkode postavki"): prozor
+export predlozaka je vlastiti prozor (viewport) na sredini ekrana s vlastitom naslovnom trakom; njegova skrivena tocka otvara
+njegov editor izgleda (`contracts/ui/forms/export-templates.look.json`: sirina, visina, sirina izbornika, stupac oznaka,
+margina; fiksna velicina). `qnc-title-bar` `with_look_of`, `qnc-form-look` `ask_editor_of`, `editor_of_own` (drugi prozor
+programa otvara samo svoj editor). Mjere iz rasporeda Projecta iz prethodnog koraka uklonjene. Export XML je zasebna postavka
+racunala (`data/export-xml.qncxml`, `qnc-export-templates` `xml_fields`, `xml`, `save_xml`; ugovor polja `xml`), u lijevom
+izborniku ispod crte. Uzivo nije provjereno.

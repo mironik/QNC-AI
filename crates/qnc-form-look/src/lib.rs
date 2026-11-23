@@ -111,6 +111,16 @@ fn take_asked(ctx: &egui::Context) -> bool {
     ctx.data_mut(|data| data.remove_temp::<bool>(egui::Id::new("qnc-form-look-asked")).unwrap_or(false))
 }
 
+/// As [`ask_editor`], for the look of `form` only: a second window of a program (its own bar) opens
+/// its own look editor, never the main window's (user 2026-11-23: the export templates' window).
+pub fn ask_editor_of(ctx: &egui::Context, form: &str) {
+    ctx.data_mut(|data| data.insert_temp(egui::Id::new(("qnc-form-look-asked", form)), true));
+}
+
+fn take_asked_of(ctx: &egui::Context, form: &str) -> bool {
+    ctx.data_mut(|data| data.remove_temp::<bool>(egui::Id::new(("qnc-form-look-asked", form))).unwrap_or(false))
+}
+
 fn snap(value: &mut Value) {
     value.value = ((value.value / value.step).round() * value.step).clamp(value.min, value.max);
 }
@@ -305,7 +315,17 @@ impl FormLook {
     /// The small window beside the form while editing: Save, Back, and every value as a number.
     /// Call once per frame.
     pub fn editor(&mut self, ctx: &egui::Context) {
-        if take_asked(ctx) {
+        self.editor_when(ctx, take_asked(ctx));
+    }
+
+    /// As [`FormLook::editor`] for a second window with its own bar: only its own ask (`ask_editor_of`).
+    pub fn editor_of_own(&mut self, ctx: &egui::Context) {
+        let asked = take_asked_of(ctx, &self.form.clone());
+        self.editor_when(ctx, asked);
+    }
+
+    fn editor_when(&mut self, ctx: &egui::Context, asked: bool) {
+        if asked {
             let open = !self.window;
             self.shut_or_open(open);
         }

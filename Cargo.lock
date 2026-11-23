@@ -4962,11 +4962,12 @@ dependencies = [
  "eframe",
  "qnc-desktop-theme",
  "qnc-export-templates",
+ "qnc-form-look",
  "qnc-settings-block",
  "qnc-settings-rows",
+ "qnc-title-bar",
  "qnc-ui-kit",
  "qnc-wizard-text",
- "serde",
  "serde_json",
 ]
 

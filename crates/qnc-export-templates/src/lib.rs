@@ -57,6 +57,40 @@ pub fn field_groups() -> Result<Vec<FieldGroup>, String> {
     serde_json::from_str::<Contract>(FIELDS_JSON).map(|contract| contract.groups).map_err(|error| format!("export-template-fields.json: {error}"))
 }
 
+/// The fields of the export XML (user 2026-11-23: "XML isto postavi u lijevi izbornik"): its own
+/// setting of the computer, apart from the encode templates.
+pub fn xml_fields() -> Result<FieldGroup, String> {
+    #[derive(Deserialize)]
+    struct Contract {
+        xml: FieldGroup,
+    }
+    serde_json::from_str::<Contract>(FIELDS_JSON).map(|contract| contract.xml).map_err(|error| format!("export-template-fields.json: {error}"))
+}
+
+fn xml_file(root: &Path) -> PathBuf {
+    root.join("data").join("export-xml.qncxml")
+}
+
+/// The export XML setting of this computer (`export.*` keys); none set yet: empty.
+pub fn xml(root: &Path) -> Result<Map<String, Value>, String> {
+    let file = xml_file(root);
+    match std::fs::read_to_string(&file) {
+        Ok(text) => serde_json::from_str(&text).map_err(|error| format!("{}: {error}", file.display())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Map::new()),
+        Err(error) => Err(format!("{}: {error}", file.display())),
+    }
+}
+
+/// Keeps the export XML setting of this computer.
+pub fn save_xml(root: &Path, values: &Map<String, Value>) -> Result<(), String> {
+    let file = xml_file(root);
+    if let Some(folder) = file.parent() {
+        std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    }
+    let text = serde_json::to_string_pretty(values).map_err(|error| error.to_string())?;
+    std::fs::write(&file, text).map_err(|error| format!("{}: {error}", file.display()))
+}
+
 /// A prepared export preset: its id, name and values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prepared {

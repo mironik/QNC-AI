@@ -13,9 +13,6 @@
     { "key": "field_min_width", "label": "Polje: najmanja širina", "value": 160.0, "min": 40.0, "max": 800.0, "step": 1.0, "pointer": "/right_settings_panel/field_min_width" },
     { "key": "label_font_size", "label": "Oznake: veličina slova", "value": 12.0, "min": 8.0, "max": 30.0, "step": 1.0, "pointer": "/right_settings_panel/label_font_size" },
     { "key": "group_title_font_size", "label": "Naslov odjeljka: veličina slova", "value": 12.0, "min": 8.0, "max": 30.0, "step": 1.0, "pointer": "/right_settings_panel/group_title_font_size" },
-    { "key": "row_height", "label": "Visina reda", "value": 24.0, "min": 14.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/row_height" },
-    { "key": "export_window_width", "label": "Export predlošci: širina prozora", "value": 1000.0, "min": 600.0, "max": 2400.0, "step": 1.0, "pointer": "/export_templates_window/width" },
-    { "key": "export_window_height", "label": "Export predlošci: visina prozora", "value": 680.0, "min": 400.0, "max": 1600.0, "step": 1.0, "pointer": "/export_templates_window/height" },
-    { "key": "export_list_width", "label": "Export predlošci: širina popisa", "value": 260.0, "min": 120.0, "max": 800.0, "step": 1.0, "pointer": "/export_templates_window/list_width" }
+    { "key": "row_height", "label": "Visina reda", "value": 24.0, "min": 14.0, "max": 80.0, "step": 1.0, "pointer": "/right_settings_panel/row_height" }
   ]
 }

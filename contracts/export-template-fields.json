@@ -1,7 +1,7 @@
 {
   "contract_id": "qnc.export.template.fields",
   "schema_version": 1,
-  "description": "The fields of an export template (user 2026-11-23: 'sve sto je potrebno za postavke exporta gotovog video priloga'): each an export.* key of the project settings. A choice offers the values the prepared presets have; a number or text is typed; a switch is on or off. The two kinds of export are the file (picture, sound, delivery) and XML.",
+  "description": "The fields of an export template (user 2026-11-23: 'sve sto je potrebno za postavke exporta gotovog video priloga'): each an export.* key of the project settings. A choice offers the values the prepared presets have; a number or text is typed; a switch is on or off. The two kinds of export are the file (groups: picture, sound, delivery; a template each) and XML (its own setting of the computer, data/export-xml.qncxml).",
   "groups": [
     {
       "label": "export_template.group_picture",
@@ -31,12 +31,12 @@
         { "key": "lead_in_seconds", "label": "export_template.lead_in", "kind": "number" },
         { "key": "tail_seconds", "label": "export_template.tail", "kind": "number" }
       ]
-    },
-    {
-      "label": "export_template.group_xml",
-      "fields": [
-        { "key": "xml_enabled", "label": "export_template.xml_enabled", "kind": "switch" }
-      ]
     }
-  ]
+  ],
+  "xml": {
+    "label": "export_template.group_xml",
+    "fields": [
+      { "key": "xml_enabled", "label": "export_template.xml_enabled", "kind": "switch" }
+    ]
+  }
 }

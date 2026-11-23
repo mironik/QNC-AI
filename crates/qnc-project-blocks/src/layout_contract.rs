@@ -133,9 +133,6 @@ pub struct ProjectLayoutContract {
     pub board: BoardMetrics,
     pub left_project_list: ProjectListMetrics,
     pub right_settings_panel: SettingsPanelMetrics,
-    /// The fixed size of the export templates' window and its list (user 2026-11-23: "forma treba
-    /// imati fiksne dimenzije koje je moguće editirati preko skrivene točke": the Settings look).
-    pub export_templates_window: qnc_export_templates_view::WindowMeasures,
     /// The checkboxes of the AI box; the filmstrip one decides `artifacts.filmstrip`
     /// (user rule 2026-09-30).
     pub ai_switches: Vec<qnc_settings_switches::Switch>,

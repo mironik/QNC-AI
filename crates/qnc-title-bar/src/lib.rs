@@ -47,15 +47,24 @@ pub struct TitleBar {
     search: SearchOverlay,
     /// The background work of the project, for the windows of the forms (`with_work`).
     work: Option<qnc_work_info::WorkInfo>,
+    /// The look this bar's hidden button opens: `None` the program's main one; a second window
+    /// names its own (`with_look_of`).
+    look_of: Option<String>,
 }
 
 impl TitleBar {
     pub fn new(title: impl Into<String>, root: impl Into<PathBuf>) -> Self {
-        Self { title: title.into(), root: root.into(), search: SearchOverlay::default(), work: None }
+        Self { title: title.into(), root: root.into(), search: SearchOverlay::default(), work: None, look_of: None }
     }
 
     /// The bar shows the background work of the active project (a form's window): minimized in
     /// the bar, open under it (user 2026-11-16: "minimizirani wizard premjesti u header forme").
+    /// The hidden button opens the look of `form` (a second window of a program, its own bar).
+    pub fn with_look_of(mut self, form: impl Into<String>) -> Self {
+        self.look_of = Some(form.into());
+        self
+    }
+
     pub fn with_work(mut self) -> Self {
         self.work = Some(qnc_work_info::WorkInfo::new(&self.root));
         self
@@ -92,7 +101,10 @@ impl TitleBar {
                     ui.painter().circle_filled(hidden.center(), 2.5, ui.visuals().weak_text_color());
                 }
                 if look.clicked() {
-                    qnc_form_look::ask_editor(ctx);
+                    match &self.look_of {
+                        Some(form) => qnc_form_look::ask_editor_of(ctx, form),
+                        None => qnc_form_look::ask_editor(ctx),
+                    }
                 }
                 ui.painter().text(Pos2::new(bar.left() + 14.0, bar.center().y), egui::Align2::LEFT_CENTER, &self.title, egui::FontId::proportional(14.0), colour);
                 let buttons = [
