@@ -129,6 +129,7 @@
     "export_template.new_from_hint": "A new template from this preset",
     "export_template.choose": "Choose an own template or a prepared preset to start from.",
     "export_template.name": "Name",
+    "export_template.name_hint": "type the template's name (Save needs one)",
     "export_template.from": "Starts from: {preset}",
     "export_template.delete": "Delete",
     "export_template.group_picture": "Picture and container",

@@ -46,6 +46,11 @@
     "empty_text": "@project.no_projects",
     "ready_text": "@project.ready"
   },
+  "export_templates_window": {
+    "width": 1000.0,
+    "height": 680.0,
+    "list_width": 260.0
+  },
   "right_settings_panel": {
     "panel_pad": 20.0,
     "title": "@project.settings",

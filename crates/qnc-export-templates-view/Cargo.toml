@@ -12,4 +12,5 @@ qnc-settings-block = { workspace = true }
 qnc-settings-rows = { workspace = true }
 qnc-ui-kit = { workspace = true }
 qnc-wizard-text = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }

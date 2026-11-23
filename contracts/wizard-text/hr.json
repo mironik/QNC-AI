@@ -129,6 +129,7 @@
     "export_template.new_from_hint": "Novi predložak od ovog preseta",
     "export_template.choose": "Izaberi vlastiti predložak ili gotov preset kao polazište.",
     "export_template.name": "Naziv",
+    "export_template.name_hint": "upiši naziv predloška (bez naziva Spremi ne radi)",
     "export_template.from": "Polazište: {preset}",
     "export_template.delete": "Obriši",
     "export_template.group_picture": "Slika i spremnik",

@@ -4966,6 +4966,7 @@ dependencies = [
  "qnc-settings-rows",
  "qnc-ui-kit",
  "qnc-wizard-text",
+ "serde",
  "serde_json",
 ]
 

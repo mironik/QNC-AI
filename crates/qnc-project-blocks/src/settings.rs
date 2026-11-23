@@ -315,7 +315,7 @@ impl Blocks<'_> {
             SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::Tray => qnc_tray_settings_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::Templates => self.templates(ui, width, settings),
-            SettingsBlock::Export => qnc_export_templates_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::Export => qnc_export_templates_view::show(ui, &root, width, settings, &self.contracts.theme, &self.contracts.project.export_templates_window),
         }
     }
 

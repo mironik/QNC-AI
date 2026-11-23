@@ -18,6 +18,15 @@ use qnc_settings_rows::PanelMetrics;
 use qnc_wizard_text::text;
 use serde_json::{Map, Value};
 
+/// The fixed size of the window and the width of its list (the Settings look: user 2026-11-23,
+/// "forma treba imati fiksne dimenzije koje je moguće editirati preko skrivene točke").
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize)]
+pub struct WindowMeasures {
+    pub width: f32,
+    pub height: f32,
+    pub list_width: f32,
+}
+
 #[derive(Clone, Default)]
 struct Draft {
     open: bool,
@@ -51,7 +60,7 @@ impl Draft {
 }
 
 /// Draws the block's row in the Settings form; its window opens over the form.
-pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
+pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme, window_size: &WindowMeasures) {
     let id = egui::Id::new(("qnc-export-templates-view", root.to_string_lossy().to_string()));
     let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
     title(ui, "export_template.title", "export_template.hint", metrics, theme);
@@ -71,23 +80,23 @@ pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, 
         draft.open = true;
     }
     if draft.open {
-        window(ui.ctx(), root, metrics, theme, &mut draft);
+        window(ui.ctx(), root, metrics, theme, window_size, &mut draft);
     }
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
 }
 
-fn window(ctx: &egui::Context, root: &Path, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft) {
+fn window(ctx: &egui::Context, root: &Path, metrics: &PanelMetrics, theme: &Theme, size: &WindowMeasures, draft: &mut Draft) {
     let mut open = true;
     egui::Window::new(text("export_template.window_title"))
         .open(&mut open)
         .collapsible(false)
-        .resizable(true)
-        .default_size([760.0, 560.0])
+        .resizable(false)
+        .fixed_size([size.width, size.height])
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx, |ui| {
             ui.horizontal_top(|ui| {
                 ui.vertical(|ui| {
-                    ui.set_width(220.0);
+                    ui.set_width(size.list_width);
                     list(ui, metrics, theme, draft);
                 });
                 ui.separator();
@@ -146,7 +155,7 @@ fn editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme,
         metrics,
         theme,
         |ui, field_width| {
-            ui.add(qnc_ui_kit::text_field(&mut editing.name).desired_width(field_width.max(80.0)));
+            ui.add(qnc_ui_kit::text_field(&mut editing.name).desired_width(field_width.max(80.0)).hint_text(text("export_template.name_hint")));
         },
         |_, _| {},
     );

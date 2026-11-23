@@ -1119,3 +1119,9 @@ ekstenzije (JSON unutra): `tray-mode.qnctray`, `tray-menu.qnctray`, `tray-forms.
 Nije izvedeno: postavke koje dijele QNC i QNC-AI kroz zajednicke kocke (`ai-place.json`, `ai-share.json`, `ui-language.json`,
 `ingest-bases.json`, `ingest-transport.json`, `mouse-wheel.json`, `voice-input.json`, AI predlosci) - to bi mijenjalo i klasicni
 QNC. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik: "forma treba imati fiksne dimenzije koje je moguce editirati preko skrivene tocke"; snimka:
+prozor export predlozaka sirio se preko lijevog ruba ekrana, polja predaje i XML-a odrezana; predlozak nije spremljen jer
+naziv nije upisan): prozor export predlozaka ima fiksnu velicinu i sirinu popisa iz rasporeda Projecta
+(`export_templates_window`: width, height, list_width), koje uredjuje editor izgleda Postavki (skrivena tocka; vrijednosti
+`export_window_width`, `export_window_height`, `export_list_width` u `contracts/ui/forms/settings.look.json`). Polje naziva ima
+napomenu da Spremi trazi naziv. Uzivo nije provjereno.
