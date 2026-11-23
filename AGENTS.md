@@ -1039,3 +1039,13 @@ reza, desna IN slota poslije), pa strelice produljuju ili skracuju samo taj slot
 koji se uredjuje: strana prije | Player | strana poslije (zoom jednog dijela IN | Player | OUT iz prethodnog koraka uklonjen).
 Klik na Player sprema uzeto, ostaje uzeto, playhead na rez. Desni klik na traku i dalje uzima slot i njegov blizi rub.
 Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik: "kad se lijevim klikne na Player, lijeva slicica prikazuje IN prvog dijela izjave, a desna OUT
+izjave; kad se klikne na SLOT uzima se taj slot, lijeva slicica IN odabranog slota, desna OUT; isto za naredni slot; klik na
+sliku uzima marker: lijeva IN, desna OUT"): zoom vlastitog ruba slozene izjave (i izjave od vise dijelova u AI Media Assistu)
+pokazuje doseg: cijelu izjavu ili jedan slot (`qnc-subsegment-edit` `Scope`, `view::scope_zoom`). Lijevo IN dosega (prva slika
+prvog dijela), u sredini Player, desno OUT dosega (zadnja slika zadnjeg dijela); klik na Player je cijela izjava, klik na traku
+trajanja je taj slot (i na timelineu dok je zoom otvoren), klik na sliku uzima taj marker (lijeva IN, desna OUT), uzeti je
+uokviren. Pomaknuti rub upise se prije promjene dosega. Rub uzet izvan dosega postavlja njegov slot. Rubovi 1/13 izjave nisu
+slotovi (`set_margins`; klik na njih ne radi nista). Enter i Esc zatvaraju zoom; Spremi ga ostavlja. Roll cijelog reza i J/L
+spoja zadrzavaju zoom spoja. Test `the_zoom_of_a_scope_shows_its_in_the_player_and_its_out_and_a_picture_takes_that_marker`.
+Uzivo nije provjereno.

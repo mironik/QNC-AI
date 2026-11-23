@@ -253,11 +253,25 @@ pub struct SubsegmentEdit {
     /// The word of the text a click put the playhead on: its part, the axis frame and the clip
     /// frame past its end (O then puts OUT after the word).
     word: Option<(usize, u64, u64)>,
+    /// What the zoom of a part's own edges shows (user 2026-11-23): the whole statement (the
+    /// player clicked), its first IN and last OUT, or one slot (its strip clicked), its IN and OUT.
+    /// `None`: no such zoom.
+    scope: Option<Scope>,
+    /// The 1/13 margins before and after a statement are parts, not slots.
+    margins: (bool, bool),
+}
+
+/// What the zoom of a part's own edges shows: a slot is the space between two markers (user
+/// 2026-11-23), the statement is its first IN to its last OUT.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Scope {
+    Whole,
+    Slot(usize),
 }
 
 impl Default for SubsegmentEdit {
     fn default() -> Self {
-        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None }
+        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None, scope: None, margins: (false, false) }
     }
 }
 
@@ -297,6 +311,9 @@ impl SubsegmentEdit {
         }
         if self.slip_part.is_some_and(|(index, _)| index >= count) {
             self.slip_part = None;
+        }
+        if self.scope.is_some_and(|scope| matches!(scope, Scope::Slot(index) if index >= count)) {
+            self.scope = None;
         }
         if self.level.as_ref().is_some_and(|line| line.id.parse::<usize>().map_or(true, |index| index >= count)) {
             self.level = None;
@@ -356,7 +373,35 @@ impl SubsegmentEdit {
         // A part's own edge taken opens its zoom (IN | player | OUT) and it stays open; a whole cut
         // or a join's sound taken shows the two pictures of the join.
         // The zoom always shows the cut being edited: the side before it, the player, the side after.
-        let zoom = self.trim.and_then(|trim| view::subsegment_zoom(&shown, &pieces, (trim.index, trim.out), (rate, Some((&self.zoom_follow, position))), |clip| names.get(clip).map(|(_, frames, _)| *frames)));
+        // A part's own edge (no roll, no join sound): the zoom of a scope (user 2026-11-23), the
+        // whole statement or one slot, its IN on the left, the player, its OUT on the right; the
+        // edge taken is framed. An edge taken outside the scope shown makes its slot the scope.
+        let own = self.join_sound.is_none() && !self.trim.is_some_and(|trim| trim.roll.is_some());
+        let slots = self.slots(pieces.len());
+        if let (true, Some(trim), Some((first, last))) = (own, self.trim, slots) {
+            let whole_edge = (trim.index == first && !trim.out) || (trim.index == last && trim.out);
+            let within = match self.scope {
+                Some(Scope::Whole) => whole_edge,
+                Some(Scope::Slot(index)) => index == trim.index,
+                None => false,
+            };
+            if !within {
+                self.scope = Some(if (first..=last).contains(&trim.index) { Scope::Slot(trim.index) } else { Scope::Whole });
+            }
+        }
+        let frames_of = |clip: &str| names.get(clip).map(|(_, frames, _)| *frames);
+        let zoom = match (own, self.scope, slots) {
+            (true, Some(scope), Some((first, last))) => {
+                let (from, to) = match scope {
+                    Scope::Whole => (first, last),
+                    Scope::Slot(index) => (index, index),
+                };
+                let taken = self.trim.filter(|trim| (trim.index == from && !trim.out) || (trim.index == to && trim.out)).map(|trim| trim.out);
+                view::scope_zoom(&shown, &pieces, (from, to), taken, (rate, Some((&self.zoom_follow, position))), frames_of)
+            }
+            _ => self.trim.and_then(|trim| view::subsegment_zoom(&shown, &pieces, (trim.index, trim.out), (rate, Some((&self.zoom_follow, position))), frames_of)),
+        };
+        let own_focus = (own && self.scope.is_some()).then(|| self.trim.map(|trim| trim.out));
         // A whole cut taken: the zoom's A1 takes its sound (its label, a right click), and the
         // taken join sound shows its J and L there, red, moved by click and drag (user
         // 2026-11-03: the same zoom as a story's cut).
@@ -379,7 +424,8 @@ impl SubsegmentEdit {
             });
             let sound_side = join_sound.and_then(|join| join.side.focus());
             if let Some(sound) = zoom.zoom_sound.as_mut() {
-                sound.focus_side = sound_side.or(chosen_side);
+                // The scope's zoom frames the edge taken (its IN left, its OUT right), else nothing.
+                sound.focus_side = own_focus.unwrap_or(sound_side.or(chosen_side));
             }
             if let (Some(index), Some(sound)) = (joined.or(join_sound.map(|join| join.index)), zoom.zoom_sound.as_mut()) {
                 let marker_id = format!("join:{index}");
@@ -622,6 +668,29 @@ impl SubsegmentEdit {
         // playhead on its IN; Esc lets it go, Delete takes it out of the statement.
         match action_id {
             SUBSEGMENT_SELECT => {
+                // The zoom of a scope (user 2026-11-23): the player clicked shows the whole
+                // statement, a strip clicked that slot; a moved edge is kept first, the edge is let
+                // go (a picture clicked takes the marker of the scope shown).
+                let roll = self.trim.is_some_and(|trim| trim.roll.is_some());
+                if self.scope.is_some() && self.join_sound.is_none() && !roll {
+                    let scope = match target {
+                        Some("whole") => Scope::Whole,
+                        _ => {
+                            let index = target.and_then(|index| index.parse::<usize>().ok())?;
+                            let (first, last) = self.slots(pieces.len())?;
+                            if !(first..=last).contains(&index) {
+                                return Some(true);
+                            }
+                            Scope::Slot(index)
+                        }
+                    };
+                    if let Some(trim) = self.trim.take() {
+                        self.write_trim(preview, &block, &pieces, trim);
+                    }
+                    (self.chosen, self.chosen_to) = (match scope { Scope::Slot(index) => Some(index), Scope::Whole => None }, None);
+                    self.scope = Some(scope);
+                    return Some(true);
+                }
                 let index = target.and_then(|index| index.parse::<usize>().ok()).filter(|index| *index < pieces.len())?;
                 (self.chosen, self.chosen_to) = (Some(index), None);
                 // In the zoom (a strip clicked; rules 2026-11-05 and 2026-11-09, user 2026-11-23): the
@@ -661,8 +730,8 @@ impl SubsegmentEdit {
                 (self.chosen, self.chosen_to) = (Some(from), (to != from).then_some(to));
                 return Some(true);
             }
-            "clear_focus" if self.chosen.is_some() && self.trim.is_none() && self.sound.is_none() => {
-                self.chosen = None;
+            "clear_focus" if (self.chosen.is_some() || self.scope.is_some()) && self.trim.is_none() && self.sound.is_none() => {
+                (self.chosen, self.scope) = (None, None);
                 return Some(true);
             }
             "delete_marker" if self.trim.is_none() && self.sound.is_none() => {
@@ -723,10 +792,11 @@ impl SubsegmentEdit {
             step if self.trim.is_some() && qnc_edit_step::frames(step).is_some() => qnc_edit_step::frames(step)?,
             "activate_focused_item" if self.trim.is_some() => {
                 let trim = self.trim.take()?;
+                self.scope = None;
                 return Some(self.write_trim(preview, &block, &pieces, trim));
             }
             "clear_focus" if self.trim.is_some() => {
-                self.trim = None;
+                (self.trim, self.scope) = (None, None);
                 self.pieces_request = Some((view::piece_inputs(&block), self.edge_frame(&block).unwrap_or(0)));
                 return Some(true);
             }
@@ -812,7 +882,7 @@ impl SubsegmentEdit {
         self.open_subsegment = Some(block.id);
         self.enlarged = None;
         (self.chosen, self.join_sound, self.trim, self.sound, self.slide, self.slip_part) = (None, None, None, None, None, None);
-        self.level = None;
+        (self.level, self.scope) = (None, None);
         self.pieces_request = Some((view::piece_inputs(block), at));
         self.view.subsegment = Some(view::subsegment_view(block, None));
     }
@@ -886,6 +956,19 @@ impl SubsegmentEdit {
     /// The value of the next action (a frame of the trim zoom's click or drag).
     pub fn set_value(&mut self, value: Option<i64>) {
         self.value = value;
+    }
+
+    /// The first and the last part are the 1/13 margins either side of a statement, not slots
+    /// (its zoom shows the first IN and the last OUT of the parts between them).
+    pub fn set_margins(&mut self, before: bool, after: bool) {
+        self.margins = (before, after);
+    }
+
+    /// The first and the last part that are slots (the margins are not), of `count` parts.
+    fn slots(&self, count: usize) -> Option<(usize, usize)> {
+        let first = usize::from(self.margins.0);
+        let last = count.checked_sub(1 + usize::from(self.margins.1))?;
+        (first <= last).then_some((first, last))
     }
 
     /// The J and L of a join (user 2026-11-03), as at a story's cut: with the whole cut of a join

@@ -137,3 +137,23 @@ fn the_zoom_of_a_subsegment_edge_shows_the_pictures_either_side_of_its_cut() {
     let last = subsegment_zoom(&shown, &pieces, (2, true), (50, None), |_| Some(1000)).unwrap();
     assert!(last.source_edit_stills.iter().filter(|s| !s.live).cloned().collect::<Vec<_>>()[1].strip.is_none());
 }
+
+#[test]
+fn the_zoom_of_a_scope_shows_its_in_the_player_and_its_out_and_a_picture_takes_that_marker() {
+    // A margin before, two slots, a margin after (user 2026-11-23: a slot is between two markers).
+    let pieces = vec![part("a", 80, 100, 0), part("a", 100, 150, 0), part("b", 10, 60, 0), part("b", 60, 70, 0)];
+    let shown = subsegment_view(&Block::of_pieces("sot", pieces.clone()), None);
+    let sides = |zoom: &qnc_program_view::SegmentsView| zoom.source_edit_stills.iter().map(|s| (s.live, s.picture.as_ref().map(|p| (p.clip_id.clone(), p.source_frame)), s.click.as_ref().map(|c| (c.action.clone(), c.target.clone())))).collect::<Vec<_>>();
+    // The whole statement: the first slot's IN, the player, the last slot's OUT.
+    let whole = scope_zoom(&shown, &pieces, (1, 2), None, (50, None), |_| Some(1000)).unwrap();
+    let at = sides(&whole);
+    assert_eq!(at[0], (false, Some(("a".into(), 100)), Some((crate::TAKE_EDGE.to_string(), Some("1:in".to_string())))));
+    assert_eq!(at[1].2, Some((crate::SUBSEGMENT_SELECT.to_string(), Some("whole".to_string()))), "the player shows the whole statement");
+    assert_eq!(at[2], (false, Some(("b".into(), 59)), Some((crate::TAKE_EDGE.to_string(), Some("2:out".to_string())))));
+    // One slot: its own IN and OUT, its OUT taken framed.
+    let slot = scope_zoom(&shown, &pieces, (1, 1), Some(true), (50, None), |_| Some(1000)).unwrap();
+    let at = sides(&slot);
+    assert_eq!((at[0].1.clone(), at[2].1.clone()), (Some(("a".into(), 100)), Some(("a".into(), 149))));
+    assert!(slot.source_edit_stills[2].cut && !slot.source_edit_stills[0].cut);
+    assert_eq!(slot.source_edit_stills[0].strip.as_ref().and_then(|s| s.select.as_ref()).and_then(|s| s.target.clone()), Some("1".to_string()));
+}

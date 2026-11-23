@@ -65,6 +65,7 @@ impl StatementPlay {
             pieces.extend(piece(&last.clip_id, last.to_frame, last.to_frame + after, &self.names));
         }
         self.margins = (before, after);
+        self.edit.set_margins(before > 0, after > 0);
         self.cue_in = true;
         let mut block = Block::of_pieces("sot", pieces);
         block.id = BLOCK;

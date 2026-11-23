@@ -223,3 +223,62 @@ pub fn subsegment_zoom(
     })
 }
 
+
+/// The length strip of part `index` under a zoom picture standing at `frame` of the axis: a left
+/// click chooses that slot, a right click takes it, as on the timeline.
+fn part_strip(view: &SubsegmentView, index: usize, frame: u64) -> Option<qnc_program_view::StillStrip> {
+    let part = view.parts.get(index)?;
+    let frames = part.end.saturating_sub(part.start);
+    let label = view.rate.map_or_else(|| part.length.clone(), |(num, den)| qnc_program_view::duration_label(frames, num, den));
+    Some(qnc_program_view::StillStrip {
+        label,
+        frames,
+        fill: None,
+        chosen: view.chosen == Some(index),
+        select: Some(qnc_program_view::StillAction::new(crate::SUBSEGMENT_SELECT, Some(index.to_string()), None)),
+        take: qnc_program_view::StillAction::new("timeline_take_cover", Some(format!("part-{index}")), Some(frame)),
+    })
+}
+
+/// The zoom of a scope (user 2026-11-23): parts `from` to `to` (the whole statement or one slot;
+/// a slot is the space between two markers). On the left the scope's IN (its first part's first
+/// picture), in the middle the player, on the right its OUT (its last part's last picture). A
+/// click on the player shows the whole statement, on a strip that slot, on a picture takes that
+/// marker (left IN, right OUT); `taken` frames the edge held (false IN, true OUT).
+pub fn scope_zoom(
+    view: &SubsegmentView,
+    pieces: &[Piece],
+    (from, to): (usize, usize),
+    taken: Option<bool>,
+    (rate, follow): (u64, Option<(&qnc_program_view::ZoomFollow, Option<(u64, bool)>)>),
+    clip_frames: impl Fn(&str) -> Option<u64>,
+) -> Option<qnc_program_view::SegmentsView> {
+    use qnc_program_view::{EditStill, StillAction, StillPicture};
+    let (first, last) = (view.parts.get(from)?, view.parts.get(to)?);
+    let (first_piece, last_piece) = (pieces.get(from)?, pieces.get(to)?);
+    let picture = |piece: &Piece, frame: u64| Some(StillPicture { clip_id: piece.clip_id.clone(), source_frame: frame });
+    let (in_frame, out_frame) = (first.start, last.end.saturating_sub(1).max(last.start));
+    let mut left = EditStill::new(in_frame, false, picture(first_piece, first_piece.from_frame)).labelled(&qnc_ui_text::text("story.still.in_first"));
+    left.cut = taken == Some(false);
+    left.click = Some(StillAction::new(crate::TAKE_EDGE, Some(format!("{from}:in")), Some(in_frame)));
+    left.strip = part_strip(view, from, in_frame);
+    left.clip_frames = clip_frames(&first_piece.clip_id);
+    let mut right = EditStill::new(out_frame, true, picture(last_piece, last_piece.to_frame.saturating_sub(1).max(last_piece.from_frame))).labelled(&qnc_ui_text::text("story.still.out_last"));
+    right.cut = taken == Some(true);
+    right.click = Some(StillAction::new(crate::TAKE_EDGE, Some(format!("{to}:out")), Some(out_frame)));
+    right.strip = part_strip(view, to, out_frame);
+    right.clip_frames = clip_frames(&last_piece.clip_id);
+    // The zoom's sound is around the edge taken, else around the scope's IN.
+    let cut = if taken == Some(true) { last.end } else { first.start };
+    let idle = qnc_program_view::ZoomFollow::default();
+    let (follow, position) = follow.unwrap_or((&idle, None));
+    let playhead = position.map_or(cut, |(frame, _)| frame.min(view.total_frames.saturating_sub(1)));
+    let at_axis = view.parts.iter().zip(pieces).find(|(part, _)| (part.start..part.end).contains(&playhead)).and_then(|(part, piece)| picture(piece, piece.from_frame + (playhead - part.start)));
+    let mut player = EditStill::new(playhead, true, at_axis).labelled(&qnc_ui_text::text("zoom.player"));
+    player.live = true;
+    // The player clicked: the whole statement.
+    player.click = Some(StillAction::new(crate::SUBSEGMENT_SELECT, Some("whole".to_string()), None));
+    player.clip_frames = player.picture.as_ref().and_then(|picture| clip_frames(&picture.clip_id));
+    let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half: rate.max(1), total: view.total_frames, position, follow, lanes: [subsegment_placements(view, pieces), Vec::new()] };
+    Some(qnc_program_view::SegmentsView { source_edit_stills: vec![left, player, right], zoom_sound: Some(axis.sound()), ..Default::default() })
+}
