@@ -4,9 +4,9 @@ use serde_json::Value;
 
 use crate::{
     layout_contract::{AdvancedSection, AdvancedSettings, SettingsPanelMetrics},
-    widgets,
 };
 use qnc_desktop_theme::Theme;
+use qnc_settings_block::Pen;
 
 pub enum ApplicationSelectionAction {
     Choose {
@@ -46,9 +46,11 @@ pub fn header(ui: &mut egui::Ui, content_w: f32, advanced: &AdvancedSettings, t:
     }
 }
 
-/// The Advanced settings: its sections come from the layout contract (fields drawn by the
-/// public piece `qnc-settings-form`); this board only composes the three blocks that are
-/// more than fields (keyboard preset, export preset, workflow applications).
+/// The Advanced settings: its sections come from the layout contract, and everything in them is
+/// drawn by the settings style block (`qnc_settings_block::Pen`, user 2026-11-23: "prebaci i
+/// napredne postavke projekta na kocku"): each section a section of the Settings form, each field a
+/// row; this board only composes the blocks that are more than fields (keyboard preset, export
+/// preset, interface language, workflow applications).
 pub fn show(
     ui: &mut egui::Ui,
     content_w: f32,
@@ -58,87 +60,85 @@ pub fn show(
     draft: AdvancedDraft<'_>,
     application_action: &mut Option<ApplicationSelectionAction>,
 ) -> bool {
-    ui.spacing_mut().item_spacing.y = settings.section_gap;
-    let style = grid_style(advanced, shell);
+    let pen = Pen::new(settings, shell, content_w);
     let mut draft = draft;
     let mut changed = false;
     for section in &advanced.sections {
-        widgets::section(ui, content_w, &section.title, settings, shell, |ui| {
-            changed |= section_body(ui, section, advanced, &style, settings, shell, &mut draft, application_action);
+        pen.section(ui, &section.title, |ui| {
+            changed |= section_body(ui, &pen, section, advanced, shell, &mut draft, application_action);
         });
     }
     changed
 }
 
-/// The look of a field grid of the panel, from the contract.
-pub fn grid_style(advanced: &AdvancedSettings, shell: &Theme) -> qnc_settings_form::GridStyle {
-    let grid = &advanced.grid;
-    let label_color = shell.text_muted;
-    qnc_settings_form::GridStyle { label_color, label_size: grid.label_size, min_cell_width: grid.min_cell_width, gap: grid.gap, cell_height: grid.cell_height, label_beside: None }
-}
-
-#[allow(clippy::too_many_arguments)]
 fn section_body(
     ui: &mut egui::Ui,
+    pen: &Pen,
     section: &AdvancedSection,
     advanced: &AdvancedSettings,
-    style: &qnc_settings_form::GridStyle,
-    settings: &SettingsPanelMetrics,
     shell: &Theme,
     draft: &mut AdvancedDraft<'_>,
     application_action: &mut Option<ApplicationSelectionAction>,
 ) -> bool {
-    let width = ui.available_width();
-    let one = qnc_settings_form::cell_width(width, 1, style);
     let mut changed = false;
     match section.block.as_deref() {
         Some("keyboard_preset") => {
             let path = "keyboard_shortcuts.active_preset";
             let current = path_string(draft.draft_settings, path, draft.keyboard_default);
-            if let Some(chosen) = qnc_settings_form::choice_cell(
-                ui, one, &section.label, "pts_kbd_preset", &current, draft.keyboard_presets, style,
-            ) {
+            if let Some(chosen) = pen.choice(ui, &section.label, "pts_kbd_preset", &current, draft.keyboard_presets) {
                 set_string_path(draft.draft_settings, path, chosen);
                 changed = true;
             }
         }
         Some("export_preset") => {
-            let mut presets: Vec<_> = qnc_export_preset::presets(draft.draft_settings)
-                .into_iter()
-                .map(|preset| (preset.id, preset.name))
-                .collect();
+            let mut presets: Vec<_> = qnc_export_preset::presets(draft.draft_settings).into_iter().map(|preset| (preset.id, preset.name)).collect();
             presets.push((qnc_export_preset::MANUAL_PRESET_ID.to_string(), advanced.texts.manual_preset.clone()));
             let current = path_string(draft.draft_settings, "export.preset", qnc_export_preset::MANUAL_PRESET_ID);
-            let selected = qnc_settings_form::choice_cell(ui, one, &section.label, "pts_export_preset", &current, &presets, style)
-                .unwrap_or(current);
+            let selected = pen.choice(ui, &section.label, "pts_export_preset", &current, &presets).unwrap_or(current);
             changed |= qnc_export_preset::apply_preset(draft.draft_settings, &selected);
         }
         Some("applications") => applications(ui, advanced, shell, draft, application_action),
-        other => qnc_language_choice::section(ui, other, one, &section.label, style),
+        Some(qnc_language_choice::SECTION) => language(ui, pen, &section.label),
+        _ => {}
     }
-    changed |= qnc_settings_form::field_grid(ui, width, draft.draft_settings, &section.fields, &advanced.options, style);
+    changed |= pen.fields(ui, draft.draft_settings, &section.fields, &advanced.options);
     if let Some(then) = section.then.as_ref().filter(|then| then.when.holds(draft.draft_settings)) {
-        ui.add_space(settings.section_gap);
-        changed |= qnc_settings_form::field_grid(ui, ui.available_width(), draft.draft_settings, &then.fields, &advanced.options, style);
+        changed |= pen.fields(ui, draft.draft_settings, &then.fields, &advanced.options);
         if then.save_preset {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::TextEdit::singleline(draft.export_preset_draft_name)
-                        .desired_width((ui.available_width() - 160.0).max(120.0))
-                        .hint_text(&advanced.texts.new_preset_hint),
-                );
-                let can_save = !draft.export_preset_draft_name.trim().is_empty();
-                if widgets::accent_btn(ui, &advanced.texts.save_preset, can_save, shell).clicked()
-                    && qnc_export_preset::save_custom_preset(draft.draft_settings, draft.export_preset_draft_name)
-                {
-                    draft.export_preset_draft_name.clear();
-                    changed = true;
-                }
-            });
+            let mut save = false;
+            let can_save = !draft.export_preset_draft_name.trim().is_empty();
+            pen.row(
+                ui,
+                "",
+                |ui, row| {
+                    row.input(ui, draft.export_preset_draft_name, row.width, &advanced.texts.new_preset_hint);
+                },
+                |ui, buttons| save = buttons.primary(ui, &advanced.texts.save_preset, can_save),
+            );
+            if save && qnc_export_preset::save_custom_preset(draft.draft_settings, draft.export_preset_draft_name) {
+                draft.export_preset_draft_name.clear();
+                changed = true;
+            }
         }
     }
     changed
+}
+
+/// The interface language of this computer (the languages QNC has dictionaries for, written to
+/// this computer's setting by `qnc-ui-text`, as the shared block `qnc-language-choice` does), in a
+/// row of the style block; while it is not the language QNC runs in, a note that it applies on restart.
+fn language(ui: &mut egui::Ui, pen: &Pen, label: &str) {
+    let Some(root) = qnc_dev_diagnostics::locate_qnc_root() else { return };
+    let chosen = qnc_ui_text::chosen_language(&root);
+    if let Some(language) = pen.choice(ui, label, "qnc_ui_language", &chosen, &qnc_ui_text::languages()) {
+        if let Err(error) = qnc_ui_text::choose_language(&root, &language) {
+            pen.said(ui, &Some(Err(error)));
+        }
+    }
+    let running = qnc_ui_text::host().map(|texts| texts.language.clone()).unwrap_or_default();
+    if qnc_ui_text::chosen_language(&root) != running {
+        pen.hint(ui, qnc_ui_text::text("project.language_after_restart"));
+    }
 }
 
 fn applications(

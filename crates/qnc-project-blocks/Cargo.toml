@@ -12,6 +12,7 @@ qnc-tray-settings-view = { workspace = true }
 qnc-export-templates-view = { workspace = true }
 qnc-location-field-view = { workspace = true }
 qnc-ui-text = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
 eframe = { workspace = true }
 qnc-application-selection = { workspace = true }
 qnc-board = { workspace = true }
