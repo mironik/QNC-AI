@@ -7,7 +7,7 @@
 //! theme and the width it writes in. With it a block draws:
 //! - a section (a rule, its title) and its hint, and what a write said;
 //! - a row: its label on the left, the field in the middle, the button column on the right
-//!   (`qnc_settings_rows::inline_row`), and in the field the row's own controls ([`Row`]): a typed
+//!   (the label on the left of its column, where a section title starts), and in the field the row's own controls ([`Row`]): a typed
 //!   field, a list, a box, all one height, their text level with the row's label, a list always
 //!   exactly as wide (a long choice is cut, so what follows it starts at the same place);
 //! - a whole row of each kind (text, secret, list, box), a row of field specs, buttons under the
@@ -141,15 +141,39 @@ impl<'a> Pen<'a> {
     /// A row: `label` on the left, `field` in the middle, `buttons` in the button column.
     pub fn row(&self, ui: &mut egui::Ui, label: &str, field: impl FnOnce(&mut egui::Ui, &Row), buttons: impl FnOnce(&mut egui::Ui, &Buttons)) {
         let (theme, metrics) = (self.theme, self.metrics);
-        qnc_settings_rows::inline_row(
-            ui,
-            self.width,
-            label,
-            metrics,
-            theme,
-            |ui, width| field(ui, &Row { theme, metrics, width }),
-            |ui, _| buttons(ui, &Buttons { theme }),
-        );
+        let (label_w, field_w, button_w) = self.columns();
+        let height = metrics.row_height;
+        ui.horizontal(|ui| {
+            ui.set_min_height(height);
+            ui.set_max_width(self.width);
+            ui.spacing_mut().item_spacing.x = 0.0;
+            // The label starts where a section's title does, on the left of its column, in the middle of the row.
+            ui.allocate_ui_with_layout(egui::vec2(label_w, height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_width(label_w);
+                ui.add(egui::Label::new(RichText::new(label).size(metrics.label_font_size).strong().color(theme.text_muted)).truncate());
+            });
+            ui.add_space(metrics.inline_column_gap);
+            ui.allocate_ui_with_layout(egui::vec2(field_w, height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_max_width(field_w);
+                ui.spacing_mut().item_spacing.x = metrics.inline_column_gap / 2.0;
+                field(ui, &Row { theme, metrics, width: field_w });
+            });
+            ui.add_space(metrics.inline_column_gap);
+            ui.allocate_ui_with_layout(egui::vec2(button_w, height), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.set_width(button_w);
+                ui.spacing_mut().item_spacing.x = 8.0;
+                buttons(ui, &Buttons { theme });
+            });
+        });
+    }
+
+    /// The widths of a row's label, field and button columns: the label and the buttons as the
+    /// Settings form's measures name them, the field the rest.
+    fn columns(&self) -> (f32, f32, f32) {
+        let metrics = self.metrics;
+        let (label_w, button_w) = (metrics.inline_label_width, metrics.inline_button_width);
+        let field_w = (self.width - label_w - button_w - metrics.inline_column_gap * 2.0).max(metrics.field_min_width.min(self.width));
+        (label_w, field_w, button_w)
     }
 
     /// A row of one typed field (its label by its text code); gives whether it changed.
@@ -161,9 +185,8 @@ impl<'a> Pen<'a> {
 
     /// A field of several lines as wide as the rows (a text that is written: a description).
     pub fn area(&self, ui: &mut egui::Ui, value: &mut String, hint: &str) -> bool {
-        let width = (self.width - self.metrics.inner_pad_x * 2.0).max(80.0);
+        let width = self.width.max(80.0);
         ui.horizontal(|ui| {
-            ui.add_space(self.metrics.inner_pad_x);
             ui.add(qnc_ui_kit::text_area(value).desired_width(width).desired_rows(2).hint_text(hint)).changed()
         })
         .inner
@@ -228,8 +251,8 @@ impl<'a> Pen<'a> {
 
     /// Buttons under the button column of the rows.
     pub fn buttons(&self, ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui, &Buttons)) {
-        let theme = self.theme;
-        qnc_settings_rows::trailing_actions(ui, self.width, self.metrics, |ui| add(ui, &Buttons { theme }));
+        // The same columns as a row: the buttons in its button column.
+        self.row(ui, "", |_, _| {}, add);
     }
 
     /// The height of `rows` rows.
