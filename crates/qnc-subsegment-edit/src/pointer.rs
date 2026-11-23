@@ -98,13 +98,11 @@ pub fn nearest_edge(view: &SubsegmentView, frame: u64) -> Option<(usize, &'stati
         .enumerate()
         .flat_map(|(index, part)| [(index, false, part.start), (index, true, part.end)])
         .min_by_key(|(_, out, at)| (frame.abs_diff(*at), (*out && frame >= *at) || (!*out && frame < *at)))?;
-    let joined = |before: usize| view.parts.get(before + 1).is_some_and(|next| next.start == view.parts[before].end);
-    Some(match (out, index) {
-        (true, index) if joined(index) => (index, "cut"),
-        (false, index) if index > 0 && joined(index - 1) && view.parts[index - 1].end == at => (index - 1, "cut"),
-        (true, index) => (index, "out"),
-        (false, index) => (index, "in"),
-    })
+    // A composite statement is several statements in one view (user 2026-11-23): every part has its
+    // own IN and OUT, a join is no shared cut; before it the OUT of the part before, from it the IN
+    // of the part after.
+    let _ = at;
+    Some((index, if out { "out" } else { "in" }))
 }
 
 #[cfg(test)]
@@ -124,8 +122,8 @@ mod tests {
     fn a_right_click_takes_every_in_and_out_of_every_part() {
         let view = view();
         assert_eq!(nearest_edge(&view, 2), Some((0, "in")), "the first part's IN");
-        assert_eq!(nearest_edge(&view, 48), Some((0, "cut")), "a join without a pause is one cut, before it");
-        assert_eq!(nearest_edge(&view, 52), Some((0, "cut")), "and after it");
+        assert_eq!(nearest_edge(&view, 48), Some((0, "out")), "before a join: the OUT of the part before");
+        assert_eq!(nearest_edge(&view, 52), Some((1, "in")), "from it: the IN of the part after");
         assert_eq!(nearest_edge(&view, 91), Some((1, "out")), "an OUT before a pause");
         assert_eq!(nearest_edge(&view, 94), Some((2, "in")), "an IN after a pause");
         assert_eq!(nearest_edge(&view, 140), Some((2, "out")), "the last part's OUT");
@@ -155,7 +153,7 @@ mod tests {
         assert_eq!(own("timeline_take_cover", Some(100), Some("part-2"), false), some(TAKE_EDGE, Some("2:in:slot")), "a right click on the strip: the slot and its nearer IN");
         assert_eq!(own("timeline_take_cover", Some(140), Some("part-2"), false), some(TAKE_EDGE, Some("2:out:slot")), "or its nearer OUT");
         assert_eq!(own("select_audio_a1", Some(100), None, false), some("select_audio_a1", Some("2")), "a right click on A1: that part's sound");
-        assert_eq!(own("select_marker", Some(48), Some("edge-0-out"), false), some(TAKE_EDGE, Some("0:cut")), "a right click near a join: the cut");
+        assert_eq!(own("select_marker", Some(48), Some("edge-0-out"), false), some(TAKE_EDGE, Some("0:out")), "a right click before a join: the OUT of the part before");
         assert_eq!(own("select_marker", Some(140), Some("edge-2-out"), false), some(TAKE_EDGE, Some("2:out")));
         assert_eq!(own("timeline_drag_marker", Some(120), Some("edge-2-out"), true), some(DRAG_EDGE, Some("2:out:120")), "a drag of the taken edge");
         assert_eq!(own("export_open", None, None, false), None, "not a pointer action");

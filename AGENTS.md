@@ -1060,3 +1060,7 @@ segmenta"): timeline slozene izjave (`qnc-subsegment-panel`) vise ne crta dijelo
 (virtualni spanovi uklonjeni, bez zatamnjene podloge): dijelovi su jedan red klipova, svaki sa svojim filmstripom, valom A1
 i trakom trajanja svog slota. Dvoklik na A1 vise ne otvara dio kao segment; dvoklik na sliku i dalje povecava dio. Uzivo nije
 provjereno.
+Izmjena 2026-11-23 (korisnik: "slozena izjava je vise izjava u jednom prikazu"): svaki dio slozene izjave je izjava sa svojim
+IN-om i OUT-om. Spoj dvaju dijelova vise nije jedan zajednicki rez: desni klik (i desni klik na sliku zooma) prije spoja uzima
+OUT dijela prije, od spoja IN dijela poslije (`qnc-subsegment-edit` `nearest_edge`, nikad `cut`); roll dvaju dijelova vise se
+ne uzima misem. J/L tona spoja ostaje. Testovi prilagodjeni. Uzivo nije provjereno.

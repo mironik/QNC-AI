@@ -122,8 +122,8 @@ fn the_zoom_of_a_subsegment_edge_shows_the_pictures_either_side_of_its_cut() {
     assert_eq!(pick(1), Some((crate::SUBSEGMENT_SELECT.to_string(), Some("1".to_string()))));
     assert_eq!(own(&strip(0).take), some(crate::TAKE_EDGE, "0:out:slot"), "a right click on the strip: the slot, its edge at the cut");
     assert_eq!(own(&strip(1).take), some(crate::TAKE_EDGE, "1:in:slot"));
-    assert_eq!(own(at(0).right_click.as_ref().unwrap()), some(crate::TAKE_EDGE, "0:cut"), "a right click on the picture: the marker there");
-    assert_eq!(own(at(1).right_click.as_ref().unwrap()), some(crate::TAKE_EDGE, "0:cut"));
+    assert_eq!(own(at(0).right_click.as_ref().unwrap()), some(crate::TAKE_EDGE, "0:out"), "a right click on the picture: its own marker there");
+    assert_eq!(own(at(1).right_click.as_ref().unwrap()), some(crate::TAKE_EDGE, "1:in"));
     // The IN of the third part follows a pause: on the left is still the OUT of the part before.
     let zoom = subsegment_zoom(&shown, &pieces, (2, false), (50, None), |_| Some(1000)).unwrap();
     assert_eq!(zoom.source_edit_stills.iter().filter(|s| !s.live).cloned().collect::<Vec<_>>()[0].picture.as_ref().map(|p| (p.clip_id.as_str(), p.source_frame)), Some(("a", 339)));
