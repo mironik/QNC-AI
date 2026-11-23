@@ -1030,3 +1030,12 @@ Player sprema rez, rez ostaje uzet, playhead ide na rez. `qnc-trim-overlay` (QNC
 Popravak 2026-11-23 (korisnik: "nema playera"; log: `trim-stills asked [Player @318 ...]` svaku slicicu nova slika dok svira,
 dekodiranje ne stize i prozor je crn): Player u sredini zooma slozene izjave dobiva sliku monitora kao zoom izjave
 (`qnc-subsegment-edit`: `trim_stills.fill(.., preview.shown_picture())`, prije `None`). Uzivo nije provjereno.
+
+Popravak 2026-11-23 (korisnik: "u zoomu SLOT krivo, analiziraj kakvo treba biti ponasanje slota"; log: s uzetim cijelim rezom
+`1:cut` lijevi klik na desnu traku je spremio rez i prebacio zoom na IN | Player | OUT dijela 2, drugi klik vise nista): po
+zapisanom pravilu slota (5. i 9. 11.) lijevi klik na traku u zoomu bira slot te strane reza, zoom ostaje na istom rezu, nista se
+ne sprema ni ne zatvara; dok uzeto nije pomaknuto izbor ga zamjenjuje vlastitim rubom tog slota (lijeva traka OUT slota prije
+reza, desna IN slota poslije), pa strelice produljuju ili skracuju samo taj slot; pomaknuto ceka Enter. Zoom uvijek pokazuje rez
+koji se uredjuje: strana prije | Player | strana poslije (zoom jednog dijela IN | Player | OUT iz prethodnog koraka uklonjen).
+Klik na Player sprema uzeto, ostaje uzeto, playhead na rez. Desni klik na traku i dalje uzima slot i njegov blizi rub.
+Uzivo nije provjereno.
