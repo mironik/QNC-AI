@@ -292,6 +292,9 @@ pub enum SettingsBlock {
     AiServer,
     /// The card readers on the network (`qnc-card-readers-view`).
     CardReaders,
+    /// The tray of this computer: what its menu shows, the form each mode opens
+    /// (`qnc-tray-settings-view`).
+    Tray,
     /// The templates and the Advanced settings of a project.
     Templates,
 }

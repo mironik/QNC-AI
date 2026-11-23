@@ -1090,3 +1090,11 @@ LLM) i `qnc-card-readers-view` (citaci kartica); ono sto obje crtaju isto je `qn
 poruka). `qnc-project-blocks`: `SettingsBlock`, `settings_block`, `templates` (template i Advanced); lokacije vise ne crtaju
 ostale dijelove. Redoslijed i izgled isti kao prije. Test. Uzivo nije provjereno. Sljedece: kocka postavki traya s kvacicama
 za stavke izbornika (korisnik: "u postavkama trebaju biti checkboxovi za postavljanje onoga sto ce se vidjeti u trayu").
+Izvedeno 2026-11-23 (korisnik: "sadrzaj traya nije hardkodiran, i njega cemo kreirati u Postavkama"; "u postavkama trebaju
+biti checkboxovi za postavljanje onoga sto ce se vidjeti u trayu"; otkljucan tray): nova kocka `qnc-tray-menu` (+ postavka
+racunala `data/tray-menu.json`: skrivene stavke; bez postavke vide se sve, Izlaz uvijek) i nova kocka Postavki
+`qnc-tray-settings-view` (kvacica za svaku stavku izbornika traya, upis odmah; za svaki nacin rada forma iz kataloga aplikacija
+ili Nijedna i njezini argumenti, upis na Spremi u `data/tray-forms.json`). Blok `tray` u `contracts/ui/settings.layout.json`.
+Tray slaze izbornik iz postavke i cita je ponovno svake 2 s (promjena u Postavkama vidi se bez ponovnog pokretanja).
+Tekstovi `settings_tray.*`, `tray.status_item` (en, hr). Prozor uvoza i AI Media Assist nisu mijenjani. Test. Uzivo nije
+provjereno.

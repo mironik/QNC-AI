@@ -3966,6 +3966,7 @@ dependencies = [
  "qnc-process-job",
  "qnc-source-volumes",
  "qnc-tray",
+ "qnc-tray-menu",
  "qnc-tray-mode",
  "qnc-wizard-open",
  "qnc-wizard-text",
@@ -6754,6 +6755,7 @@ dependencies = [
  "qnc-settings-path",
  "qnc-settings-rows",
  "qnc-settings-switches",
+ "qnc-tray-settings-view",
  "qnc-ui-kit",
  "qnc-ui-text",
  "serde",
@@ -8304,11 +8306,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-tray-menu"
+version = "0.1.0"
+dependencies = [
+ "qnc-tray-mode",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-tray-mode"
 version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-tray-settings-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-application-catalog",
+ "qnc-desktop-theme",
+ "qnc-settings-block",
+ "qnc-settings-rows",
+ "qnc-tray-menu",
+ "qnc-tray-mode",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
  "serde_json",
 ]
 

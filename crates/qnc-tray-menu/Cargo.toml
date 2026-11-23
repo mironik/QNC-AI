@@ -1,0 +1,10 @@
+[package]
+name = "qnc-tray-menu"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: what the tray's menu shows on this computer, a setting chosen in Settings (the items hidden; Quit is always there)"
+
+[dependencies]
+qnc-tray-mode = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

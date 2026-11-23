@@ -8,6 +8,7 @@
     "ingest_orchestrator",
     "ai_server",
     "card_readers",
+    "tray",
     "templates"
   ]
 }

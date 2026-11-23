@@ -313,6 +313,7 @@ impl Blocks<'_> {
             }
             SettingsBlock::AiServer => qnc_ai_server_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::Tray => qnc_tray_settings_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::Templates => self.templates(ui, width, settings),
         }
     }

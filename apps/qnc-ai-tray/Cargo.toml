@@ -15,6 +15,7 @@ qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-base = { workspace = true }
 qnc-tray = { workspace = true }
 qnc-tray-mode = { workspace = true }
+qnc-tray-menu = { workspace = true }
 qnc-process-job = { workspace = true }
 qnc-base-admin = { workspace = true }
 qnc-wizard-text = { workspace = true }

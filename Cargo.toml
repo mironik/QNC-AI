@@ -273,6 +273,8 @@ qnc-transport-panel = { path = "../QNC-shared/crates/qnc-transport-panel" }
 qnc-transport-resolver = { path = "../QNC-shared/crates/qnc-transport-resolver" }
 qnc-tray = { path = "crates/qnc-tray" }
 qnc-tray-mode = { path = "crates/qnc-tray-mode" }
+qnc-tray-menu = { path = "crates/qnc-tray-menu" }
+qnc-tray-settings-view = { path = "crates/qnc-tray-settings-view" }
 qnc-wizard-open = { path = "crates/qnc-wizard-open" }
 qnc-trim-overlay = { path = "../QNC-shared/crates/qnc-trim-overlay" }
 qnc-ui-kit = { path = "../QNC-shared/crates/qnc-ui-kit" }
