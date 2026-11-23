@@ -404,7 +404,7 @@ impl SubsegmentEdit {
         // A whole cut taken: the zoom's A1 takes its sound (its label, a right click), and the
         // taken join sound shows its J and L there, red, moved by click and drag (user
         // 2026-11-03: the same zoom as a story's cut).
-        let joined = self.trim.map(|trim| if trim.out || trim.roll.is_some() { trim.index + 1 } else { trim.index }).filter(|index| *index > 0 && pieces.get(*index).is_some_and(|piece| piece.gap_before == 0));
+        let joined = self.trim.filter(|trim| trim.roll.is_some()).map(|trim| if trim.out || trim.roll.is_some() { trim.index + 1 } else { trim.index }).filter(|index| *index > 0 && pieces.get(*index).is_some_and(|piece| piece.gap_before == 0));
         let join_sound = self.join_sound;
         let chosen = self.chosen;
         // A1 of the trimmed part as its lane shows it (AGENTS 0.12, docs/97 step 3).
@@ -969,8 +969,9 @@ impl SubsegmentEdit {
         let mut join = match self.join_sound {
             Some(join) => join,
             None => {
-                // An edge taken at a join (the whole cut, the OUT before it or the IN after it).
-                let trim = self.trim.filter(|_| take_sound || take_picture)?;
+                // Only the whole cut of a join: a part's own edge is a statement's edge (user 2026-11-23,
+                // "several statements in one view"), its A1 is that part's sound, not the join's J and L.
+                let trim = self.trim.filter(|trim| (take_sound || take_picture) && trim.roll.is_some())?;
                 let index = if trim.out || trim.roll.is_some() { trim.index + 1 } else { trim.index };
                 let piece = pieces.get(index).filter(|piece| index > 0 && piece.gap_before == 0)?;
                 if pieces.get(trim.index).is_some_and(|stored| (stored.from_frame, stored.to_frame) != (trim.from, trim.to)) || trim.roll.is_some_and(|from| pieces.get(trim.index + 1).is_some_and(|next| next.from_frame != from)) {

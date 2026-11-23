@@ -1073,3 +1073,7 @@ vracalo na staro jer se upis bacao). U bazu izjava se jos ne zapisuje. Uzivo nij
 Popravak 2026-11-23 (korisnik: "klik na player-monitor u sredini zooma treba postaviti playhead na IN prvog klipa bez obzira sto
 je prije bilo odabrano"; log: klik je stizao i prebacivao na cijelu izjavu, playhead je ostajao): klik na Player u zoomu slozene
 izjave uz cijelu izjavu stavlja playhead na IN prvog dijela (rubovi 1/13 nisu dijelovi). Uzivo nije provjereno.
+Popravak 2026-11-23 (korisnik: "otkazuje poslusnost, izgubi se"; log: s uzetim IN-om drugog dijela klik na A1 u zoomu uzeo je
+J/L tona spoja, zoom se prebacio na stari zoom spoja, Player je tada samo spremao, a klik na sliku uzimao sliku spoja, pa se iz
+zooma nije moglo izaci): vlastiti rub dijela je rub izjave; A1 u zoomu i Ctrl+1 uzimaju zvuk tog dijela, nikad J/L spoja.
+J/L spoja uzima se samo uz cijeli rez spoja (koji se misem vise ne uzima). Zoom dosega ostaje. Uzivo nije provjereno.
