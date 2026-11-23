@@ -1162,3 +1162,4 @@ koji `qnc_shot_labels::Labels::read` cita. Nova oznaka nema kljuc rjecnika: nazi
 postavki lijevo "Oznake kadrova". AI postavke imaju sve sto je trazeno (predlosci, motori, server i LLM, AI mapa, oznake).
 Uzivo nije provjereno.
 Popravak 2026-11-23 (korisnik: "u desnom panelu za Oznake trebas dodati vertikal scroll"): prozor bloka Postavki (`qnc-settings-window`) ima okomiti scroll i u izborniku i u desnom panelu, za svaki prozor takvog bloka (export, AI postavke). Uzivo nije provjereno.
+Ispravak 2026-11-23 (korisnik: "ne pragovi, samo OZNAKE trebaju scroll bar"): desni panel prozora bloka vise ne skrola cijeli; u oznakama kadrova skrola samo popis oznaka, pragovi, nova oznaka, pravila i Spremi ostaju na mjestu. Izbornik lijevo skrola kad je visi od prozora. Uzivo nije provjereno.

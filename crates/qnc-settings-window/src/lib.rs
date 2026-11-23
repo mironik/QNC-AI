@@ -90,7 +90,7 @@ pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, metrics: 
             let (list_width, right_width) = (look.get("list_width"), look.get("right_width"));
             egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(egui::Margin::same(margin))).show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
-                    // Each side scrolls up and down on its own when what it shows is taller than the window.
+                    // The menu scrolls when it is taller than the window; the panel's own parts scroll where they choose.
                     let height = ui.available_height();
                     ui.vertical(|ui| {
                         ui.set_width(list_width);
@@ -101,9 +101,7 @@ pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, metrics: 
                     ui.separator();
                     ui.vertical(|ui| {
                         ui.set_width(right_width);
-                        egui::ScrollArea::vertical().id_salt(("qnc-settings-window-panel", form)).max_height(height).auto_shrink([false, false]).show(ui, |ui| {
-                            body(ui, Pane::Panel, &style);
-                        });
+                        body(ui, Pane::Panel, &style);
                     });
                 });
             });
