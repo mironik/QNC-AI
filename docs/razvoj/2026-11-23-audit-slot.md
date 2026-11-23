@@ -107,3 +107,62 @@ Isti `qnc-subsegment-edit` koristi MA Script (`qnc-script`), koji upise piše u 
    spoj, ukloni dio), a `statement.rs` upise prevodi u njih umjesto da ih baca.
 2. Rubovi 1/13 nisu dijelovi za uređivanje (samo prikaz).
 3. Pravila miša i zooma ostaju ista kao u MA Scriptu (ista kocka).
+
+---
+
+# Audit slota u QNC-AI po pravilu (2026-11-23)
+
+Pravilo: slot je prostor između dva markera (IN, OUT ili M). Izjava = 1 slot, složena izjava =
+slot po dijelu, Story / S-Story = slot između M markera. Iste radnje moraju vrijediti za svaki slot.
+
+U QNC-AI slot postoji na tri mjesta:
+- **izjava** na source timelineu (AI Media Assist, MA Script): `qnc-source-timeline`,
+  `qnc-source-panel`, zoom u `qnc-program-segments` (`source_stills`);
+- **složena izjava** (AI Media Assist kroz `qnc-side-pieces/statement.rs`, MA Script kroz
+  `qnc-script`): `qnc-subsegment-edit`, `qnc-subsegment-panel`;
+- **Story / S-Story** Wrap redovi: `qnc-program-segments`, `qnc-segment-panel` (QNC-shared).
+
+## Radnje slota po mjestu
+
+| Radnja | Izjava (1 slot) | Složena izjava (slot po dijelu) | Story / S-Story |
+|---|---|---|---|
+| traka trajanja slota | **nema** | ima | ima (slot s pokrivalicom; S-Story svaki klip) |
+| lijevi klik na traku (timeline) | – | izbor dijela, playhead na IN | izbor slota |
+| desni klik na traku (timeline) | – | bliži rub dijela (duljina) | slot cijeli (Ctrl+S, pomak) |
+| lijevi klik na traku (zoom) | – | izbor; nepomaknuti rez postaje rub tog dijela | slot cijeli (`zoom_take_slot`) |
+| rub slota (Ctrl+I / Ctrl+O) | IN / OUT izjave | rub dijela pod playheadom ili izabranog | rub slota (`TrimSlot`) |
+| slot cijeli (Ctrl+S) | **nema** | ima (`slide`), **bez zooma** | ima (`MoveSlot`), zoom 4 slike |
+| marker između dva slota (cijeli rez) | – (IN/OUT nisu između dva slota) | desni klik blizu spoja: roll | M marker (Ctrl+M, desni klik) |
+| zoom | IN \| Player \| OUT izjave | strana prije \| Player \| strana poslije | 2 slike (marker, rub) / 4 slike (slot cijeli), **bez Playera** |
+| klik na sliku u zoomu | uzme IN ili OUT | slika reza (V) | slika reza (V) |
+| klik na Player | spremi, pusti oznaku, playhead na IN, zoom ostaje | spremi, rez ostaje uzet, playhead na rez | – |
+| spremanje | Enter / Spremi pušta oznaku; **Ažuriraj** piše `TrimShort` | MA Script: blok scenarija; **AI Media Assist: baca se** | baza priče (`MoveSlot`, `TrimSlot`, `MoveMarker`) |
+| Delete na izabranom slotu | – | dio izlazi iz izjave (samo MA Script; u AI MA se baca) | briše pokrivalicu slota; S-Story klip |
+| Undo | – | MA Script undo scenarija; AI MA nema | undo priče |
+
+## Nalazi
+
+1. **Izjava nije slot u kodu:** nema traku trajanja, nema slot cijeli (Ctrl+S), nema izbor
+   slota klikom. Ima samo rubove (IN/OUT) i svoj zoom.
+2. **Desni klik na traku znači dvije stvari:** u složenoj izjavi rub dijela (odluka 5. 11.), u
+   Storyju slot cijeli. Lijevi klik na traku u zoomu: u složenoj izjavi izbor, u Storyju slot
+   cijeli.
+3. **Zoom je tri različita:** izjava IN \| Player \| OUT, složena izjava strana \| Player \| strana,
+   Story bez Playera (2 ili 4 slike).
+4. **Slot cijeli (Ctrl+S) u složenoj izjavi nema zoom**, u Storyju ima.
+5. **Složena izjava u AI Media Assistu ništa ne sprema:** `statement.rs` baca upise, a
+   `qnc-virtual-shots` zna samo `AddPart` (nema izmjene IN/OUT dijela, spoja, brisanja, undoa).
+6. **Rubovi 1/13 su u logici dijelovi:** dodani su kao dijelovi bez razmaka, pa
+   `nearest_edge` IN prvog dijela i OUT zadnjeg vidi kao spoj s rubom 1/13 (roll s rubom), a
+   Ctrl+S može micati rub kao susjeda. IN prvog i OUT zadnjeg dijela trebaju biti obični rubovi
+   slota, kao IN/OUT izjave.
+7. **Vrsta spoja (Cut / Smooth / Blic)** iz `virtual_shot_parts` ne dolazi do uređivanja.
+
+## Što znači isto pravilo za svaki slot (prijedlog)
+
+- svaki slot ima traku trajanja (i izjava);
+- iste geste na traci na timelineu i u zoomu (odlučiti: desni klik = slot cijeli kao Story, ili
+  rub kao složena izjava od 5. 11.);
+- isti zoom: strana prije \| Player \| strana poslije za rez, IN \| Player \| OUT za slot;
+- Ctrl+S, Ctrl+I/O, Delete, Undo isti;
+- svaka izmjena slota spremljena kod vlasnika (izjava i njezini dijelovi u `virtual_shots`).
