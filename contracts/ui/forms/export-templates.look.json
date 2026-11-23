@@ -1,14 +1,77 @@
 {
   "form": "export-templates",
   "values": [
-    { "key": "window_width", "label": "Prozor: širina", "value": 1100.0, "min": 600.0, "max": 2400.0, "step": 1.0 },
-    { "key": "window_height", "label": "Prozor: visina", "value": 760.0, "min": 400.0, "max": 1600.0, "step": 1.0 },
-    { "key": "list_width", "label": "Izbornik lijevo: širina", "value": 300.0, "min": 160.0, "max": 800.0, "step": 1.0 },
-    { "key": "right_width", "label": "Desni panel: širina", "value": 720.0, "min": 300.0, "max": 2000.0, "step": 1.0 },
-    { "key": "margin", "label": "Margina", "value": 16.0, "min": 0.0, "max": 80.0, "step": 1.0 },
-    { "key": "label_size", "label": "Oznake: veličina slova", "value": 12.0, "min": 8.0, "max": 30.0, "step": 1.0 },
-    { "key": "min_cell_width", "label": "Polje: najmanja širina", "value": 160.0, "min": 60.0, "max": 800.0, "step": 1.0 },
-    { "key": "gap", "label": "Razmak polja", "value": 8.0, "min": 0.0, "max": 60.0, "step": 1.0 },
-    { "key": "cell_height", "label": "Polje: visina", "value": 52.0, "min": 24.0, "max": 160.0, "step": 1.0 }
+    {
+      "key": "window_width",
+      "label": "Prozor: širina",
+      "value": 1100.0,
+      "min": 600.0,
+      "max": 2400.0,
+      "step": 1.0
+    },
+    {
+      "key": "window_height",
+      "label": "Prozor: visina",
+      "value": 650.0,
+      "min": 400.0,
+      "max": 1600.0,
+      "step": 1.0
+    },
+    {
+      "key": "list_width",
+      "label": "Izbornik lijevo: širina",
+      "value": 300.0,
+      "min": 160.0,
+      "max": 800.0,
+      "step": 1.0
+    },
+    {
+      "key": "right_width",
+      "label": "Desni panel: širina",
+      "value": 720.0,
+      "min": 300.0,
+      "max": 2000.0,
+      "step": 1.0
+    },
+    {
+      "key": "margin",
+      "label": "Margina",
+      "value": 20.0,
+      "min": 0.0,
+      "max": 80.0,
+      "step": 1.0
+    },
+    {
+      "key": "label_size",
+      "label": "Oznake: veličina slova",
+      "value": 12.0,
+      "min": 8.0,
+      "max": 30.0,
+      "step": 1.0
+    },
+    {
+      "key": "min_cell_width",
+      "label": "Polje: najmanja širina",
+      "value": 160.0,
+      "min": 60.0,
+      "max": 800.0,
+      "step": 1.0
+    },
+    {
+      "key": "gap",
+      "label": "Razmak polja",
+      "value": 8.0,
+      "min": 0.0,
+      "max": 60.0,
+      "step": 1.0
+    },
+    {
+      "key": "cell_height",
+      "label": "Polje: visina",
+      "value": 52.0,
+      "min": 24.0,
+      "max": 160.0,
+      "step": 1.0
+    }
   ]
 }
