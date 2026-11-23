@@ -1,0 +1,9 @@
+[package]
+name = "qnc-project-texts"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: the texts of the Project and Settings forms and the contract of the Project Advanced settings (data read from the Project layout contract)"
+
+[dependencies]
+qnc-settings-form = { workspace = true }
+serde = { workspace = true }

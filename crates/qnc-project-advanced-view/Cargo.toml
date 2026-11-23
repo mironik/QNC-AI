@@ -1,0 +1,20 @@
+[package]
+name = "qnc-project-advanced-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI group of the Project and Settings forms: the Advanced settings of a project (its bar and its sections from the layout contract), drawn with the settings style block"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-application-selection = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-export-preset = { workspace = true }
+qnc-language-choice = { workspace = true }
+qnc-project-texts = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-settings-path = { workspace = true }
+qnc-settings-rows = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-ui-text = { workspace = true }
+serde_json = { workspace = true }

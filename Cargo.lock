@@ -5910,6 +5910,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-locations-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-location-field-view",
+ "qnc-project-session",
+ "qnc-project-texts",
+ "qnc-settings-block",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-loudness"
 version = "0.1.0"
 dependencies = [
@@ -6787,6 +6800,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-project-advanced-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-application-selection",
+ "qnc-desktop-theme",
+ "qnc-dev-diagnostics",
+ "qnc-export-preset",
+ "qnc-language-choice",
+ "qnc-project-texts",
+ "qnc-settings-block",
+ "qnc-settings-path",
+ "qnc-settings-rows",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-project-application"
 version = "0.1.0"
 dependencies = [
@@ -6807,32 +6839,28 @@ dependencies = [
  "eframe",
  "qnc-ai-features-view",
  "qnc-ai-settings-view",
- "qnc-application-selection",
  "qnc-board",
  "qnc-card-readers-view",
  "qnc-confirm-dialog",
  "qnc-contracts",
  "qnc-desktop-theme",
- "qnc-dev-diagnostics",
  "qnc-dir-browser",
- "qnc-export-preset",
  "qnc-export-templates-view",
  "qnc-form-look",
  "qnc-ingest-orchestrator-view",
  "qnc-keyboard-shortcut",
- "qnc-language-choice",
  "qnc-location-field",
- "qnc-location-field-view",
+ "qnc-locations-view",
  "qnc-newsroom-sheet",
+ "qnc-project-advanced-view",
  "qnc-project-application",
  "qnc-project-session",
+ "qnc-project-templates-view",
+ "qnc-project-texts",
  "qnc-settings-block",
- "qnc-settings-form",
- "qnc-settings-path",
  "qnc-settings-rows",
  "qnc-settings-switches",
  "qnc-tray-settings-view",
- "qnc-ui-kit",
  "qnc-ui-text",
  "serde",
  "serde_json",
@@ -6920,6 +6948,27 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "qnc-project-templates-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-project-session",
+ "qnc-project-texts",
+ "qnc-settings-block",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+]
+
+[[package]]
+name = "qnc-project-texts"
+version = "0.1.0"
+dependencies = [
+ "qnc-settings-form",
+ "serde",
 ]
 
 [[package]]

@@ -1,0 +1,14 @@
+[package]
+name = "qnc-locations-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI group of the Project and Settings forms: the locations (projects, global Ingest bases, export), each a row with its browser, drawn with the settings style block"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-location-field-view = { workspace = true }
+qnc-project-session = { workspace = true }
+qnc-project-texts = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-ui-text = { workspace = true }

@@ -127,11 +127,16 @@ impl<'a> Pen<'a> {
         .inner
     }
 
+    /// A group's title as written, on the left (upper case, muted, the row's font).
+    pub fn heading(&self, ui: &mut egui::Ui, words: &str) {
+        ui.add_space(self.metrics.section_gap);
+        ui.label(RichText::new(words.to_uppercase()).size(self.metrics.label_font_size).strong().color(self.theme.text_muted));
+    }
+
     /// A group's title and its hint, by their text codes (the top of a block in the Settings form):
     /// the title on the left, the hint one tab in.
     pub fn title(&self, ui: &mut egui::Ui, code: &str, hint: &str) {
-        ui.add_space(self.metrics.section_gap);
-        ui.label(RichText::new(text(code).to_uppercase()).size(self.metrics.label_font_size).strong().color(self.theme.text_muted));
+        self.heading(ui, &text(code));
         self.hint(ui, &text(hint));
     }
 

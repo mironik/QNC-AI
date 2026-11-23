@@ -1,10 +1,13 @@
+//! A group of the Project and Settings forms (user 2026-11-24: "formu postavke podijeli na kocke
+//! ovisno o grupama"): the Advanced settings of a project: the bar that opens them, and their
+//! sections as the Project layout contract names them, drawn with the settings style block.
+
 use eframe::egui::{self, RichText, Sense};
 use qnc_settings_path::{path_string, set_string_path};
 use serde_json::Value;
 
-use crate::{
-    layout_contract::{AdvancedSection, AdvancedSettings, SettingsPanelMetrics},
-};
+use qnc_project_texts::{AdvancedSection, AdvancedSettings};
+use qnc_settings_rows::PanelMetrics as SettingsPanelMetrics;
 use qnc_desktop_theme::Theme;
 use qnc_settings_block::Pen;
 

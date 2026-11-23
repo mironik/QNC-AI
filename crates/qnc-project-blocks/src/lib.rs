@@ -7,7 +7,6 @@
 
 pub mod layout_contract;
 mod list;
-mod project_advanced;
 mod settings;
 pub mod theme;
 use qnc_settings_rows as widgets;
