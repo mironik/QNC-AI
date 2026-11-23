@@ -4946,6 +4946,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-export-templates"
+version = "0.1.0"
+dependencies = [
+ "qnc-export-preset",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-export-templates-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-export-templates",
+ "qnc-settings-block",
+ "qnc-settings-rows",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-fcp7-xml"
 version = "0.1.0"
 dependencies = [
@@ -6742,6 +6765,7 @@ dependencies = [
  "qnc-desktop-theme",
  "qnc-dir-browser",
  "qnc-export-preset",
+ "qnc-export-templates-view",
  "qnc-form-look",
  "qnc-ingest-orchestrator-view",
  "qnc-keyboard-shortcut",

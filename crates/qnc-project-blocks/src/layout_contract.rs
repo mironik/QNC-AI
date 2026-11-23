@@ -297,6 +297,8 @@ pub enum SettingsBlock {
     Tray,
     /// The templates and the Advanced settings of a project.
     Templates,
+    /// The export templates of this computer, with their own window (`qnc-export-templates-view`).
+    Export,
 }
 
 /// The blocks a Settings layout names; a name no block has is an error, never skipped.

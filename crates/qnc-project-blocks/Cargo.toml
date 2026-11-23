@@ -9,6 +9,7 @@ qnc-ingest-orchestrator-view = { workspace = true }
 qnc-ai-server-view = { workspace = true }
 qnc-card-readers-view = { workspace = true }
 qnc-tray-settings-view = { workspace = true }
+qnc-export-templates-view = { workspace = true }
 qnc-location-field-view = { workspace = true }
 qnc-ui-text = { workspace = true }
 eframe = { workspace = true }

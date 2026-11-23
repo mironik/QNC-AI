@@ -1098,3 +1098,15 @@ ili Nijedna i njezini argumenti, upis na Spremi u `data/tray-forms.json`). Blok 
 Tray slaze izbornik iz postavke i cita je ponovno svake 2 s (promjena u Postavkama vidi se bez ponovnog pokretanja).
 Tekstovi `settings_tray.*`, `tray.status_item` (en, hr). Prozor uvoza i AI Media Assist nisu mijenjani. Test. Uzivo nije
 provjereno.
+Izvedeno 2026-11-23 (korisnik: "postavke trebamo graditi od kraja, a to su Export postavke; dvije vrste exporta: export file i
+export XML; za export file vise templatea, obrazac za kreiranje korisnickih postavki koristeci nase predefinirane postavke;
+samostalna kocka koja ima svoj GUI koji se poziva iz forme Postavke"; "na racunalu"; "sve sto je potrebno za postavke exporta
+gotovog priloga"; "svaka postavka samostalni json, kako bi se mogle lako prenositi na druga racunala"): nova kocka
+`qnc-export-templates` (predlosci racunala, svaki zaseban JSON u `data/export-templates/<id>.json`: naziv, preset od kojeg je
+napravljen, `export.*` vrijednosti; gotovi preseti iz `contracts/export_profiles.json` nikad se ne prepisuju, id koji bi bio
+id preseta dobiva `_own`) i polja predloska kao ugovor `contracts/export-template-fields.json` (grupe: slika i spremnik, zvuk,
+predaja, export XML; izbor nudi vrijednosti koje gotovi preseti imaju, broj i tekst se upisuju, sklopka). Nova kocka Postavki
+s vlastitim prozorom `qnc-export-templates-view`: u formi jedan redak (broj predlozaka, Uredi...), u prozoru popis vlastitih i
+gotovih preseta kao polazista, naziv, polja po grupama, Spremi, Obrisi. Blok `export` u `contracts/ui/settings.layout.json`.
+Tekstovi `export_template.*` (en, hr). Test. Uzivo nije provjereno. Nije izvedeno: export prozor price jos ne nudi predloske
+racunala (cita gotove presete i vlastite iz projekta).

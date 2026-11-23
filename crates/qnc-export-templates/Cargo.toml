@@ -1,0 +1,10 @@
+[package]
+name = "qnc-export-templates"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: the export templates of this computer (data/export-templates): a user's own made from a prepared export preset, which is never written over; the fields a template has are a contract"
+
+[dependencies]
+qnc-export-preset = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

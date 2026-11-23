@@ -1,0 +1,42 @@
+{
+  "contract_id": "qnc.export.template.fields",
+  "schema_version": 1,
+  "description": "The fields of an export template (user 2026-11-23: 'sve sto je potrebno za postavke exporta gotovog video priloga'): each an export.* key of the project settings. A choice offers the values the prepared presets have; a number or text is typed; a switch is on or off. The two kinds of export are the file (picture, sound, delivery) and XML.",
+  "groups": [
+    {
+      "label": "export_template.group_picture",
+      "fields": [
+        { "key": "format", "label": "export_template.format", "kind": "choice" },
+        { "key": "fps", "label": "export_template.fps", "kind": "number" },
+        { "key": "width", "label": "export_template.width", "kind": "number" },
+        { "key": "height", "label": "export_template.height", "kind": "number" },
+        { "key": "field_order", "label": "export_template.field_order", "kind": "choice" },
+        { "key": "color_space", "label": "export_template.color_space", "kind": "choice" },
+        { "key": "container", "label": "export_template.container", "kind": "choice" },
+        { "key": "video_codec", "label": "export_template.video_codec", "kind": "choice" },
+        { "key": "video_bitrate_mbps", "label": "export_template.video_bitrate", "kind": "number" }
+      ]
+    },
+    {
+      "label": "export_template.group_sound",
+      "fields": [
+        { "key": "audio_sample_rate", "label": "export_template.audio_sample_rate", "kind": "choice" },
+        { "key": "audio_channels", "label": "export_template.audio_channels", "kind": "number" }
+      ]
+    },
+    {
+      "label": "export_template.group_delivery",
+      "fields": [
+        { "key": "start_timecode", "label": "export_template.start_timecode", "kind": "text" },
+        { "key": "lead_in_seconds", "label": "export_template.lead_in", "kind": "number" },
+        { "key": "tail_seconds", "label": "export_template.tail", "kind": "number" }
+      ]
+    },
+    {
+      "label": "export_template.group_xml",
+      "fields": [
+        { "key": "xml_enabled", "label": "export_template.xml_enabled", "kind": "switch" }
+      ]
+    }
+  ]
+}

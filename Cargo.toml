@@ -275,6 +275,8 @@ qnc-tray = { path = "crates/qnc-tray" }
 qnc-tray-mode = { path = "crates/qnc-tray-mode" }
 qnc-tray-menu = { path = "crates/qnc-tray-menu" }
 qnc-tray-settings-view = { path = "crates/qnc-tray-settings-view" }
+qnc-export-templates = { path = "crates/qnc-export-templates" }
+qnc-export-templates-view = { path = "crates/qnc-export-templates-view" }
 qnc-wizard-open = { path = "crates/qnc-wizard-open" }
 qnc-trim-overlay = { path = "../QNC-shared/crates/qnc-trim-overlay" }
 qnc-ui-kit = { path = "../QNC-shared/crates/qnc-ui-kit" }

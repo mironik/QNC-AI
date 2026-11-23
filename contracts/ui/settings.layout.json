@@ -9,6 +9,7 @@
     "ai_server",
     "card_readers",
     "tray",
-    "templates"
+    "templates",
+    "export"
   ]
 }
