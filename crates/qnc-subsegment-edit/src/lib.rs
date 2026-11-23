@@ -668,6 +668,14 @@ impl SubsegmentEdit {
                     }
                     (self.chosen, self.chosen_to) = (match scope { Scope::Slot(index) => Some(index), Scope::Whole => None }, None);
                     self.scope = Some(scope);
+                    // The player clicked (user 2026-11-23): the playhead on the first part's IN,
+                    // whatever was chosen before.
+                    if scope == Scope::Whole {
+                        let drafted = self.drafted(block.clone());
+                        let first = self.slots(pieces.len()).map_or(0, |(first, _)| first);
+                        let start = view::subsegment_view(&drafted, None).parts.get(first).map_or(0, |part| part.start);
+                        self.pieces_request = Some((view::piece_inputs(&drafted), start));
+                    }
                     return Some(true);
                 }
                 let index = target.and_then(|index| index.parse::<usize>().ok()).filter(|index| *index < pieces.len())?;

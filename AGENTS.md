@@ -1070,3 +1070,6 @@ timeline: dijelovi iza pomaknutog ruba pomicu se s njim odmah (`qnc-subsegment-e
 dijelovi stoje do Entera). (2) U AI Media Assistu ono sto Enter ili Spremi zadrze ostaje u prikazu izjave
 (`qnc-side-pieces` `statement.rs`: blok izjave postaje zadrzani nacrt, rubovi 1/13 ostaju uz prvi IN i zadnji OUT; prije se
 vracalo na staro jer se upis bacao). U bazu izjava se jos ne zapisuje. Uzivo nije provjereno.
+Popravak 2026-11-23 (korisnik: "klik na player-monitor u sredini zooma treba postaviti playhead na IN prvog klipa bez obzira sto
+je prije bilo odabrano"; log: klik je stizao i prebacivao na cijelu izjavu, playhead je ostajao): klik na Player u zoomu slozene
+izjave uz cijelu izjavu stavlja playhead na IN prvog dijela (rubovi 1/13 nisu dijelovi). Uzivo nije provjereno.
