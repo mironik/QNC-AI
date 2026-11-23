@@ -1082,3 +1082,11 @@ Story otvara Ingest QNC-AI-ja): forma koju nacin rada traya otvara nakon ingest 
 racunala `data/tray-forms.json` (`qnc-tray-mode` `Forms`, `Opens`: program iz kataloga aplikacija i argumenti), ne kod; nacin
 bez upisa ne otvara nista. Tray i prozor uvoza nisu mijenjani (`Mode::opens` cita postavku). Ovo racunalo: Breaking news AI
 Media Assist na tabu All, Story Ingest QNC-AI-ja, Mreza nista. Test. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik: "prvo sto trebamo je i postavke pretvoriti u kocke, najprije ono sto trenutno vec koristimo";
+"forma postavke se slaze od kocaka"; otkljucani tray i `qnc-project-blocks`): forma Postavke QNC-AI-ja slaze kocke redom koji
+pise u `contracts/ui/settings.layout.json` (`blocks`: locations, ai_share, ingest_orchestrator, ai_server, card_readers,
+templates; nepoznat naziv je greska). `qnc-machine-settings-view` razdvojen u dvije kocke: `qnc-ai-server-view` (AI server i
+LLM) i `qnc-card-readers-view` (citaci kartica); ono sto obje crtaju isto je `qnc-settings-block` (naslov s napomenom, polje,
+poruka). `qnc-project-blocks`: `SettingsBlock`, `settings_block`, `templates` (template i Advanced); lokacije vise ne crtaju
+ostale dijelove. Redoslijed i izgled isti kao prije. Test. Uzivo nije provjereno. Sljedece: kocka postavki traya s kvacicama
+za stavke izbornika (korisnik: "u postavkama trebaju biti checkboxovi za postavljanje onoga sto ce se vidjeti u trayu").

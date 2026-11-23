@@ -1,15 +1,15 @@
 [package]
-name = "qnc-machine-settings-view"
+name = "qnc-ai-server-view"
 version.workspace = true
 edition.workspace = true
-description = "QNC-AI block: the settings of this computer drawn in Settings: the external AI agent (AI server), the LLM model and the card readers on the network"
+description = "QNC-AI settings block: the external AI agent of this computer (AI server: address, fingerprint, token) and the LLM model, written on Save"
 
 [dependencies]
 eframe = { workspace = true }
 qnc-ai-place = { workspace = true }
-qnc-card-readers = { workspace = true }
 qnc-desktop-theme = { workspace = true }
 qnc-llm-place = { workspace = true }
 qnc-settings-rows = { workspace = true }
 qnc-ui-kit = { workspace = true }
+qnc-settings-block = { workspace = true }
 qnc-wizard-text = { workspace = true }

@@ -6,7 +6,7 @@ use eframe::egui::{self, RichText, Sense, Vec2};
 use qnc_project_session::{LocationTarget, ProjectIntent};
 
 use crate::{
-    layout_contract::SettingsPanelMetrics,
+    layout_contract::{SettingsBlock, SettingsPanelMetrics},
     project_advanced,
     theme::{self, Theme},
     widgets, Blocks,
@@ -123,25 +123,14 @@ impl Blocks<'_> {
                                 let width = (width - 2.0 * settings.inner_pad_x).max(40.0);
                                 ui.set_max_width(width);
                                 ui.spacing_mut().item_spacing.y = settings.section_gap;
-                                // QNC-AI Settings: the locations first, always shown.
+                                // QNC-AI Settings is put together from blocks, in the order its layout
+                                // names them (user 2026-11-23: "forma postavke se slaže od kocaka").
                                 if self.settings_only {
-                                    self.locations(ui, width, settings);
-                                }
-                                self.pts_fixed(ui, width, settings);
-                                // The Advanced bar; the slots of the scroll show only while it is open.
-                                project_advanced::header(ui, width, &self.contracts.project.advanced_settings, &self.contracts.theme, &mut self.session.advanced_open);
-                                let slots = if self.session.advanced_open { self.contracts.project.pts_slots.scroll_order.clone() } else { Vec::new() };
-                                for slot in slots {
-                                    match slot.as_str() {
-                                        "AiSettings" => self.ai_settings(ui, width, settings),
-                                        "Locations" if !self.settings_only => self.locations(ui, width, settings),
-                                        "TemplateActions" => self.template_actions(ui, width, settings),
-                                        "AdvancedSections" => self.advanced(ui, width, settings),
-                                        "CustomTemplate" if self.session.template_create_open => {
-                                            self.custom_template(ui, width, settings);
-                                        }
-                                        _ => {}
+                                    for block in self.contracts.settings_blocks.clone() {
+                                        self.settings_block(ui, width, settings, block);
                                     }
+                                } else {
+                                    self.templates(ui, width, settings);
                                 }
                             });
                     });
@@ -307,14 +296,43 @@ impl Blocks<'_> {
         self.path_row(ui, width, settings, LocationTarget::ProjectsRoot);
         self.path_row(ui, width, settings, LocationTarget::BasesRoot);
         self.path_row(ui, width, settings, LocationTarget::ExportDir);
-        // QNC-AI: the AI folder QNC and QNC-AI share, a setting of this computer.
-        if self.settings_only {
-            self.path_row(ui, width, settings, LocationTarget::AiShare);
-            // QNC-AI: the ingest orchestrator of each form, a setting of this computer.
-            ui.add_space(8.0);
-            qnc_ingest_orchestrator_view::show(ui, &self.session.component.root, width, settings, &self.contracts.theme);
-            // QNC-AI: the external AI agent, the LLM model and the card readers on the network.
-            qnc_machine_settings_view::show(ui, &self.session.component.root, width, settings, &self.contracts.theme);
+    }
+
+    /// One block of the Settings form (`contracts/ui/settings.layout.json`); each reads and writes
+    /// its own setting.
+    fn settings_block(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics, block: SettingsBlock) {
+        let root = self.session.component.root.clone();
+        match block {
+            SettingsBlock::Locations => self.locations(ui, width, settings),
+            // The AI folder QNC and QNC-AI share, a setting of this computer.
+            SettingsBlock::AiShare => self.path_row(ui, width, settings, LocationTarget::AiShare),
+            // The ingest orchestrator of each form, a setting of this computer.
+            SettingsBlock::IngestOrchestrator => {
+                ui.add_space(8.0);
+                qnc_ingest_orchestrator_view::show(ui, &root, width, settings, &self.contracts.theme);
+            }
+            SettingsBlock::AiServer => qnc_ai_server_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::Templates => self.templates(ui, width, settings),
+        }
+    }
+
+    /// The template picker, then the Advanced bar; the slots of the scroll show only while it is open.
+    fn templates(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics) {
+        self.pts_fixed(ui, width, settings);
+        project_advanced::header(ui, width, &self.contracts.project.advanced_settings, &self.contracts.theme, &mut self.session.advanced_open);
+        let slots = if self.session.advanced_open { self.contracts.project.pts_slots.scroll_order.clone() } else { Vec::new() };
+        for slot in slots {
+            match slot.as_str() {
+                "AiSettings" => self.ai_settings(ui, width, settings),
+                "Locations" if !self.settings_only => self.locations(ui, width, settings),
+                "TemplateActions" => self.template_actions(ui, width, settings),
+                "AdvancedSections" => self.advanced(ui, width, settings),
+                "CustomTemplate" if self.session.template_create_open => {
+                    self.custom_template(ui, width, settings);
+                }
+                _ => {}
+            }
         }
     }
 

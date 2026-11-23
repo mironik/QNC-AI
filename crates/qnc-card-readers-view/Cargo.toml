@@ -1,0 +1,14 @@
+[package]
+name = "qnc-card-readers-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI settings block: the card readers on the network of this computer (name and shared folder), written at once on Add and Remove"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-card-readers = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-settings-rows = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-wizard-text = { workspace = true }

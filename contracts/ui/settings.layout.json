@@ -1,0 +1,13 @@
+{
+  "contract_id": "qnc.ui.settings.layout",
+  "schema_version": 1,
+  "description": "QNC-AI Settings form: the blocks it puts together, in this order (user 2026-11-23: 'forma postavke se slaze od kocaka'). Every block reads and writes its own setting.",
+  "blocks": [
+    "locations",
+    "ai_share",
+    "ingest_orchestrator",
+    "ai_server",
+    "card_readers",
+    "templates"
+  ]
+}

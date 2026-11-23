@@ -1,0 +1,12 @@
+[package]
+name = "qnc-settings-block"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: what every block of the Settings form draws alike: a section's title with its hint, a typed field in a settings row, and what was said after a write"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-settings-rows = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-wizard-text = { workspace = true }

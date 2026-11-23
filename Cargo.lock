@@ -3895,6 +3895,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-server-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-place",
+ "qnc-desktop-theme",
+ "qnc-llm-place",
+ "qnc-settings-block",
+ "qnc-settings-rows",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-ai-settings"
 version = "0.1.0"
 dependencies = [
@@ -4367,6 +4381,19 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "qnc-card-readers-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-card-readers",
+ "qnc-desktop-theme",
+ "qnc-settings-block",
+ "qnc-settings-rows",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
 ]
 
 [[package]]
@@ -5838,20 +5865,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qnc-machine-settings-view"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "qnc-ai-place",
- "qnc-card-readers",
- "qnc-desktop-theme",
- "qnc-llm-place",
- "qnc-settings-rows",
- "qnc-ui-kit",
- "qnc-wizard-text",
-]
-
-[[package]]
 name = "qnc-match-frame"
 version = "0.1.0"
 
@@ -6719,8 +6732,10 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-features-view",
+ "qnc-ai-server-view",
  "qnc-application-selection",
  "qnc-board",
+ "qnc-card-readers-view",
  "qnc-confirm-dialog",
  "qnc-contracts",
  "qnc-desktop-theme",
@@ -6732,7 +6747,6 @@ dependencies = [
  "qnc-language-choice",
  "qnc-location-field",
  "qnc-location-field-view",
- "qnc-machine-settings-view",
  "qnc-newsroom-sheet",
  "qnc-project-application",
  "qnc-project-session",
@@ -7159,6 +7173,17 @@ dependencies = [
  "qnc-voice-catalog",
  "qnc-voice-record",
  "qnc-voice-take",
+]
+
+[[package]]
+name = "qnc-settings-block"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-settings-rows",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
 ]
 
 [[package]]
