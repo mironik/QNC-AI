@@ -1049,3 +1049,9 @@ uokviren. Pomaknuti rub upise se prije promjene dosega. Rub uzet izvan dosega po
 slotovi (`set_margins`; klik na njih ne radi nista). Enter i Esc zatvaraju zoom; Spremi ga ostavlja. Roll cijelog reza i J/L
 spoja zadrzavaju zoom spoja. Test `the_zoom_of_a_scope_shows_its_in_the_player_and_its_out_and_a_picture_takes_that_marker`.
 Uzivo nije provjereno.
+Popravak 2026-11-23 (korisnik: "cilj mi je bio da shvatis razliku izmedju klika na slicicu i klika na traku u boji koja
+pokazuje simbolicno trajanje slota"; log: klik na traku pretvarao je uzeti rez u rub tog slota, a klik na traku istog slota
+ispustao marker): u zoomu slozene izjave klik na sliku uzima njezin marker (lijeva IN, desna OUT), a klik na traku trajanja
+(u zoomu ili na timelineu dok je zoom otvoren) uvijek bira taj slot i nikad ne uzima marker: pomaknuti rub ili rez upise se,
+marker se pusta, zoom pokazuje IN i OUT tog slota. Uklonjeno pretvaranje trake u rub slota (pravilo od 5. i 9. 11. za slozenu
+izjavu). Ostali slotovi biraju se trakama timelinea, ne dodatnim slikama u zoomu. Uzivo nije provjereno.

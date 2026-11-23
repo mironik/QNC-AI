@@ -671,8 +671,10 @@ impl SubsegmentEdit {
                 // The zoom of a scope (user 2026-11-23): the player clicked shows the whole
                 // statement, a strip clicked that slot; a moved edge is kept first, the edge is let
                 // go (a picture clicked takes the marker of the scope shown).
-                let roll = self.trim.is_some_and(|trim| trim.roll.is_some());
-                if self.scope.is_some() && self.join_sound.is_none() && !roll {
+                // A strip is a slot, never a marker (user 2026-11-23: a click on a picture takes its
+                // marker, a click on the coloured strip of a slot's length takes that slot): with a zoom
+                // open (a scope, an edge or a cut held) it shows that slot and lets go of the marker.
+                if (self.scope.is_some() || self.trim.is_some()) && self.join_sound.is_none() {
                     let scope = match target {
                         Some("whole") => Scope::Whole,
                         _ => {
@@ -693,25 +695,6 @@ impl SubsegmentEdit {
                 }
                 let index = target.and_then(|index| index.parse::<usize>().ok()).filter(|index| *index < pieces.len())?;
                 (self.chosen, self.chosen_to) = (Some(index), None);
-                // In the zoom (a strip clicked; rules 2026-11-05 and 2026-11-09, user 2026-11-23): the
-                // slot of that side of the cut is chosen, the zoom stays on the same cut and nothing is
-                // saved or closed. While nothing taken is moved, the choice replaces it: the cut becomes
-                // that slot's own edge (its OUT on the left, its IN on the right), so the arrows make
-                // only that slot longer or shorter. A moved cut waits for Enter.
-                if let Some(trim) = self.trim {
-                    let moved = pieces.get(trim.index).is_some_and(|piece| piece.from_frame != trim.from || piece.to_frame != trim.to)
-                        || trim.roll.is_some_and(|next_in| pieces.get(trim.index + 1).is_some_and(|next| next.from_frame != next_in));
-                    let (left, right) = if trim.out || trim.roll.is_some() { (Some(trim.index), trim.index + 1) } else { (trim.index.checked_sub(1), trim.index) };
-                    if !moved && self.join_sound.is_none() {
-                        let own = |index: usize, out: bool| pieces.get(index).map(|piece| Trim { index, out, from: piece.from_frame, to: piece.to_frame, roll: None });
-                        if Some(index) == left {
-                            self.trim = own(index, true).or(self.trim);
-                        } else if index == right {
-                            self.trim = own(index, false).or(self.trim);
-                        }
-                    }
-                    return Some(true);
-                }
                 if self.join_sound.is_some() {
                     return Some(true);
                 }
