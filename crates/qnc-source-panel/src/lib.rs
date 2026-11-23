@@ -37,10 +37,8 @@ pub const ACTIONS: &[&str] = &[
 #[derive(Debug, Clone, Default)]
 pub struct SourcePanel {
     mark_taken: bool,
-    /// The player played at the last look.
-    was_playing: bool,
-    /// The clip frame of OUT a play started before it stops at.
-    stop_at: Option<u64>,
+    /// A play from IN to OUT.
+    play: RangePlay,
     /// The word of the transcript a click put the playhead on (its first frame and the frame
     /// past its last): while the playhead stays there, O puts OUT at the word's end (user
     /// 2026-11-08: "OUT is set before the chosen word, it should be at its end").
@@ -56,26 +54,15 @@ impl SourcePanel {
 
     /// Once a frame: a play of the clip started before the user's OUT stops on OUT (user
     /// 2026-11-01: a statement plays from IN to OUT and stops there). A play started on or
-    /// after OUT plays on; a program (story, SubSegment) is not the clip and is left alone.
-    pub fn stop_on_out(&mut self, preview: &mut SourcePreview, timeline: &TimelineProjection) {
-        let playing = preview.player_view().playing();
+    /// after OUT plays on, unless a statement is shown (`statement`): then a play started
+    /// outside its IN..OUT starts from IN (user 2026-11-23: "pley izjava i složenih izjava ide
+    /// od IN do OUT izjava"). A program (story, SubSegment) is not the clip and is left alone.
+    pub fn stop_on_out(&mut self, preview: &mut SourcePreview, timeline: &TimelineProjection, statement: bool) {
+        let out = timeline.source_out_frame.map(|out| timeline.range_start_frame + out);
+        let start = timeline.source_in_frame.map_or(timeline.range_start_frame, |at| timeline.range_start_frame + at);
+        let from_in = statement.then_some(start);
         let frame = preview.clip_frame();
-        if playing && !self.was_playing {
-            let out = timeline.source_out_frame.map(|out| timeline.range_start_frame + out);
-            self.stop_at = out.filter(|out| frame.is_some_and(|frame| frame < *out));
-        }
-        self.was_playing = playing;
-        if !playing {
-            self.stop_at = None;
-            return;
-        }
-        if let (Some(out), Some(frame)) = (self.stop_at, frame) {
-            if frame >= out {
-                self.stop_at = None;
-                preview.pause();
-                preview.cue(out);
-            }
-        }
+        self.play.follow(preview, frame, out, from_in);
     }
 
     /// A click on a word of the transcript put the playhead on it (`from..to`, clip frames).
@@ -271,5 +258,53 @@ mod tests {
         assert_eq!(panel.route("mark_in", &mut preview, &mut timeline), Some(true));
         assert_eq!(timeline.source_in_frame, Some(25));
         assert_eq!(panel.route("ingest_import_selected", &mut preview, &mut timeline), None);
+    }
+}
+
+
+/// A play from IN to OUT (user 2026-11-23: "pley izjava i složenih izjava ide od IN do OUT
+/// izjava"): followed once a frame with the frame the player shows. A play started before OUT
+/// stops on OUT, with the playhead there; with `from_in` (a statement shown), a play started
+/// outside IN..OUT goes to IN first. Only crossing OUT stops it, so the frames the player still
+/// shows before a cue to IN lands do not.
+#[derive(Debug, Clone, Default)]
+pub struct RangePlay {
+    playing: bool,
+    stop_at: Option<u64>,
+    last: Option<u64>,
+}
+
+impl RangePlay {
+    pub fn follow(&mut self, preview: &mut SourcePreview, frame: Option<u64>, out: Option<u64>, from_in: Option<u64>) {
+        let playing = preview.player_view().playing();
+        if playing && !self.playing {
+            self.stop_at = None;
+            self.last = frame;
+            if let (Some(out), Some(frame)) = (out, frame) {
+                match from_in {
+                    Some(start) if start < out && (frame < start || frame >= out) => {
+                        preview.cue(start);
+                        self.stop_at = Some(out);
+                    }
+                    _ if frame < out => self.stop_at = Some(out),
+                    _ => {}
+                }
+            }
+        }
+        self.playing = playing;
+        if !playing {
+            self.stop_at = None;
+            return;
+        }
+        if let (Some(out), Some(frame)) = (self.stop_at, frame) {
+            if frame >= out && self.last.is_some_and(|last| last < out) {
+                self.stop_at = None;
+                preview.pause();
+                preview.cue(out);
+            }
+        }
+        if frame.is_some() {
+            self.last = frame;
+        }
     }
 }

@@ -144,7 +144,8 @@ impl SourceTimeline {
     /// from. Another clip starts on the A1/A2 sound kept for it in the project database,
     /// else on A1 channel 1 and A2 channel 2 (user rules 2026-10-01, 2026-10-24).
     pub fn sync(&mut self, clip_id: Option<&str>, content: Option<&ContentTarget>, preview: &mut SourcePreview, timeline: &TimelineProjection, enlarge: Option<(u64, u64)>) -> &SourceTimelineView {
-        self.keys.stop_on_out(preview, timeline);
+        // A statement shown plays from its IN to its OUT (user 2026-11-23).
+        self.keys.stop_on_out(preview, timeline, enlarge.is_some());
         // A statement enlarged, with its own wave and pictures (user 2026-11-09).
         let enlarge = enlarge.filter(|_| timeline.confirmed_frame().is_some());
         self.view.enlarged = self.window.follow(clip_id, enlarge, timeline.range_start() + timeline.duration_frames(), &preview.view().assets, || preview.still_locator());

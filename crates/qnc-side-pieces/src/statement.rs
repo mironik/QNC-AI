@@ -27,6 +27,8 @@ pub struct StatementPlay {
     margins: (u64, u64),
     /// The first play request starts at the first part's IN, not at the window's start.
     cue_in: bool,
+    /// Its play goes from the first part's IN to the last part's OUT (user 2026-11-23).
+    play: qnc_source_panel::RangePlay,
 }
 
 impl std::fmt::Debug for StatementPlay {
@@ -84,6 +86,10 @@ impl StatementPlay {
             let frame = if std::mem::take(&mut self.cue_in) { self.margins.0 } else { frame };
             preview.show_pieces(&pieces, frame);
         }
+        let length: u64 = block.pieces.iter().map(|piece| piece.to_frame.saturating_sub(piece.from_frame)).sum();
+        let frame = preview.in_program().then(|| preview.player_view().confirmed_source_frame()).flatten();
+        let out = length.saturating_sub(self.margins.1);
+        self.play.follow(preview, frame, Some(out), Some(self.margins.0));
         let _ = self.edit.take_writes();
         if !self.edit.is_open() {
             self.block = None;

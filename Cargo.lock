@@ -7463,6 +7463,7 @@ dependencies = [
  "qnc-script",
  "qnc-script-db",
  "qnc-skeleton-versions",
+ "qnc-source-panel",
  "qnc-source-preview",
  "qnc-source-timecode",
  "qnc-subsegment-edit",
