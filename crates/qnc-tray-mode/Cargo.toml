@@ -7,3 +7,4 @@ description = "QNC Wizard: how the tray works on this computer (Local with Break
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }

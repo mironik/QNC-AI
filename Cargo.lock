@@ -8282,6 +8282,7 @@ dependencies = [
 name = "qnc-tray-mode"
 version = "0.1.0"
 dependencies = [
+ "qnc-dev-diagnostics",
  "serde",
  "serde_json",
 ]

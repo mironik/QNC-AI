@@ -1077,3 +1077,8 @@ Popravak 2026-11-23 (korisnik: "otkazuje poslusnost, izgubi se"; log: s uzetim I
 J/L tona spoja, zoom se prebacio na stari zoom spoja, Player je tada samo spremao, a klik na sliku uzimao sliku spoja, pa se iz
 zooma nije moglo izaci): vlastiti rub dijela je rub izjave; A1 u zoomu i Ctrl+1 uzimaju zvuk tog dijela, nikad J/L spoja.
 J/L spoja uzima se samo uz cijeli rez spoja (koji se misem vise ne uzima). Zoom dosega ostaje. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik: "to mozemo imati kao postavku u Postavkama, na taj nacin nista nije hardkodirano"; Lokalno -
+Story otvara Ingest QNC-AI-ja): forma koju nacin rada traya otvara nakon ingest Wizarda i na "Otvori aplikaciju" je postavka
+racunala `data/tray-forms.json` (`qnc-tray-mode` `Forms`, `Opens`: program iz kataloga aplikacija i argumenti), ne kod; nacin
+bez upisa ne otvara nista. Tray i prozor uvoza nisu mijenjani (`Mode::opens` cita postavku). Ovo racunalo: Breaking news AI
+Media Assist na tabu All, Story Ingest QNC-AI-ja, Mreza nista. Test. Uzivo nije provjereno.
