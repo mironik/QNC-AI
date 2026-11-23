@@ -207,9 +207,17 @@ pub fn subsegment_zoom(
     let (before, after) = (still(before, left, true), still(after, right, false));
     let idle = qnc_program_view::ZoomFollow::default();
     let (follow, position) = follow.unwrap_or((&idle, None));
+    // The player in the middle, as a statement's zoom has it (user 2026-11-23): the picture at the
+    // playhead; a click saves what is taken and puts the playhead on the cut.
+    let playhead = position.map_or(cut, |(frame, _)| frame.min(view.total_frames.saturating_sub(1)));
+    let at_axis = view.parts.iter().zip(pieces).find(|(part, _)| (part.start..part.end).contains(&playhead)).and_then(|(part, piece)| picture(piece, piece.from_frame + (playhead - part.start)));
+    let mut player = EditStill::new(playhead, true, at_axis).labelled(&qnc_ui_text::text("zoom.player"));
+    player.live = true;
+    player.click = Some(action(qnc_edit_verbs::SAVE, None, cut));
+    player.clip_frames = player.picture.as_ref().and_then(|picture| clip_frames(&picture.clip_id));
     let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half: rate.max(1), total: view.total_frames, position, follow, lanes: [subsegment_placements(view, pieces), Vec::new()] };
     Some(qnc_program_view::SegmentsView {
-        source_edit_stills: vec![before, after],
+        source_edit_stills: vec![before, player, after],
         zoom_sound: Some(axis.sound()),
         ..Default::default()
     })

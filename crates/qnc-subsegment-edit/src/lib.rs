@@ -630,6 +630,16 @@ impl SubsegmentEdit {
         }
         // The player of a part's zoom (a value: the part's IN): the edge taken is kept and let go,
         // the playhead goes on the part's IN, the zoom stays (user 2026-11-23, as a statement's).
+        // The player of a join's zoom (a whole cut taken): the cut is kept and stays taken, the
+        // playhead goes on it.
+        if action_id == qnc_edit_verbs::SAVE && self.trim.is_some_and(|trim| trim.roll.is_some()) {
+            if let Some(at) = self.value.and_then(|value| u64::try_from(value).ok()) {
+                let done = self.save_and_keep(&block, &pieces, preview);
+                let drafted = self.drafted(block.clone());
+                self.pieces_request = Some((view::piece_inputs(&drafted), at));
+                return done.or(Some(true));
+            }
+        }
         if action_id == qnc_edit_verbs::SAVE && self.zoom_part.is_some() {
             if let Some(start) = self.value.and_then(|value| u64::try_from(value).ok()) {
                 if let Some(trim) = self.trim.take() {

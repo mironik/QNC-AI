@@ -1020,3 +1020,9 @@ uzima taj rub (nikad roll), klik na Player sprema i pusta uzeti rub i stavlja pl
 i zoom pokazuje taj slot (uzeti rub drugog dijela ili cijeli rez najprije se spremi). Cijeli rez spoja (roll) i ton spoja i
 dalje imaju zoom s dvije slike spoja. Isto u MA Scriptu (ista kocka). Testovi `qnc-subsegment-edit`, `qnc-side-pieces`,
 `qnc-script`. Uzivo nije provjereno.
+
+Dopuna 2026-11-23 (korisnik, slika zooma s dvije slike: "i dalje ne vidim monitor-player u sredini kao sto ima Izjava"; log:
+desni klik na spoj uzeo je cijeli rez `1:cut`, a zoom cijelog reza imao je samo dvije slike): i zoom cijelog reza spoja ima Player
+u sredini: OUT zadnja prethodnog dijela | Player (slika na playheadu) | IN prva sljedeceg (`view::subsegment_zoom`). Klik na
+Player sprema rez, rez ostaje uzet, playhead ide na rez. `qnc-trim-overlay` (QNC-shared): Player u sredini nije strana reza
+(nema crveni okvir fokusa, linija reza ide izmedju dviju strana). Test zooma spoja prilagoden. Uzivo nije provjereno.
