@@ -49,7 +49,7 @@ impl eframe::App for Ask {
             ui.add_space(18.0);
             ui.horizontal(|ui| {
                 for (answer, label) in &self.buttons {
-                    if ui.add(egui::Button::new(RichText::new(label).size(font)).min_size(egui::vec2(110.0, 32.0))).clicked() {
+                    if ui.add(qnc_ui_kit::sized_button(RichText::new(label).size(font), egui::vec2(110.0, 32.0))).clicked() {
                         chosen = Some(answer.clone());
                     }
                 }

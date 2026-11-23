@@ -1165,3 +1165,13 @@ Popravak 2026-11-23 (korisnik: "u desnom panelu za Oznake trebas dodati vertikal
 Ispravak 2026-11-23 (korisnik: "ne pragovi, samo OZNAKE trebaju scroll bar"): desni panel prozora bloka vise ne skrola cijeli; u oznakama kadrova skrola samo popis oznaka, pragovi, nova oznaka, pravila i Spremi ostaju na mjestu. Izbornik lijevo skrola kad je visi od prozora. Uzivo nije provjereno.
 Ispravak 2026-11-23 (korisnik: "pravila opisa trebaju scroll; desni panel isto poravnanje, isti razmak izmedju redova i isti font; potrazi kocku stila i sve radi po njoj"): oznake kadrova crtaju se kockom stila Postavki (`qnc-settings-form`: naziv iznad polja, mreza prozora): pragovi, svaka oznaka (naziv je naziv polja, polje je upit, uz polje Izjava i X), nova oznaka, pravila (Oznaka i Rijeci opisa, X). Popis oznaka i popis pravila skrolaju svaki zasebno. Uzivo nije provjereno.
 Ispravak 2026-11-23 (korisnik: "i dalje ne postujes stil"): oznake kadrova crtaju se retcima Postavki (`qnc_settings_rows::inline_row`: naziv lijevo, polje, stupac gumba), kao glavna forma Postavki; pragovi kao broj s tri decimale (prije 0.15000000596); pravilo je "Pravilo n" s izborom oznake i rijecima u polju. Uzivo nije provjereno.
+Uskladivanje GUI-ja 2026-11-23 (korisnik: "analiziraj GUI kompletne aplikacije i uskladi"). Nalaz: prozori blokova Postavki
+(export predlosci, AI postavke, AI server) crtali su naziv iznad polja (`qnc_settings_form::field_grid`), a glavna forma
+Postavki ima redak s nazivom lijevo, poljem i stupcem gumba (`qnc_settings_rows::inline_row`); nekoliko mjesta koristilo je
+gole egui widgete mimo gui-kita. Izvedeno: `qnc-settings-block::rows` (polja kao retci Postavki: tekst, broj, izbor, trajanje
+m:ss; upisano ostaje dok se tipka) koriste export predlosci (i prekidaci kao retci), AI predlosci (naziv, svaka AI mogucnost
+kao redak s kucicom i sto treba), AI motori, AI mapa; AI server je retcima s tokenom skrivenim; svi Spremi/Obrisi u stupcu
+gumba (`trailing_actions`). Gui-kit (`qnc-ui-kit`) umjesto golih widgeta: pretraga baza, polja putanje i predloska u
+Postavkama, gumb "_" prozora rada, gumbi pitanja (`qnc-ai-ask`). Ostaje kako jest: napredne postavke projekta (mreza iz
+ugovora forme Projekt), gumb X predloska u popisu Projekta, uredivac izgleda (`qnc-form-look`, alat). Debug build obrisan
+(disk pun, 18,6 GiB). Tray nije ponovno izgraden (radi). Uzivo nije provjereno.

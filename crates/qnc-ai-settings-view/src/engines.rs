@@ -159,7 +159,7 @@ pub fn show(
         ("ai_engines.jobs", &job_fields),
     ] {
         qnc_settings_rows::section(ui, width, &text(title), &style.metrics, theme, |ui| {
-            qnc_settings_form::field_grid(ui, width, &mut settings, fields, &options, &style.grid);
+            qnc_settings_block::rows(ui, width, &mut settings, fields, &options, &style.metrics, theme);
         });
     }
 
@@ -202,11 +202,13 @@ pub fn show(
     }
     ui.label(
         RichText::new(text("ai_engines.hint"))
-            .size(style.grid.label_size)
+            .size(style.metrics.label_font_size)
             .color(theme.text_muted),
     );
     let mut said = (!refused.is_empty()).then(|| Err(refused.join("; ")));
-    if qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked() {
+    let mut save = false;
+    qnc_settings_rows::trailing_actions(ui, width, &style.metrics, |ui| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked());
+    if save {
         said = Some(catalog.save().map(|()| text("machine.saved")));
     }
     said

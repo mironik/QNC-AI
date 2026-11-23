@@ -350,7 +350,7 @@ impl Blocks<'_> {
         };
         let (mut typed, mut pick, mut left) = (false, false, false);
         widgets::inline_row(ui, content_w, label, settings, shell, |ui, width| {
-            let response = ui.add(egui::TextEdit::singleline(&mut field.text).desired_width(width.max(40.0)).hint_text(&texts.path_hint));
+            let response = ui.add(qnc_ui_kit::text_field(&mut field.text).desired_width(width.max(40.0)).hint_text(&texts.path_hint));
             typed = response.changed();
             // QNC-AI: a typed path is kept on Enter or when the field is left.
             left = response.lost_focus();
@@ -446,7 +446,7 @@ impl Blocks<'_> {
                 &shell,
                 |ui, width| {
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.session.template_draft_name)
+                        qnc_ui_kit::text_field(&mut self.session.template_draft_name)
                             .desired_width(width.max(40.0))
                             .hint_text(&self.contracts.project.texts.template_name_hint),
                     );
@@ -459,7 +459,7 @@ impl Blocks<'_> {
             );
             ui.add_space(8.0);
             ui.add(
-                egui::TextEdit::multiline(&mut self.session.template_draft_description)
+                qnc_ui_kit::text_area(&mut self.session.template_draft_description)
                     .desired_width((content_w - settings.inner_pad_x * 2.0).max(80.0))
                     .desired_rows(2)
                     .hint_text(&self.contracts.project.texts.short_description_hint),

@@ -59,7 +59,7 @@ impl SearchOverlay {
             .fixed_size(size)
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .show(ctx, |ui| {
-                let field = ui.add(egui::TextEdit::singleline(&mut self.query).hint_text(text("search.hint")).desired_width(f32::INFINITY));
+                let field = ui.add(qnc_ui_kit::text_field(&mut self.query).hint_text(text("search.hint")).desired_width(f32::INFINITY));
                 if std::mem::take(&mut self.focus) {
                     field.request_focus();
                 }

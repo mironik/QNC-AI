@@ -3718,6 +3718,7 @@ dependencies = [
  "eframe",
  "qnc-dev-diagnostics",
  "qnc-ingest-layout",
+ "qnc-ui-kit",
 ]
 
 [[package]]
@@ -4211,6 +4212,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-base-search",
+ "qnc-ui-kit",
  "qnc-wizard-text",
 ]
 
@@ -7243,9 +7245,11 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-desktop-theme",
+ "qnc-settings-form",
  "qnc-settings-rows",
  "qnc-ui-kit",
  "qnc-wizard-text",
+ "serde_json",
 ]
 
 [[package]]
@@ -8714,6 +8718,7 @@ name = "qnc-work-info"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "qnc-ui-kit",
  "qnc-wizard-text",
  "qnc-work-progress",
  "qnc-work-progress-view",

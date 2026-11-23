@@ -250,7 +250,7 @@ fn panel(ui: &mut egui::Ui, root: &Path, style: &Style, theme: &Theme, draft: &m
                 &text("ai_settings.server"),
                 &style.metrics,
                 theme,
-                |ui| qnc_ai_server_view::panel(ui, root, width, &style.grid, theme),
+                |ui| qnc_ai_server_view::panel(ui, root, width, &style.metrics, theme),
             );
         }
         Some(Chosen::Share) => share(ui, root, width, style, theme, draft),
@@ -305,13 +305,14 @@ fn template(
         default: String::new(),
         hint: text("export_template.name_hint"),
     };
-    qnc_settings_form::field_grid(
+    qnc_settings_block::rows(
         ui,
         width,
         &mut named,
         std::slice::from_ref(&spec),
         &qnc_settings_form::OptionSets::new(),
-        &style.grid,
+        &style.metrics,
+        theme,
     );
     name = named
         .get("name")
@@ -323,7 +324,7 @@ fn template(
             .replace("{preset}", &qnc_ai_features::Choice::template_name(&from));
         ui.label(
             RichText::new(start)
-                .size(style.grid.label_size)
+                .size(style.metrics.label_font_size)
                 .color(theme.text_muted),
         );
     }
@@ -337,10 +338,34 @@ fn template(
         |ui| {
             for feature in &features.list {
                 let mut on = chosen.contains(&feature.code);
-                let label = RichText::new(qnc_ai_features::words_of(&feature.name))
-                    .size(style.grid.label_size)
-                    .color(theme.text);
-                if qnc_ui_kit::check_box(ui, &mut on, label, true).changed() {
+                let needs: Vec<String> = features
+                    .all_needs(&feature.code)
+                    .iter()
+                    .filter_map(|code| features.get(code))
+                    .map(|need| qnc_ai_features::words_of(&need.name))
+                    .collect();
+                // A feature is a row of the Settings form: its name on the left, its box and what it needs.
+                let mut flipped = false;
+                qnc_settings_rows::inline_row(
+                    ui,
+                    width,
+                    &qnc_ai_features::words_of(&feature.name),
+                    &style.metrics,
+                    theme,
+                    |ui, _| {
+                        let needs = if needs.is_empty() {
+                            String::new()
+                        } else {
+                            text("ai_settings.needs").replace("{features}", &needs.join(", "))
+                        };
+                        let label = RichText::new(needs)
+                            .size(style.metrics.label_font_size)
+                            .color(theme.text_muted);
+                        flipped = qnc_ui_kit::check_box(ui, &mut on, label, true).changed();
+                    },
+                    |_, _| {},
+                );
+                if flipped {
                     if on {
                         features.turn_on(&mut chosen, &feature.code);
                     } else if let Err(by) = features.turn_off(&mut chosen, &feature.code) {
@@ -352,21 +377,6 @@ fn template(
                             text("ai_settings.needed_by").replace("{features}", &names.join(", ")),
                         );
                     }
-                }
-                let needs: Vec<String> = features
-                    .all_needs(&feature.code)
-                    .iter()
-                    .filter_map(|code| features.get(code))
-                    .map(|need| qnc_ai_features::words_of(&need.name))
-                    .collect();
-                if !needs.is_empty() {
-                    ui.label(
-                        RichText::new(
-                            text("ai_settings.needs").replace("{features}", &needs.join(", ")),
-                        )
-                        .size(style.grid.label_size)
-                        .color(theme.text_muted),
-                    );
                 }
             }
         },
@@ -380,8 +390,7 @@ fn template(
         features: chosen.clone(),
     });
     let (mut save, mut delete) = (false, false);
-    ui.add_space(8.0);
-    ui.horizontal(|ui| {
+    qnc_settings_rows::trailing_actions(ui, width, &style.metrics, |ui| {
         save = qnc_settings_rows::primary_btn(
             ui,
             &text("machine.save"),
@@ -449,13 +458,14 @@ fn share(
                 default: String::new(),
                 hint: String::new(),
             };
-            qnc_settings_form::field_grid(
+            qnc_settings_block::rows(
                 ui,
                 width,
                 &mut settings,
                 std::slice::from_ref(&spec),
                 &qnc_settings_form::OptionSets::new(),
-                &style.grid,
+                &style.metrics,
+                theme,
             );
             draft.share = settings
                 .get("folder")
@@ -464,17 +474,15 @@ fn share(
                 .to_string();
             ui.label(
                 RichText::new(text("ai_settings.share_hint"))
-                    .size(style.grid.label_size)
+                    .size(style.metrics.label_font_size)
                     .color(theme.text_muted),
             );
-            if qnc_settings_rows::primary_btn(
-                ui,
-                &text("machine.save"),
-                !draft.share.trim().is_empty(),
-                theme,
-            )
-            .clicked()
-            {
+            let mut save = false;
+            let can = !draft.share.trim().is_empty();
+            qnc_settings_rows::trailing_actions(ui, width, &style.metrics, |ui| {
+                save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), can, theme).clicked();
+            });
+            if save {
                 draft.said = Some(
                     qnc_ai_catalog::set_share(root, Path::new(draft.share.trim()))
                         .map(|()| text("machine.saved")),

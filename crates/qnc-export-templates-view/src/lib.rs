@@ -149,7 +149,9 @@ fn editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme,
             Ok(group) => {
                 let width = ui.available_width();
                 fields(ui, &[group], width, metrics, theme, style, draft);
-                if qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked() {
+                let mut save = false;
+                qnc_settings_rows::trailing_actions(ui, width, metrics, |ui| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked());
+                if save {
                     draft.said = Some(qnc_export_templates::save_xml(root, &draft.typed).map(|()| text("machine.saved")));
                 }
             }
@@ -175,7 +177,7 @@ fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme
         default: String::new(),
         hint: text("export_template.name_hint"),
     };
-    qnc_settings_form::field_grid(ui, width, &mut named, std::slice::from_ref(&name), &qnc_settings_form::OptionSets::new(), style);
+    qnc_settings_block::rows(ui, width, &mut named, std::slice::from_ref(&name), &qnc_settings_form::OptionSets::new(), metrics, theme);
     editing.name = named.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
     let from = qnc_export_templates::prepared().into_iter().find(|preset| preset.id == editing.from).map_or_else(|| editing.from.clone(), |preset| preset.name);
     ui.label(RichText::new(text("export_template.from").replace("{preset}", &from)).size(metrics.label_font_size).color(theme.text_muted));
@@ -190,7 +192,7 @@ fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme
     draft.chosen = Some(Chosen::Template(editing.clone()));
     let is_own = draft.templates.iter().any(|template| template.id == editing.id);
     let (mut save, mut delete) = (false, false);
-    ui.horizontal(|ui| {
+    qnc_settings_rows::trailing_actions(ui, width, metrics, |ui| {
         save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), !editing.name.trim().is_empty(), theme).clicked();
         if is_own {
             delete = qnc_settings_rows::action_btn(ui, &text("export_template.delete"), theme).clicked();
@@ -224,7 +226,7 @@ fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme
 /// The fields of `groups`, each group a section of the Settings form, its fields in the same grid
 /// as the Advanced settings (`qnc-settings-form`: the label above its field; user 2026-11-23:
 /// "treba biti stilski isto"); a switch under them.
-fn fields(ui: &mut egui::Ui, groups: &[FieldGroup], width: f32, metrics: &PanelMetrics, theme: &Theme, style: &qnc_settings_form::GridStyle, draft: &mut Draft) {
+fn fields(ui: &mut egui::Ui, groups: &[FieldGroup], width: f32, metrics: &PanelMetrics, theme: &Theme, _style: &qnc_settings_form::GridStyle, draft: &mut Draft) {
     let mut settings = serde_json::json!({ "export": Value::Object(draft.typed.clone()) });
     for group in groups {
         qnc_settings_rows::section(ui, width, &text(&group.label), metrics, theme, |ui| {
@@ -255,11 +257,13 @@ fn fields(ui: &mut egui::Ui, groups: &[FieldGroup], width: f32, metrics: &PanelM
                     })
                 })
                 .collect();
-            qnc_settings_form::field_grid(ui, width, &mut settings, &specs, &options, style);
+            qnc_settings_block::rows(ui, width, &mut settings, &specs, &options, metrics, theme);
             for field in group.fields.iter().filter(|field| field.kind == FieldKind::Switch) {
+                // A switch is a row too: its label on the left, its box where the field is.
                 let mut on = settings["export"].get(&field.key).and_then(Value::as_bool).unwrap_or(false);
-                let label = RichText::new(text(&field.label)).size(style.label_size).color(theme.text);
-                if qnc_ui_kit::check_box(ui, &mut on, label, true).changed() {
+                let mut flipped = false;
+                qnc_settings_rows::inline_row(ui, width, &text(&field.label), metrics, theme, |ui, _| flipped = qnc_ui_kit::check_box(ui, &mut on, RichText::new(""), true).changed(), |_, _| {});
+                if flipped {
                     settings["export"][&field.key] = Value::Bool(on);
                 }
             }

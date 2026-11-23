@@ -5,6 +5,7 @@ edition.workspace = true
 description = "QNC-AI question: a question of the tray in QNC's look, above every window, with its buttons; the answer is written to stdout"
 
 [dependencies]
+qnc-ui-kit = { workspace = true }
 eframe = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 qnc-ingest-layout = { workspace = true }

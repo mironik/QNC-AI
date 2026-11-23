@@ -72,27 +72,19 @@ pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, 
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
 }
 
-/// The same setting in a window of its own (the AI settings, `qnc-settings-window`): the fields in
-/// the Settings form's grid (the label above its field), Save under them.
-pub fn panel(ui: &mut egui::Ui, root: &Path, width: f32, grid: &qnc_settings_form::GridStyle, theme: &Theme) {
+/// The same setting in a window of its own (the AI settings, `qnc-settings-window`): the rows of
+/// the Settings form (the label on the left, the field), the token hidden, Save in the button column.
+pub fn panel(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
     let id = egui::Id::new(("qnc-ai-server-view-panel", root.to_string_lossy().to_string()));
     let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
-    let mut settings = serde_json::json!({ "server": draft.server, "fingerprint": draft.fingerprint, "token": draft.token, "llm": draft.llm });
-    let field = |path: &str, label: &str| qnc_settings_form::FieldSpec {
-        kind: qnc_settings_form::FieldKind::Text,
-        label: text(label),
-        id: format!("qnc-ai-server-{path}"),
-        path: path.into(),
-        options: None,
-        default: String::new(),
-        hint: String::new(),
-    };
-    let fields = [field("server", "machine.ai_server"), field("fingerprint", "machine.ai_fingerprint"), field("token", "machine.ai_token"), field("llm", "machine.llm")];
-    qnc_settings_form::field_grid(ui, width, &mut settings, &fields, &qnc_settings_form::OptionSets::new(), grid);
-    let read = |key: &str| settings.get(key).and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
-    (draft.server, draft.fingerprint, draft.token, draft.llm) = (read("server"), read("fingerprint"), read("token"), read("llm"));
-    ui.label(egui::RichText::new(text("machine.ai_hint")).size(grid.label_size).color(theme.text_muted));
-    if qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked() {
+    field(ui, width, "machine.ai_server", &mut draft.server, metrics, theme, false);
+    field(ui, width, "machine.ai_fingerprint", &mut draft.fingerprint, metrics, theme, false);
+    field(ui, width, "machine.ai_token", &mut draft.token, metrics, theme, true);
+    field(ui, width, "machine.llm", &mut draft.llm, metrics, theme, false);
+    ui.label(egui::RichText::new(text("machine.ai_hint")).size(metrics.label_font_size).color(theme.text_muted));
+    let mut save = false;
+    qnc_settings_rows::trailing_actions(ui, width, metrics, |ui| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked());
+    if save {
         draft.save(root);
     }
     said(ui, &draft.said, theme);

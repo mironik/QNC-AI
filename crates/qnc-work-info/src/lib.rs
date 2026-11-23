@@ -88,7 +88,7 @@ impl WorkInfo {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new(text("work.title")).color(ink).strong());
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                minimize = ui.add(egui::Button::new("_").min_size(egui::vec2(22.0, 20.0))).on_hover_text(text("work.minimize")).clicked();
+                                minimize = ui.add(qnc_ui_kit::sized_button("_", egui::vec2(22.0, 20.0))).on_hover_text(text("work.minimize")).clicked();
                             });
                         });
                         ui.label(RichText::new(fill("card_ingest.clips", &[("clips", &progress.clips.to_string())])).color(ink));
