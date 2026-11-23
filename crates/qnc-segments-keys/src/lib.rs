@@ -218,6 +218,17 @@ pub fn step(action_id: &str, wrap: &mut WrapSession, segments: &mut ProgramSegme
 pub fn export(action_id: &str, pointer: bool, preview: &SourcePreview, segments: &mut ProgramSegments) -> Option<bool> {
     if action_id == "export_open" {
         if let Some(export) = preview.export_settings() {
+            // The export templates of this computer join the project's settings (user 2026-11-23:
+            // "poveži predloške s export prozorom u Storyju"); a template not read is said, the box
+            // opens with the project's own.
+            let export = match qnc_dev_diagnostics::resolve_qnc_root().map(|root| qnc_export_templates::with_templates(&root, &export)) {
+                Some(Ok(joined)) => joined,
+                Some(Err(error)) => {
+                    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("export templates not read: {error}"));
+                    export
+                }
+                None => export,
+            };
             segments.open_export(&export, preview.story_outputs());
         }
         return Some(true);

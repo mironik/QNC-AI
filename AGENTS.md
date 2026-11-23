@@ -1110,3 +1110,12 @@ s vlastitim prozorom `qnc-export-templates-view`: u formi jedan redak (broj pred
 gotovih preseta kao polazista, naziv, polja po grupama, Spremi, Obrisi. Blok `export` u `contracts/ui/settings.layout.json`.
 Tekstovi `export_template.*` (en, hr). Test. Uzivo nije provjereno. Nije izvedeno: export prozor price jos ne nudi predloske
 racunala (cita gotove presete i vlastite iz projekta).
+Izvedeno 2026-11-23 (korisnik: "povezi predloske s export prozorom u Storyju, dodaj svugdje nase ekstenzije"): (1) export
+predlosci racunala ulaze u Storyjev prozor exporta i u alat exporta kao postavke exporta projekta
+(`qnc-export-templates` `with_templates`: dodaje ih u `custom_presets` vrijednosti koja se predaje, projekt se ne pise;
+`qnc-segments-keys` `export`, `tools/qnc-export` `--render`); test. (2) Postavke racunala koje su samo QNC-AI-jeve imaju svoje
+ekstenzije (JSON unutra): `tray-mode.qnctray`, `tray-menu.qnctray`, `tray-forms.qnctray`, `card-readers.qncreaders`,
+`llm.qncllm`, `ingest-orchestrators.qncingest`, export predlosci `.qncexport`; postojece datoteke ovog racunala preimenovane.
+Nije izvedeno: postavke koje dijele QNC i QNC-AI kroz zajednicke kocke (`ai-place.json`, `ai-share.json`, `ui-language.json`,
+`ingest-bases.json`, `ingest-transport.json`, `mouse-wheel.json`, `voice-input.json`, AI predlosci) - to bi mijenjalo i klasicni
+QNC. Uzivo nije provjereno.

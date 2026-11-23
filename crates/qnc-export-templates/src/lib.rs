@@ -183,3 +183,45 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 }
+
+/// The project's export settings `export` with the export templates of this computer among its
+/// own presets (`custom_presets`), for the export box and the export of a story (user 2026-11-23:
+/// "poveži predloške s export prozorom u Storyju"). Only the value handed on; the project is not
+/// written. A template the project already has by its id is not added twice.
+pub fn with_templates(root: &Path, export: &Value) -> Result<Value, String> {
+    let mut export = export.clone();
+    let templates = templates(root)?;
+    let Some(object) = export.as_object_mut() else { return Ok(export) };
+    let presets = object.entry("custom_presets").or_insert_with(|| Value::Array(Vec::new()));
+    if !presets.is_array() {
+        *presets = Value::Array(Vec::new());
+    }
+    let presets = presets.as_array_mut().expect("an array");
+    for template in templates {
+        if presets.iter().any(|preset| preset.get("id").and_then(Value::as_str) == Some(template.id.as_str())) {
+            continue;
+        }
+        presets.push(serde_json::json!({ "id": template.id, "name": template.name, "values": Value::Object(template.values) }));
+    }
+    Ok(export)
+}
+
+#[cfg(test)]
+mod with_tests {
+    use super::*;
+
+    #[test]
+    fn the_computers_templates_join_the_projects_presets_and_the_project_is_not_written() {
+        let root = std::env::temp_dir().join(format!("qnc-export-with-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut values = Map::new();
+        values.insert("video_codec".into(), "h264".into());
+        save(&root, &Template { id: "nova".into(), name: "Nova".into(), from: "h264_1080p50".into(), values }).unwrap();
+        let export = serde_json::json!({ "preset": "h264_1080p50" });
+        let joined = with_templates(&root, &export).unwrap();
+        let presets = qnc_export_preset::presets(&serde_json::json!({ "export": joined }));
+        assert!(presets.iter().any(|preset| preset.id == "nova" && preset.name == "Nova"));
+        assert_eq!(export, serde_json::json!({ "preset": "h264_1080p50" }), "the project's value is left as it was");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}

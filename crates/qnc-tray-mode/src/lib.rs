@@ -7,7 +7,7 @@
 //!     AI shots with the filmstrip, SigLIP, then the transcript and the captions in the background;
 //!   - **Story**: the transcript, the waves and the filmstrip are waited for, then Ingest opens.
 //!
-//! The setting is the computer's (`data/tray-mode.json`), chosen in the tray's menu. Not chosen
+//! The setting is the computer's (`data/tray-mode.qnctray`), chosen in the tray's menu. Not chosen
 //! yet, the tray only ingests (as it did before the setting): nothing is made up.
 
 use std::path::{Path, PathBuf};
@@ -55,7 +55,7 @@ impl Mode {
     }
 
     /// The form this mode opens after the ingest Wizard and on the tray's Open application, as the
-    /// computer's setting says (`data/tray-forms.json`, chosen in Settings; user 2026-11-23: "to
+    /// computer's setting says (`data/tray-forms.qnctray`, chosen in Settings; user 2026-11-23: "to
     /// možemo imati kao postavku u Postavkama, na taj način ništa nije hardkodirano"). Nothing
     /// set: none.
     pub fn opens_on(self, root: &Path) -> Result<Option<Opens>, String> {
@@ -109,7 +109,7 @@ impl Forms {
 }
 
 fn forms_file(root: &Path) -> PathBuf {
-    root.join("data").join("tray-forms.json")
+    root.join("data").join("tray-forms.qnctray")
 }
 
 /// The forms set on this computer; none set yet: no form. A file not read is an error.
@@ -147,7 +147,7 @@ fn kept(opens: Opens) -> (&'static str, &'static [&'static str]) {
 }
 
 fn file(root: &Path) -> PathBuf {
-    root.join("data").join("tray-mode.json")
+    root.join("data").join("tray-mode.qnctray")
 }
 
 /// The mode chosen on this computer; `None` when none is chosen yet. A file that cannot be read is
@@ -184,7 +184,7 @@ mod tests {
             write(&root, mode).unwrap();
             assert_eq!(read(&root).unwrap(), Some(mode));
         }
-        std::fs::write(root.join("data").join("tray-mode.json"), "{\"place\":\"moon\"}").unwrap();
+        std::fs::write(root.join("data").join("tray-mode.qnctray"), "{\"place\":\"moon\"}").unwrap();
         assert!(read(&root).is_err(), "a setting not read is an error");
         let _ = std::fs::remove_dir_all(&root);
     }

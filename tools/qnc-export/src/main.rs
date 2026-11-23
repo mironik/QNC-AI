@@ -86,7 +86,9 @@ fn run() -> Result<PathBuf> {
         return deliver(&settings, &program, delivery, "express", content.as_ref(), &target, &project_dir, &folder, roots);
     }
     if let Some(id) = what.strip_prefix("--render=") {
-        let values = qnc_export_choice::delivery_values(id, &settings.export, story_format(&program)?)?;
+        // The export templates of this computer are export settings too (user 2026-11-23).
+        let export = qnc_export_templates::with_templates(&root, &settings.export)?;
+        let values = qnc_export_choice::delivery_values(id, &export, story_format(&program)?)?;
         let delivery = qnc_program_render::Delivery::from_export(&values)?;
         // From the camera originals, never the prerender (user 2026-10-24).
         return deliver(&settings, &program, delivery, &qnc_work_settings::export_file_name(id), None, &target, &project_dir, &folder, roots);

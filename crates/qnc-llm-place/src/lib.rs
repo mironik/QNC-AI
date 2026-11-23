@@ -1,6 +1,6 @@
 //! The LLM model of this computer (user 2026-11-22: "u Postavkama putanja ... LLM modela"; "samo
 //! zapisati postavku za sada"): a path to a model file or the address of a server that serves one,
-//! as it is typed. A setting of this computer, never of a project: `llm.json` beside its other
+//! as it is typed. A setting of this computer, never of a project: `llm.qncllm` (JSON) beside its other
 //! settings. Nothing in QNC-AI uses it yet.
 
 use std::path::{Path, PathBuf};
@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 /// The setting of this computer, beside its other settings.
-pub const FILE: &str = "llm.json";
+pub const FILE: &str = "llm.qncllm";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

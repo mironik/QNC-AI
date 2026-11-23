@@ -4886,6 +4886,7 @@ dependencies = [
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
  "qnc-export-choice",
+ "qnc-export-templates",
  "qnc-fcp7-xml",
  "qnc-media-metadata",
  "qnc-media-stream",
@@ -7172,8 +7173,10 @@ dependencies = [
 name = "qnc-segments-keys"
 version = "0.1.0"
 dependencies = [
+ "qnc-dev-diagnostics",
  "qnc-edit-step",
  "qnc-edit-words",
+ "qnc-export-templates",
  "qnc-lane-choice",
  "qnc-match-frame",
  "qnc-program-segments",

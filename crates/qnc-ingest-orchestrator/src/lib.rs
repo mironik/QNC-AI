@@ -4,7 +4,7 @@
 //! biraju u postavkama"). The blocks only do their work. An orchestrator says in which project a
 //! card's ingest writes; the order of the steps is the template's (`qnc-ingest-plan`). The
 //! orchestrators are a catalog (`catalogs/ingest/orchestrators.json`), so another variant is data;
-//! which one a form uses is a setting of this computer (`data/ingest-orchestrators.json`, one per
+//! which one a form uses is a setting of this computer (`data/ingest-orchestrators.qncingest`, JSON, one per
 //! form, chosen in the settings), never a default made up.
 
 use std::path::{Path, PathBuf};
@@ -52,7 +52,7 @@ fn catalog_file(root: &Path) -> PathBuf {
 }
 
 fn choice_file(root: &Path) -> PathBuf {
-    root.join("data").join("ingest-orchestrators.json")
+    root.join("data").join("ingest-orchestrators.qncingest")
 }
 
 /// Every orchestrator of the catalog.

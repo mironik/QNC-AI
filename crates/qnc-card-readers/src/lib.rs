@@ -1,7 +1,7 @@
 //! The card readers on the network (user 2026-11-22: "putanja importa iz, ili kroz čitač kartica
 //! spojen na udaljenoj lokaciji"; "mrežna dijeljena mapa"): a card reader on another computer (a
 //! Jetson) shares its card as a folder, here its path (`\\192.168.100.28\kartica`) and a name. A
-//! setting of this computer, never of a project: `card-readers.json` beside its other settings.
+//! setting of this computer, never of a project: `card-readers.qncreaders` (JSON) beside its other settings.
 //! Each reader is a LAN source of Ingest, `qnc://lan/<host>/source/reader-<name>`, read as any card
 //! (the folder is only read).
 
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 /// The setting of this computer, beside its other settings.
-pub const FILE: &str = "card-readers.json";
+pub const FILE: &str = "card-readers.qncreaders";
 
 /// One card reader on the network: its name and the path of the folder it shares.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

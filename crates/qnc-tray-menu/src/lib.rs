@@ -2,7 +2,7 @@
 //! njega ćemo kreirati u Postavkama; na taj način svaki korisnik može svojim potrebama podesiti
 //! Tray"; "u postavkama trebaju biti checkboxovi za postavljanje onoga što će se vidjeti u trayu").
 //!
-//! The items are what the tray can do; the setting (`data/tray-menu.json`) names the items hidden.
+//! The items are what the tray can do; the setting (`data/tray-menu.qnctray`) names the items hidden.
 //! Nothing hidden (no setting yet): every item shows. Quit is always there, else the tray could not
 //! be left.
 
@@ -88,7 +88,7 @@ struct Setting {
 }
 
 fn file(root: &Path) -> PathBuf {
-    root.join("data").join("tray-menu.json")
+    root.join("data").join("tray-menu.qnctray")
 }
 
 /// The items hidden on this computer; no setting: none. A setting not read is an error.

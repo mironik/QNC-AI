@@ -5,6 +5,7 @@ edition = "2021"
 description = "QNC tool: export of the active project's story (FCP7 XML, or the prerender put together, into the project's export folder); reads the project database and media only"
 
 [dependencies]
+qnc-export-templates = { workspace = true }
 qnc-broadcast-engine.workspace = true
 qnc-decoder-catalog.workspace = true
 qnc-media-metadata.workspace = true
