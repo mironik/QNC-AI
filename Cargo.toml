@@ -41,6 +41,7 @@ qnc-settings-window = { path = "crates/qnc-settings-window" }
 qnc-ai-catalog-edit = { path = "crates/qnc-ai-catalog-edit" }
 qnc-ai-settings-view = { path = "crates/qnc-ai-settings-view" }
 qnc-project-texts = { path = "crates/qnc-project-texts" }
+qnc-settings-board = { path = "crates/qnc-settings-board" }
 qnc-project-templates-view = { path = "crates/qnc-project-templates-view" }
 qnc-locations-view = { path = "crates/qnc-locations-view" }
 qnc-project-advanced-view = { path = "crates/qnc-project-advanced-view" }

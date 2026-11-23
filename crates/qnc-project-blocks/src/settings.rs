@@ -6,7 +6,7 @@ use eframe::egui::{self, Sense, Vec2};
 use qnc_project_session::ProjectIntent;
 
 use crate::{
-    layout_contract::{SettingsBlock, SettingsPanelMetrics},
+    layout_contract::SettingsPanelMetrics,
     theme::{self, Theme},
     widgets, Blocks,
 };
@@ -124,15 +124,7 @@ impl Blocks<'_> {
                                 let width = (width - 2.0 * settings.inner_pad_x).max(40.0);
                                 ui.set_max_width(width);
                                 ui.spacing_mut().item_spacing.y = settings.section_gap;
-                                // QNC-AI Settings is put together from blocks, in the order its layout
-                                // names them (user 2026-11-23: "forma postavke se slaže od kocaka").
-                                if self.settings_only {
-                                    for block in self.contracts.settings_blocks.clone() {
-                                        self.settings_block(ui, width, settings, block);
-                                    }
-                                } else {
-                                    self.templates(ui, width, settings);
-                                }
+                                self.templates(ui, width, settings);
                             });
                     });
             },
@@ -156,24 +148,6 @@ impl Blocks<'_> {
         let pen = qnc_settings_block::Pen::new(settings, theme, width);
         let intents = qnc_locations_view::show(ui, &pen, theme, &self.contracts.project.texts, self.session, self.settings_only);
         self.intents.extend(intents);
-    }
-
-    /// One block of the Settings form (`contracts/ui/settings.layout.json`); each reads and writes
-    /// its own setting.
-    fn settings_block(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics, block: SettingsBlock) {
-        let root = self.session.component.root.clone();
-        let theme = self.contracts.theme.clone();
-        let pen = qnc_settings_block::Pen::new(settings, &theme, width);
-        match block {
-            SettingsBlock::Locations => self.locations(ui, width, settings),
-            // The ingest orchestrator of each form, a setting of this computer.
-            SettingsBlock::IngestOrchestrator => qnc_ingest_orchestrator_view::show(ui, &root, &pen),
-            SettingsBlock::Ai => qnc_ai_settings_view::show(ui, &root, &pen),
-            SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, &pen),
-            SettingsBlock::Tray => qnc_tray_settings_view::show(ui, &root, &pen),
-            SettingsBlock::Templates => self.templates(ui, width, settings),
-            SettingsBlock::Export => qnc_export_templates_view::show(ui, &root, &pen),
-        }
     }
 
     /// The template picker, then the Advanced bar; the slots of the scroll show only while it is open.

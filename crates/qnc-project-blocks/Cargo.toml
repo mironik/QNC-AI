@@ -5,11 +5,6 @@ edition = "2021"
 description = "QNC Project blocks on the desktop board: project list, settings with their sub-blocks and the delete questions; they draw and return intents"
 
 [dependencies]
-qnc-ingest-orchestrator-view = { workspace = true }
-qnc-ai-settings-view = { workspace = true }
-qnc-card-readers-view = { workspace = true }
-qnc-tray-settings-view = { workspace = true }
-qnc-export-templates-view = { workspace = true }
 qnc-ui-text = { workspace = true }
 eframe = { workspace = true }
 qnc-board = { workspace = true }

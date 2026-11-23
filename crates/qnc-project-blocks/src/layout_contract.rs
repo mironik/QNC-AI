@@ -4,8 +4,6 @@ use serde::Deserialize;
 
 const SHELL_LAYOUT_JSON: &str = include_str!("../../../contracts/ui/shell.layout.json");
 const PROJECT_LAYOUT_JSON: &str = include_str!("../../../contracts/ui/project.layout.json");
-/// The blocks of QNC-AI's Settings form, in their order (user 2026-11-23).
-const SETTINGS_LAYOUT_JSON: &str = include_str!("../../../contracts/ui/settings.layout.json");
 const KEYBOARD_SHORTCUTS_JSON: &str =
     include_str!("../../../contracts/qnc-keyboard-shortcuts.json");
 
@@ -17,8 +15,6 @@ pub struct AppContracts {
     pub project_open_hint: Option<String>,
     /// The one desktop theme, for the public pieces the board places.
     pub theme: qnc_desktop_theme::Theme,
-    /// The blocks of the Settings form, in the order its layout names them.
-    pub settings_blocks: Vec<SettingsBlock>,
 }
 
 impl AppContracts {
@@ -50,8 +46,7 @@ impl AppContracts {
         let desktop = serde_json::from_str::<qnc_desktop_theme::ShellLayoutContract>(SHELL_LAYOUT_JSON)
             .map_err(|error| format!("shell layout parse failed: {error}"))?;
         let theme = qnc_desktop_theme::Theme::from_contract(&desktop);
-        let settings_blocks = settings_blocks(SETTINGS_LAYOUT_JSON)?;
-        Ok(Self { shell, project, shortcuts, project_open_hint, theme, settings_blocks })
+        Ok(Self { shell, project, shortcuts, project_open_hint, theme })
     }
 }
 
@@ -184,46 +179,3 @@ mod look_tests {
     }
 }
 
-/// A block of the Settings form (`contracts/ui/settings.layout.json`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SettingsBlock {
-    /// The projects', the Ingest bases' and the export folders.
-    Locations,
-    /// The ingest orchestrator of each form (`qnc-ingest-orchestrator-view`).
-    IngestOrchestrator,
-    /// The AI settings of this computer, with their own window (`qnc-ai-settings-view`): AI
-    /// templates, AI engines, the AI server and LLM, the shared AI folder, the shot labels.
-    Ai,
-    /// The card readers on the network (`qnc-card-readers-view`).
-    CardReaders,
-    /// The tray of this computer: what its menu shows, the form each mode opens
-    /// (`qnc-tray-settings-view`).
-    Tray,
-    /// The templates and the Advanced settings of a project.
-    Templates,
-    /// The export templates of this computer, with their own window (`qnc-export-templates-view`).
-    Export,
-}
-
-/// The blocks a Settings layout names; a name no block has is an error, never skipped.
-fn settings_blocks(json: &str) -> Result<Vec<SettingsBlock>, String> {
-    #[derive(Deserialize)]
-    struct Layout {
-        blocks: Vec<SettingsBlock>,
-    }
-    serde_json::from_str::<Layout>(json).map(|layout| layout.blocks).map_err(|error| format!("settings layout parse failed: {error}"))
-}
-
-#[cfg(test)]
-mod settings_layout_tests {
-    use super::*;
-
-    #[test]
-    fn the_settings_form_puts_its_blocks_in_the_layouts_order_and_an_unknown_one_is_an_error() {
-        let blocks = settings_blocks(SETTINGS_LAYOUT_JSON).unwrap();
-        assert_eq!(blocks.first(), Some(&SettingsBlock::Locations));
-        assert!(blocks.contains(&SettingsBlock::CardReaders) && blocks.contains(&SettingsBlock::Templates));
-        assert!(settings_blocks(r#"{"blocks":["moon"]}"#).is_err());
-    }
-}

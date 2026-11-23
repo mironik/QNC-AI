@@ -26,18 +26,6 @@ struct Blocks<'a> {
     settings_only: bool,
 }
 
-/// QNC-AI: the settings of Project on their own over the whole window (user 2026-11-11: "iz QNC
-/// project izdvoji Postavke kao samostalni obrazac; to se veoma rijetko koristi zato treba biti
-/// odvojen od wizarda"): the template, its advanced settings, AI, locations and own templates,
-/// without the project list and without New project.
-pub fn show_settings(ctx: &egui::Context, ui: &mut egui::Ui, contracts: &AppContracts, session: &mut ProjectSession) -> Vec<ProjectIntent> {
-    let mut blocks = Blocks { contracts, session, intents: Vec::new(), settings_only: true };
-    let rect = ui.available_rect_before_wrap();
-    blocks.settings_panel(ui, rect.width(), rect.height());
-    blocks.delete_questions(ctx);
-    blocks.intents
-}
-
 /// QNC-AI: the project list of Project on its own over the whole window (user 2026-11-12: "iz
 /// stare QNC forme Projects preuzeti panel koji je prikazivao arhivu projekata, kako bi korisnik
 /// mogao nastaviti raditi na projektu ako je projekt bio zatvoren"): the rows, their search and

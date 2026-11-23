@@ -6838,16 +6838,12 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-features-view",
- "qnc-ai-settings-view",
  "qnc-board",
- "qnc-card-readers-view",
  "qnc-confirm-dialog",
  "qnc-contracts",
  "qnc-desktop-theme",
  "qnc-dir-browser",
- "qnc-export-templates-view",
  "qnc-form-look",
- "qnc-ingest-orchestrator-view",
  "qnc-keyboard-shortcut",
  "qnc-location-field",
  "qnc-locations-view",
@@ -6860,7 +6856,6 @@ dependencies = [
  "qnc-settings-block",
  "qnc-settings-rows",
  "qnc-settings-switches",
- "qnc-tray-settings-view",
  "qnc-ui-text",
  "serde",
  "serde_json",
@@ -6890,6 +6885,7 @@ dependencies = [
  "qnc-project-application",
  "qnc-project-blocks",
  "qnc-project-session",
+ "qnc-settings-board",
 ]
 
 [[package]]
@@ -7314,6 +7310,27 @@ dependencies = [
  "qnc-settings-rows",
  "qnc-ui-kit",
  "qnc-wizard-text",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-settings-board"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-settings-view",
+ "qnc-card-readers-view",
+ "qnc-desktop-theme",
+ "qnc-export-templates-view",
+ "qnc-ingest-orchestrator-view",
+ "qnc-locations-view",
+ "qnc-project-session",
+ "qnc-project-texts",
+ "qnc-settings-block",
+ "qnc-settings-rows",
+ "qnc-tray-settings-view",
+ "qnc-wizard-text",
+ "serde",
  "serde_json",
 ]
 
