@@ -1,82 +1,86 @@
 {
-  "version": "1",
-  "smooth": {
-    "program": "rife-ncnn-vulkan",
-    "model": "share:models/rife-v4.6"
-  },
-  "shot_content": {
-    "program": "qnc-shot-content-siglip",
-    "model": "share:models/siglip2-base-patch16-224",
-    "pictures": 2
+  "letters": {
+    "model": "share:models/wav2vec2-parlaspeech-hr",
+    "program": "qnc-align-wav2vec2"
   },
   "shot_caption": {
-    "program": "qnc-shot-caption-florence",
+    "backend": "directml",
     "model": "share:models/florence-2-base-ft",
-    "backend": "directml"
+    "program": "qnc-shot-caption-florence"
   },
-  "translate": {
-    "program": "qnc-translate-opus",
-    "model": "share:models/opus-mt-tc-big-sh-en",
-    "from": ["hr", "sr", "bs"]
+  "shot_content": {
+    "model": "share:models/siglip2-base-patch16-224",
+    "pictures": 2,
+    "program": "qnc-shot-content-siglip"
+  },
+  "smooth": {
+    "model": "share:models/rife-v4.6",
+    "program": "rife-ncnn-vulkan"
   },
   "store": {
     "program": "qnc-ai-store"
   },
-  "letters": {
-    "program": "qnc-align-wav2vec2",
-    "model": "share:models/wav2vec2-parlaspeech-hr"
-  },
   "transcribe": {
-    "selected": "wav2vec2.parlaspeech-hr.cpu",
-    "fast": "parakeet.tdt-0.6b-v3.cpu",
-    "live": "parakeet.tdt-0.6b-v3.cpu",
     "engines": [
       {
-        "id": "whisper.large-v3-turbo.vulkan",
-        "program": "qnc-transcribe-whisper",
         "backend": "vulkan",
+        "id": "whisper.large-v3-turbo.vulkan",
         "model": "share:models/ggml-large-v3-turbo.bin",
-        "vad_model": "share:models/ggml-silero-v5.1.2.bin",
-        "threads": 4
-      },
-      {
-        "id": "whisper.large-v3-turbo.cpu",
         "program": "qnc-transcribe-whisper",
-        "backend": "cpu",
-        "model": "share:models/ggml-large-v3-turbo.bin",
-        "vad_model": "share:models/ggml-silero-v5.1.2.bin",
-        "threads": 6
+        "threads": 4,
+        "vad_model": "share:models/ggml-silero-v5.1.2.bin"
       },
       {
-        "id": "wav2vec2.parlaspeech-hr.cpu",
-        "program": "qnc-transcribe-wav2vec2",
         "backend": "cpu",
+        "id": "whisper.large-v3-turbo.cpu",
+        "model": "share:models/ggml-large-v3-turbo.bin",
+        "program": "qnc-transcribe-whisper",
+        "threads": 6,
+        "vad_model": "share:models/ggml-silero-v5.1.2.bin"
+      },
+      {
+        "backend": "cpu",
+        "id": "wav2vec2.parlaspeech-hr.cpu",
         "model": "share:models/wav2vec2-parlaspeech-hr",
+        "program": "qnc-transcribe-wav2vec2",
         "threads": 4
       },
       {
+        "backend": "cpu",
         "id": "parakeet.tdt-0.6b-v3.cpu",
-        "program": "qnc-transcribe-parakeet",
-        "backend": "cpu",
         "model": "share:models/parakeet-tdt-0.6b-v3-int8",
-        "threads": 2,
-        "parallel": 3
-      },
-      {
-        "id": "nemotron.3.5-asr-streaming-560ms.cpu",
-        "program": "qnc-transcribe-nemotron",
-        "backend": "cpu",
-        "model": "share:models/nemotron-3.5-asr-streaming-0.6b-560ms-int8",
+        "parallel": 3,
+        "program": "qnc-transcribe-parakeet",
         "threads": 2
       },
       {
-        "id": "parakeet.tdt-0.6b-v3-fp32.directml",
-        "program": "qnc-transcribe-parakeet-dml",
+        "backend": "cpu",
+        "id": "nemotron.3.5-asr-streaming-560ms.cpu",
+        "model": "share:models/nemotron-3.5-asr-streaming-0.6b-560ms-int8",
+        "program": "qnc-transcribe-nemotron",
+        "threads": 2
+      },
+      {
         "backend": "directml",
+        "id": "parakeet.tdt-0.6b-v3-fp32.directml",
         "model": "share:models/parakeet-tdt-0.6b-v3-onnx-fp32",
-        "threads": 2,
-        "parallel": 1
+        "parallel": 1,
+        "program": "qnc-transcribe-parakeet-dml",
+        "threads": 2
       }
-    ]
-  }
+    ],
+    "fast": "parakeet.tdt-0.6b-v3.cpu",
+    "live": "parakeet.tdt-0.6b-v3.cpu",
+    "selected": "wav2vec2.parlaspeech-hr.cpu"
+  },
+  "translate": {
+    "from": [
+      "hr",
+      "sr",
+      "bs"
+    ],
+    "model": "share:models/opus-mt-tc-big-sh-en",
+    "program": "qnc-translate-opus"
+  },
+  "version": "1"
 }

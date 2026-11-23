@@ -1161,3 +1161,4 @@ kao JSON, polja koja ne zna ostaju): naziv, upit modelu, izjava da/ne, nova ozna
 koji `qnc_shot_labels::Labels::read` cita. Nova oznaka nema kljuc rjecnika: naziv se pise kako je upisan. U prozoru AI
 postavki lijevo "Oznake kadrova". AI postavke imaju sve sto je trazeno (predlosci, motori, server i LLM, AI mapa, oznake).
 Uzivo nije provjereno.
+Popravak 2026-11-23 (korisnik: "u desnom panelu za Oznake trebas dodati vertikal scroll"): prozor bloka Postavki (`qnc-settings-window`) ima okomiti scroll i u izborniku i u desnom panelu, za svaki prozor takvog bloka (export, AI postavke). Uzivo nije provjereno.
