@@ -40,38 +40,6 @@
       "min": 0.0,
       "max": 80.0,
       "step": 1.0
-    },
-    {
-      "key": "label_size",
-      "label": "Oznake: veličina slova",
-      "value": 12.0,
-      "min": 8.0,
-      "max": 30.0,
-      "step": 1.0
-    },
-    {
-      "key": "min_cell_width",
-      "label": "Polje: najmanja širina",
-      "value": 160.0,
-      "min": 60.0,
-      "max": 800.0,
-      "step": 1.0
-    },
-    {
-      "key": "gap",
-      "label": "Razmak polja",
-      "value": 8.0,
-      "min": 0.0,
-      "max": 60.0,
-      "step": 1.0
-    },
-    {
-      "key": "cell_height",
-      "label": "Polje: visina",
-      "value": 52.0,
-      "min": 24.0,
-      "max": 160.0,
-      "step": 1.0
     }
   ]
 }

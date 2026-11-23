@@ -18,7 +18,7 @@ use qnc_desktop_theme::Theme;
 use qnc_settings_rows::PanelMetrics;
 
 /// The measures every such window's look has.
-pub const LOOK_KEYS: [&str; 9] = ["window_width", "window_height", "list_width", "right_width", "margin", "label_size", "min_cell_width", "gap", "cell_height"];
+pub const LOOK_KEYS: [&str; 5] = ["window_width", "window_height", "list_width", "right_width", "margin"];
 
 /// Which side the window's body draws.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,16 +75,21 @@ pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, metrics: 
             bar.show(ctx);
             look.editor_of_own(ctx);
             look.window(ctx, qnc_title_bar::HEIGHT);
+            // The style of the rest of QNC-AI (user 2026-11-23: "pronađi njegovu kocku stila i
+            // primjeni na sve"): the Settings form's metrics as they are (its layout contract) and
+            // the desktop theme's settings look; the window's own look gives only its size, widths
+            // and margin.
+            qnc_desktop_theme::apply_settings_look(ctx, theme);
             let style = Style {
                 grid: qnc_settings_form::GridStyle {
                     label_color: theme.text_muted,
-                    label_size: look.get("label_size"),
-                    min_cell_width: look.get("min_cell_width"),
-                    gap: look.get("gap"),
-                    cell_height: look.get("cell_height"),
-                    label_beside: None,
+                    label_size: metrics.label_font_size,
+                    min_cell_width: metrics.field_min_width,
+                    gap: metrics.inline_column_gap,
+                    cell_height: metrics.row_height,
+                    label_beside: Some((metrics.inline_label_width, metrics.row_height)),
                 },
-                metrics: PanelMetrics { label_font_size: look.get("label_size"), group_title_font_size: look.get("label_size"), ..metrics.clone() },
+                metrics: metrics.clone(),
             };
             let margin = look.get("margin").round() as i8;
             let (list_width, right_width) = (look.get("list_width"), look.get("right_width"));
