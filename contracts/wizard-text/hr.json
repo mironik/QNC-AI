@@ -119,7 +119,7 @@
     "settings_tray.form_none": "Nijedna",
     "settings_tray.form_args": "argumenti",
     "export_template.title": "Export predlošci (ovo računalo)",
-    "export_template.hint": "Vlastiti predlošci exporta gotovog priloga, napravljeni od gotovih preseta; svaki je zaseban JSON u data/export-templates.",
+    "export_template.hint": "Vlastiti predlošci exporta gotovog priloga, napravljeni od gotovih preseta; svaki je zasebna datoteka .qncexport (JSON) u data/export-templates.",
     "export_template.count": "Vlastitih predložaka: {count}",
     "export_template.open": "Uredi…",
     "export_template.window_title": "Export predlošci",

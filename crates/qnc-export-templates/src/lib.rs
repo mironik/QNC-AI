@@ -16,6 +16,10 @@ use serde_json::{Map, Value};
 /// The fields of a template, as the contract names them.
 const FIELDS_JSON: &str = include_str!("../../../contracts/export-template-fields.json");
 
+/// The extension of a template's file (JSON inside; user 2026-11-23: "svaka postavka samostalni
+/// json, kako bi se mogle lako prenositi na druga računala"; "možeš im dati i drugačiju ekstenziju").
+pub const EXTENSION: &str = "qncexport";
+
 /// A group of fields (picture, sound, delivery).
 #[derive(Debug, Clone, Deserialize)]
 pub struct FieldGroup {
@@ -106,7 +110,7 @@ pub fn templates(root: &Path) -> Result<Vec<Template>, String> {
     let mut templates = Vec::new();
     for entry in entries {
         let path = entry.map_err(|error| error.to_string())?.path();
-        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+        if path.extension().and_then(|extension| extension.to_str()) != Some(EXTENSION) {
             continue;
         }
         let text = std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
@@ -142,14 +146,14 @@ pub fn save(root: &Path, template: &Template) -> Result<(), String> {
     }
     let folder = folder(root);
     std::fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
-    let file = folder.join(format!("{}.json", template.id));
+    let file = folder.join(format!("{}.{EXTENSION}", template.id));
     let text = serde_json::to_string_pretty(template).map_err(|error| error.to_string())?;
     std::fs::write(&file, text).map_err(|error| format!("{}: {error}", file.display()))
 }
 
 /// Deletes the template `id` of this computer (a prepared preset is no file here).
 pub fn delete(root: &Path, id: &str) -> Result<(), String> {
-    let file = folder(root).join(format!("{id}.json"));
+    let file = folder(root).join(format!("{id}.{EXTENSION}"));
     std::fs::remove_file(&file).map_err(|error| format!("{}: {error}", file.display()))
 }
 

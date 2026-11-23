@@ -1102,7 +1102,7 @@ Izvedeno 2026-11-23 (korisnik: "postavke trebamo graditi od kraja, a to su Expor
 export XML; za export file vise templatea, obrazac za kreiranje korisnickih postavki koristeci nase predefinirane postavke;
 samostalna kocka koja ima svoj GUI koji se poziva iz forme Postavke"; "na racunalu"; "sve sto je potrebno za postavke exporta
 gotovog priloga"; "svaka postavka samostalni json, kako bi se mogle lako prenositi na druga racunala"): nova kocka
-`qnc-export-templates` (predlosci racunala, svaki zaseban JSON u `data/export-templates/<id>.json`: naziv, preset od kojeg je
+`qnc-export-templates` (predlosci racunala, svaki zasebna datoteka `data/export-templates/<id>.qncexport` (JSON): naziv, preset od kojeg je
 napravljen, `export.*` vrijednosti; gotovi preseti iz `contracts/export_profiles.json` nikad se ne prepisuju, id koji bi bio
 id preseta dobiva `_own`) i polja predloska kao ugovor `contracts/export-template-fields.json` (grupe: slika i spremnik, zvuk,
 predaja, export XML; izbor nudi vrijednosti koje gotovi preseti imaju, broj i tekst se upisuju, sklopka). Nova kocka Postavki

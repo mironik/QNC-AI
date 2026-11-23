@@ -119,7 +119,7 @@
     "settings_tray.form_none": "None",
     "settings_tray.form_args": "arguments",
     "export_template.title": "Export templates (this computer)",
-    "export_template.hint": "Your own templates for exporting a finished piece, made from the prepared presets; each is a JSON of its own in data/export-templates.",
+    "export_template.hint": "Your own templates for exporting a finished piece, made from the prepared presets; each is a .qncexport file of its own (JSON) in data/export-templates.",
     "export_template.count": "Own templates: {count}",
     "export_template.open": "Edit…",
     "export_template.window_title": "Export templates",
