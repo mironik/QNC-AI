@@ -11,7 +11,7 @@ use qnc_segment_panel::{cover_fill, CoverLengthBand};
 use qnc_script::SubsegmentView;
 use qnc_timeline::{
     AudioLane, TimelineCoverSpan, TimelineFocusPaint, TimelineInput, TimelineLayerFlags, TimelineMarkerPart, TimelineMarkerPin,
-    TimelineMetrics, TimelinePicture, TimelineProjection, TimelineTheme, TimelineVirtualSpan,
+    TimelineMetrics, TimelinePicture, TimelineProjection, TimelineTheme,
 };
 
 pub const MODULE_ID: &str = "qnc.module.subsegment-panel";
@@ -53,15 +53,7 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
     }
     let peaks_at = |frame: u64| ((frame as f64 / total as f64) * view.a1.len() as f64).round() as usize;
     let a1_peaks = &view.a1[peaks_at(from).min(view.a1.len())..peaks_at(to).min(view.a1.len())];
-    let labels: Vec<String> = view.parts.iter().map(|part| format!("{} {}", part.clip_name, part.length)).collect();
     let ids: Vec<String> = (0..view.parts.len()).map(|index| format!("part-{index}")).collect();
-    let spans: Vec<TimelineVirtualSpan<'_>> = view
-        .parts
-        .iter()
-        .zip(&labels)
-        .zip(&ids)
-        .map(|((part, label), id)| TimelineVirtualSpan { id, label, start_frame: part.start, end_frame: part.end, has_base_video: true, selected: false })
-        .collect();
     // Every part laid out as a cover is (user 2026-11-03): a strip over its pictures in the
     // colour of its length, with its length, always shown; the part being trimmed or heard is
     // the chosen one.
@@ -166,11 +158,13 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
                     a2_peaks: &[],
                     a3_peaks: &[],
                     a4_peaks: &[],
-                    virtual_spans: &spans,
+                    // Flat (user 2026-11-23): a composite statement's parts are one row of clips, no
+                    // segment under them as under a story's covers.
+                    virtual_spans: &[],
                     covers: &covers,
                     marker_slots: &[],
                     markers: &markers,
-                    base_video_blank: false,
+                    base_video_blank: true,
                     filmstrip_background: None,
                     video_background: None,
                     a1_channel: view.sound_choice,

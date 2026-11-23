@@ -1055,3 +1055,8 @@ ispustao marker): u zoomu slozene izjave klik na sliku uzima njezin marker (lije
 (u zoomu ili na timelineu dok je zoom otvoren) uvijek bira taj slot i nikad ne uzima marker: pomaknuti rub ili rez upise se,
 marker se pusta, zoom pokazuje IN i OUT tog slota. Uklonjeno pretvaranje trake u rub slota (pravilo od 5. i 9. 11. za slozenu
 izjavu). Ostali slotovi biraju se trakama timelinea, ne dodatnim slikama u zoomu. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik: "slozenu izjavu slazes kao pokrivalice, to je greska; slozene izjave su flat, nemaju podlogu
+segmenta"): timeline slozene izjave (`qnc-subsegment-panel`) vise ne crta dijelove kao segmente s podlogom ispod traka
+(virtualni spanovi uklonjeni, bez zatamnjene podloge): dijelovi su jedan red klipova, svaki sa svojim filmstripom, valom A1
+i trakom trajanja svog slota. Dvoklik na A1 vise ne otvara dio kao segment; dvoklik na sliku i dalje povecava dio. Uzivo nije
+provjereno.
