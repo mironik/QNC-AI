@@ -4,7 +4,7 @@
     {
       "key": "window_width",
       "label": "Prozor: širina",
-      "value": 1100.0,
+      "value": 1150.0,
       "min": 600.0,
       "max": 2400.0,
       "step": 1.0
@@ -12,7 +12,7 @@
     {
       "key": "window_height",
       "label": "Prozor: visina",
-      "value": 650.0,
+      "value": 700.0,
       "min": 400.0,
       "max": 1600.0,
       "step": 1.0
