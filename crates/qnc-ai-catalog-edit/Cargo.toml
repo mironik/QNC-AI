@@ -1,0 +1,9 @@
+[package]
+name = "qnc-ai-catalog-edit"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: the AI catalog of this computer edited (which engine each AI job uses, its model, backend, threads); a change that breaks an engine that worked is not written"
+
+[dependencies]
+qnc-ai-catalog = { workspace = true }
+serde_json = { workspace = true }

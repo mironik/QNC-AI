@@ -1149,3 +1149,9 @@ u prozoru lijevo vlastiti i gotovi AI predlosci (`qnc-ai-features`: naziv, AI mo
 Obrisi vlastiti), ispod crte AI motori, AI server i LLM (`qnc-ai-server-view` `panel`, mreza), zajednicka AI mapa
 (`qnc-ai-catalog` `set_share`), oznake kadrova. Blokovi `ai_share` i `ai_server` iz forme Postavke zamijenjeni blokom `ai`.
 Datoteke su iste kao prije (dijeli ih klasicni QNC). AI motori i oznake kadrova: korak 2 i 3. Uzivo nije provjereno.
+Izvedeno 2026-11-23 (AI postavke, korak 2 od 3: AI motori): nova kocka `qnc-ai-catalog-edit` (AI katalog racunala kao JSON,
+polja koja ne zna ostaju): koji motor je najbolji, brzi i prijepis dok svira, niti i klipova odjednom svakog motora, model
+svakog drugog AI posla (vremena slova, sadrzaj kadra, opis kadra, prijevod, Smooth) iz modela zajednicke AI mape, na cemu
+radi opis kadra, slika po kadru. Spremi ne zapisuje promjenu koja bi pokvarila motor koji je radio (iste provjere kao AI
+kocke pri pokretanju); sto vec nije radilo ne smeta. U prozoru AI postavki lijevo "AI motori". Usput: savjet zajednicke AI
+mape imao je `\` bez escapea, pa se rjecnik QNC-AI-ja nije ucitavao (od koraka 1). Uzivo nije provjereno.

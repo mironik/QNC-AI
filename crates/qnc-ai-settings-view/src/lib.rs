@@ -11,6 +11,8 @@
 //! AI pieces already read (`data/ai-templates`, `ai-place.json`, `llm.qncllm`, `ai-share.json`):
 //! QNC reads some of them too, so their names stay.
 
+mod engines;
+
 use std::path::Path;
 
 use eframe::egui::{self, RichText};
@@ -44,6 +46,8 @@ struct Draft {
     chosen: Option<Chosen>,
     /// The shared AI folder as typed.
     share: String,
+    /// This computer's AI catalog, read when the engines are chosen; what is typed is its draft.
+    catalog: Option<Result<qnc_ai_catalog_edit::Catalog, String>>,
     said: Option<Result<String, String>>,
 }
 
@@ -135,6 +139,9 @@ fn menu(ui: &mut egui::Ui, root: &Path, style: &Style, theme: &Theme, draft: &mu
             if item == Chosen::Share {
                 draft.share = qnc_ai_catalog::chosen_share(root).map(|folder| folder.display().to_string()).unwrap_or_default();
             }
+            if item == Chosen::Engines {
+                draft.catalog = Some(qnc_ai_catalog_edit::Catalog::installed());
+            }
             draft.chosen = Some(item);
             draft.said = None;
         }
@@ -153,7 +160,16 @@ fn panel(ui: &mut egui::Ui, root: &Path, style: &Style, theme: &Theme, draft: &m
             qnc_settings_rows::section(ui, width, &text("ai_settings.server"), &style.metrics, theme, |ui| qnc_ai_server_view::panel(ui, root, width, &style.grid, theme));
         }
         Some(Chosen::Share) => share(ui, root, width, style, theme, draft),
-        Some(Chosen::Engines) | Some(Chosen::Labels) => {
+        Some(Chosen::Engines) => match draft.catalog.as_mut() {
+            Some(Ok(catalog)) => {
+                if let Some(said) = engines::show(ui, root, width, style, theme, catalog) {
+                    draft.said = Some(said);
+                }
+            }
+            Some(Err(error)) => draft.said = Some(Err(error.clone())),
+            None => {}
+        },
+        Some(Chosen::Labels) => {
             ui.label(RichText::new(text("ai_settings.next_step")).size(style.metrics.label_font_size).color(theme.text_muted));
         }
     }

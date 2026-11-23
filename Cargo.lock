@@ -3785,6 +3785,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-ai-catalog-edit"
+version = "0.1.0"
+dependencies = [
+ "qnc-ai-catalog",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-ai-editorial-layout"
 version = "0.1.0"
 dependencies = [
@@ -3930,6 +3938,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-catalog",
+ "qnc-ai-catalog-edit",
  "qnc-ai-features",
  "qnc-ai-server-view",
  "qnc-desktop-theme",
