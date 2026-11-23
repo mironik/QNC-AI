@@ -1176,3 +1176,13 @@ Postavkama, gumb "_" prozora rada, gumbi pitanja (`qnc-ai-ask`). Ostaje kako jes
 ugovora forme Projekt), gumb X predloska u popisu Projekta, uredivac izgleda (`qnc-form-look`, alat). Debug build obrisan
 (disk pun, 18,6 GiB). Tray nije ponovno izgraden (radi). Uzivo nije provjereno.
 Ispravak 2026-11-23 (korisnik: "ne moze svaka forma biti razlicitog stila; pronadji kocku stila ostatka QNC-AI i primjeni na sve"): kocka stila ostatka QNC-AI je `qnc_desktop_theme::apply_settings_look` i mjere forme Postavke (`PanelMetrics` iz ugovora). Prozor bloka (`qnc-settings-window`) vise ne uzima velicinu slova ni razmake iz svog izgleda: koristi te iste mjere i izgled teme; vlastiti izgled prozora ima samo velicinu prozora, sirine izbornika i panela i marginu (`label_size`, `min_cell_width`, `gap`, `cell_height` uklonjeni iz izgleda export predlozaka i AI postavki). Uzivo nije provjereno.
+Izvedeno 2026-11-23 (korisnik: "gradi kocku, ne krpaj izgled"): kocka stila postavki je `qnc-settings-block` (`Pen`: mjere
+forme Postavke iz ugovora, tema i sirina). Kroz nju i ni kroz sto drugo crtaju svi blokovi Postavki i svi njihovi prozori:
+naslov bloka i savjet, sekcija, poruka, redak (naziv lijevo, polje, stupac gumba) s kontrolama retka (`Row`: polje, skriveno
+polje, izbornik fiksne sirine koji reze dugi tekst, kucica; sve visine kontrole teme, tekst u ravnini s nazivom), cijeli
+redak polja/izbornika/kucice, red kucica u stupcu polja, gumbi ispod stupca gumba, popis redaka koji skrola po cijelim
+retcima, polja iz specifikacije, polje vise redaka, izbornik prozora (naslov skupine, stavka, crta). Prebaceni: AI server,
+citaci kartica, tray, orkestrator Ingesta, AI postavke (predlosci, motori, mapa, oznake kadrova), export predlosci, lokacije
+i vlastiti predlozak forme Postavke. Prozor bloka (`qnc-settings-window`) daje tijelu `Pen` za svaku stranu. Blokovi vise
+nemaju svojih mjera ni widgeta (uklonjene ovisnosti na `qnc-desktop-theme`, `qnc-settings-rows`, `qnc-ui-kit`). Napredne
+postavke projekta i dalje crta svoja mreza iz ugovora forme Projekt. Uzivo nije provjereno.

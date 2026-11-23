@@ -7,8 +7,5 @@ description = "QNC-AI settings block: the card readers on the network of this co
 [dependencies]
 eframe = { workspace = true }
 qnc-card-readers = { workspace = true }
-qnc-desktop-theme = { workspace = true }
-qnc-settings-rows = { workspace = true }
-qnc-ui-kit = { workspace = true }
 qnc-settings-block = { workspace = true }
 qnc-wizard-text = { workspace = true }

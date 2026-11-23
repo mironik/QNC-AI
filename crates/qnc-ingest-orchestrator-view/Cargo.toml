@@ -7,6 +7,5 @@ description = "QNC-AI block: the choice of the ingest orchestrator of each form,
 [dependencies]
 eframe = { workspace = true }
 qnc-ingest-orchestrator = { workspace = true }
-qnc-desktop-theme = { workspace = true }
-qnc-settings-rows = { workspace = true }
+qnc-settings-block = { workspace = true }
 qnc-wizard-text = { workspace = true }

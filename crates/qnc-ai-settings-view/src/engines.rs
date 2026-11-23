@@ -4,11 +4,10 @@
 
 use std::path::Path;
 
-use eframe::egui::{self, RichText};
+use eframe::egui;
 use qnc_ai_catalog_edit::{Catalog, JOBS, TRANSCRIBE_SLOTS};
-use qnc_desktop_theme::Theme;
 use qnc_settings_form::{FieldKind, FieldSpec, OptionSets};
-use qnc_settings_window::Style;
+use qnc_settings_block::Pen;
 use qnc_wizard_text::text;
 use serde_json::{Map, Value};
 
@@ -36,9 +35,7 @@ fn as_text(value: Option<&Value>) -> String {
 pub fn show(
     ui: &mut egui::Ui,
     root: &Path,
-    width: f32,
-    style: &Style,
-    theme: &Theme,
+    pen: &Pen,
     catalog: &mut Catalog,
 ) -> Option<Result<String, String>> {
     let engines = catalog.engines();
@@ -158,8 +155,8 @@ pub fn show(
         ("ai_engines.engine_list", &engine_fields),
         ("ai_engines.jobs", &job_fields),
     ] {
-        qnc_settings_rows::section(ui, width, &text(title), &style.metrics, theme, |ui| {
-            qnc_settings_block::rows(ui, width, &mut settings, fields, &options, &style.metrics, theme);
+        pen.section(ui, &text(title), |ui| {
+            pen.fields(ui, &mut settings, fields, &options);
         });
     }
 
@@ -200,14 +197,10 @@ pub fn show(
             }
         }
     }
-    ui.label(
-        RichText::new(text("ai_engines.hint"))
-            .size(style.metrics.label_font_size)
-            .color(theme.text_muted),
-    );
+    pen.hint(ui, &text("ai_engines.hint"));
     let mut said = (!refused.is_empty()).then(|| Err(refused.join("; ")));
     let mut save = false;
-    qnc_settings_rows::trailing_actions(ui, width, &style.metrics, |ui| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked());
+    pen.buttons(ui, |ui, buttons| save = buttons.primary(ui, &text("machine.save"), true));
     if save {
         said = Some(catalog.save().map(|()| text("machine.saved")));
     }

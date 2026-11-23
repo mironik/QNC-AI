@@ -6,16 +6,16 @@
 //!
 //! - in the middle of the screen, at a fixed size;
 //! - its own bar, whose hidden dot opens its own look editor (`contracts/ui/forms/<form>.look.json`);
-//! - a menu on the left, a panel on the right, their widths, the margin and the grid of the fields
-//!   (the Settings form's Advanced grid: the label above its field) from that look.
+//! - a menu on the left, a panel on the right, their widths and the margin from that look;
+//! - everything in it drawn by the settings style block (`qnc_settings_block::Pen`, the measures of
+//!   the Settings form and the desktop theme), handed to the body for each side at its width.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
 
 use eframe::egui;
-use qnc_desktop_theme::Theme;
-use qnc_settings_rows::PanelMetrics;
+use qnc_settings_block::Pen;
 
 /// The measures every such window's look has.
 pub const LOOK_KEYS: [&str; 5] = ["window_width", "window_height", "list_width", "right_width", "margin"];
@@ -27,12 +27,6 @@ pub enum Pane {
     Menu,
     /// The panel on the right.
     Panel,
-}
-
-/// How the window's fields look: the grid of the fields and the rows of the panel.
-pub struct Style {
-    pub grid: qnc_settings_form::GridStyle,
-    pub metrics: PanelMetrics,
 }
 
 thread_local! {
@@ -55,7 +49,8 @@ pub fn is_open(form: &str) -> bool {
 
 /// Draws the window `form` while it is open: `body` draws the menu, then the panel. Gives whether it
 /// is still open (its close button or the system closed it).
-pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, metrics: &PanelMetrics, theme: &Theme, mut body: impl FnMut(&mut egui::Ui, Pane, &Style)) -> bool {
+pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, pen: &Pen, mut body: impl FnMut(&mut egui::Ui, Pane, &Pen)) -> bool {
+    let theme = pen.theme;
     let mut still = true;
     OPEN.with(|cell| {
         let mut cell = cell.borrow_mut();
@@ -80,17 +75,6 @@ pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, metrics: 
             // the desktop theme's settings look; the window's own look gives only its size, widths
             // and margin.
             qnc_desktop_theme::apply_settings_look(ctx, theme);
-            let style = Style {
-                grid: qnc_settings_form::GridStyle {
-                    label_color: theme.text_muted,
-                    label_size: metrics.label_font_size,
-                    min_cell_width: metrics.field_min_width,
-                    gap: metrics.inline_column_gap,
-                    cell_height: metrics.row_height,
-                    label_beside: Some((metrics.inline_label_width, metrics.row_height)),
-                },
-                metrics: metrics.clone(),
-            };
             let margin = look.get("margin").round() as i8;
             let (list_width, right_width) = (look.get("list_width"), look.get("right_width"));
             egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(egui::Margin::same(margin))).show(ctx, |ui| {
@@ -100,13 +84,13 @@ pub fn show(ctx: &egui::Context, root: &Path, form: &str, title: &str, metrics: 
                     ui.vertical(|ui| {
                         ui.set_width(list_width);
                         egui::ScrollArea::vertical().id_salt(("qnc-settings-window-menu", form)).max_height(height).auto_shrink([false, false]).show(ui, |ui| {
-                            body(ui, Pane::Menu, &style);
+                            body(ui, Pane::Menu, &Pen { width: list_width, ..*pen });
                         });
                     });
                     ui.separator();
                     ui.vertical(|ui| {
                         ui.set_width(right_width);
-                        body(ui, Pane::Panel, &style);
+                        body(ui, Pane::Panel, &Pen { width: right_width, ..*pen });
                     });
                 });
             });

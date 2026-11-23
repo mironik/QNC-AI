@@ -302,18 +302,17 @@ impl Blocks<'_> {
     /// its own setting.
     fn settings_block(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics, block: SettingsBlock) {
         let root = self.session.component.root.clone();
+        let theme = self.contracts.theme.clone();
+        let pen = qnc_settings_block::Pen::new(settings, &theme, width);
         match block {
             SettingsBlock::Locations => self.locations(ui, width, settings),
             // The ingest orchestrator of each form, a setting of this computer.
-            SettingsBlock::IngestOrchestrator => {
-                ui.add_space(8.0);
-                qnc_ingest_orchestrator_view::show(ui, &root, width, settings, &self.contracts.theme);
-            }
-            SettingsBlock::Ai => qnc_ai_settings_view::show(ui, &root, width, settings, &self.contracts.theme),
-            SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, width, settings, &self.contracts.theme),
-            SettingsBlock::Tray => qnc_tray_settings_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::IngestOrchestrator => qnc_ingest_orchestrator_view::show(ui, &root, &pen),
+            SettingsBlock::Ai => qnc_ai_settings_view::show(ui, &root, &pen),
+            SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, &pen),
+            SettingsBlock::Tray => qnc_tray_settings_view::show(ui, &root, &pen),
             SettingsBlock::Templates => self.templates(ui, width, settings),
-            SettingsBlock::Export => qnc_export_templates_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::Export => qnc_export_templates_view::show(ui, &root, &pen),
         }
     }
 
@@ -349,12 +348,13 @@ impl Blocks<'_> {
             LocationTarget::BasesRoot => (&bases_label, &mut self.session.bases_root, "bases_root", 150.0),
         };
         let (mut typed, mut pick, mut left) = (false, false, false);
-        widgets::inline_row(ui, content_w, label, settings, shell, |ui, width| {
-            let response = ui.add(qnc_ui_kit::text_field(&mut field.text).desired_width(width.max(40.0)).hint_text(&texts.path_hint));
+        let pen = qnc_settings_block::Pen::new(settings, shell, content_w);
+        pen.row(ui, label, |ui, row| {
+            let response = row.edit(ui, &mut field.text, row.width, &texts.path_hint);
             typed = response.changed();
             // QNC-AI: a typed path is kept on Enter or when the field is left.
             left = response.lost_focus();
-        }, |ui, _| pick = widgets::primary_btn(ui, &texts.choose, true, shell).clicked());
+        }, |ui, buttons| pick = buttons.primary(ui, &texts.choose, true));
         let labels = qnc_location_field_view::FieldLabels {
             sources: &texts.sources, up: &texts.up, disks: &texts.disks, internet: &texts.internet,
             empty_folder: &texts.empty_folder, empty_disks: &texts.empty_disks, empty_lan: &texts.empty_lan,
@@ -434,36 +434,19 @@ impl Blocks<'_> {
         let mut should_save = false;
         let shell = self.contracts.theme.clone();
         let base_name = self.session.selected_template_name();
-        widgets::section(ui, content_w, &self.contracts.project.texts.new_template, settings, &shell, |ui| {
-            let base = self.contracts.project.texts.template_base.replace("{base}", &base_name);
-            ui.label(RichText::new(base).size(12.0).color(shell.text_muted));
-            ui.add_space(8.0);
-            widgets::inline_row(
+        let pen = qnc_settings_block::Pen::new(settings, &shell, content_w);
+        let texts = &self.contracts.project.texts;
+        pen.section(ui, &texts.new_template, |ui| {
+            pen.hint(ui, &texts.template_base.replace("{base}", &base_name));
+            pen.row(
                 ui,
-                content_w,
-                &self.contracts.project.texts.template_name_label,
-                settings,
-                &shell,
-                |ui, width| {
-                    ui.add(
-                        qnc_ui_kit::text_field(&mut self.session.template_draft_name)
-                            .desired_width(width.max(40.0))
-                            .hint_text(&self.contracts.project.texts.template_name_hint),
-                    );
+                &texts.template_name_label,
+                |ui, row| {
+                    row.input(ui, &mut self.session.template_draft_name, row.width, &texts.template_name_hint);
                 },
-                |ui, _| {
-                    if widgets::primary_btn(ui, &self.contracts.project.texts.save, can_save, &shell).clicked() {
-                        should_save = true;
-                    }
-                },
+                |ui, buttons| should_save = buttons.primary(ui, &texts.save, can_save),
             );
-            ui.add_space(8.0);
-            ui.add(
-                qnc_ui_kit::text_area(&mut self.session.template_draft_description)
-                    .desired_width((content_w - settings.inner_pad_x * 2.0).max(80.0))
-                    .desired_rows(2)
-                    .hint_text(&self.contracts.project.texts.short_description_hint),
-            );
+            pen.area(ui, &mut self.session.template_draft_description, &texts.short_description_hint);
         });
         if should_save {
             self.intents.push(ProjectIntent::SaveUserTemplate);

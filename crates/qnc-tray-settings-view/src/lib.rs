@@ -13,10 +13,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use eframe::egui::{self, RichText};
-use qnc_desktop_theme::Theme;
-use qnc_settings_block::{said, title};
-use qnc_settings_rows::PanelMetrics;
+use eframe::egui;
+use qnc_settings_block::Pen;
 use qnc_tray_mode::{Forms, Opens};
 use qnc_wizard_text::text;
 
@@ -60,23 +58,22 @@ fn apps(root: &Path) -> Result<Vec<(String, String)>, String> {
     Ok(catalog.applications.into_iter().map(|app| (app.standalone_executable, app.label)).collect())
 }
 
-/// Draws the block `width` wide, in the rows of the settings panel.
-pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
+/// Draws the block with the settings style block's pen.
+pub fn show(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
     let id = egui::Id::new(("qnc-tray-settings-view", root.to_string_lossy().to_string()));
     let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
-    menu(ui, root, metrics, theme, &mut draft);
-    forms(ui, root, width, metrics, theme, &mut draft);
+    menu(ui, root, pen, &mut draft);
+    forms(ui, root, pen, &mut draft);
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
 }
 
 /// A box for every item of the tray's menu; a change is written at once.
-fn menu(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft) {
-    title(ui, "settings_tray.menu_title", "settings_tray.menu_hint", metrics, theme);
+fn menu(ui: &mut egui::Ui, root: &Path, pen: &Pen, draft: &mut Draft) {
+    pen.title(ui, "settings_tray.menu_title", "settings_tray.menu_hint");
     let mut changed = false;
     for item in qnc_tray_menu::ALL {
         let mut shown = !item.may_hide() || !draft.hidden.contains(item.code());
-        let label = RichText::new(text(item.label())).size(metrics.label_font_size).color(theme.text);
-        if qnc_ui_kit::check_box(ui, &mut shown, label, item.may_hide()).changed() {
+        if pen.check_line(ui, &mut shown, &text(item.label()), item.may_hide()) {
             if shown {
                 draft.hidden.remove(item.code());
             } else {
@@ -88,39 +85,25 @@ fn menu(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, d
     if changed {
         draft.menu_said = Some(qnc_tray_menu::set_hidden(root, &draft.hidden).map(|()| text("machine.saved")));
     }
-    said(ui, &draft.menu_said, theme);
+    pen.said(ui, &draft.menu_said);
 }
 
 /// The form each mode opens: one of the catalog's forms or none, and its arguments; Save writes them.
-fn forms(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft) {
-    title(ui, "settings_tray.forms_title", "settings_tray.forms_hint", metrics, theme);
-    let none = text("settings_tray.form_none");
+fn forms(ui: &mut egui::Ui, root: &Path, pen: &Pen, draft: &mut Draft) {
+    pen.title(ui, "settings_tray.forms_title", "settings_tray.forms_hint");
+    let choices: Vec<(String, String)> = std::iter::once((String::new(), text("settings_tray.form_none"))).chain(draft.apps.iter().cloned()).collect();
     for (index, mode) in qnc_tray_mode::ALL.into_iter().enumerate() {
         let program = draft.forms.of(mode).map(|opens| opens.program.clone()).unwrap_or_default();
-        let shown = draft.apps.iter().find(|(app, _)| *app == program).map_or_else(|| if program.is_empty() { none.clone() } else { program.clone() }, |(_, label)| label.clone());
         let mut chosen = None;
-        qnc_settings_rows::inline_row(
+        pen.row(
             ui,
-            width,
             &text(mode.label()),
-            metrics,
-            theme,
-            |ui, field_width| {
-                ui.horizontal(|ui| {
-                    egui::ComboBox::from_id_salt(("qnc-tray-form", index)).width((field_width * 0.45).max(120.0)).selected_text(shown).show_ui(ui, |ui| {
-                        if ui.selectable_label(program.is_empty(), &none).clicked() {
-                            chosen = Some(String::new());
-                        }
-                        for (app, label) in &draft.apps {
-                            if ui.selectable_label(*app == program, label).clicked() {
-                                chosen = Some(app.clone());
-                            }
-                        }
-                    });
-                    if let Some(args) = draft.args.get_mut(index) {
-                        ui.add(qnc_ui_kit::text_field(args).desired_width((field_width * 0.5).max(80.0)).hint_text(text("settings_tray.form_args")));
-                    }
-                });
+            |ui, row| {
+                let list_w = row.width * 0.45;
+                chosen = row.choice(ui, ("qnc-tray-form", index), list_w, &program, &choices);
+                if let Some(args) = draft.args.get_mut(index) {
+                    row.input(ui, args, row.width - list_w - row.gap(ui), &text("settings_tray.form_args"));
+                }
             },
             |_, _| {},
         );
@@ -130,7 +113,7 @@ fn forms(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, the
         }
     }
     let mut save = false;
-    qnc_settings_rows::trailing_actions(ui, width, metrics, |ui| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked());
+    pen.buttons(ui, |ui, buttons| save = buttons.primary(ui, &text("machine.save"), true));
     if save {
         for (index, mode) in qnc_tray_mode::ALL.into_iter().enumerate() {
             let opens = draft.forms.of(mode).cloned().map(|opens| Opens { args: draft.args.get(index).map(|args| args.split_whitespace().map(String::from).collect()).unwrap_or_default(), ..opens });
@@ -138,5 +121,5 @@ fn forms(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, the
         }
         draft.forms_said = Some(qnc_tray_mode::set_forms(root, &draft.forms).map(|()| text("machine.saved")));
     }
-    said(ui, &draft.forms_said, theme);
+    pen.said(ui, &draft.forms_said);
 }

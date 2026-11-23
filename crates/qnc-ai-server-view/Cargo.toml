@@ -7,11 +7,6 @@ description = "QNC-AI settings block: the external AI agent of this computer (AI
 [dependencies]
 eframe = { workspace = true }
 qnc-ai-place = { workspace = true }
-qnc-desktop-theme = { workspace = true }
 qnc-llm-place = { workspace = true }
-qnc-settings-form = { workspace = true }
-qnc-settings-rows = { workspace = true }
-qnc-ui-kit = { workspace = true }
 qnc-settings-block = { workspace = true }
 qnc-wizard-text = { workspace = true }
-serde_json = { workspace = true }

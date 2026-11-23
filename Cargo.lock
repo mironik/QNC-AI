@@ -3909,14 +3909,9 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-place",
- "qnc-desktop-theme",
  "qnc-llm-place",
  "qnc-settings-block",
- "qnc-settings-form",
- "qnc-settings-rows",
- "qnc-ui-kit",
  "qnc-wizard-text",
- "serde_json",
 ]
 
 [[package]]
@@ -3942,13 +3937,10 @@ dependencies = [
  "qnc-ai-catalog-edit",
  "qnc-ai-features",
  "qnc-ai-server-view",
- "qnc-desktop-theme",
  "qnc-settings-block",
  "qnc-settings-form",
- "qnc-settings-rows",
  "qnc-settings-window",
  "qnc-shot-labels-edit",
- "qnc-ui-kit",
  "qnc-ui-text",
  "qnc-wizard-text",
  "serde_json",
@@ -4423,10 +4415,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-card-readers",
- "qnc-desktop-theme",
  "qnc-settings-block",
- "qnc-settings-rows",
- "qnc-ui-kit",
  "qnc-wizard-text",
 ]
 
@@ -4993,13 +4982,10 @@ name = "qnc-export-templates-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "qnc-desktop-theme",
  "qnc-export-templates",
  "qnc-settings-block",
  "qnc-settings-form",
- "qnc-settings-rows",
  "qnc-settings-window",
- "qnc-ui-kit",
  "qnc-wizard-text",
  "serde_json",
 ]
@@ -5474,9 +5460,8 @@ name = "qnc-ingest-orchestrator-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "qnc-desktop-theme",
  "qnc-ingest-orchestrator",
- "qnc-settings-rows",
+ "qnc-settings-block",
  "qnc-wizard-text",
 ]
 
@@ -6811,6 +6796,7 @@ dependencies = [
  "qnc-newsroom-sheet",
  "qnc-project-application",
  "qnc-project-session",
+ "qnc-settings-block",
  "qnc-settings-form",
  "qnc-settings-path",
  "qnc-settings-rows",
@@ -7301,8 +7287,7 @@ dependencies = [
  "eframe",
  "qnc-desktop-theme",
  "qnc-form-look",
- "qnc-settings-form",
- "qnc-settings-rows",
+ "qnc-settings-block",
  "qnc-title-bar",
 ]
 
@@ -8413,12 +8398,9 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-application-catalog",
- "qnc-desktop-theme",
  "qnc-settings-block",
- "qnc-settings-rows",
  "qnc-tray-menu",
  "qnc-tray-mode",
- "qnc-ui-kit",
  "qnc-wizard-text",
  "serde_json",
 ]

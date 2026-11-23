@@ -20,6 +20,7 @@ qnc-contracts = { workspace = true }
 qnc-dir-browser = { workspace = true }
 qnc-location-field = { workspace = true }
 qnc-settings-rows = { workspace = true }
+qnc-settings-block = { workspace = true }
 qnc-desktop-theme = { workspace = true }
 qnc-export-preset = { workspace = true }
 qnc-keyboard-shortcut = { workspace = true }

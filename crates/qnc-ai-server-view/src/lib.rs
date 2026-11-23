@@ -8,9 +8,7 @@
 use std::path::Path;
 
 use eframe::egui;
-use qnc_desktop_theme::Theme;
-use qnc_settings_block::{field, said, title};
-use qnc_settings_rows::PanelMetrics;
+use qnc_settings_block::Pen;
 use qnc_wizard_text::text;
 
 #[derive(Clone, Default)]
@@ -45,48 +43,21 @@ impl Draft {
     }
 }
 
-/// Draws the block `width` wide, in the rows of the settings panel.
-pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
-    let id = egui::Id::new(("qnc-ai-server-view", root.to_string_lossy().to_string()));
-    let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
-    title(ui, "machine.ai_title", "machine.ai_hint", metrics, theme);
-    field(ui, width, "machine.ai_server", &mut draft.server, metrics, theme, false);
-    field(ui, width, "machine.ai_fingerprint", &mut draft.fingerprint, metrics, theme, false);
-    field(ui, width, "machine.ai_token", &mut draft.token, metrics, theme, true);
-    let mut save = false;
-    qnc_settings_rows::inline_row(
-        ui,
-        width,
-        &text("machine.llm"),
-        metrics,
-        theme,
-        |ui, field_width| {
-            ui.add(qnc_ui_kit::text_field(&mut draft.llm).desired_width(field_width.max(40.0)));
-        },
-        |ui, _| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked(),
-    );
-    if save {
-        draft.save(root);
-    }
-    said(ui, &draft.said, theme);
-    ui.ctx().data_mut(|data| data.insert_temp(id, draft));
-}
-
-/// The same setting in a window of its own (the AI settings, `qnc-settings-window`): the rows of
-/// the Settings form (the label on the left, the field), the token hidden, Save in the button column.
-pub fn panel(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
+/// The setting in the AI settings window (`qnc-settings-window`), drawn by the settings style block
+/// (`qnc_settings_block::Pen`): a row for each value, the token hidden, Save in the button column.
+pub fn panel(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
     let id = egui::Id::new(("qnc-ai-server-view-panel", root.to_string_lossy().to_string()));
     let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
-    field(ui, width, "machine.ai_server", &mut draft.server, metrics, theme, false);
-    field(ui, width, "machine.ai_fingerprint", &mut draft.fingerprint, metrics, theme, false);
-    field(ui, width, "machine.ai_token", &mut draft.token, metrics, theme, true);
-    field(ui, width, "machine.llm", &mut draft.llm, metrics, theme, false);
-    ui.label(egui::RichText::new(text("machine.ai_hint")).size(metrics.label_font_size).color(theme.text_muted));
+    pen.text(ui, "machine.ai_server", &mut draft.server, "");
+    pen.text(ui, "machine.ai_fingerprint", &mut draft.fingerprint, "");
+    pen.secret(ui, "machine.ai_token", &mut draft.token);
+    pen.text(ui, "machine.llm", &mut draft.llm, "");
+    pen.hint(ui, &text("machine.ai_hint"));
     let mut save = false;
-    qnc_settings_rows::trailing_actions(ui, width, metrics, |ui| save = qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked());
+    pen.buttons(ui, |ui, buttons| save = buttons.primary(ui, &text("machine.save"), true));
     if save {
         draft.save(root);
     }
-    said(ui, &draft.said, theme);
+    pen.said(ui, &draft.said);
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
 }

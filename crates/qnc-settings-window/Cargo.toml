@@ -8,6 +8,5 @@ description = "QNC-AI: the window of its own a Settings block opens (the export 
 eframe = { workspace = true }
 qnc-desktop-theme = { workspace = true }
 qnc-form-look = { workspace = true }
-qnc-settings-form = { workspace = true }
-qnc-settings-rows = { workspace = true }
+qnc-settings-block = { workspace = true }
 qnc-title-bar = { workspace = true }

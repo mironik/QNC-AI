@@ -5,11 +5,9 @@
 
 use std::path::Path;
 
-use eframe::egui::{self, RichText};
+use eframe::egui;
 use qnc_card_readers::CardReader;
-use qnc_desktop_theme::Theme;
-use qnc_settings_block::{field, said, title};
-use qnc_settings_rows::PanelMetrics;
+use qnc_settings_block::Pen;
 use qnc_wizard_text::text;
 
 #[derive(Clone, Default)]
@@ -39,47 +37,34 @@ impl Draft {
     }
 }
 
-/// Draws the block `width` wide, in the rows of the settings panel.
-pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
+/// Draws the block with the settings style block's pen.
+pub fn show(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
     let id = egui::Id::new(("qnc-card-readers-view", root.to_string_lossy().to_string()));
     let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
-    title(ui, "machine.readers_title", "machine.readers_hint", metrics, theme);
+    pen.title(ui, "machine.readers_title", "machine.readers_hint");
     let mut removed = None;
     for (index, reader) in draft.readers.iter().enumerate() {
-        qnc_settings_rows::inline_row(
-            ui,
-            width,
-            &reader.name,
-            metrics,
-            theme,
-            |ui, _| {
-                ui.label(RichText::new(reader.path.to_string_lossy()).size(metrics.label_font_size).color(theme.text));
-            },
-            |ui, _| {
-                if qnc_settings_rows::action_btn(ui, &text("machine.reader_remove"), theme).clicked() {
-                    removed = Some(index);
-                }
-            },
-        );
+        pen.row(ui, &reader.name, |ui, _| pen.hint(ui, &reader.path.to_string_lossy()), |ui, buttons| {
+            if buttons.action(ui, &text("machine.reader_remove")) {
+                removed = Some(index);
+            }
+        });
     }
     if let Some(index) = removed {
         let mut readers = draft.readers.clone();
         readers.remove(index);
         draft.write(root, readers);
     }
-    field(ui, width, "machine.reader_name", &mut draft.name, metrics, theme, false);
+    pen.text(ui, "machine.reader_name", &mut draft.name, "");
     let mut add = false;
     let can_add = !draft.name.trim().is_empty() && !draft.path.trim().is_empty();
-    qnc_settings_rows::inline_row(
+    pen.row(
         ui,
-        width,
         &text("machine.reader_path"),
-        metrics,
-        theme,
-        |ui, field_width| {
-            ui.add(qnc_ui_kit::text_field(&mut draft.path).desired_width(field_width.max(40.0)).hint_text(text("machine.reader_path_hint")));
+        |ui, row| {
+            row.input(ui, &mut draft.path, row.width, &text("machine.reader_path_hint"));
         },
-        |ui, _| add = qnc_settings_rows::primary_btn(ui, &text("machine.reader_add"), can_add, theme).clicked(),
+        |ui, buttons| add = buttons.primary(ui, &text("machine.reader_add"), can_add),
     );
     if add {
         let mut readers = draft.readers.clone();
@@ -89,6 +74,6 @@ pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, 
             (draft.name, draft.path) = (String::new(), String::new());
         }
     }
-    said(ui, &draft.said, theme);
+    pen.said(ui, &draft.said);
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
 }
