@@ -1140,3 +1140,12 @@ ispod mreze. Izgled prozora (`export-templates.look.json`): sirina i visina proz
 panela, margina, velicina slova oznaka, najmanja sirina polja, razmak polja, visina polja. Polja sirina, visina, bitrate,
 frekvencija i broj kanala su cijeli brojevi. Napomena: ovom izmjenom prepisana je datoteka izgleda koju je korisnik dvaput
 spremio editorom (njegove mjere nisu sacuvane). Uzivo nije provjereno.
+Izvedeno 2026-11-23 (korisnik: "idemo dalje rjesavati postavke, sljedece neka budu AI postavke isto samostalna forma"; "dodaj
+sve sto imamo i sto je planirano: AI predlosci, AI motori, AI server, LLM i AI mapa, oznake kadrova"), korak 1 od 3: nova kocka
+`qnc-settings-window` (vlastiti prozor bloka Postavki na sredini ekrana, vlastita traka i editor izgleda, fiksna velicina,
+izbornik lijevo, panel desno, mreza polja Postavki; mjere `LOOK_KEYS`); export predlosci je koriste (njihov prozor vise nema
+vlastitu kopiju). Nova kocka `qnc-ai-settings-view` (+ izgled `contracts/ui/forms/ai-settings.look.json`): u formi jedan redak,
+u prozoru lijevo vlastiti i gotovi AI predlosci (`qnc-ai-features`: naziv, AI mogucnosti s ovisnostima, Spremi kao vlastiti,
+Obrisi vlastiti), ispod crte AI motori, AI server i LLM (`qnc-ai-server-view` `panel`, mreza), zajednicka AI mapa
+(`qnc-ai-catalog` `set_share`), oznake kadrova. Blokovi `ai_share` i `ai_server` iz forme Postavke zamijenjeni blokom `ai`.
+Datoteke su iste kao prije (dijeli ih klasicni QNC). AI motori i oznake kadrova: korak 2 i 3. Uzivo nije provjereno.

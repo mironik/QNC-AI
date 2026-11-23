@@ -13,6 +13,5 @@ qnc-settings-form = { workspace = true }
 qnc-settings-rows = { workspace = true }
 qnc-ui-kit = { workspace = true }
 qnc-wizard-text = { workspace = true }
-qnc-form-look = { workspace = true }
-qnc-title-bar = { workspace = true }
+qnc-settings-window = { workspace = true }
 serde_json = { workspace = true }

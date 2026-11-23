@@ -12,7 +12,6 @@
 //! Delete. A prepared preset is never written over. What is typed is a draft of the window until
 //! Save.
 
-use std::cell::RefCell;
 use std::path::Path;
 
 use eframe::egui::{self, RichText};
@@ -70,11 +69,6 @@ impl Draft {
     }
 }
 
-thread_local! {
-    /// The window's bar and look, made when it opens (they live with the window).
-    static WINDOW: RefCell<Option<(qnc_title_bar::TitleBar, qnc_form_look::FormLook)>> = const { RefCell::new(None) };
-}
-
 /// Draws the block's row in the Settings form; its window opens in the middle of the screen.
 pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, theme: &Theme) {
     let id = egui::Id::new(("qnc-export-templates-view", root.to_string_lossy().to_string()));
@@ -84,10 +78,8 @@ pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, 
     let mut open = false;
     qnc_settings_rows::inline_row(ui, width, &count, metrics, theme, |_, _| {}, |ui, _| open = qnc_settings_rows::primary_btn(ui, &text("export_template.open"), true, theme).clicked());
     if open && !draft.open {
-        match qnc_form_look::FormLook::load(root, LOOK, &["window_width", "window_height", "list_width", "right_width", "margin", "label_size", "min_cell_width", "gap", "cell_height"]) {
-            Ok(look) => {
-                let bar = qnc_title_bar::TitleBar::new(text("export_template.window_title"), root.to_path_buf()).with_look_of(LOOK);
-                WINDOW.with(|window| *window.borrow_mut() = Some((bar, look)));
+        match qnc_settings_window::open(root, LOOK, &text("export_template.window_title")) {
+            Ok(()) => {
                 draft = Draft::read(root);
                 draft.open = true;
             }
@@ -102,58 +94,12 @@ pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, 
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
 }
 
-/// The window of its own, in the middle of the screen at the look's fixed size.
+/// The window of its own (`qnc-settings-window`): the menu on the left, the chosen on the right.
 fn window(ctx: &egui::Context, root: &Path, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft) {
-    WINDOW.with(|cell| {
-        let mut cell = cell.borrow_mut();
-        let Some((bar, look)) = cell.as_mut() else {
-            draft.open = false;
-            return;
-        };
-        let size = egui::vec2(look.get("window_width"), look.get("window_height") + qnc_title_bar::HEIGHT);
-        let screen = ctx.input(|input| input.viewport().monitor_size).unwrap_or(size);
-        let place = ((screen - size) / 2.0).max(egui::Vec2::ZERO);
-        let builder = qnc_title_bar::frameless(
-            egui::ViewportBuilder::default().with_title(text("export_template.window_title")).with_inner_size(size).with_position(egui::pos2(place.x, place.y)).with_resizable(false),
-        );
-        let viewport = egui::ViewportId::from_hash_of(("qnc-export-templates-window", root.to_string_lossy().to_string()));
-        ctx.show_viewport_immediate(viewport, builder, |ctx, _| {
-            if ctx.input(|input| input.viewport().close_requested()) {
-                draft.open = false;
-            }
-            bar.show(ctx);
-            look.editor_of_own(ctx);
-            look.window(ctx, qnc_title_bar::HEIGHT);
-            // The fields in the grid of the Settings form's Advanced settings, its measures the window's look.
-            let style = qnc_settings_form::GridStyle {
-                label_color: theme.text_muted,
-                label_size: look.get("label_size"),
-                min_cell_width: look.get("min_cell_width"),
-                gap: look.get("gap"),
-                cell_height: look.get("cell_height"),
-                label_beside: None,
-            };
-            let metrics = PanelMetrics { label_font_size: look.get("label_size"), group_title_font_size: look.get("label_size"), ..metrics.clone() };
-            let margin = look.get("margin").round() as i8;
-            let (list_width, right_width) = (look.get("list_width"), look.get("right_width"));
-            egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(egui::Margin::same(margin))).show(ctx, |ui| {
-                ui.horizontal_top(|ui| {
-                    ui.vertical(|ui| {
-                        ui.set_width(list_width);
-                        list(ui, root, &metrics, theme, draft);
-                    });
-                    ui.separator();
-                    ui.vertical(|ui| {
-                        ui.set_width(right_width);
-                        editor(ui, root, &metrics, theme, &style, draft);
-                    });
-                });
-            });
-        });
+    draft.open = qnc_settings_window::show(ctx, root, LOOK, &text("export_template.window_title"), metrics, theme, |ui, pane, style| match pane {
+        qnc_settings_window::Pane::Menu => list(ui, root, &style.metrics, theme, draft),
+        qnc_settings_window::Pane::Panel => editor(ui, root, &style.metrics, theme, &style.grid, draft),
     });
-    if !draft.open {
-        WINDOW.with(|window| *window.borrow_mut() = None);
-    }
 }
 
 /// The templates of this computer, the prepared presets a new one starts from, then apart under a

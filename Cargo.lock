@@ -3903,9 +3903,11 @@ dependencies = [
  "qnc-desktop-theme",
  "qnc-llm-place",
  "qnc-settings-block",
+ "qnc-settings-form",
  "qnc-settings-rows",
  "qnc-ui-kit",
  "qnc-wizard-text",
+ "serde_json",
 ]
 
 [[package]]
@@ -3920,6 +3922,24 @@ dependencies = [
  "qnc-title-bar",
  "qnc-tray",
  "qnc-wizard-text",
+]
+
+[[package]]
+name = "qnc-ai-settings-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-ai-catalog",
+ "qnc-ai-features",
+ "qnc-ai-server-view",
+ "qnc-desktop-theme",
+ "qnc-settings-block",
+ "qnc-settings-form",
+ "qnc-settings-rows",
+ "qnc-settings-window",
+ "qnc-ui-kit",
+ "qnc-wizard-text",
+ "serde_json",
 ]
 
 [[package]]
@@ -4962,11 +4982,10 @@ dependencies = [
  "eframe",
  "qnc-desktop-theme",
  "qnc-export-templates",
- "qnc-form-look",
  "qnc-settings-block",
  "qnc-settings-form",
  "qnc-settings-rows",
- "qnc-title-bar",
+ "qnc-settings-window",
  "qnc-ui-kit",
  "qnc-wizard-text",
  "serde_json",
@@ -6760,7 +6779,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-features-view",
- "qnc-ai-server-view",
+ "qnc-ai-settings-view",
  "qnc-application-selection",
  "qnc-board",
  "qnc-card-readers-view",
@@ -7258,6 +7277,18 @@ dependencies = [
  "qnc-ui-kit",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-settings-window"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-form-look",
+ "qnc-settings-form",
+ "qnc-settings-rows",
+ "qnc-title-bar",
 ]
 
 [[package]]

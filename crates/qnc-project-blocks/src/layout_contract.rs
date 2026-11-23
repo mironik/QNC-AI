@@ -284,12 +284,11 @@ mod look_tests {
 pub enum SettingsBlock {
     /// The projects', the Ingest bases' and the export folders.
     Locations,
-    /// The AI folder QNC and QNC-AI share.
-    AiShare,
     /// The ingest orchestrator of each form (`qnc-ingest-orchestrator-view`).
     IngestOrchestrator,
-    /// The external AI agent and the LLM model (`qnc-ai-server-view`).
-    AiServer,
+    /// The AI settings of this computer, with their own window (`qnc-ai-settings-view`): AI
+    /// templates, AI engines, the AI server and LLM, the shared AI folder, the shot labels.
+    Ai,
     /// The card readers on the network (`qnc-card-readers-view`).
     CardReaders,
     /// The tray of this computer: what its menu shows, the form each mode opens

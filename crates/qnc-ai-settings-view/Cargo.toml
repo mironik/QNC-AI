@@ -1,0 +1,19 @@
+[package]
+name = "qnc-ai-settings-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI settings block with its own window: the AI settings of this computer (AI templates, AI engines, the AI server with the LLM, the shared AI folder, the shot labels), opened from the Settings form"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-ai-catalog = { workspace = true }
+qnc-ai-features = { workspace = true }
+qnc-ai-server-view = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-settings-form = { workspace = true }
+qnc-settings-rows = { workspace = true }
+qnc-settings-window = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-wizard-text = { workspace = true }
+serde_json = { workspace = true }

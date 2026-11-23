@@ -304,14 +304,12 @@ impl Blocks<'_> {
         let root = self.session.component.root.clone();
         match block {
             SettingsBlock::Locations => self.locations(ui, width, settings),
-            // The AI folder QNC and QNC-AI share, a setting of this computer.
-            SettingsBlock::AiShare => self.path_row(ui, width, settings, LocationTarget::AiShare),
             // The ingest orchestrator of each form, a setting of this computer.
             SettingsBlock::IngestOrchestrator => {
                 ui.add_space(8.0);
                 qnc_ingest_orchestrator_view::show(ui, &root, width, settings, &self.contracts.theme);
             }
-            SettingsBlock::AiServer => qnc_ai_server_view::show(ui, &root, width, settings, &self.contracts.theme),
+            SettingsBlock::Ai => qnc_ai_settings_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::CardReaders => qnc_card_readers_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::Tray => qnc_tray_settings_view::show(ui, &root, width, settings, &self.contracts.theme),
             SettingsBlock::Templates => self.templates(ui, width, settings),

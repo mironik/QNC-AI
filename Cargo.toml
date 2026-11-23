@@ -37,6 +37,8 @@ qnc-llm-place = { path = "crates/qnc-llm-place" }
 qnc-ai-server-view = { path = "crates/qnc-ai-server-view" }
 qnc-card-readers-view = { path = "crates/qnc-card-readers-view" }
 qnc-settings-block = { path = "crates/qnc-settings-block" }
+qnc-settings-window = { path = "crates/qnc-settings-window" }
+qnc-ai-settings-view = { path = "crates/qnc-ai-settings-view" }
 qnc-base-admin = { path = "crates/qnc-base-admin" }
 qnc-base-admin-view = { path = "crates/qnc-base-admin-view" }
 qnc-story-overlay = { path = "crates/qnc-story-overlay" }

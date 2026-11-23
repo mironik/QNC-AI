@@ -1,0 +1,13 @@
+[package]
+name = "qnc-settings-window"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI: the window of its own a Settings block opens (the export templates, the AI settings): in the middle of the screen, its own bar whose hidden dot opens its own look editor, a fixed size, a menu on the left and a panel on the right, the fields in the Settings form's grid"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-form-look = { workspace = true }
+qnc-settings-form = { workspace = true }
+qnc-settings-rows = { workspace = true }
+qnc-title-bar = { workspace = true }
