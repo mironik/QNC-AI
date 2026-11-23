@@ -1064,3 +1064,9 @@ Izmjena 2026-11-23 (korisnik: "slozena izjava je vise izjava u jednom prikazu"):
 IN-om i OUT-om. Spoj dvaju dijelova vise nije jedan zajednicki rez: desni klik (i desni klik na sliku zooma) prije spoja uzima
 OUT dijela prije, od spoja IN dijela poslije (`qnc-subsegment-edit` `nearest_edge`, nikad `cut`); roll dvaju dijelova vise se
 ne uzima misem. J/L tona spoja ostaje. Testovi prilagodjeni. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik: "kad se promijeni duljina slota ili mjesto markera to treba biti vidljivo odmah, kao kad se
+montira u timelineu"; log: AI Media Assist, IN drugog dijela pomican strelicama, Spremi tri puta): (1) nacrt ruba dijela je
+timeline: dijelovi iza pomaknutog ruba pomicu se s njim odmah (`qnc-subsegment-edit`; uklonjeno pravilo od 4. 11. da ostali
+dijelovi stoje do Entera). (2) U AI Media Assistu ono sto Enter ili Spremi zadrze ostaje u prikazu izjave
+(`qnc-side-pieces` `statement.rs`: blok izjave postaje zadrzani nacrt, rubovi 1/13 ostaju uz prvi IN i zadnji OUT; prije se
+vracalo na staro jer se upis bacao). U bazu izjava se jos ne zapisuje. Uzivo nije provjereno.

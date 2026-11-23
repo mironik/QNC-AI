@@ -106,11 +106,29 @@ impl StatementPlay {
             Some((action, own_target)) => (action.as_str(), own_target.as_deref()),
             None => (action_id, target),
         };
+        // What is kept (Enter, Save) stays as drafted (user 2026-11-23: "visible at once"): the
+        // statement's parts held here become the draft that was kept.
+        let drafted = self.edit.drafted_block();
         let done = self.edit.key(action_id, target, preview).or_else(|| self.edit.act(action_id, target, preview));
         if let Some((pieces, frame)) = self.edit.take_pieces_request() {
             preview.show_pieces(&pieces, frame);
         }
-        let _ = self.edit.take_writes();
+        if !self.edit.take_writes().is_empty() {
+            if let Some(mut drafted) = drafted {
+                // The margins stay against the first IN and the last OUT.
+                let count = drafted.pieces.len();
+                if self.margins.0 > 0 && count > 2 {
+                    let first_in = drafted.pieces[1].from_frame;
+                    (drafted.pieces[0].from_frame, drafted.pieces[0].to_frame) = (first_in.saturating_sub(self.margins.0), first_in);
+                }
+                if self.margins.1 > 0 && count > 2 {
+                    let last_out = drafted.pieces[count - 2].to_frame;
+                    let frames = self.names.get(&drafted.pieces[count - 1].clip_id).map_or(u64::MAX, |(_, frames, _)| *frames);
+                    (drafted.pieces[count - 1].from_frame, drafted.pieces[count - 1].to_frame) = (last_out, (last_out + self.margins.1).min(frames).max(last_out + 1));
+                }
+                self.block = Some(drafted);
+            }
+        }
         done
     }
 

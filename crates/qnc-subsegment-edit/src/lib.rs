@@ -336,7 +336,6 @@ impl SubsegmentEdit {
             (self.open_subsegment, self.view.subsegment) = (None, None);
             return;
         }
-        let stored = block.clone();
         // The assistant's curves of the stored parts (AI on), played and drawn with the draft.
         self.assist_curves = self.propose(&block);
         let block = self.drafted(block);
@@ -440,35 +439,8 @@ impl SubsegmentEdit {
             }
             zoom
         });
-        // A part's own edge taken (no roll, user 2026-11-04 "ne smije utjecati na susjedni
-        // slot", as a cover's slot edge): only that edge moves on the timeline, the other parts
-        // stay where they are stored until Enter. The player and the zoom play the draft.
-        if let Some(trim) = self.trim.filter(|trim| trim.roll.is_none() && self.slide.is_none()) {
-            let at_rest = view::subsegment_view(&stored, None);
-            if let (Some(rest), Some(drafted)) = (at_rest.parts.get(trim.index).cloned(), shown.parts.get(trim.index).cloned()) {
-                let (length, stored_length) = (drafted.end - drafted.start, rest.end - rest.start);
-                // Where the draft's frames after the edge are shown (the axis the player plays).
-                let shift = stored_length as i64 - length as i64;
-                let from = if trim.out { drafted.end } else { drafted.start };
-                for (index, part) in shown.parts.iter_mut().enumerate() {
-                    if let Some(rest) = at_rest.parts.get(index) {
-                        (part.start, part.end) = match index.cmp(&trim.index) {
-                            std::cmp::Ordering::Less => (part.start, part.end),
-                            std::cmp::Ordering::Equal if trim.out => (rest.start, rest.start + length),
-                            std::cmp::Ordering::Equal => (rest.end.saturating_sub(length), rest.end),
-                            std::cmp::Ordering::Greater => (rest.start, rest.end),
-                        };
-                    }
-                }
-                shown.total_frames = shown.parts.iter().map(|part| part.end).max().unwrap_or(0).max(at_rest.total_frames);
-                shown.playhead = shown.playhead.map(|frame| if frame >= from { (frame as i64 + shift).max(0) as u64 } else { frame });
-                let placements = view::subsegment_placements(&shown, &view::block_pieces(&block));
-                shown.a1 = self.waves.peaks(shown.total_frames, &placements, &[], |clip| names.get(clip).map(|(_, frames, _)| *frames)).a1;
-                let at = view::subsegment_pictures(&shown, &view::block_pieces(&block));
-                shown.pictures = self.filmstrips.pictures(&at, |clip| names.get(clip).map(|(_, frames, _)| *frames), |_| None);
-                shown.trim = shown.parts.get(trim.index).map(|part| (trim.index, trim.out, if trim.out { part.end.saturating_sub(1) } else { part.start }));
-            }
-        }
+        // The draft is the timeline (user 2026-11-23: "a slot's length or a marker's place changed must
+        // show at once, as when cutting on a timeline"): the parts after a moved edge move with it.
         shown.zoom = zoom.map(|mut zoom| {
             // The player in the middle shows the monitor's picture as it plays (user 2026-11-23: "nema playera").
             self.trim_stills.fill(&mut zoom, preview.still_locator(), None, preview.shown_picture());
@@ -499,6 +471,11 @@ impl SubsegmentEdit {
 
     /// The block with the part being trimmed as drafted (the player plays the draft, user
     /// 2026-10-29: edited as a cover is, heard before Enter).
+    /// The open block as it is drafted now (its taken edge, join, slide and sound applied).
+    pub fn drafted_block(&self) -> Option<Block> {
+        self.block(self.open_subsegment).cloned().map(|block| self.drafted(block))
+    }
+
     fn drafted(&self, mut block: Block) -> Block {
         if let Some(trim) = self.trim {
             if block.pieces.len() > trim.index {
