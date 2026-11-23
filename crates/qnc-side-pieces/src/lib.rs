@@ -420,7 +420,7 @@ impl SidePieces {
         if self.script.is_some() {
             return;
         }
-        let shown = self.statement.view().cloned();
+        let shown = self.statement.view();
         if self.views.script.subsegment != shown {
             self.views.script = Arc::new(ScriptView { subsegment: shown, ..(*self.views.script).clone() });
         }

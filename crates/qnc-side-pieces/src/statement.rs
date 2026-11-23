@@ -21,6 +21,12 @@ pub struct StatementPlay {
     edit: SubsegmentEdit,
     block: Option<Block>,
     names: HashMap<String, (String, u64, f64)>,
+    /// The project the waves and filmstrips of its clips are read from.
+    project: Option<String>,
+    /// The clip shown before the first part and after the last (frames).
+    margins: (u64, u64),
+    /// The first play request starts at the first part's IN, not at the window's start.
+    cue_in: bool,
 }
 
 impl std::fmt::Debug for StatementPlay {
@@ -38,13 +44,29 @@ impl StatementPlay {
     /// timeline; the player plays them one after another.
     pub fn open(&mut self, parts: &[(String, u64, u64)], clips: &[ClipRow]) {
         self.names = clips.iter().map(|clip| (clip.clip_id.clone(), (clip.name.clone(), clip.duration_frames, clip.duration_seconds))).collect();
-        let pieces: Vec<Piece> = parts.iter().filter_map(|(clip, from, to)| piece(clip, *from, *to, &self.names)).collect();
+        let mut pieces: Vec<Piece> = parts.iter().filter_map(|(clip, from, to)| piece(clip, *from, *to, &self.names)).collect();
         if pieces.len() < 2 {
             return;
         }
+        // 1/13 of the window either side, as a statement shows (user 2026-11-23): the clip before
+        // the first part and after the last, as far as the clip goes.
+        let length: u64 = pieces.iter().map(|piece| piece.to_frame.saturating_sub(piece.from_frame)).sum();
+        let margin = length / 11;
+        let (first, last) = (pieces[0].clone(), pieces[pieces.len() - 1].clone());
+        let last_frames = self.names.get(&last.clip_id).map_or(last.to_frame, |(_, frames, _)| *frames);
+        let before = margin.min(first.from_frame);
+        let after = margin.min(last_frames.saturating_sub(last.to_frame));
+        if before > 0 {
+            pieces.insert(0, piece(&first.clip_id, first.from_frame - before, first.from_frame, &self.names).unwrap_or(first));
+        }
+        if after > 0 {
+            pieces.extend(piece(&last.clip_id, last.to_frame, last.to_frame + after, &self.names));
+        }
+        self.margins = (before, after);
+        self.cue_in = true;
         let mut block = Block::of_pieces("sot", pieces);
         block.id = BLOCK;
-        self.edit.sync(std::slice::from_ref(&block), &self.names, None, true);
+        self.edit.sync(std::slice::from_ref(&block), &self.names, self.project.as_ref(), true);
         if self.edit.open(BLOCK) {
             self.block = Some(block);
         }
@@ -54,9 +76,12 @@ impl StatementPlay {
     /// written (the statement's parts are its record).
     pub fn poll(&mut self, preview: &mut SourcePreview) {
         let Some(block) = &self.block else { return };
-        self.edit.sync(std::slice::from_ref(block), &self.names, None, true);
+        // The project its waves and filmstrips are read from (without it none is read).
+        self.project = preview.project_id().map(str::to_string);
+        self.edit.sync(std::slice::from_ref(block), &self.names, self.project.as_ref(), true);
         self.edit.poll(preview);
         if let Some((pieces, frame)) = self.edit.take_pieces_request() {
+            let frame = if std::mem::take(&mut self.cue_in) { self.margins.0 } else { frame };
             preview.show_pieces(&pieces, frame);
         }
         let _ = self.edit.take_writes();
@@ -83,8 +108,10 @@ impl StatementPlay {
     }
 
     /// What its timeline shows, while it is open.
-    pub fn view(&self) -> Option<&SubsegmentView> {
-        self.block.as_ref().and(self.edit.view.subsegment.as_ref())
+    pub fn view(&self) -> Option<SubsegmentView> {
+        let mut view = self.block.as_ref().and(self.edit.view.subsegment.clone())?;
+        view.margins = self.margins;
+        Some(view)
     }
 
     pub fn set_value(&mut self, value: Option<i64>) {

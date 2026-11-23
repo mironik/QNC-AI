@@ -73,12 +73,17 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
             None => part.length.clone(),
         })
         .collect();
+    // The clip before the first part and after the last of a statement's window (1/13 either
+    // side, user 2026-11-23) is no part: no strip, no edges, dimmed as outside a statement's IN/OUT.
+    let windowed = view.margins != (0, 0);
+    let margin = |index: usize| (index == 0 && view.margins.0 > 0) || (index + 1 == view.parts.len() && view.margins.1 > 0);
     let covers: Vec<TimelineCoverSpan<'_>> = view
         .parts
         .iter()
         .enumerate()
         .zip(&ids)
         .zip(&lengths_of)
+        .filter(|(((index, _), _), _)| !margin(*index))
         .map(|(((index, part), id), length)| TimelineCoverSpan {
             id,
             start_frame: part.start,
@@ -98,6 +103,7 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
         .enumerate()
         .flat_map(|(index, part)| [(index, false, part.start), (index, true, part.end)])
         .zip(&edge_ids)
+        .filter(|((index, _, _), _)| !margin(*index))
         // The taken edge is the one a drag drags (the mouse rule: only what is taken moves).
         .map(|((index, out, frame), id)| {
             let taken = view.trim.is_some_and(|(at, trim_out, _)| (at == index && trim_out == out) || (view.roll && !out && index == at + 1));
@@ -144,7 +150,7 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
                 ui,
                 TimelineInput {
                     state: &state,
-                    layers: TimelineLayerFlags::a1_v_a2().with_overlays().with_audio_bands().with_covers_shown().with_compact_video(view.video_compact),
+                    layers: TimelineLayerFlags { in_out: windowed, ..TimelineLayerFlags::a1_v_a2().with_overlays().with_audio_bands().with_covers_shown().with_compact_video(view.video_compact) },
                     metrics: TimelineMetrics::default(),
                     theme,
                     expanded_audio: AudioLane::None,
@@ -152,10 +158,10 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
                     show_lane_labels: true,
                     shot_in_frame: from,
                     shot_out_frame: to,
-                    draft_in_frame: from,
-                    draft_out_frame: to,
-                    draft_in_active: false,
-                    draft_out_active: false,
+                    draft_in_frame: if windowed { view.margins.0 } else { from },
+                    draft_out_frame: if windowed { total - view.margins.1 } else { to },
+                    draft_in_active: windowed,
+                    draft_out_active: windowed,
                     a1_peaks,
                     a2_peaks: &[],
                     a3_peaks: &[],

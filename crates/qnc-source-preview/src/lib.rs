@@ -388,6 +388,11 @@ impl SourcePreview {
         self.timeline_assets.loading().then(|| Duration::from_millis(15))
     }
 
+    /// The project it plays clips of, once configured.
+    pub fn project_id(&self) -> Option<&str> {
+        self.context.as_ref().map(PreviewContext::project_id)
+    }
+
     /// Sets the project. A different project never inherits the previous clip.
     pub fn configure(&mut self, context: PreviewContext) {
         let changed = self

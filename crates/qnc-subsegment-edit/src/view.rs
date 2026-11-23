@@ -75,6 +75,9 @@ pub struct SubsegmentView {
     pub video_compact: bool,
     /// The window of the part enlarged by a double click (70/15/15, as a story's slot).
     pub enlarged: Option<(u64, u64)>,
+    /// The clip shown before the first part and after the last (frames), as a statement's
+    /// window (user 2026-11-23: 1/13 either side, as on Izjave); not parts, shown dimmed.
+    pub margins: (u64, u64),
 }
 
 /// The parts on the SubSegment's axis (a pause before a part moves it on).
@@ -95,7 +98,7 @@ pub fn subsegment_view(block: &Block, playhead: Option<u64>) -> SubsegmentView {
             part
         })
         .collect();
-    SubsegmentView { block_id: block.id, parts, total_frames: start, playhead, a1: Vec::new(), pictures: Vec::new(), trim: None, zoom: None, sound: None, sound_choice: None, rate: None, roll: false, chosen: None, chosen_slots: Vec::new(), level_curves: Vec::new(), join_sound: None, slide: None, video_compact: false, enlarged: None }
+    SubsegmentView { block_id: block.id, parts, total_frames: start, playhead, a1: Vec::new(), pictures: Vec::new(), trim: None, zoom: None, sound: None, sound_choice: None, rate: None, roll: false, chosen: None, chosen_slots: Vec::new(), level_curves: Vec::new(), join_sound: None, slide: None, video_compact: false, enlarged: None, margins: (0, 0) }
 }
 
 /// Where the parts play on the SubSegment's axis, for its wave (channel 1 of each clip: the
