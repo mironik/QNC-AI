@@ -4,11 +4,16 @@ Pregledan kod: QNC-shared `qnc-program-segments` (`nav.rs`, `slot_move.rs`, `slo
 `commands.rs`), `qnc-program-view` (`story_zoom_clicks`), QNC-AI `qnc-subsegment-edit`
 (`lib.rs`, `pointer.rs`, `view.rs`). Uživo nije provjereno.
 
-## Što je slot
+## Što je slot (korisnik 2026-11-23)
 
-- **Story (QNC):** razmak između dva M markera na Wrap retku. Pokrivalica je u slotu.
-- **Složena izjava (QNC-AI):** svaki dio izjave je slot (od 4. 11.: "sve funkcije slota iz
-  pokrivalica").
+Slot je prostor između dva markera, bez obzira koji su to markeri (IN, OUT ili M). Svaki takav
+dio je slot.
+
+- **Izjava:** IN/OUT = jedan klip = jedan slot.
+- **Složena izjava:** slot po dijelu (dva dijela = dva slota, više dijelova = više slotova).
+- **Story:** slot između dva M markera na Wrap retku; pokrivalica je u slotu.
+
+(Prva verzija ovog audita slot je vezala samo uz M markere Storyja; to je bilo krivo.)
 
 ## Tri radnje slota u Storyju
 
