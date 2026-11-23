@@ -106,73 +106,108 @@ impl<'a> Pen<'a> {
         Self { width: self.width - SCROLL_BAR, ..*self }
     }
 
-    /// A section's title and its hint, by their text codes (the top of a block in the Settings form).
+    /// The tab of the style: what is in a group stands this far right of the group's title (user
+    /// 2026-11-24: "naslov grupe lijevo poravnanje, dijelovi te grupe uvlaka jedan tab; i tako sve").
+    /// Two of the Settings form's inner pads.
+    pub fn tab(&self) -> f32 {
+        self.metrics.inner_pad_x * 2.0
+    }
+
+    /// Draws `add` one tab in, in what is left of the width.
+    fn indented<R>(&self, ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.add_space(self.tab());
+            ui.vertical(|ui| {
+                ui.spacing_mut().item_spacing.x = 8.0;
+                add(ui)
+            })
+            .inner
+        })
+        .inner
+    }
+
+    /// A group's title and its hint, by their text codes (the top of a block in the Settings form):
+    /// the title on the left, the hint one tab in.
     pub fn title(&self, ui: &mut egui::Ui, code: &str, hint: &str) {
         ui.add_space(self.metrics.section_gap);
         ui.label(RichText::new(text(code).to_uppercase()).size(self.metrics.label_font_size).strong().color(self.theme.text_muted));
         self.hint(ui, &text(hint));
     }
 
-    /// A section: a rule, its title, then what is in it.
+    /// A section: a rule, its title on the left, then what is in it (its rows one tab in).
     pub fn section(&self, ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
         qnc_settings_rows::section(ui, self.width, title, self.metrics, self.theme, body);
     }
 
-    /// Words that tell (muted, the row's font).
+    /// Words that tell (muted, the row's font), one tab in.
     pub fn hint(&self, ui: &mut egui::Ui, words: &str) {
         if !words.is_empty() {
-            ui.label(RichText::new(words).size(self.metrics.label_font_size).color(self.theme.text_muted));
+            let words = RichText::new(words).size(self.metrics.label_font_size).color(self.theme.text_muted);
+            self.indented(ui, |ui| ui.label(words));
         }
     }
 
-    /// What the last write said: done muted, an error in the danger colour.
+    /// What the last write said, one tab in: done muted, an error in the danger colour.
     pub fn said(&self, ui: &mut egui::Ui, said: &Option<Result<String, String>>) {
-        match said {
-            Some(Ok(message)) => {
-                ui.label(RichText::new(message).size(self.metrics.label_font_size).color(self.theme.text_muted));
-            }
-            Some(Err(error)) => {
-                ui.label(RichText::new(error).size(self.metrics.label_font_size).color(self.theme.danger));
-            }
-            None => {}
-        }
+        let (words, colour) = match said {
+            Some(Ok(message)) => (message, self.theme.text_muted),
+            Some(Err(error)) => (error, self.theme.danger),
+            None => return,
+        };
+        let words = RichText::new(words).size(self.metrics.label_font_size).color(colour);
+        self.indented(ui, |ui| ui.label(words));
     }
 
-    /// A row: `label` on the left, `field` in the middle, `buttons` in the button column.
+    /// A row of a group, one tab in: `label` on the left of its column, `field` in the middle,
+    /// `buttons` in the button column; every column exactly as wide in every row.
     pub fn row(&self, ui: &mut egui::Ui, label: &str, field: impl FnOnce(&mut egui::Ui, &Row), buttons: impl FnOnce(&mut egui::Ui, &Buttons)) {
         let (theme, metrics) = (self.theme, self.metrics);
         let (label_w, field_w, button_w) = self.columns();
         let height = metrics.row_height;
+        let column = |ui: &mut egui::Ui, width: f32, layout: egui::Layout, add: &mut dyn FnMut(&mut egui::Ui)| {
+            ui.allocate_ui_with_layout(egui::vec2(width, height), layout, |ui| {
+                ui.set_min_size(egui::vec2(width, height));
+                ui.set_max_width(width);
+                add(ui);
+            });
+        };
         ui.horizontal(|ui| {
-            ui.set_min_height(height);
-            ui.set_max_width(self.width);
             ui.spacing_mut().item_spacing.x = 0.0;
-            // The label starts where a section's title does, on the left of its column, in the middle of the row.
-            ui.allocate_ui_with_layout(egui::vec2(label_w, height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                ui.set_width(label_w);
-                ui.add(egui::Label::new(RichText::new(label).size(metrics.label_font_size).strong().color(theme.text_muted)).truncate());
-            });
+            ui.add_space(self.tab());
+            let mut label_add = |ui: &mut egui::Ui| {
+                if !label.is_empty() {
+                    ui.add(egui::Label::new(RichText::new(label).size(metrics.label_font_size).strong().color(theme.text_muted)).truncate());
+                }
+            };
+            column(ui, label_w, egui::Layout::left_to_right(egui::Align::Center), &mut label_add);
             ui.add_space(metrics.inline_column_gap);
-            ui.allocate_ui_with_layout(egui::vec2(field_w, height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                ui.set_max_width(field_w);
+            let mut field = Some(field);
+            let mut field_add = |ui: &mut egui::Ui| {
                 ui.spacing_mut().item_spacing.x = metrics.inline_column_gap / 2.0;
-                field(ui, &Row { theme, metrics, width: field_w });
-            });
+                if let Some(field) = field.take() {
+                    field(ui, &Row { theme, metrics, width: field_w });
+                }
+            };
+            column(ui, field_w, egui::Layout::left_to_right(egui::Align::Center), &mut field_add);
             ui.add_space(metrics.inline_column_gap);
-            ui.allocate_ui_with_layout(egui::vec2(button_w, height), egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.set_width(button_w);
+            let mut buttons = Some(buttons);
+            let mut buttons_add = |ui: &mut egui::Ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
-                buttons(ui, &Buttons { theme });
-            });
+                if let Some(buttons) = buttons.take() {
+                    buttons(ui, &Buttons { theme });
+                }
+            };
+            column(ui, button_w, egui::Layout::right_to_left(egui::Align::Center), &mut buttons_add);
         });
     }
 
     /// The widths of a row's label, field and button columns: the label and the buttons as the
-    /// Settings form's measures name them, the field the rest.
+    /// Settings form's measures name them, the field the rest after the tab.
     fn columns(&self) -> (f32, f32, f32) {
         let metrics = self.metrics;
         let (label_w, button_w) = (metrics.inline_label_width, metrics.inline_button_width);
-        let field_w = (self.width - label_w - button_w - metrics.inline_column_gap * 2.0).max(metrics.field_min_width.min(self.width));
+        let field_w = (self.width - self.tab() - label_w - button_w - metrics.inline_column_gap * 2.0).max(metrics.field_min_width.min(self.width));
         (label_w, field_w, button_w)
     }
 
@@ -183,13 +218,10 @@ impl<'a> Pen<'a> {
         changed
     }
 
-    /// A field of several lines as wide as the rows (a text that is written: a description).
+    /// A field of several lines, one tab in, as wide as the rest (a text that is written: a description).
     pub fn area(&self, ui: &mut egui::Ui, value: &mut String, hint: &str) -> bool {
-        let width = self.width.max(80.0);
-        ui.horizontal(|ui| {
-            ui.add(qnc_ui_kit::text_area(value).desired_width(width).desired_rows(2).hint_text(hint)).changed()
-        })
-        .inner
+        let width = (self.width - self.tab()).max(80.0);
+        self.indented(ui, |ui| ui.add(qnc_ui_kit::text_area(value).desired_width(width).desired_rows(2).hint_text(hint)).changed())
     }
 
     /// A row of one typed field whose text is hidden.
@@ -213,32 +245,32 @@ impl<'a> Pen<'a> {
         flipped
     }
 
-    /// A box in the field column, its words after it (one of a list of boxes; the label column is
-    /// empty, so the boxes stand under the fields); `enabled` false: it cannot be changed.
+    /// A box of a list of boxes, one tab in, its words after it; `enabled` false: it cannot be changed.
     pub fn check_line(&self, ui: &mut egui::Ui, on: &mut bool, words: &str, enabled: bool) -> bool {
-        let mut flipped = false;
-        self.row(
-            ui,
-            "",
-            |ui, _| {
-                ui.add_enabled_ui(enabled, |ui| flipped = check(ui, on, words, self.metrics, self.theme, self.theme.text));
-            },
-            |_, _| {},
-        );
-        flipped
+        self.indented(ui, |ui| ui.add_enabled_ui(enabled, |ui| check(ui, on, words, self.metrics, self.theme, self.theme.text)).inner)
     }
 
-    /// The heading of a group of a window's menu (upper case, muted, the row's font).
+    /// The heading of a group of a window's menu, on the left (upper case, muted, the row's font).
     pub fn menu_heading(&self, ui: &mut egui::Ui, words: &str) {
         ui.add_space(self.metrics.section_gap);
         ui.label(RichText::new(words.to_uppercase()).size(self.metrics.label_font_size).strong().color(self.theme.text_muted));
     }
 
-    /// An item of a window's menu, as wide as the menu, the theme's font; gives whether it was clicked.
+    /// An item of a window's menu, one tab in, its words on the left, its mark as wide as the rest of
+    /// the menu; gives whether it was clicked.
     pub fn menu_item(&self, ui: &mut egui::Ui, selected: bool, words: &str, hover: &str) -> bool {
-        let response = ui.add_sized([self.width, self.theme.chrome_control_height], egui::SelectableLabel::new(selected, RichText::new(words).size(self.theme.font_ui)));
-        let response = if hover.is_empty() { response } else { response.on_hover_text(hover) };
-        response.clicked()
+        let width = (self.width - self.tab()).max(40.0);
+        let words = RichText::new(words).size(self.theme.font_ui);
+        let theme = self.theme;
+        self.indented(ui, |ui| {
+            ui.allocate_ui_with_layout(egui::vec2(width, theme.chrome_control_height), egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+                ui.set_width(width);
+                let response = ui.selectable_label(selected, words);
+                let response = if hover.is_empty() { response } else { response.on_hover_text(hover) };
+                response.clicked()
+            })
+            .inner
+        })
     }
 
     /// The rule between two groups of a window's menu.
@@ -249,9 +281,8 @@ impl<'a> Pen<'a> {
         ui.add_space(self.metrics.section_gap);
     }
 
-    /// Buttons under the button column of the rows.
+    /// Buttons of a group, in the button column of its rows.
     pub fn buttons(&self, ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui, &Buttons)) {
-        // The same columns as a row: the buttons in its button column.
         self.row(ui, "", |_, _| {}, add);
     }
 
