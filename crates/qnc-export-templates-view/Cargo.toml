@@ -9,6 +9,7 @@ eframe = { workspace = true }
 qnc-desktop-theme = { workspace = true }
 qnc-export-templates = { workspace = true }
 qnc-settings-block = { workspace = true }
+qnc-settings-form = { workspace = true }
 qnc-settings-rows = { workspace = true }
 qnc-ui-kit = { workspace = true }
 qnc-wizard-text = { workspace = true }

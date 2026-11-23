@@ -84,7 +84,7 @@ pub fn show(ui: &mut egui::Ui, root: &Path, width: f32, metrics: &PanelMetrics, 
     let mut open = false;
     qnc_settings_rows::inline_row(ui, width, &count, metrics, theme, |_, _| {}, |ui, _| open = qnc_settings_rows::primary_btn(ui, &text("export_template.open"), true, theme).clicked());
     if open && !draft.open {
-        match qnc_form_look::FormLook::load(root, LOOK, &["window_width", "window_height", "list_width", "label_width", "margin"]) {
+        match qnc_form_look::FormLook::load(root, LOOK, &["window_width", "window_height", "list_width", "right_width", "margin", "label_size", "min_cell_width", "gap", "cell_height"]) {
             Ok(look) => {
                 let bar = qnc_title_bar::TitleBar::new(text("export_template.window_title"), root.to_path_buf()).with_look_of(LOOK);
                 WINDOW.with(|window| *window.borrow_mut() = Some((bar, look)));
@@ -124,10 +124,18 @@ fn window(ctx: &egui::Context, root: &Path, metrics: &PanelMetrics, theme: &Them
             bar.show(ctx);
             look.editor_of_own(ctx);
             look.window(ctx, qnc_title_bar::HEIGHT);
-            // The rows of the window as the Settings form's, with the window's own label column.
-            let metrics = PanelMetrics { inline_label_width: look.get("label_width"), ..metrics.clone() };
+            // The fields in the grid of the Settings form's Advanced settings, its measures the window's look.
+            let style = qnc_settings_form::GridStyle {
+                label_color: theme.text_muted,
+                label_size: look.get("label_size"),
+                min_cell_width: look.get("min_cell_width"),
+                gap: look.get("gap"),
+                cell_height: look.get("cell_height"),
+                label_beside: None,
+            };
+            let metrics = PanelMetrics { label_font_size: look.get("label_size"), group_title_font_size: look.get("label_size"), ..metrics.clone() };
             let margin = look.get("margin").round() as i8;
-            let list_width = look.get("list_width");
+            let (list_width, right_width) = (look.get("list_width"), look.get("right_width"));
             egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme.bg).inner_margin(egui::Margin::same(margin))).show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
                     ui.vertical(|ui| {
@@ -135,7 +143,10 @@ fn window(ctx: &egui::Context, root: &Path, metrics: &PanelMetrics, theme: &Them
                         list(ui, root, &metrics, theme, draft);
                     });
                     ui.separator();
-                    ui.vertical(|ui| editor(ui, root, &metrics, theme, draft));
+                    ui.vertical(|ui| {
+                        ui.set_width(right_width);
+                        editor(ui, root, &metrics, theme, &style, draft);
+                    });
                 });
             });
         });
@@ -183,7 +194,7 @@ fn list(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, d
 
 /// What was chosen on the left: a template (its name, the preset it starts from, its fields; Save,
 /// Delete) or Export XML (its fields; Save).
-fn editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft) {
+fn editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, style: &qnc_settings_form::GridStyle, draft: &mut Draft) {
     match draft.chosen.clone() {
         None => {
             ui.label(RichText::new(text("export_template.choose")).size(metrics.label_font_size).color(theme.text_muted));
@@ -191,7 +202,7 @@ fn editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme,
         Some(Chosen::Xml) => match qnc_export_templates::xml_fields() {
             Ok(group) => {
                 let width = ui.available_width();
-                fields(ui, &[group], width, metrics, theme, draft);
+                fields(ui, &[group], width, metrics, theme, style, draft);
                 if qnc_settings_rows::primary_btn(ui, &text("machine.save"), true, theme).clicked() {
                     draft.said = Some(qnc_export_templates::save_xml(root, &draft.typed).map(|()| text("machine.saved")));
                 }
@@ -200,24 +211,26 @@ fn editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme,
                 ui.colored_label(theme.danger, error);
             }
         },
-        Some(Chosen::Template(template)) => template_editor(ui, root, metrics, theme, draft, template),
+        Some(Chosen::Template(template)) => template_editor(ui, root, metrics, theme, style, draft, template),
     }
     said(ui, &draft.said, theme);
 }
 
-fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft, mut editing: Template) {
+fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, style: &qnc_settings_form::GridStyle, draft: &mut Draft, mut editing: Template) {
     let width = ui.available_width();
-    qnc_settings_rows::inline_row(
-        ui,
-        width,
-        &text("export_template.name"),
-        metrics,
-        theme,
-        |ui, field_width| {
-            ui.add(qnc_ui_kit::text_field(&mut editing.name).desired_width(field_width.max(80.0)).hint_text(text("export_template.name_hint")));
-        },
-        |_, _| {},
-    );
+    // The name in the same grid as the fields.
+    let mut named = serde_json::json!({ "name": editing.name });
+    let name = qnc_settings_form::FieldSpec {
+        kind: qnc_settings_form::FieldKind::Text,
+        label: text("export_template.name"),
+        id: "qnc-export-template-name".into(),
+        path: "name".into(),
+        options: None,
+        default: String::new(),
+        hint: text("export_template.name_hint"),
+    };
+    qnc_settings_form::field_grid(ui, width, &mut named, std::slice::from_ref(&name), &qnc_settings_form::OptionSets::new(), style);
+    editing.name = named.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
     let from = qnc_export_templates::prepared().into_iter().find(|preset| preset.id == editing.from).map_or_else(|| editing.from.clone(), |preset| preset.name);
     ui.label(RichText::new(text("export_template.from").replace("{preset}", &from)).size(metrics.label_font_size).color(theme.text_muted));
     let groups = match qnc_export_templates::field_groups() {
@@ -227,7 +240,7 @@ fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme
             return;
         }
     };
-    egui::ScrollArea::vertical().max_height((ui.available_height() - 60.0).max(120.0)).show(ui, |ui| fields(ui, &groups, width, metrics, theme, draft));
+    egui::ScrollArea::vertical().max_height((ui.available_height() - 60.0).max(120.0)).show(ui, |ui| fields(ui, &groups, width, metrics, theme, style, draft));
     draft.chosen = Some(Chosen::Template(editing.clone()));
     let is_own = draft.templates.iter().any(|template| template.id == editing.id);
     let (mut save, mut delete) = (false, false);
@@ -262,60 +275,51 @@ fn template_editor(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme
     }
 }
 
-/// The fields of `groups`, each under its group's title.
-fn fields(ui: &mut egui::Ui, groups: &[FieldGroup], width: f32, metrics: &PanelMetrics, theme: &Theme, draft: &mut Draft) {
+/// The fields of `groups`, each group a section of the Settings form, its fields in the same grid
+/// as the Advanced settings (`qnc-settings-form`: the label above its field; user 2026-11-23:
+/// "treba biti stilski isto"); a switch under them.
+fn fields(ui: &mut egui::Ui, groups: &[FieldGroup], width: f32, metrics: &PanelMetrics, theme: &Theme, style: &qnc_settings_form::GridStyle, draft: &mut Draft) {
+    let mut settings = serde_json::json!({ "export": Value::Object(draft.typed.clone()) });
     for group in groups {
-        ui.add_space(8.0);
-        ui.label(RichText::new(text(&group.label).to_uppercase()).size(metrics.label_font_size).strong().color(theme.text_muted));
-        for field in &group.fields {
-            qnc_settings_rows::inline_row(ui, width, &text(&field.label), metrics, theme, |ui, field_width| field_widget(ui, field, field_width, draft), |_, _| {});
-        }
-    }
-}
-
-/// A field's widget: a choice of the values the prepared presets have, a number or a text typed,
-/// or a switch.
-fn field_widget(ui: &mut egui::Ui, field: &qnc_export_templates::Field, width: f32, draft: &mut Draft) {
-    let shown = |value: Option<&Value>| match value {
-        Some(Value::String(text)) => text.clone(),
-        Some(Value::Null) | None => String::new(),
-        Some(other) => other.to_string(),
-    };
-    match field.kind {
-        FieldKind::Choice => {
-            let now = draft.typed.get(&field.key).cloned();
-            let mut picked = None;
-            egui::ComboBox::from_id_salt(("qnc-export-template", field.key.as_str())).width(width.max(120.0)).selected_text(shown(now.as_ref())).show_ui(ui, |ui| {
-                for value in qnc_export_templates::choices(&field.key) {
-                    if ui.selectable_label(now.as_ref() == Some(&value), shown(Some(&value))).clicked() {
-                        picked = Some(value);
+        qnc_settings_rows::section(ui, width, &text(&group.label), metrics, theme, |ui| {
+            let mut options = qnc_settings_form::OptionSets::new();
+            let specs: Vec<qnc_settings_form::FieldSpec> = group
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let kind = match field.kind {
+                        FieldKind::Choice => qnc_settings_form::FieldKind::Choice,
+                        FieldKind::Number => qnc_settings_form::FieldKind::Number,
+                        FieldKind::Integer => qnc_settings_form::FieldKind::Integer,
+                        FieldKind::Text => qnc_settings_form::FieldKind::Text,
+                        FieldKind::Switch => return None,
+                    };
+                    if field.kind == FieldKind::Choice {
+                        let values = qnc_export_templates::choices(&field.key).into_iter().map(|value| value.as_str().map_or_else(|| value.to_string(), str::to_string)).map(|value| (value.clone(), value)).collect();
+                        options.insert(field.key.clone(), values);
                     }
+                    Some(qnc_settings_form::FieldSpec {
+                        kind,
+                        label: text(&field.label),
+                        id: format!("qnc-export-template-{}", field.key),
+                        path: format!("export.{}", field.key),
+                        options: (field.kind == FieldKind::Choice).then(|| field.key.clone()),
+                        default: String::new(),
+                        hint: String::new(),
+                    })
+                })
+                .collect();
+            qnc_settings_form::field_grid(ui, width, &mut settings, &specs, &options, style);
+            for field in group.fields.iter().filter(|field| field.kind == FieldKind::Switch) {
+                let mut on = settings["export"].get(&field.key).and_then(Value::as_bool).unwrap_or(false);
+                let label = RichText::new(text(&field.label)).size(style.label_size).color(theme.text);
+                if qnc_ui_kit::check_box(ui, &mut on, label, true).changed() {
+                    settings["export"][&field.key] = Value::Bool(on);
                 }
-            });
-            if let Some(value) = picked {
-                draft.typed.insert(field.key.clone(), value);
             }
-        }
-        FieldKind::Number => {
-            let mut typed = shown(draft.typed.get(&field.key));
-            if ui.add(qnc_ui_kit::text_field(&mut typed).desired_width(width.max(80.0))).changed() {
-                // A number typed is kept as one when it is one, else as typed.
-                let value = typed.trim().replace(',', ".");
-                let number = value.parse::<i64>().map(Value::from).ok().or_else(|| value.parse::<f64>().ok().and_then(serde_json::Number::from_f64).map(Value::Number));
-                draft.typed.insert(field.key.clone(), number.unwrap_or(Value::String(typed)));
-            }
-        }
-        FieldKind::Text => {
-            let mut typed = shown(draft.typed.get(&field.key));
-            if ui.add(qnc_ui_kit::text_field(&mut typed).desired_width(width.max(80.0))).changed() {
-                draft.typed.insert(field.key.clone(), Value::String(typed));
-            }
-        }
-        FieldKind::Switch => {
-            let mut on = draft.typed.get(&field.key).and_then(Value::as_bool).unwrap_or(false);
-            if qnc_ui_kit::check_box(ui, &mut on, "", true).changed() {
-                draft.typed.insert(field.key.clone(), Value::Bool(on));
-            }
-        }
+        });
+    }
+    if let Some(typed) = settings.get("export").and_then(Value::as_object) {
+        draft.typed = typed.clone();
     }
 }

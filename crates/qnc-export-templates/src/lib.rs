@@ -40,8 +40,10 @@ pub struct Field {
 pub enum FieldKind {
     /// One of the values the prepared presets have.
     Choice,
-    /// A number typed.
+    /// A decimal number typed.
     Number,
+    /// A whole number typed.
+    Integer,
     /// A text typed.
     Text,
     /// On or off.

@@ -1133,3 +1133,10 @@ margina; fiksna velicina). `qnc-title-bar` `with_look_of`, `qnc-form-look` `ask_
 programa otvara samo svoj editor). Mjere iz rasporeda Projecta iz prethodnog koraka uklonjene. Export XML je zasebna postavka
 racunala (`data/export-xml.qncxml`, `qnc-export-templates` `xml_fields`, `xml`, `save_xml`; ugovor polja `xml`), u lijevom
 izborniku ispod crte. Uzivo nije provjereno.
+Izmjena 2026-11-23 (korisnik, snimka: "pogledaj poravnanje u postavkama, treba biti stilski isto, ne mozes mijenjati; treba
+dodati i sirinu desnog panela i druge mjere"): polja prozora export predlozaka (i naziv) crta ista mreza kao napredne postavke
+(`qnc-settings-form` `field_grid`: oznaka iznad polja; grupe kao odjeljci `qnc-settings-rows` `section` s crtom), sklopka
+ispod mreze. Izgled prozora (`export-templates.look.json`): sirina i visina prozora, sirina izbornika lijevo, sirina desnog
+panela, margina, velicina slova oznaka, najmanja sirina polja, razmak polja, visina polja. Polja sirina, visina, bitrate,
+frekvencija i broj kanala su cijeli brojevi. Napomena: ovom izmjenom prepisana je datoteka izgleda koju je korisnik dvaput
+spremio editorom (njegove mjere nisu sacuvane). Uzivo nije provjereno.

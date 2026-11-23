@@ -4964,6 +4964,7 @@ dependencies = [
  "qnc-export-templates",
  "qnc-form-look",
  "qnc-settings-block",
+ "qnc-settings-form",
  "qnc-settings-rows",
  "qnc-title-bar",
  "qnc-ui-kit",
