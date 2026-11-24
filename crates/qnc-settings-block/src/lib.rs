@@ -278,6 +278,25 @@ impl<'a> Pen<'a> {
         })
     }
 
+    /// The tabs of a window (user 2026-11-24: "postavke su postavke... tabove General, User,
+    /// Project"): on the left, each as wide as its words, as tall as the controls, a rule under
+    /// them; gives the tab clicked.
+    pub fn tabs(&self, ui: &mut egui::Ui, names: &[String], chosen: usize) -> Option<usize> {
+        let mut clicked = None;
+        ui.horizontal(|ui| {
+            ui.spacing_mut().interact_size.y = self.theme.chrome_control_height;
+            for (index, name) in names.iter().enumerate() {
+                let words = RichText::new(name).size(self.theme.font_ui);
+                if ui.selectable_label(index == chosen, words).clicked() {
+                    clicked = Some(index);
+                }
+            }
+        });
+        let (y, x0) = (ui.cursor().top(), ui.min_rect().left());
+        ui.painter().hline(egui::Rangef::new(x0, x0 + self.width), y, egui::Stroke::new(1.0, self.theme.border));
+        clicked
+    }
+
     /// The rule between two groups of a window's menu.
     pub fn menu_rule(&self, ui: &mut egui::Ui) {
         ui.add_space(self.metrics.section_gap);

@@ -1,0 +1,16 @@
+[package]
+name = "qnc-user-settings-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI Settings, tab User: the settings of the user signed in (language, keyboard preset, wheel, microphone), each in the user's folder, drawn with the settings style block"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-edit-step = { workspace = true }
+qnc-key-preset = { workspace = true }
+qnc-settings-block = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-user-settings = { workspace = true }
+qnc-voice-record = { workspace = true }
+qnc-wizard-text = { workspace = true }
+serde_json = { workspace = true }

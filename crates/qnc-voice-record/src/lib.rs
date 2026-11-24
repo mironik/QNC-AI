@@ -36,6 +36,22 @@ pub fn input_setting(root: &Path) -> PathBuf {
     qnc_user_settings::read_from(root, INPUT_SETTING).unwrap_or_else(|| qnc_user_settings::computer_file(root, INPUT_SETTING))
 }
 
+/// The microphone the user records with (its name), `None` for the system's default input.
+pub fn chosen_input(root: &Path) -> Result<Option<String>> {
+    chosen_device(&input_setting(root))
+}
+
+/// Keeps `name` as the microphone of the user signed in; `None` the system's default input.
+pub fn choose_input(root: &Path, name: Option<&str>) -> Result<()> {
+    qnc_user_settings::write(root, INPUT_SETTING, &serde_json::json!({ "device": name.unwrap_or("") }).to_string())
+}
+
+/// The names of the inputs this computer has now, as recording finds them.
+pub fn input_devices() -> Vec<String> {
+    let host = cpal::default_host();
+    host.input_devices().map(|devices| devices.filter_map(|device| device.description().ok().map(|about| about.name().to_string())).collect()).unwrap_or_default()
+}
+
 pub type Result<T> = std::result::Result<T, String>;
 
 /// A finished recording.

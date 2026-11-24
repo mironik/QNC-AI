@@ -7465,11 +7465,13 @@ dependencies = [
  "qnc-export-templates-view",
  "qnc-ingest-orchestrator-view",
  "qnc-locations-view",
+ "qnc-project-blocks",
  "qnc-project-session",
  "qnc-project-texts",
  "qnc-settings-block",
  "qnc-settings-rows",
  "qnc-tray-settings-view",
+ "qnc-user-settings-view",
  "qnc-wizard-text",
  "serde",
  "serde_json",
@@ -8757,6 +8759,21 @@ name = "qnc-user-settings"
 version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
+]
+
+[[package]]
+name = "qnc-user-settings-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-edit-step",
+ "qnc-key-preset",
+ "qnc-settings-block",
+ "qnc-ui-text",
+ "qnc-user-settings",
+ "qnc-voice-record",
+ "qnc-wizard-text",
+ "serde_json",
 ]
 
 [[package]]

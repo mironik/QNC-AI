@@ -1,9 +1,11 @@
-//! The board of QNC-AI's Settings form (user 2026-11-24: "je li postavke monolit" - "da, kreni"):
-//! the settings of this computer, not of a project. On the left the groups, in the order the
-//! Settings layout names them (`contracts/ui/settings.layout.json`); on the right only the group
-//! chosen. Every group is a block of its own that reads and writes its own setting; the board only
-//! puts them together and draws with the settings style block (`qnc_settings_block::Pen`). The
-//! templates and Advanced settings of a project are not here: they belong to the Project form.
+//! The board of QNC-AI's Settings form (user 2026-11-24: "je li postavke monolit" - "da, kreni";
+//! "postavke su postavke, ne moze biti vise postavki.. mozes uvesti tabove General, User,
+//! Project"): the one form of every setting. On top the tabs, under them on the left the groups
+//! of the tab chosen, in the order the Settings layout names them
+//! (`contracts/ui/settings.layout.json`), and on the right only the group chosen. General holds
+//! the settings of this computer, User those of the user signed in, Project the project
+//! templates. Every group is a block of its own that reads and writes its own setting; the board
+//! only puts them together and draws with the settings style block (`qnc_settings_block::Pen`).
 
 use std::path::Path;
 
@@ -16,6 +18,36 @@ use qnc_settings_rows::PanelMetrics;
 use serde::Deserialize;
 
 const SETTINGS_LAYOUT_JSON: &str = include_str!("../../../contracts/ui/settings.layout.json");
+
+/// A tab of the Settings form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Tab {
+    /// The settings of this computer, the same for every user.
+    General,
+    /// The settings of the user signed in.
+    User,
+    /// The project templates.
+    Project,
+}
+
+impl Tab {
+    fn name(self) -> &'static str {
+        match self {
+            Tab::General => "settings_tab.general",
+            Tab::User => "settings_tab.user",
+            Tab::Project => "settings_tab.project",
+        }
+    }
+
+    fn title(self) -> &'static str {
+        match self {
+            Tab::General => "settings_tab.title_general",
+            Tab::User => "settings_tab.title_user",
+            Tab::Project => "settings_tab.title_project",
+        }
+    }
+}
 
 /// A group of the Settings form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -33,6 +65,10 @@ pub enum Group {
     Tray,
     /// The export templates, with their own window (`qnc-export-templates-view`).
     Export,
+    /// The settings of the user signed in (`qnc-user-settings-view`).
+    User,
+    /// The project templates and their settings (the caller's, the Project blocks).
+    Templates,
 }
 
 impl Group {
@@ -45,46 +81,107 @@ impl Group {
             Group::CardReaders => "settings_group.card_readers",
             Group::Tray => "settings_group.tray",
             Group::Export => "settings_group.export",
+            Group::User => "settings_group.user",
+            Group::Templates => "settings_group.templates",
+        }
+    }
+
+    /// The tab a group belongs to: a setting of the computer is never under User, nor one of
+    /// the user under General.
+    fn tab(self) -> Tab {
+        match self {
+            Group::User => Tab::User,
+            Group::Templates => Tab::Project,
+            _ => Tab::General,
         }
     }
 }
 
-/// The groups the Settings layout names, in its order; a name no group has is an error.
-pub fn groups() -> Result<Vec<Group>, String> {
-    groups_of(SETTINGS_LAYOUT_JSON)
+/// The tabs the Settings layout names, in its order, each with its groups.
+pub fn tabs() -> Result<Vec<(Tab, Vec<Group>)>, String> {
+    tabs_of(SETTINGS_LAYOUT_JSON)
 }
 
-fn groups_of(json: &str) -> Result<Vec<Group>, String> {
+fn tabs_of(json: &str) -> Result<Vec<(Tab, Vec<Group>)>, String> {
+    #[derive(Deserialize)]
+    struct Entry {
+        tab: Tab,
+        groups: Vec<Group>,
+    }
     #[derive(Deserialize)]
     struct Layout {
-        blocks: Vec<Group>,
+        tabs: Vec<Entry>,
     }
-    serde_json::from_str::<Layout>(json).map(|layout| layout.blocks).map_err(|error| format!("settings layout parse failed: {error}"))
+    let layout = serde_json::from_str::<Layout>(json).map_err(|error| format!("settings layout parse failed: {error}"))?;
+    let mut tabs = Vec::new();
+    for entry in layout.tabs {
+        if let Some(group) = entry.groups.iter().find(|group| group.tab() != entry.tab) {
+            return Err(format!("settings layout: the group {group:?} does not belong to the tab {:?}", entry.tab));
+        }
+        if entry.groups.is_empty() || tabs.iter().any(|(tab, _)| *tab == entry.tab) {
+            return Err(format!("settings layout: the tab {:?} is empty or named twice", entry.tab));
+        }
+        tabs.push((entry.tab, entry.groups));
+    }
+    Ok(tabs)
 }
 
-/// Draws the board over `ui`: the menu of groups, a line, the group chosen. Gives what the
-/// locations asked of the Project session (the only group that keeps its setting there).
-pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, texts: &ProjectTexts, session: &mut ProjectSession) -> Vec<ProjectIntent> {
+/// What the board needs from its caller beyond the session: the lists the User tab chooses
+/// from and the drawing of the project templates (the Project form's own blocks).
+pub struct Caller<'a> {
+    pub user: qnc_user_settings_view::Lists<'a>,
+    pub templates: &'a mut dyn FnMut(&mut egui::Ui, &mut ProjectSession) -> Vec<ProjectIntent>,
+}
+
+/// The Settings form of the Project program's contracts and session: the board, its User tab
+/// choosing from the contracts' keyboard presets, its Project tab the Project blocks' templates.
+pub fn show_settings(ui: &mut egui::Ui, contracts: &qnc_project_blocks::layout_contract::AppContracts, session: &mut ProjectSession) -> Vec<ProjectIntent> {
+    let root = session.component.root.clone();
+    let presets = contracts.shortcuts.preset_choices(&contracts.project.advanced_settings.keyboard_preset_order);
+    let mut templates = |ui: &mut egui::Ui, session: &mut ProjectSession| {
+        let width = ui.available_width() - 16.0;
+        qnc_project_blocks::show_templates(ui, width, contracts, session)
+    };
+    let caller = Caller {
+        user: qnc_user_settings_view::Lists { keyboard_presets: &presets, keyboard_default: &contracts.shortcuts.active_preset },
+        templates: &mut templates,
+    };
+    let project = &contracts.project;
+    show(ui, &root, &project.right_settings_panel, &contracts.theme, &project.texts, session, caller)
+}
+
+/// Draws the board over `ui`: the tabs, the menu of the tab's groups, a line, the group chosen.
+/// Gives what the groups asked of the Project session.
+pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Theme, texts: &ProjectTexts, session: &mut ProjectSession, caller: Caller<'_>) -> Vec<ProjectIntent> {
     let id = egui::Id::new(("qnc-settings-board", root.to_string_lossy().to_string()));
-    let groups = match groups() {
-        Ok(groups) => groups,
+    let tabs = match tabs() {
+        Ok(tabs) => tabs,
         Err(error) => {
             Pen::new(metrics, theme, ui.available_width()).said(ui, &Some(Err(error)));
             return Vec::new();
         }
     };
-    let mut chosen = ui.ctx().data_mut(|data| data.get_temp::<Option<Group>>(id)).flatten().or_else(|| groups.first().copied());
+    let (mut tab, mut chosen) = ui.ctx().data_mut(|data| data.get_temp::<(usize, Option<Group>)>(id)).unwrap_or((0, None));
+    tab = tab.min(tabs.len() - 1);
     let mut intents = Vec::new();
     // The menu as wide as a row's label and button columns, the group the rest.
     let menu_w = metrics.inline_label_width + metrics.inline_button_width;
-    let height = ui.available_height();
     egui::Frame::NONE.fill(theme.bg).inner_margin(egui::Margin::same(metrics.panel_pad as i8)).show(ui, |ui| {
+        let names: Vec<String> = tabs.iter().map(|(tab, _)| qnc_wizard_text::text(tab.name())).collect();
+        if let Some(clicked) = Pen::new(metrics, theme, ui.available_width()).tabs(ui, &names, tab) {
+            tab = clicked;
+        }
+        let (current, groups) = &tabs[tab];
+        if !chosen.is_some_and(|group| groups.contains(&group)) {
+            chosen = groups.first().copied();
+        }
+        let height = ui.available_height();
         ui.horizontal_top(|ui| {
             ui.vertical(|ui| {
                 ui.set_width(menu_w);
                 let pen = Pen::new(metrics, theme, menu_w);
-                pen.menu_heading(ui, &qnc_wizard_text::text("settings_group.title"));
-                for group in &groups {
+                pen.menu_heading(ui, &qnc_wizard_text::text(current.title()));
+                for group in groups {
                     if pen.menu_item(ui, chosen == Some(*group), &qnc_wizard_text::text(group.name()), "") {
                         chosen = Some(*group);
                     }
@@ -103,13 +200,15 @@ pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Them
                         Some(Group::CardReaders) => qnc_card_readers_view::show(ui, root, &pen),
                         Some(Group::Tray) => qnc_tray_settings_view::show(ui, root, &pen),
                         Some(Group::Export) => qnc_export_templates_view::show(ui, root, &pen),
+                        Some(Group::User) => qnc_user_settings_view::show(ui, root, &pen, &caller.user),
+                        Some(Group::Templates) => intents.extend((caller.templates)(ui, session)),
                         None => {}
                     }
                 });
             });
         });
     });
-    ui.ctx().data_mut(|data| data.insert_temp(id, chosen));
+    ui.ctx().data_mut(|data| data.insert_temp(id, (tab, chosen)));
     intents
 }
 
@@ -118,10 +217,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_board_has_the_groups_of_the_layout_in_its_order_and_an_unknown_one_is_an_error() {
-        let groups = groups().unwrap();
-        assert_eq!(groups.first(), Some(&Group::Locations));
-        assert!(groups.contains(&Group::CardReaders) && groups.contains(&Group::Export));
-        assert!(groups_of(r#"{"blocks":["templates"]}"#).is_err(), "the project's templates are not a group of this computer's settings");
+    fn the_board_has_the_tabs_of_the_layout_and_a_group_only_under_its_own_tab() {
+        let tabs = tabs().unwrap();
+        assert_eq!(tabs.iter().map(|(tab, _)| *tab).collect::<Vec<_>>(), vec![Tab::General, Tab::User, Tab::Project]);
+        assert_eq!(tabs[0].1.first(), Some(&Group::Locations));
+        assert!(tabs[0].1.contains(&Group::CardReaders) && tabs[0].1.contains(&Group::Export));
+        assert_eq!(tabs[1].1, vec![Group::User]);
+        assert_eq!(tabs[2].1, vec![Group::Templates]);
+        assert!(tabs_of(r#"{"tabs":[{"tab":"general","groups":["templates"]}]}"#).is_err(), "the templates are not a setting of the computer");
+        assert!(tabs_of(r#"{"tabs":[{"tab":"user","groups":["ai"]}]}"#).is_err(), "the AI of the computer is not the user's");
+        assert!(tabs_of(r#"{"tabs":[{"tab":"general","groups":["nothing"]}]}"#).is_err());
     }
 }

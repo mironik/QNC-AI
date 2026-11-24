@@ -1,13 +1,19 @@
 {
   "contract_id": "qnc.ui.settings.layout",
-  "schema_version": 1,
-  "description": "QNC-AI Settings form: the blocks it puts together, in this order (user 2026-11-23: 'forma postavke se slaze od kocaka'). Every block reads and writes its own setting.",
-  "blocks": [
-    "locations",
-    "ingest_orchestrator",
-    "ai",
-    "card_readers",
-    "tray",
-    "export"
+  "schema_version": 2,
+  "description": "QNC-AI Settings form: one form, its tabs and the groups of each tab, in this order (user 2026-11-23: 'forma postavke se slaze od kocaka'; 2026-11-24: 'postavke su postavke, ne moze biti vise postavki.. tabove General, User, Project'). Every group is a block that reads and writes its own setting: General the computer's, User the user signed in's, Project the project templates.",
+  "tabs": [
+    {
+      "tab": "general",
+      "groups": ["locations", "ingest_orchestrator", "ai", "card_readers", "tray", "export"]
+    },
+    {
+      "tab": "user",
+      "groups": ["user"]
+    },
+    {
+      "tab": "project",
+      "groups": ["templates"]
+    }
   ]
 }

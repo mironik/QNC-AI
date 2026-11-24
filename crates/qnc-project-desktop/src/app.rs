@@ -116,9 +116,7 @@ impl ProjectApp {
             return;
         }
         let intents = if self.settings_only {
-            // The settings of this computer on their own board (no project templates).
-            let root = self.session.component.root.clone();
-            qnc_settings_board::show(ui, &root, &self.contracts.project.right_settings_panel, &self.contracts.theme, &self.contracts.project.texts, &mut self.session)
+            qnc_settings_board::show_settings(ui, &self.contracts, &mut self.session)
         } else {
             qnc_project_blocks::show(ctx, ui, frame, &self.contracts, &mut self.session)
         };

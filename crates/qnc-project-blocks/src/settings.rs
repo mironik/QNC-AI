@@ -151,7 +151,7 @@ impl Blocks<'_> {
     }
 
     /// The template picker, then the Advanced bar; the slots of the scroll show only while it is open.
-    fn templates(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics) {
+    pub(crate) fn templates(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics) {
         self.pts_fixed(ui, width, settings);
         qnc_project_advanced_view::header(ui, width, &self.contracts.project.advanced_settings, &self.contracts.theme, &mut self.session.advanced_open);
         let slots = if self.session.advanced_open { self.contracts.project.pts_slots.scroll_order.clone() } else { Vec::new() };

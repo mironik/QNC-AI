@@ -100,6 +100,7 @@ qnc-decoder-jobs = { path = "crates/qnc-decoder-jobs" }
 qnc-desktop-theme = { path = "crates/qnc-desktop-theme" }
 qnc-dev-diagnostics = { path = "crates/qnc-dev-diagnostics" }
 qnc-user-settings = { path = "crates/qnc-user-settings" }
+qnc-user-settings-view = { path = "crates/qnc-user-settings-view" }
 qnc-dir-browse-jobs = { path = "crates/qnc-dir-browse-jobs" }
 qnc-dir-browser = { path = "crates/qnc-dir-browser" }
 qnc-dir-browser-panel = { path = "crates/qnc-dir-browser-panel" }

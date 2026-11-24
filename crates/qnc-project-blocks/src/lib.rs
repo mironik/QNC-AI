@@ -45,6 +45,19 @@ pub fn show_projects(ctx: &egui::Context, ui: &mut egui::Ui, contracts: &AppCont
     (blocks.intents, alone)
 }
 
+/// QNC-AI: the project templates as the Project tab of the Settings form (user 2026-11-24:
+/// "postavke su postavke... tabove General, User, Project"): the picker, the Advanced bar and
+/// while it is open the template's settings, the template actions and the own template, in
+/// `ui`, `width` wide; the same blocks as the Project form, without New project.
+pub fn show_templates(ui: &mut egui::Ui, width: f32, contracts: &AppContracts, session: &mut ProjectSession) -> Vec<ProjectIntent> {
+    let mut blocks = Blocks { contracts, session, intents: Vec::new(), settings_only: true };
+    let settings = contracts.project.right_settings_panel.clone();
+    ui.spacing_mut().item_spacing.y = settings.section_gap;
+    blocks.templates(ui, width, &settings);
+    blocks.delete_questions(ui.ctx());
+    blocks.intents
+}
+
 /// Draws Project on the desktop board and returns what its blocks and keys ask for.
 pub fn show(
     ctx: &egui::Context,
