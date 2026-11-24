@@ -430,7 +430,7 @@ impl EditorialApplication {
         // A statement of several parts plays and shows part after part, never joined (user 2026-11-19).
         if !shot.parts.is_empty() {
             let parts: Vec<(String, u64, u64)> = std::iter::once((shot.clip_id.clone(), shot.in_frame, shot.out_frame)).chain(shot.parts.iter().map(|part| (part.clip_id.clone(), part.in_frame, part.out_frame))).collect();
-            self.focus.open_statement(&parts, &self.view.clips);
+            self.focus.open_statement(&parts, &self.view.clips, &mut self.view.preview.timeline);
             return true;
         }
         self.open_marked(&shot.clip_id, (shot.in_frame, shot.out_frame), None)

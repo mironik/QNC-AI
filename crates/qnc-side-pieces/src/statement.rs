@@ -29,6 +29,8 @@ pub struct StatementPlay {
     cue_in: bool,
     /// Its play goes from the first part's IN to the last part's OUT (user 2026-11-23).
     play: qnc_source_panel::RangePlay,
+    /// The value of the action being handled (a word's first clip frame).
+    value: Option<i64>,
 }
 
 impl std::fmt::Debug for StatementPlay {
@@ -101,6 +103,15 @@ impl StatementPlay {
     /// not open or for another action.
     pub fn act(&mut self, action_id: &str, target: Option<&str>, preview: &mut SourcePreview) -> Option<bool> {
         self.block.as_ref()?;
+        // A word of the transcript (user 2026-11-24: it sent a clip frame the statement's player
+        // refused): the playhead goes to where the statement says it; a word it does not say
+        // leaves the playhead.
+        if action_id == qnc_transcript::CUE_WORD {
+            let frame = self.value.and_then(|frame| u64::try_from(frame).ok());
+            let at = frame.and_then(|frame| self.block.as_ref().and_then(|block| axis_frame(&block.pieces, preview.view().clip_id.as_deref(), frame)));
+            let Some(at) = at else { return Some(true) };
+            return self.act(qnc_subsegment_edit::SUBSEGMENT_CUE, Some(&at.to_string()), preview);
+        }
         let own = self.edit.own(action_id, target);
         let (action_id, target) = match &own {
             Some((action, own_target)) => (action.as_str(), own_target.as_deref()),
@@ -140,8 +151,28 @@ impl StatementPlay {
     }
 
     pub fn set_value(&mut self, value: Option<i64>) {
+        self.value = value;
         self.edit.set_value(value);
     }
+}
+
+/// Where frame `frame` of a clip is on the axis of `pieces` (one after another, each after its
+/// pause): the part of the shown clip that has it first, else any part that has it.
+fn axis_frame(pieces: &[Piece], shown: Option<&str>, frame: u64) -> Option<u64> {
+    let mut start = 0;
+    let mut found = None;
+    for piece in pieces {
+        start += piece.gap_before;
+        if (piece.from_frame..piece.to_frame).contains(&frame) {
+            let at = start + frame - piece.from_frame;
+            if shown == Some(piece.clip_id.as_str()) {
+                return Some(at);
+            }
+            found = found.or(Some(at));
+        }
+        start += piece.to_frame.saturating_sub(piece.from_frame);
+    }
+    found
 }
 
 /// `[from, to)` of `clip` as a part (only IN/OUT: the text is read from the transcript).
@@ -159,4 +190,19 @@ fn piece(clip: &str, from: u64, to: u64, names: &HashMap<String, (String, u64, f
         "seconds": if rate > 0.0 { to.saturating_sub(from) as f64 / rate } else { 0.0 },
     });
     serde_json::from_value(part).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_word_of_a_clip_is_where_the_statement_says_it_and_nowhere_when_it_does_not() {
+        let names = HashMap::from([("a".to_string(), ("A".to_string(), 1000, 20.0)), ("b".to_string(), ("B".to_string(), 1000, 20.0))]);
+        let pieces = vec![piece("a", 90, 100, &names).unwrap(), piece("a", 100, 200, &names).unwrap(), piece("b", 150, 250, &names).unwrap()];
+        assert_eq!(axis_frame(&pieces, Some("a"), 120), Some(30));
+        assert_eq!(axis_frame(&pieces, Some("b"), 160), Some(120), "the shown clip's part first");
+        assert_eq!(axis_frame(&pieces, Some("a"), 160), Some(70), "a frame both clips have: the shown clip's");
+        assert_eq!(axis_frame(&pieces, Some("a"), 500), None, "a word the statement does not say");
+    }
 }
