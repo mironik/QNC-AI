@@ -46,7 +46,6 @@ qnc-project-templates-view = { path = "crates/qnc-project-templates-view" }
 qnc-locations-view = { path = "crates/qnc-locations-view" }
 qnc-project-advanced-view = { path = "crates/qnc-project-advanced-view" }
 qnc-ai-engines-view = { path = "crates/qnc-ai-engines-view" }
-qnc-ai-share-view = { path = "crates/qnc-ai-share-view" }
 qnc-ai-templates-view = { path = "crates/qnc-ai-templates-view" }
 qnc-shot-labels-view = { path = "crates/qnc-shot-labels-view" }
 qnc-shot-labels-edit = { path = "crates/qnc-shot-labels-edit" }

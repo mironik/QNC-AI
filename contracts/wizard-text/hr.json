@@ -120,7 +120,7 @@
     "settings_tray.form_args": "argumenti",
     "settings_group.title": "Postavke računala",
     "settings_group.locations": "Lokacije",
-    "settings_group.ai_share": "Zajednička AI mapa",
+    "settings_group.system": "Sustav",
     "settings_group.ingest_orchestrator": "Orkestratori Ingesta",
     "settings_group.ai": "AI",
     "settings_group.card_readers": "Čitači kartica",

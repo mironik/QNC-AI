@@ -10,14 +10,21 @@ use qnc_project_session::{LocationTarget, ProjectIntent, ProjectSession};
 use qnc_project_texts::ProjectTexts;
 use qnc_settings_block::Pen;
 
-/// Draws the group, its title on the left when `titled`; gives the intents.
+/// Draws the group, its title on the left when `titled`: the projects' and the export folder (the
+/// Ingest bases are the System group's, user 2026-11-24); gives the intents.
 pub fn show(ui: &mut eframe::egui::Ui, pen: &Pen, theme: &Theme, texts: &ProjectTexts, session: &mut ProjectSession, titled: bool) -> Vec<ProjectIntent> {
-    if titled {
-        pen.heading(ui, qnc_ui_text::text("project.locations_title"));
+    let title = titled.then(|| qnc_ui_text::text("project.locations_title"));
+    show_targets(ui, pen, theme, texts, session, title, &[LocationTarget::ProjectsRoot, LocationTarget::ExportDir])
+}
+
+/// Draws the location rows `targets` under `title`; gives the intents.
+pub fn show_targets(ui: &mut eframe::egui::Ui, pen: &Pen, theme: &Theme, texts: &ProjectTexts, session: &mut ProjectSession, title: Option<&str>, targets: &[LocationTarget]) -> Vec<ProjectIntent> {
+    if let Some(title) = title {
+        pen.heading(ui, title);
     }
     let mut intents = Vec::new();
-    for target in [LocationTarget::ProjectsRoot, LocationTarget::BasesRoot, LocationTarget::ExportDir] {
-        intents.extend(row(ui, pen, theme, texts, session, target));
+    for target in targets {
+        intents.extend(row(ui, pen, theme, texts, session, *target));
     }
     intents
 }

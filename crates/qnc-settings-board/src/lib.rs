@@ -11,7 +11,7 @@ use std::path::Path;
 
 use eframe::egui;
 use qnc_desktop_theme::Theme;
-use qnc_project_session::{ProjectIntent, ProjectSession};
+use qnc_project_session::{LocationTarget, ProjectIntent, ProjectSession};
 use qnc_project_texts::ProjectTexts;
 use qnc_settings_block::Pen;
 use qnc_settings_rows::PanelMetrics;
@@ -67,9 +67,10 @@ pub enum Group {
     IngestOrchestrator,
     /// The AI settings, a tab of their own with their own menu (`qnc-ai-settings-view`).
     Ai,
-    /// The shared AI folder of this computer, where the AI models are (`qnc-ai-share-view`; user
-    /// 2026-11-24: a general setting, "tome je mjesto u tabu Opcenito").
-    AiShare,
+    /// The system's folders of this computer (user 2026-11-24: "Lokaciju IngestBase izdvoji iz
+    /// Lokacija i dodaj u Zajednicku AI mapu koju ces preimenovati Sustav"): the shared AI folder,
+    /// where the AI models are, and the Ingest bases' folder (`qnc-locations-view` rows).
+    System,
     /// The card readers on the network (`qnc-card-readers-view`).
     CardReaders,
     /// The tray: what its menu shows, the form each mode opens (`qnc-tray-settings-view`).
@@ -89,7 +90,7 @@ impl Group {
             Group::Locations => "settings_group.locations",
             Group::IngestOrchestrator => "settings_group.ingest_orchestrator",
             Group::Ai => "settings_group.ai",
-            Group::AiShare => "settings_group.ai_share",
+            Group::System => "settings_group.system",
             Group::CardReaders => "settings_group.card_readers",
             Group::Tray => "settings_group.tray",
             Group::Export => "settings_group.export",
@@ -226,7 +227,7 @@ pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Them
                         Some(Group::Locations) => intents.extend(qnc_locations_view::show(ui, &pen, theme, texts, session, true)),
                         Some(Group::IngestOrchestrator) => qnc_ingest_orchestrator_view::show(ui, root, &pen),
                         Some(Group::Ai) => qnc_ai_settings_view::panel(ui, root, &pen),
-                        Some(Group::AiShare) => qnc_ai_share_view::panel(ui, root, &pen),
+                        Some(Group::System) => intents.extend(qnc_locations_view::show_targets(ui, &pen, theme, texts, session, Some(&qnc_wizard_text::text("settings_group.system")), &[LocationTarget::AiShare, LocationTarget::BasesRoot])),
                         Some(Group::CardReaders) => qnc_card_readers_view::show(ui, root, &pen),
                         Some(Group::Tray) => qnc_tray_settings_view::show(ui, root, &pen),
                         Some(Group::Export) => qnc_export_templates_view::panel(ui, root, &pen),
@@ -251,7 +252,7 @@ mod tests {
         let tabs = tabs().unwrap();
         assert_eq!(tabs.iter().map(|(tab, _)| *tab).collect::<Vec<_>>(), vec![Tab::General, Tab::User, Tab::Project, Tab::Ai, Tab::Export]);
         assert_eq!(tabs[0].1.first(), Some(&Group::Locations));
-        assert!(tabs[0].1.contains(&Group::AiShare) && tabs[0].1.contains(&Group::CardReaders) && !tabs[0].1.contains(&Group::Ai) && !tabs[0].1.contains(&Group::Export));
+        assert!(tabs[0].1.contains(&Group::System) && tabs[0].1.contains(&Group::CardReaders) && !tabs[0].1.contains(&Group::Ai) && !tabs[0].1.contains(&Group::Export));
         assert_eq!(tabs[1].1, vec![Group::User]);
         assert_eq!(tabs[2].1, vec![Group::Templates]);
         assert_eq!((tabs[3].1.as_slice(), tabs[4].1.as_slice()), (&[Group::Ai][..], &[Group::Export][..]));

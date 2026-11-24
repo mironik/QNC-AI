@@ -120,7 +120,7 @@
     "settings_tray.form_args": "arguments",
     "settings_group.title": "This computer",
     "settings_group.locations": "Locations",
-    "settings_group.ai_share": "Shared AI folder",
+    "settings_group.system": "System",
     "settings_group.ingest_orchestrator": "Ingest orchestrators",
     "settings_group.ai": "AI",
     "settings_group.card_readers": "Card readers",

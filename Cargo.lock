@@ -3956,16 +3956,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qnc-ai-share-view"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "qnc-ai-catalog",
- "qnc-settings-block",
- "qnc-wizard-text",
-]
-
-[[package]]
 name = "qnc-ai-store"
 version = "0.1.0"
 dependencies = [
@@ -7443,7 +7433,6 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-settings-view",
- "qnc-ai-share-view",
  "qnc-card-readers-view",
  "qnc-desktop-theme",
  "qnc-export-templates-view",
