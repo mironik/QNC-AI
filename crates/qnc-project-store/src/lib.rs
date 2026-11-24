@@ -28,6 +28,24 @@ const SYSTEM_SEED_JSON: &str = include_str!("../../../seed/system_seed.json");
 const APPLICATION_ID: &str = "qnc.project";
 const PROJECT_REGISTRY_DB_URI: &str = "qnc://local/db/project_registry";
 const SELECTED_TEMPLATE_KEY: &str = "selected_template_id";
+
+/// The user signed in, who owns the templates they make (user 2026-11-24: "svaki korisnik svoje
+/// predloske"); empty when the system names none (such a user sees only the system templates and
+/// those nobody owns).
+fn owner() -> String {
+    qnc_user_settings::user_name().unwrap_or_default()
+}
+
+/// The setting of the template the user signed in chose: each user their own.
+fn selected_key() -> String {
+    format!("{SELECTED_TEMPLATE_KEY}:{}", owner())
+}
+
+/// The templates the user signed in sees, for a query whose user parameter is `?{n}`: the system
+/// ones, the user's own, and own ones made before templates had an owner (no owner: everyone's).
+fn visible(n: usize) -> String {
+    format!("(system = 1 OR created_by IS NULL OR created_by = ?{n})")
+}
 const PROJECTS_ROOT_KEY: &str = "projects_root_path";
 const DEFAULT_EXPORT_DIRECTORY: &str = "exports/projekti";
 const PROJECT_DIRECTORIES: &[&str] = &[
@@ -225,14 +243,16 @@ impl ProjectStore {
         sanitize_project_templates(&conn)?;
         let selected_template_id = selected_template_id(&conn)?;
         let mut statement = conn
-            .prepare(
+            .prepare(&format!(
                 "SELECT template_id, name, description, system
                  FROM project_templates
+                 WHERE {}
                  ORDER BY system DESC, name",
-            )
+                visible(1)
+            ))
             .map_err(|error| error.to_string())?;
         let rows = statement
-            .query_map([], |row| {
+            .query_map(params![owner()], |row| {
                 let template_id: String = row.get(0)?;
                 Ok(ProjectTemplateRow {
                     selected: template_id == selected_template_id,
@@ -260,7 +280,7 @@ impl ProjectStore {
         if get_template(&conn, template_id)?.is_none() {
             return Err(qnc_ui_text::fill("project.store.template_missing", &[("id", template_id)]));
         }
-        set_local_setting(&conn, SELECTED_TEMPLATE_KEY, template_id)
+        set_local_setting(&conn, &selected_key(), template_id)
     }
 
     pub fn selected_template_settings(&self) -> Result<ProjectTemplateSettings, String> {
@@ -303,26 +323,29 @@ impl ProjectStore {
         let mut settings = settings.cloned().unwrap_or_else(|| base.settings.clone());
         apply_application_selection(&mut settings, selection)?;
         strip_template_project_locations(&mut settings);
-        let template_id = format!("tpl_user_{}", slug_id(name));
+        // The user's own, named after them.
+        let owner = owner();
+        let template_id = format!("tpl_user_{}_{}", slug_base(&owner), slug_id(name));
         let now = now_str();
         let settings_json = json_string(&settings)?;
         let source_template_ids_json = json_string(&base.source_template_ids)?;
         conn.execute(
             "INSERT INTO project_templates
                 (template_id, name, description, system, settings_json, source_template_ids_json,
-                 created_at, updated_at)
-             VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6, ?6)",
+                 created_by, updated_by, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 0, ?4, ?5, ?7, ?7, ?6, ?6)",
             params![
                 template_id,
                 name,
                 description.trim(),
                 settings_json,
                 source_template_ids_json,
-                now
+                now,
+                owner
             ],
         )
         .map_err(|error| error.to_string())?;
-        set_local_setting(&conn, SELECTED_TEMPLATE_KEY, &template_id)?;
+        set_local_setting(&conn, &selected_key(), &template_id)?;
         Ok(ProjectTemplateRow {
             template_id,
             name: name.to_string(),
@@ -371,7 +394,7 @@ impl ProjectStore {
         if selected_before == template_id {
             tx.execute(
                 "DELETE FROM local_runtime_settings WHERE key = ?1",
-                params![SELECTED_TEMPLATE_KEY],
+                params![selected_key()],
             )
             .map_err(|error| error.to_string())?;
         }
@@ -1693,7 +1716,7 @@ fn strip_template_project_locations(settings: &mut Value) {
 }
 
 fn ensure_selected_template(conn: &Connection) -> Result<(), String> {
-    let current = get_local_setting(conn, SELECTED_TEMPLATE_KEY)?;
+    let current = get_local_setting(conn, &selected_key())?;
     if let Some(current) = current {
         if get_template(conn, &current)?.is_some() {
             return Ok(());
@@ -1702,28 +1725,32 @@ fn ensure_selected_template(conn: &Connection) -> Result<(), String> {
 
     let first: Option<String> = conn
         .query_row(
-            "SELECT template_id FROM project_templates ORDER BY system DESC, name LIMIT 1",
-            [],
+            &format!("SELECT template_id FROM project_templates WHERE {} ORDER BY system DESC, name LIMIT 1", visible(1)),
+            params![owner()],
             |row| row.get(0),
         )
         .ok();
     if let Some(template_id) = first {
-        set_local_setting(conn, SELECTED_TEMPLATE_KEY, &template_id)?;
+        set_local_setting(conn, &selected_key(), &template_id)?;
     }
     Ok(())
 }
 
 fn selected_template_id(conn: &Connection) -> Result<String, String> {
     ensure_selected_template(conn)?;
-    Ok(get_local_setting(conn, SELECTED_TEMPLATE_KEY)?.unwrap_or_default())
+    Ok(get_local_setting(conn, &selected_key())?.unwrap_or_default())
 }
 
 fn get_template(conn: &Connection, template_id: &str) -> Result<Option<StoredTemplate>, String> {
+    // Another user's own template is not there for this one.
     let row = conn.query_row(
-        "SELECT template_id, name, system, settings_json, source_template_ids_json
-         FROM project_templates
-         WHERE template_id = ?1",
-        params![template_id.trim()],
+        &format!(
+            "SELECT template_id, name, system, settings_json, source_template_ids_json
+             FROM project_templates
+             WHERE template_id = ?1 AND {}",
+            visible(2)
+        ),
+        params![template_id.trim(), owner()],
         |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -3235,11 +3262,35 @@ mod tests {
             )
             .expect("custom template");
         assert!(!created.system);
-        assert!(created.template_id.starts_with("tpl_user_moj_template_"));
+        assert!(created.template_id.starts_with(&format!("tpl_user_{}_moj_template_", slug_base(&owner()))));
         let templates = store.list_project_templates().expect("templates");
         assert!(templates
             .iter()
             .any(|template| template.template_id == created.template_id && template.selected));
+        cleanup_temp_root(&root);
+    }
+
+    #[test]
+    fn a_user_sees_and_uses_only_their_own_templates_and_the_system_ones() {
+        let root = temp_root("own_templates");
+        let store = ProjectStore::open(&root).expect("store");
+        let mine = store
+            .create_user_template("Moj template", "", "tpl_breaking_news", None, &test_selection(&["project", "ingest"]))
+            .expect("custom template");
+        let conn = store.open_registry().expect("registry");
+        let owned_by: Option<String> = conn.query_row("SELECT created_by FROM project_templates WHERE template_id = ?1", params![mine.template_id], |row| row.get(0)).unwrap();
+        assert_eq!(owned_by, Some(owner()), "the user who made it owns it");
+        conn.execute(
+            "INSERT INTO project_templates (template_id, name, system, settings_json, created_by) SELECT 'tpl_user_other', 'Tudji', 0, settings_json, 'qnc-other-user' FROM project_templates WHERE template_id = ?1",
+            params![mine.template_id],
+        )
+        .unwrap();
+        let templates = store.list_project_templates().expect("templates");
+        assert!(templates.iter().any(|template| template.template_id == mine.template_id));
+        assert!(templates.iter().any(|template| template.system));
+        assert!(!templates.iter().any(|template| template.template_id == "tpl_user_other"), "another user's template is not shown");
+        assert!(store.set_selected_template("tpl_user_other").is_err(), "nor chosen");
+        assert!(store.delete_user_template("tpl_user_other").is_err(), "nor deleted");
         cleanup_temp_root(&root);
     }
 

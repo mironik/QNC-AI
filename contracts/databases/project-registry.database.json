@@ -35,6 +35,7 @@
     "qnc-host/src/project/ui_state.rs",
     "qnc-host/src/project/keyboard_settings.rs"
   ],
+  "template_owner_rule": "A user's own project template belongs to the user the operating system signed in when it was made (project_templates.created_by, user 2026-11-24: \"svaki korisnik svoje predloske\"): a user sees, chooses and deletes only the system templates, their own, and own ones made before templates had an owner (created_by empty). The template a user chose is a setting of that user (local_runtime_settings selected_template_id:<user>).",
   "write_owner": "qnc.project",
   "public_read_policy": "public_read_views",
   "migration_policy": "owner_application_only",
