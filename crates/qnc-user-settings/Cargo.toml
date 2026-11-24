@@ -1,0 +1,8 @@
+[package]
+name = "qnc-user-settings"
+version = "0.1.0"
+edition = "2021"
+description = "QNC-AI public piece: the settings of the user of this computer (user 2026-11-24: \"racunalo moze imati vise korisnika s razlicitim preferencijama\"): a folder per user, the computer's setting where the user has none"
+
+[dependencies]
+qnc-dev-diagnostics = { workspace = true }

@@ -1,9 +1,9 @@
 //! The words of the QNC user interface (user decision 2026-10-14: everything in English,
 //! every text with a code, so the language can be chosen). The layout contracts write a
 //! text as `@code`; this block replaces it with the text of the chosen language from the
-//! dictionaries in `contracts/text`. The language is a setting of this computer
-//! (`ui-language.json` beside the other settings of this computer, `{"language": "en"}`); without it the base
-//! dictionary, English, is used. A code a dictionary does not have is an error, never a
+//! dictionaries in `contracts/text`. The language is a setting of the user signed in
+//! (`ui-language.json`, `{"language": "en"}`, in the user's settings, else the computer's;
+//! `qnc-user-settings`); without it the base dictionary, English, is used. A code a dictionary does not have is an error, never a
 //! made-up text. It reads no project database and knows no application.
 
 use std::collections::BTreeMap;
@@ -62,9 +62,9 @@ impl Texts {
         Ok(Self { language: language.to_string(), texts })
     }
 
-    /// The language this computer chose (`ui-language.json` beside its other settings), else the base one.
+    /// The language the user chose (`ui-language.json` in the user's settings, else the computer's), else the base one.
     pub fn for_host(root: Option<&Path>) -> Result<Self, String> {
-        let setting = root.map(|root| qnc_dev_diagnostics::config_path(root).with_file_name("ui-language.json")).filter(|path| path.is_file());
+        let setting = root.and_then(|root| qnc_user_settings::read_from(root, SETTING_FILE));
         let language = match setting {
             Some(path) => {
                 let text = std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
@@ -162,29 +162,26 @@ pub fn languages() -> Vec<(String, String)> {
         .collect()
 }
 
-/// The setting file of this computer's interface language.
-fn setting_path(root: &Path) -> std::path::PathBuf {
-    qnc_dev_diagnostics::config_path(root).with_file_name("ui-language.json")
-}
+/// The setting file of the interface language (user 2026-11-24: "jezik po korisniku"): the
+/// user's, else the computer's (`qnc-user-settings`).
+pub const SETTING_FILE: &str = "ui-language.json";
 
-/// The interface language this computer chose (user 2026-11-01: chosen in Project), else
+/// The interface language the user signed in chose, else the one the computer chose, else
 /// the base one. The texts shown change only when QNC starts again.
 pub fn chosen_language(root: &Path) -> String {
-    std::fs::read_to_string(setting_path(root))
-        .ok()
+    qnc_user_settings::read_from(root, SETTING_FILE)
+        .and_then(|path| std::fs::read_to_string(path).ok())
         .and_then(|text| serde_json::from_str::<Setting>(&text).ok())
         .map_or_else(|| BASE_LANGUAGE.to_string(), |setting| setting.language)
 }
 
-/// Keeps `language` as this computer's interface language (a setting of this computer, not
-/// of a project); only a language QNC has a dictionary for.
+/// Keeps `language` as the interface language of the user signed in (a setting of the user,
+/// not of a project); only a language QNC has a dictionary for.
 pub fn choose_language(root: &Path, language: &str) -> Result<(), String> {
     if !DICTIONARIES.iter().any(|(code, _)| *code == language) {
         return Err(format!("QNC nema rjecnik za jezik '{language}'."));
     }
-    let path = setting_path(root);
-    let text = serde_json::json!({ "language": language }).to_string();
-    std::fs::write(&path, text).map_err(|error| format!("{}: {error}", path.display()))
+    qnc_user_settings::write(root, SETTING_FILE, &serde_json::json!({ "language": language }).to_string())
 }
 
 #[derive(serde::Deserialize)]
@@ -209,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn the_chosen_language_is_kept_for_this_computer_and_only_one_qnc_knows() {
+    fn the_chosen_language_is_kept_for_the_user_and_only_one_qnc_knows() {
         let root = std::env::temp_dir().join(format!("qnc-ui-language-{}", std::process::id()));
         std::fs::create_dir_all(root.join("data")).unwrap();
         assert_eq!(chosen_language(&root), BASE_LANGUAGE, "nothing chosen: English");
@@ -217,6 +214,8 @@ mod tests {
         assert_eq!(chosen_language(&root), "hr");
         assert!(choose_language(&root, "xx").is_err());
         assert_eq!(chosen_language(&root), "hr", "a refused language changes nothing");
+        assert!(qnc_user_settings::user_file(&root, SETTING_FILE).unwrap().is_file(), "kept in the user's folder");
+        assert!(!qnc_user_settings::computer_file(&root, SETTING_FILE).exists(), "the computer's setting is not written");
         assert!(languages().iter().any(|(code, name)| code == "hr" && name == "Hrvatski"));
         let _ = std::fs::remove_dir_all(&root);
     }

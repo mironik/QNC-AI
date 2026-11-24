@@ -8,3 +8,4 @@ description = "QNC public block: the words of the user interface by code, from t
 serde = { workspace = true }
 serde_json = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
+qnc-user-settings = { workspace = true }

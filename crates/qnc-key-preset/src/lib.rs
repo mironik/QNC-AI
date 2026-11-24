@@ -1,9 +1,10 @@
-//! The keyboard preset of the active project (user 2026-10-09: chosen in Project, Advanced
-//! settings, so users of one template keep their own keys; it holds for every form, present
-//! and future). A thread of its own reads it read-only from the project database once a
-//! second (the active project may change at any time); a caller only takes the latest value,
-//! so no paint ever waits for the database. Without an active project, or when the project
-//! chose none, there is no preset and the keyboard catalog keeps its own.
+//! The keyboard preset the keys of every form follow (user 2026-11-24: "preset tipki je po
+//! korisniku"): the one the user signed in chose (`keyboard-preset.json` in the user's
+//! settings, `qnc-user-settings`), else the one the active project chose (user 2026-10-09:
+//! Project, Advanced settings; projects made before the keys were the user's). A thread of its
+//! own reads it once a second (the user's choice and the active project may change at any
+//! time); a caller only takes the latest value, so no paint ever waits. Without either there is
+//! no preset and the keyboard catalog keeps its own.
 
 use qnc_active_project_read::ActiveProjectReader;
 use std::{
@@ -42,10 +43,29 @@ impl KeyPresetWatcher {
     }
 }
 
-/// The preset the active project of `root` chose; `None` without one.
+/// The setting of the user's keyboard preset (user 2026-11-24: "preset tipki je po
+/// korisniku"): `{"preset": "<id>"}` in the user's settings (`qnc-user-settings`).
+pub const SETTING_FILE: &str = "keyboard-preset.json";
+
+/// The preset of `root` the keys follow: the one the user signed in chose, else the one the
+/// active project chose (projects made before the keys were the user's); `None` without either.
 pub fn read_preset(root: &std::path::Path) -> Option<String> {
-    let project = ActiveProjectReader::from_root(root).ok()?.read().ok()?;
-    project.settings.keyboard_preset().map(str::to_owned)
+    user_preset(root).or_else(|| {
+        let project = ActiveProjectReader::from_root(root).ok()?.read().ok()?;
+        project.settings.keyboard_preset().map(str::to_owned)
+    })
+}
+
+/// The preset the user signed in chose (or the computer, for every user); `None` without one.
+pub fn user_preset(root: &std::path::Path) -> Option<String> {
+    let text = std::fs::read_to_string(qnc_user_settings::read_from(root, SETTING_FILE)?).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    value.get("preset").and_then(serde_json::Value::as_str).filter(|preset| !preset.is_empty()).map(str::to_owned)
+}
+
+/// Keeps `preset` as the keyboard preset of the user signed in.
+pub fn choose_preset(root: &std::path::Path, preset: &str) -> Result<(), String> {
+    qnc_user_settings::write(root, SETTING_FILE, &serde_json::json!({ "preset": preset }).to_string())
 }
 
 #[cfg(test)]
@@ -58,6 +78,17 @@ mod tests {
         assert_eq!(read_preset(&dir), None);
         let watcher = KeyPresetWatcher::start(dir);
         assert_eq!(watcher.preset(), None);
+    }
+
+    #[test]
+    fn the_user_s_preset_is_kept_for_the_user_and_comes_first() {
+        let root = std::env::temp_dir().join(format!("qnc-key-preset-user-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("data")).unwrap();
+        assert_eq!(read_preset(&root), None);
+        choose_preset(&root, "resolve").unwrap();
+        assert_eq!(read_preset(&root).as_deref(), Some("resolve"));
+        assert!(qnc_user_settings::user_file(&root, SETTING_FILE).unwrap().is_file());
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
 

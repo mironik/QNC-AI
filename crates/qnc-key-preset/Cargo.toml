@@ -2,7 +2,9 @@
 name = "qnc-key-preset"
 version = "0.1.0"
 edition = "2021"
-description = "QNC public block: the keyboard preset the active project chose (Project, Advanced settings), read in the background from the project database for the keys of every form"
+description = "QNC public block: the keyboard preset the keys follow: the user's (user 2026-11-24, per user), else the active project's, read in the background for the keys of every form"
 
 [dependencies]
+qnc-user-settings = { workspace = true }
 qnc-active-project-read = { workspace = true }
+serde_json = { workspace = true }

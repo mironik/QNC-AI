@@ -25,8 +25,16 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 pub const MODULE_ID: &str = "qnc.module.voice-record";
 
-/// The computer setting naming the microphone (inside the QNC `data` folder).
+/// The setting naming the microphone: the user's (`data/users/<user>/`), else the computer's
+/// (inside the QNC `data` folder).
 pub const INPUT_SETTING: &str = "voice-input.json";
+
+/// The microphone setting of the QNC `root` to read: the user's when the user chose one, else
+/// the computer's (user 2026-11-24: settings per user). Without either, the computer's place,
+/// which holds nothing: the system's default input.
+pub fn input_setting(root: &Path) -> PathBuf {
+    qnc_user_settings::read_from(root, INPUT_SETTING).unwrap_or_else(|| qnc_user_settings::computer_file(root, INPUT_SETTING))
+}
 
 pub type Result<T> = std::result::Result<T, String>;
 

@@ -68,7 +68,7 @@ impl Script {
             self.spawn_session(move || SessionAnswer::Finished(session.finish()));
             return true;
         }
-        let setting = qnc_dev_diagnostics::resolve_qnc_root().map(|root| qnc_dev_diagnostics::config_path(&root).with_file_name(qnc_voice_record::INPUT_SETTING));
+        let setting = qnc_dev_diagnostics::resolve_qnc_root().map(|root| qnc_voice_record::input_setting(&root));
         let (Some(locator), Some(setting)) = (preview.still_locator(), setting) else {
             self.view.message = qnc_ui_text::text("script.no_project").into();
             return true;

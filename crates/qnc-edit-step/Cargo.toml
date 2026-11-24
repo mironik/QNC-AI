@@ -5,5 +5,6 @@ edition = "2021"
 description = "QNC public block: one step of the playhead or of what is taken, by one catalog action (the arrows, the wheel over any timeline and its direction, Ctrl+arrows and Ctrl+wheel as a level); the same on every timeline and its zoom"
 
 [dependencies]
+qnc-user-settings = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 serde_json = { workspace = true }

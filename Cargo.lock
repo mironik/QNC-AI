@@ -4876,6 +4876,7 @@ name = "qnc-edit-step"
 version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
+ "qnc-user-settings",
  "serde_json",
 ]
 
@@ -5798,6 +5799,8 @@ name = "qnc-key-preset"
 version = "0.1.0"
 dependencies = [
  "qnc-active-project-read",
+ "qnc-user-settings",
+ "serde_json",
 ]
 
 [[package]]
@@ -8736,6 +8739,7 @@ name = "qnc-ui-text"
 version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
+ "qnc-user-settings",
  "serde",
  "serde_json",
 ]
@@ -8746,6 +8750,13 @@ version = "0.1.0"
 dependencies = [
  "qnc-gain",
  "qnc-loudness",
+]
+
+[[package]]
+name = "qnc-user-settings"
+version = "0.1.0"
+dependencies = [
+ "qnc-dev-diagnostics",
 ]
 
 [[package]]
@@ -8839,6 +8850,7 @@ dependencies = [
  "chrono",
  "cpal",
  "qnc-ui-text",
+ "qnc-user-settings",
  "serde_json",
  "tempfile",
 ]

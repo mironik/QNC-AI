@@ -1,0 +1,18 @@
+{
+  "module_id": "qnc.module.user-settings",
+  "module_name": "user-settings",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": ["user_settings.read", "user_settings.write"],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": ["windows", "linux", "macos"],
+  "supported_cpu": ["x86_64", "aarch64"],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": ["ffprobe", "media.probe.full", "source.scan", "player.command", "project.workflow"],
+  "forbidden_dependencies": ["qnc.module.media-probe", "qnc.module.scanner"],
+  "state_policy": "stateless",
+  "database_write_policy": "no_db_writes",
+  "runtime_crate": "qnc-user-settings",
+  "reader_policy": "The settings of the user the operating system signed in live in data/users/<user>/ beside the computer's settings (user 2026-11-24: a computer has several users with their own preferences). A setting is read from the user's folder, else from the computer's data/<file>; it is written only into the user's folder. No database, no project."
+}

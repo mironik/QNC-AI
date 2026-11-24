@@ -8,7 +8,8 @@
 pub const MODULE_ID: &str = "qnc.module.edit-step";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// The setting of this computer beside its others (`data/mouse-wheel.json`).
+/// The setting of the user signed in (`data/users/<user>/mouse-wheel.json`), else of this
+/// computer (`data/mouse-wheel.json`).
 pub const SETTING_FILE: &str = "mouse-wheel.json";
 
 pub const BACK: &str = "step_back_frame";
@@ -27,7 +28,8 @@ const CTRL_WHEELS: [(&str, &str); 2] = [("wheel_source_ctrl_back", "wheel_source
 pub fn playhead_up_forward() -> bool {
     static CHOSEN: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *CHOSEN.get_or_init(|| {
-        let Some(path) = qnc_dev_diagnostics::locate_qnc_root().map(|root| qnc_dev_diagnostics::config_path(&root).with_file_name(SETTING_FILE)) else {
+        // The user's choice, else the computer's (user 2026-11-24: settings per user).
+        let Some(path) = qnc_dev_diagnostics::locate_qnc_root().and_then(|root| qnc_user_settings::read_from(&root, SETTING_FILE)) else {
             return true;
         };
         let Ok(text) = std::fs::read_to_string(&path) else {
