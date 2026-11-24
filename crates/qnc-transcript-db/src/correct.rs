@@ -180,3 +180,28 @@ fn styled(said: &str, rough: &str) -> String {
     };
     format!("{before}{said}{after}")
 }
+
+/// `lines` without echoes (user 2026-11-24: every word of a statement twice, "ne ne možemo
+/// možemo"): a word whose time overlaps a word kept just before it in the same line, with the
+/// same core, is the same word heard by a second engine, not said again (a word said again
+/// starts after the one before ends). The first one, which carries the rough engine's writing,
+/// stays; the line's text is written again when a word goes.
+pub fn without_echoes(lines: &[Line]) -> Vec<Line> {
+    lines
+        .iter()
+        .map(|line| {
+            let mut words: Vec<Word> = Vec::with_capacity(line.words.len());
+            for word in &line.words {
+                let echo = words.iter().rev().take(2).any(|kept| kept.from < word.to.max(word.from + 1) && word.from < kept.to.max(kept.from + 1) && core(&kept.text) == core(&word.text));
+                if !echo {
+                    words.push(word.clone());
+                }
+            }
+            if words.len() == line.words.len() {
+                return line.clone();
+            }
+            let text = words.iter().map(|word| word.text.as_str()).collect::<Vec<_>>().join(" ");
+            Line { from: line.from, to: line.to, text, words }
+        })
+        .collect()
+}

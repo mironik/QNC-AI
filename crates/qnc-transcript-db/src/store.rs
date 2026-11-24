@@ -339,7 +339,9 @@ impl Store {
         let mut transcripts = Vec::new();
         for row in rows {
             let (clip_id, from, to, language, engine, lines, fine) = row.map_err(err)?;
-            let lines = serde_json::from_str(&lines).map_err(err)?;
+            let lines: Vec<crate::Line> = serde_json::from_str(&lines).map_err(err)?;
+            // Rows kept with echoes (one word twice from two engines) are read without them.
+            let lines = crate::without_echoes(&lines);
             transcripts.push(ClipTranscript { clip_id, from_frame: u64::try_from(from).unwrap_or(0), to_frame: u64::try_from(to).unwrap_or(0), language, engine, lines, fine });
         }
         // The same rule as a save (user 2026-11-08: words still twice in a statement): what an

@@ -285,3 +285,12 @@ fn a_fine_word_a_little_off_its_rough_one_overwrites_it_and_is_not_there_twice()
     let said: Vec<&str> = lines.iter().map(|line| line.text.as_str()).collect();
     assert_eq!(said, ["A Bit će tesko.", "Kroz tih 120,"]);
 }
+
+#[test]
+fn a_word_heard_twice_at_the_same_time_is_read_once_a_word_said_again_stays() {
+    let word = |from: u64, to: u64, text: &str| Word { from, to, text: text.into() };
+    let words = vec![word(3649, 3657, "ne"), word(3654, 3658, "ne"), word(3657, 3677, "ne"), word(3841, 3865, "igrača,"), word(3841, 3860, "igrača")];
+    let line = Line { from: 3649, to: 3865, text: String::new(), words };
+    let read = without_echoes(&[line]);
+    assert_eq!(read[0].text, "ne ne igrača,", "the echo goes, the 'ne' said again after it stays");
+}

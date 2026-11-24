@@ -10,7 +10,7 @@
 mod correct;
 mod store;
 
-pub use correct::corrected;
+pub use correct::{corrected, without_echoes};
 
 use std::sync::Arc;
 

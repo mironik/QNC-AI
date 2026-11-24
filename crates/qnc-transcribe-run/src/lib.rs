@@ -155,7 +155,7 @@ fn corrected_by_fine(locator: &StillLocator, clip_id: &str, from: u64, to: u64, 
     if rough.is_empty() || fine.is_empty() {
         return fine;
     }
-    qnc_transcript_db::corrected(&rough, &fine, second)
+    qnc_transcript_db::without_echoes(&qnc_transcript_db::corrected(&qnc_transcript_db::without_echoes(&rough), &fine, second))
 }
 
 /// `ask` with a second of the clip either side (within the clip's saved frames; a range from the
