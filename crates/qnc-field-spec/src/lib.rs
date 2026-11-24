@@ -31,6 +31,9 @@ pub enum FieldKind {
     Names,
     /// A date typed as text; empty, it is today.
     Date,
+    /// Several lines, one item per line (user 2026-11-24: the shots of a block, numbered KADAR 1,
+    /// 2... through the whole story); stored as text with its lines.
+    Lines,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

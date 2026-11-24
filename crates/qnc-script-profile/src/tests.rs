@@ -19,9 +19,9 @@ fn every_prepared_profile_is_read_and_can_be_used() {
     let (profiles, errors) = Profiles::load(dir.path());
     assert!(errors.is_empty(), "{errors:?}");
     let ids: Vec<&str> = profiles.list.iter().map(|(p, _)| p.profile_id.as_str()).collect();
-    assert_eq!(ids, ["agency_online", "general_tv", "inews_mos", "radio", "tv_package"]);
+    assert_eq!(ids, ["agency_online", "general_tv", "inews_mos", "radio", "tv_package", "tv_prilog"]);
     let general = &profiles.list[1].0;
-    assert_eq!(profiles.current().unwrap().profile_id, "general_tv", "chosen where none was chosen");
+    assert_eq!(profiles.current().unwrap().profile_id, "tv_prilog", "chosen where none was chosen");
     // The blocks written before profiles (off, sot, intro, outro) are kinds of every profile
     // that has them, under the same codes.
     for code in ["intro", "off", "sot", "outro"] {
@@ -39,7 +39,7 @@ fn a_profile_of_this_computer_is_kept_chosen_and_a_prepared_one_is_never_written
     let (mut profiles, _) = Profiles::load(dir.path());
     let mut own = profiles.list[1].0.clone();
     own.name = "Naša redakcija".into();
-    own.kinds.push(KindSpec { id: "voditelj_uzivo".into(), label: "Voditelj uživo".into(), short: "LIVE".into(), role: Role::Anchor, counts: Counts::Anchor, recorded: false, cues: false, cue: String::new(), speaker: String::new(), picture: String::new(), fields: Vec::new() });
+    own.kinds.push(KindSpec { id: "voditelj_uzivo".into(), label: "Voditelj uživo".into(), short: "LIVE".into(), role: Role::Anchor, counts: Counts::Anchor, recorded: false, cues: false, cue: String::new(), speaker: String::new(), picture: String::new(), fields: Vec::new(), left: Vec::new(), right: Vec::new() });
     profiles.keep(own).unwrap();
     let (again, errors) = Profiles::load(dir.path());
     assert!(errors.is_empty(), "{errors:?}");

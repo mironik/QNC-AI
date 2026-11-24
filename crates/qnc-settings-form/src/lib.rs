@@ -210,7 +210,7 @@ fn field_cell(
             text != before && set_number(settings, &field.path, &text, field.kind == FieldKind::Integer)
         }
         // Names (comma separated) and a date are typed as text here; the story header lists names.
-        FieldKind::Text | FieldKind::Names | FieldKind::Date => {
+        FieldKind::Text | FieldKind::Names | FieldKind::Date | FieldKind::Lines => {
             let before = path_string(settings, &field.path, &field.default);
             let text = text_cell(ui, width, field, &before, style);
             text != before && { set_string_path(settings, &field.path, text); true }

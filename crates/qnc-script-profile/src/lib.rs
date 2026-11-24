@@ -20,9 +20,9 @@ use serde::{Deserialize, Serialize};
 
 pub const MODULE_ID: &str = "qnc.module.script-profile";
 
-/// The profile chosen on a computer where none was chosen (the general TV one QNC brings; any
-/// prepared one when it is not there).
-pub const DEFAULT_PROFILE: &str = "general_tv";
+/// The profile chosen on a computer where none was chosen (user 2026-11-24: the TV package of three
+/// columns QNC brings; any prepared one when it is not there).
+pub const DEFAULT_PROFILE: &str = "tv_prilog";
 
 /// What a kind of block is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +82,13 @@ pub struct KindSpec {
     /// The fields that go with a block of this kind (for example the caption of a statement).
     #[serde(default)]
     pub fields: Vec<FieldSpec>,
+    /// The fields shown left of the text (data and captions, CG) and right of it (shots and
+    /// notes), by path, on a form of three columns (user 2026-11-24, MA Script); the others go
+    /// under the text.
+    #[serde(default)]
+    pub left: Vec<String>,
+    #[serde(default)]
+    pub right: Vec<String>,
 }
 
 /// A script profile.
@@ -218,6 +225,10 @@ impl ScriptProfile {
             }
             if let Some(field) = kind.fields.iter().find(|field| field.options.as_ref().is_some_and(|set| !self.options.contains_key(set))) {
                 return Err(qnc_ui_text::fill("script_profile.no_options", &[("code", &field.path)]));
+            }
+            // A field placed left or right is one of its kind.
+            if let Some(path) = kind.left.iter().chain(&kind.right).find(|path| !kind.fields.iter().any(|field| field.path == **path)) {
+                return Err(qnc_ui_text::fill("script_profile.no_field", &[("code", path)]));
             }
         }
         Ok(())

@@ -249,7 +249,7 @@ pub fn new_kind(profile: &ScriptProfile, label: &str) -> KindSpec {
     let taken = |code: &str| profile.kinds.iter().any(|kind| kind.id == code);
     let id = if taken(&base) { (2..).map(|n| format!("{base}_{n}")).find(|code| !taken(code)).unwrap_or_default() } else { base };
     let short = label.trim().to_uppercase();
-    KindSpec { id, label: label.trim().to_string(), short, role: Role::Spoken, counts: Counts::Story, recorded: false, cues: false, cue: String::new(), speaker: String::new(), picture: String::new(), fields: Vec::new() }
+    KindSpec { id, label: label.trim().to_string(), short, role: Role::Spoken, counts: Counts::Story, recorded: false, cues: false, cue: String::new(), speaker: String::new(), picture: String::new(), fields: Vec::new(), left: Vec::new(), right: Vec::new() }
 }
 
 #[cfg(test)]

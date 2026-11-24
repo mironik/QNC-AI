@@ -184,6 +184,12 @@ pub fn show_open_statement(ui: &mut egui::Ui, view: &ScriptView, theme: &qnc_des
 /// block's text goes into the editor), a clip block can open its clip. Public: every panel of
 /// the script draws its blocks with it (MA Audio's and MA Script's).
 pub fn paint_block(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme, style: qnc_ui_kit::ChromeButtonStyle) -> Option<ActionEvent> {
+    paint_block_in(ui, place, row, view, theme, style, Place::Under)
+}
+
+/// A block as `paint_block`, its fields at `fields` (under its text, or only the ones its kind
+/// does not place left or right on a form of three columns).
+pub fn paint_block_in(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme, style: qnc_ui_kit::ChromeButtonStyle, fields: Place) -> Option<ActionEvent> {
     let mut asked = None;
     let block = &row.block;
     let id = block.id.to_string();
@@ -363,7 +369,7 @@ pub fn paint_block(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::Blo
             }
             picked |= answer.1;
         }
-        if let Some(event) = paint_fields(ui, row, view, theme) {
+        if let Some(event) = paint_fields(ui, row, view, theme, fields, 0) {
             asked = Some(event);
         }
         paint_covers(ui, row, view, theme);
@@ -376,29 +382,61 @@ pub fn paint_block(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::Blo
     asked
 }
 
-/// The fields of a block's kind (the caption of a statement, the template and lines of a
-/// graphic), one row each: typed text goes into the script when the field is left or Enter is
-/// pressed, a choice at once.
-fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
+/// Where the fields of a block's kind are drawn: all under its text (one column), or, on a form
+/// of three columns (user 2026-11-24, MA Script), the ones its kind places left (data and
+/// captions, CG) or right (shots and notes) there and the others under its text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Place {
+    Under,
+    UnderOfColumns,
+    Left,
+    Right,
+}
+
+/// The fields of a block's kind at `place` (the caption of a statement, the CG, the shots...),
+/// one row each: typed text goes into the script when the field is left or Enter is pressed, a
+/// choice at once. A field of lines (the shots) is a box of lines under its numbers, which run
+/// on from `shot_from` through the whole story.
+pub fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme, place: Place, shot_from: usize) -> Option<ActionEvent> {
     let profile = view.profile.as_ref()?;
     let kind = profile.kind(&row.block.kind)?;
     let mut asked = None;
     let id = row.block.id;
+    let placed = |path: &str| kind.left.iter().chain(&kind.right).any(|placed| placed == path);
+    let here = |path: &str| match place {
+        Place::Under => true,
+        Place::UnderOfColumns => !placed(path),
+        Place::Left => kind.left.iter().any(|placed| placed == path),
+        Place::Right => kind.right.iter().any(|placed| placed == path),
+    };
     // A statement's caption is written when the statement is made (AI Media Assist), the script
-    // reads it (user 2026-11-24).
-    if kind.role == qnc_script::Role::Clip {
+    // reads it (user 2026-11-24): where its caption fields are.
+    let caption_here = kind.role == qnc_script::Role::Clip && match place {
+        Place::Under => true,
+        _ => qnc_script::CAPTION_FIELDS.iter().any(|path| here(path)) || (place == Place::UnderOfColumns && !qnc_script::CAPTION_FIELDS.iter().any(|path| placed(path))),
+    };
+    if caption_here {
         paint_caption(ui, row, theme);
     }
-    for field in kind.fields.iter().filter(|field| !qnc_script::CAPTION_FIELDS.contains(&field.path.as_str())) {
-        ui.horizontal(|ui| {
-            ui.add_sized([LABEL_WIDTH, theme.chrome_control_height], egui::Label::new(RichText::new(&field.label).color(theme.text_muted).size(theme.font_ui)));
-            let stored = view.field_value(id, &field.path);
+    let narrow = matches!(place, Place::Left | Place::Right);
+    for field in kind.fields.iter().filter(|field| !qnc_script::CAPTION_FIELDS.contains(&field.path.as_str()) && here(&field.path)) {
+        let stored = view.field_value(id, &field.path);
+        // In a narrow column the name goes above its field.
+        let label = |ui: &mut egui::Ui| {
+            let text = RichText::new(&field.label).color(theme.text_muted).size(theme.font_ui);
+            if narrow {
+                ui.label(text);
+            } else {
+                ui.add_sized([LABEL_WIDTH, theme.chrome_control_height], egui::Label::new(text));
+            }
+        };
+        let mut body = |ui: &mut egui::Ui| {
             let choices = field.options.as_ref().and_then(|set| profile.options.get(set));
             match choices.filter(|_| field.kind == qnc_settings_form::FieldKind::Choice) {
                 Some(choices) => {
-                    let value = if stored.is_empty() { field.default.clone() } else { stored };
+                    let value = if stored.is_empty() { field.default.clone() } else { stored.clone() };
                     let shown = choices.iter().find(|(choice, _)| *choice == value).map_or(value.clone(), |(_, name)| name.clone());
-                    egui::ComboBox::from_id_salt(("qnc_script_field", id, &field.path)).selected_text(shown).show_ui(ui, |ui| {
+                    egui::ComboBox::from_id_salt(("qnc_script_field", id, &field.path)).width(ui.available_width()).selected_text(shown).show_ui(ui, |ui| {
                         for (choice, name) in choices {
                             if ui.selectable_label(*choice == value, name).clicked() {
                                 asked = Some(ActionEvent::key(FIELD_SET).with_target(FieldEdit::target(id, &field.path, choice)).at(PANEL));
@@ -407,8 +445,18 @@ fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView
                     });
                 }
                 None => {
-                    let mut text = stored;
-                    let edit = ui.add(qnc_ui_kit::text_field(&mut text).hint_text(&field.hint).desired_width(ui.available_width()));
+                    let mut text = stored.clone();
+                    let lines = field.kind == qnc_settings_form::FieldKind::Lines;
+                    if lines {
+                        // The numbers of its shots through the story.
+                        let count = shots_of(&text);
+                        if count > 0 {
+                            let numbers: Vec<String> = (shot_from + 1..=shot_from + count).map(|n| n.to_string()).collect();
+                            ui.label(RichText::new(qnc_ui_text::fill("writer.shot", &[("n", &numbers.join(", "))])).color(theme.focus).strong().size(theme.font_ui - 1.0));
+                        }
+                    }
+                    let widget = if lines { qnc_ui_kit::text_area(&mut text).desired_rows(2) } else { qnc_ui_kit::text_field(&mut text) };
+                    let edit = ui.add(widget.hint_text(&field.hint).desired_width(ui.available_width()));
                     if edit.changed() {
                         asked = Some(ActionEvent::key(FIELD_TEXT).with_target(FieldEdit::target(id, &field.path, &text)).at(PANEL));
                     } else if edit.lost_focus() {
@@ -416,9 +464,30 @@ fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView
                     }
                 }
             }
-        });
+        };
+        if narrow {
+            label(ui);
+            body(ui);
+            ui.add_space(4.0);
+        } else {
+            ui.horizontal(|ui| {
+                label(ui);
+                body(ui);
+            });
+        }
     }
     asked
+}
+
+/// The shots of a field of lines: its lines that say something.
+pub fn shots_of(text: &str) -> usize {
+    text.lines().filter(|line| !line.trim().is_empty()).count()
+}
+
+/// The shots of a block: the lines of its kind's fields of lines.
+pub fn block_shots(row: &qnc_script::BlockRow, view: &ScriptView) -> usize {
+    let Some(kind) = view.profile.as_ref().and_then(|profile| profile.kind(&row.block.kind)) else { return 0 };
+    kind.fields.iter().filter(|field| field.kind == qnc_settings_form::FieldKind::Lines).map(|field| shots_of(&view.field_value(row.block.id, &field.path))).sum()
 }
 
 /// The caption of the statement a clip block was made from, as the statement has it (not edited

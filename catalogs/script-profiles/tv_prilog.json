@@ -1,0 +1,43 @@
+{
+  "profile_id": "tv_prilog",
+  "name": "@sp.tv_prilog",
+  "kinds": [
+    { "id": "intro", "label": "@sp.k.intro", "short": "@sp.s.intro", "role": "anchor", "picture": "{mark} (ON CAM)", "counts": "anchor" },
+    { "id": "nat", "label": "@sp.k.it", "short": "@sp.s.it", "role": "clip", "picture": "{mark}: {clip} {start} - {end}", "counts": "story", "speaker": "@sp.s.it",
+      "fields": [
+        { "kind": "lines", "label": "@sp.f.shots", "id": "shots", "path": "shots", "hint": "@sp.h.shots" },
+        { "kind": "text", "label": "@sp.f.notes_direction", "id": "notes_direction", "path": "notes_direction", "hint": "@sp.h.notes_direction" }
+      ],
+      "right": ["shots", "notes_direction"] },
+    { "id": "off", "label": "@sp.k.off", "short": "@sp.s.vo", "role": "spoken", "picture": "{mark} (B-ROLL)", "counts": "story", "recorded": true, "cue": "@sp.c.vo",
+      "fields": [
+        { "kind": "text", "label": "@sp.f.cg", "id": "cg", "path": "cg", "hint": "@sp.h.cg" },
+        { "kind": "choice", "label": "@sp.f.cg_kind", "id": "cg_kind", "path": "cg_kind", "options": "cg_kinds", "default": "location" },
+        { "kind": "text", "label": "@sp.f.cg_time", "id": "cg_time", "path": "cg_time", "hint": "@sp.h.cg_time" },
+        { "kind": "lines", "label": "@sp.f.shots", "id": "shots", "path": "shots", "hint": "@sp.h.shots" },
+        { "kind": "text", "label": "@sp.f.notes_direction", "id": "notes_direction", "path": "notes_direction", "hint": "@sp.h.notes_direction" }
+      ],
+      "left": ["cg", "cg_kind", "cg_time"], "right": ["shots", "notes_direction"] },
+    { "id": "sot", "label": "@sp.k.sot", "short": "@sp.s.sot", "role": "clip", "picture": "{mark}: {clip} {start} - {end}", "counts": "story", "cues": true, "cue": "@sp.c.sot", "speaker": "{caption_name} (SYNC)",
+      "fields": [
+        { "kind": "text", "label": "@sp.f.name", "id": "caption_name", "path": "caption_name" },
+        { "kind": "text", "label": "@sp.f.role", "id": "caption_role", "path": "caption_role" },
+        { "kind": "text", "label": "@sp.f.cg_time", "id": "cg_time", "path": "cg_time", "hint": "@sp.h.cg_time_auto" },
+        { "kind": "text", "label": "@sp.f.notes_direction", "id": "notes_direction", "path": "notes_direction", "hint": "@sp.h.notes_direction" }
+      ],
+      "left": ["caption_name", "caption_role", "cg_time"], "right": ["notes_direction"] },
+    { "id": "standup", "label": "@sp.k.standup", "short": "@sp.s.su", "role": "clip", "picture": "{mark}: {clip} {start} - {end}", "counts": "story", "cues": true, "cue": "@sp.c.su", "speaker": "@sp.sp.standup",
+      "fields": [
+        { "kind": "text", "label": "@sp.f.name", "id": "caption_name", "path": "caption_name" },
+        { "kind": "text", "label": "@sp.f.role", "id": "caption_role", "path": "caption_role" },
+        { "kind": "text", "label": "@sp.f.cg_time", "id": "cg_time", "path": "cg_time", "hint": "@sp.h.cg_time_auto" },
+        { "kind": "lines", "label": "@sp.f.shots", "id": "shots", "path": "shots", "hint": "@sp.h.shots_standup" },
+        { "kind": "text", "label": "@sp.f.notes_direction", "id": "notes_direction", "path": "notes_direction", "hint": "@sp.h.notes_direction" }
+      ],
+      "left": ["caption_name", "caption_role", "cg_time"], "right": ["shots", "notes_direction"] },
+    { "id": "outro", "label": "@sp.k.outro", "short": "@sp.s.outro", "role": "anchor", "picture": "{mark} (ON CAM)", "counts": "anchor" }
+  ],
+  "options": {
+    "cg_kinds": [["location", "@sp.o.cg_location"], ["guest", "@sp.o.cg_guest"], ["reporter", "@sp.o.cg_reporter"], ["source", "@sp.o.cg_source"], ["other", "@sp.o.cg_other"]]
+  }
+}
