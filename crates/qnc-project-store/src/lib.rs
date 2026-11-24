@@ -268,6 +268,20 @@ impl ProjectStore {
             .map_err(|error| error.to_string())
     }
 
+    /// The template choice of the user signed in and the computer's (empty: none), as written.
+    pub fn template_choices(&self) -> Result<(Option<String>, Option<String>), String> {
+        let conn = self.open_registry()?;
+        init_registry_schema(&conn)?;
+        Ok((get_local_setting(&conn, &selected_key())?, get_local_setting(&conn, SELECTED_TEMPLATE_KEY)?))
+    }
+
+    /// Forgets the template choice of the user signed in: the computer's choice holds for them.
+    pub fn forget_template_choice(&self) -> Result<(), String> {
+        let conn = self.open_registry()?;
+        init_registry_schema(&conn)?;
+        conn.execute("DELETE FROM local_runtime_settings WHERE key = ?1", params![selected_key()]).map(|_| ()).map_err(|error| error.to_string())
+    }
+
     pub fn set_selected_template(&self, template_id: &str) -> Result<(), String> {
         let template_id = template_id.trim();
         if template_id.is_empty() {
@@ -1715,30 +1729,33 @@ fn strip_template_project_locations(settings: &mut Value) {
     }
 }
 
-fn ensure_selected_template(conn: &Connection) -> Result<(), String> {
-    let current = get_local_setting(conn, &selected_key())?;
-    if let Some(current) = current {
-        if get_template(conn, &current)?.is_some() {
-            return Ok(());
+/// The template the user signed in chose; where the user chose none (or one no longer there), the
+/// one the computer chose before choices were the user's (2026-11-24: a card's base took the first
+/// template, without its AI, as the user had not chosen yet); else the first the user sees. Only a
+/// choice of the user is written as theirs, never one taken in their place.
+fn chosen_template_id(conn: &Connection) -> Result<Option<String>, String> {
+    for key in [selected_key(), SELECTED_TEMPLATE_KEY.to_string()] {
+        if let Some(current) = get_local_setting(conn, &key)? {
+            if get_template(conn, &current)?.is_some() {
+                return Ok(Some(current));
+            }
         }
     }
-
-    let first: Option<String> = conn
+    Ok(conn
         .query_row(
             &format!("SELECT template_id FROM project_templates WHERE {} ORDER BY system DESC, name LIMIT 1", visible(1)),
             params![owner()],
             |row| row.get(0),
         )
-        .ok();
-    if let Some(template_id) = first {
-        set_local_setting(conn, &selected_key(), &template_id)?;
-    }
-    Ok(())
+        .ok())
+}
+
+fn ensure_selected_template(conn: &Connection) -> Result<(), String> {
+    chosen_template_id(conn).map(|_| ())
 }
 
 fn selected_template_id(conn: &Connection) -> Result<String, String> {
-    ensure_selected_template(conn)?;
-    Ok(get_local_setting(conn, &selected_key())?.unwrap_or_default())
+    Ok(chosen_template_id(conn)?.unwrap_or_default())
 }
 
 fn get_template(conn: &Connection, template_id: &str) -> Result<Option<StoredTemplate>, String> {
@@ -3267,6 +3284,17 @@ mod tests {
         assert!(templates
             .iter()
             .any(|template| template.template_id == created.template_id && template.selected));
+        cleanup_temp_root(&root);
+    }
+
+    #[test]
+    fn without_a_choice_of_the_user_the_computers_holds_and_is_not_written_as_theirs() {
+        let root = temp_root("computer_choice");
+        let store = ProjectStore::open(&root).expect("store");
+        let conn = store.open_registry().expect("registry");
+        set_local_setting(&conn, SELECTED_TEMPLATE_KEY, "tpl_breaking_news").unwrap();
+        assert_eq!(store.selected_template_settings().unwrap().template_id, "tpl_breaking_news");
+        assert_eq!(store.template_choices().unwrap().0, None, "taken in the user's place, not written as theirs");
         cleanup_temp_root(&root);
     }
 
