@@ -190,6 +190,7 @@ pub fn load(root: &Path) -> Result<TransportBindings, String> {
     let attached = if local { qnc_source_volumes::mounted() } else { qnc_card_readers::mounted_and_cards(root) };
     with_attached(&mut bindings, &attached);
     with_card_bases(&mut bindings, root);
+    with_incoming(&mut bindings, root);
     if !local {
         match qnc_card_readers::readers_of(root) {
             Ok(readers) => with_card_readers(&mut bindings, &readers),
@@ -229,6 +230,47 @@ pub fn with_card_readers(bindings: &mut TransportBindings, readers: &[qnc_card_r
                 probe: probe.clone(),
             });
         }
+    }
+}
+
+/// Incoming of this computer as a source, like a card (user 2026-11-24: "inkoming ima status inputa,
+/// kao neka vrsta virtualne kartice"): its folder on this computer, LAN or intranet (`qnc-incoming`),
+/// read by Select as a folder of single files with the probe of the local sources. Not set: none;
+/// a setting that cannot be read is said in the log and the other sources stay.
+pub fn with_incoming(bindings: &mut TransportBindings, root: &Path) {
+    let incoming = match qnc_incoming::read(root) {
+        Ok(Some(incoming)) => incoming,
+        Ok(None) => return,
+        Err(error) => {
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("incoming not read: {error}"));
+            return;
+        }
+    };
+    let uri = match incoming.source_uri() {
+        Ok(uri) => uri,
+        Err(error) => {
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("incoming not a source: {error}"));
+            return;
+        }
+    };
+    let probe = bindings
+        .registered_sources
+        .iter()
+        .find(|source| source.location.uri.starts_with("qnc://local/") && source.probe.is_some())
+        .and_then(|source| source.probe.clone());
+    let location = SourceBinding { uri, file: Some(incoming.folder()), endpoint: None, token_env: None };
+    if !bindings.sources.iter().any(|binding| binding.uri == location.uri) {
+        bindings.sources.push(location.clone());
+    }
+    if !bindings.registered_sources.iter().any(|source| source.location.uri == location.uri) {
+        bindings.registered_sources.push(RegisteredSource {
+            location,
+            name: Some("Incoming".into()),
+            serial_number: None,
+            volume_name: None,
+            scope: Some("card_relative".into()),
+            probe,
+        });
     }
 }
 
@@ -616,5 +658,28 @@ mod reader_uri_tests {
     fn the_source_of_a_reader_shared_by_an_address_is_a_valid_source_reference() {
         let reader = qnc_card_readers::CardReader { name: "Jetson".into(), path: r"\192.168.100.28\kartice".into() };
         assert!(qnc_source_reader::SourceReader::local(&reader.source_uri(), std::env::temp_dir()).is_ok(), "{}", reader.source_uri());
+    }
+}
+
+#[cfg(test)]
+mod incoming_tests {
+    use super::*;
+
+    #[test]
+    fn incoming_set_on_this_computer_is_a_source_and_unset_is_none() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join("data")).unwrap();
+        let empty = || TransportBindings { config_version: "0.1.0".into(), catalog: None, source_index: None, sources: Vec::new(), registered_sources: Vec::new(), media_records: None, parallelism: None };
+        let mut none = empty();
+        with_incoming(&mut none, root.path());
+        assert!(none.sources.is_empty(), "not set: no Incoming");
+        let folder = root.path().join("in");
+        let incoming = qnc_incoming::Incoming { place: qnc_incoming::Place::Computer, location: folder.to_string_lossy().into_owned(), ingest: qnc_incoming::Ingest::Manual };
+        qnc_incoming::write(root.path(), Some(&incoming)).unwrap();
+        let mut set = empty();
+        with_incoming(&mut set, root.path());
+        assert_eq!(set.sources[0].uri, qnc_incoming::SOURCE_LOCAL);
+        assert_eq!(set.sources[0].file.as_deref(), Some(folder.as_path()));
+        assert_eq!(set.registered_sources[0].name.as_deref(), Some("Incoming"));
     }
 }

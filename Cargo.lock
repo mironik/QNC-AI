@@ -7947,6 +7947,7 @@ dependencies = [
  "qnc-card-readers",
  "qnc-contracts",
  "qnc-dev-diagnostics",
+ "qnc-incoming",
  "qnc-source-reader",
  "qnc-source-volumes",
  "qnc-transport-resolver",
@@ -7954,6 +7955,7 @@ dependencies = [
  "qnc-ui-text",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

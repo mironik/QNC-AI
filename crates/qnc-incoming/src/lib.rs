@@ -96,10 +96,48 @@ impl Incoming {
         if location.is_empty() {
             return Err("incoming: no location".into());
         }
-        if self.place == Place::Computer && !Path::new(location).is_absolute() {
-            return Err(format!("incoming: {location} is not a folder of this computer"));
+        // A folder this computer reaches: its own, or the server's shared folder (`\\server\share`).
+        if !Path::new(location).is_absolute() {
+            return Err(format!("incoming: {location} is not a folder this computer reaches"));
         }
         Ok(())
+    }
+}
+
+impl Incoming {
+    /// Its folder: on this computer, or the shared folder of the server (`\\server\share\...`, or a
+    /// drive the system mapped to it).
+    pub fn folder(&self) -> PathBuf {
+        PathBuf::from(self.location.trim())
+    }
+
+    /// The source Incoming is for Ingest, as a card: `qnc://local/source/incoming` on this computer,
+    /// `qnc://lan/<server>/source/incoming` or `qnc://intranet/<server>/source/incoming` on a server
+    /// (the server named by the shared folder's host). An address that is no folder is not one yet.
+    pub fn source_uri(&self) -> Result<String, String> {
+        let folder = self.folder();
+        if !folder.is_absolute() {
+            return Err(format!("incoming: {} is not a folder this computer reaches", self.location.trim()));
+        }
+        Ok(match self.place {
+            Place::Computer => SOURCE_LOCAL.to_string(),
+            Place::Lan => format!("qnc://lan/{}/source/incoming", host_of(&folder)),
+            Place::Intranet => format!("qnc://intranet/{}/source/incoming", host_of(&folder)),
+        })
+    }
+}
+
+/// The source of an Incoming on this computer.
+pub const SOURCE_LOCAL: &str = "qnc://local/source/incoming";
+
+/// The server of a shared folder `\\server\share`, as a name of a source (a mapped drive: `share`).
+fn host_of(folder: &Path) -> String {
+    let text = folder.to_string_lossy().replace('/', "\\");
+    let host = text.strip_prefix("\\\\").and_then(|rest| rest.split('\\').next()).unwrap_or_default();
+    let host: String = host.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' { c.to_ascii_lowercase() } else { '-' }).collect();
+    match host.trim_matches('-') {
+        "" => "share".into(),
+        host => host.into(),
     }
 }
 
@@ -147,12 +185,22 @@ mod tests {
     fn incoming_is_none_until_set_and_a_computer_folder_must_be_one() {
         let root = tempfile::tempdir().unwrap();
         assert_eq!(read(root.path()).unwrap(), None, "not set: none, nothing made up");
-        let lan = Incoming { place: Place::Lan, location: r"\server\incoming".into(), ingest: Ingest::Auto };
+        let lan = Incoming { place: Place::Lan, location: r"\\server\incoming".into(), ingest: Ingest::Auto };
         write(root.path(), Some(&lan)).unwrap();
         assert_eq!(read(root.path()).unwrap(), Some(lan));
         let relative = Incoming { place: Place::Computer, location: "incoming".into(), ingest: Ingest::Manual };
         assert!(write(root.path(), Some(&relative)).is_err());
         write(root.path(), None).unwrap();
         assert_eq!(read(root.path()).unwrap(), None);
+    }
+
+    #[test]
+    fn incoming_is_a_source_of_its_place_named_by_its_server() {
+        let here = Incoming { place: Place::Computer, location: r"D:\Incoming".into(), ingest: Ingest::Manual };
+        assert_eq!(here.source_uri().unwrap(), "qnc://local/source/incoming");
+        let lan = Incoming { place: Place::Lan, location: r"\\FTP-Server\incoming".into(), ingest: Ingest::Auto };
+        assert_eq!(lan.source_uri().unwrap(), "qnc://lan/ftp-server/source/incoming");
+        let intranet = Incoming { place: Place::Intranet, location: r"\\news.local\in".into(), ingest: Ingest::Auto };
+        assert_eq!(intranet.source_uri().unwrap(), "qnc://intranet/news-local/source/incoming");
     }
 }
