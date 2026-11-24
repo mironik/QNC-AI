@@ -11,3 +11,6 @@ qnc-media-records = { workspace = true }
 qnc-loudness = { workspace = true }
 serde = { workspace = true }
 
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -15,14 +15,32 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// from a two channel proxy and are made again.
 /// 3: the wave of every frame keeps the loudness of every channel (user 2026-10-24: A1/A2
 /// normalised after EBU R 128); a wave of version 2 is still shown and is made again for it.
-pub const WAVE_RENDER_VERSION: i64 = 3;
+/// 4: one precise pass, 50 peaks a second (user 2026-11-24: the coarse wave is gone, the
+/// wave of every frame is the only one); a wave of 2 or 3 is still shown and made again.
+pub const WAVE_RENDER_VERSION: i64 = 4;
 
 /// The versions of a wave that may be shown (the current one, and 2 until it is made again).
 pub fn shown_render_version(version: i64) -> bool {
     (2..=WAVE_RENDER_VERSION).contains(&version)
 }
+/// The fewest peaks of a clip (a short one).
 pub const WAVE_PEAK_BUCKETS: usize = 1200;
-pub const MAX_WAVE_PEAK_BUCKETS: usize = 9600;
+/// Peaks a second of sound: one every 20 ms, a picture at 50p.
+pub const WAVE_PEAKS_PER_SECOND: f64 = 50.0;
+/// The most peaks of a clip (72 minutes at 50 a second; a longer clip spreads them), kept
+/// within the size of a wave record (peaks are stored to a thousandth).
+pub const MAX_WAVE_PEAK_BUCKETS: usize = 216_000;
+
+/// How many peaks a clip of this length gets.
+pub fn peak_count_for(duration_seconds: f64) -> usize {
+    let wanted = (duration_seconds.max(0.0) * WAVE_PEAKS_PER_SECOND).ceil();
+    (wanted as usize).clamp(WAVE_PEAK_BUCKETS, MAX_WAVE_PEAK_BUCKETS)
+}
+
+/// A peak as it is stored: to a thousandth, so a long clip's record stays small.
+fn stored(peaks: Vec<f32>) -> Vec<f32> {
+    peaks.into_iter().map(|peak| (peak * 1000.0).round() / 1000.0).collect()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -245,7 +263,7 @@ fn plan_from_snapshot_inner(
         duration_seconds,
         duration_sample_frames,
         source_sample_rate_hz,
-        peak_count: WAVE_PEAK_BUCKETS,
+        peak_count: peak_count_for(duration_seconds),
         channels,
     })
 }
@@ -298,10 +316,10 @@ pub fn artifact_record_from_peaks4(
         source_uri: plan.source_uri.clone(),
         source_sample_rate_hz: plan.source_sample_rate_hz,
         peak_count: plan.peak_count,
-        a1_peaks,
-        a2_peaks,
-        a3_peaks,
-        a4_peaks,
+        a1_peaks: stored(a1_peaks),
+        a2_peaks: stored(a2_peaks),
+        a3_peaks: stored(a3_peaks),
+        a4_peaks: stored(a4_peaks),
         warning,
         render_version: WAVE_RENDER_VERSION,
         coarse: false,
@@ -1012,6 +1030,16 @@ mod tests {
         assert!(gap.finish_measured()[0].2.is_none());
     }
 
+    fn a_clip_gets_fifty_peaks_a_second_and_an_hour_fits_a_record() {
+        assert_eq!(peak_count_for(9.0), WAVE_PEAK_BUCKETS);
+        assert_eq!(peak_count_for(240.0), 12_000);
+        assert_eq!(peak_count_for(5.0 * 3600.0), MAX_WAVE_PEAK_BUCKETS);
+        let peaks: Vec<f32> = stored((0..MAX_WAVE_PEAK_BUCKETS).map(|at| (at % 997) as f32 / 997.0).collect());
+        let bytes = serde_json::to_string(&[&peaks, &peaks, &peaks, &peaks]).unwrap().len();
+        assert!(bytes < 7 * 1024 * 1024, "{bytes} bytes");
+    }
+
+    #[test]
     #[test]
     fn ready_artifact_requires_a1_and_matching_optional_a2() {
         let plan = plan_from_snapshot(

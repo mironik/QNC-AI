@@ -8903,6 +8903,7 @@ dependencies = [
  "qnc-media-records",
  "qnc-ui-text",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -8931,7 +8932,6 @@ dependencies = [
  "qnc-media-records",
  "qnc-media-stream",
  "qnc-mp4-sound",
- "qnc-mxf-index",
  "qnc-mxf-sound",
  "qnc-read-pace",
  "qnc-transport-resolver",

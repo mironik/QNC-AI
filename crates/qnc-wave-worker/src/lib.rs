@@ -594,9 +594,8 @@ fn build_timeline_wave(
             coarse: false,
         });
     }
-    // No coarse wave first any more (user 2026-11-17: "nije više potreban grubi val, mala je
-    // razlika"): every clip gets the wave of every frame at once.
-    let coarse_first = false;
+    // One precise pass only (user 2026-11-17, 2026-11-24: no coarse wave first; the wizard
+    // makes the waves while the ingest runs).
     let clip = context
         .content_reader
         .read_clip(&request.clip_id)?
@@ -616,10 +615,8 @@ fn build_timeline_wave(
     // clip is read through, a longer one gives the intra picture nearest each of 13 places),
     // so the pass reads only the sound.
     let mut first = sink.map(|_| Vec::new());
-    let (lanes, coarse) = match coarse_first.then(|| decode_wave(&plan, media, source, true, None, cancel)).transpose()?.flatten() {
-        Some(lanes) => (lanes, true),
-        None => (decode_wave(&plan, media, source, false, first.as_mut(), cancel)?.ok_or("wave: no full wave")?, false),
-    };
+    let lanes = decode_wave(&plan, media, source, first.as_mut(), cancel)?;
+    let coarse = false;
     if let (Some(sink), Some(samples)) = (sink, first.filter(|samples| !samples.is_empty())) {
         let rate = first_stream_rate(media, &plan);
         if let Some(rate) = rate {
@@ -698,10 +695,9 @@ fn decode_wave(
     plan: &WavePlan,
     media: &MediaRepresentation,
     source: &WaveSourceBinding,
-    coarse: bool,
     mut first: Option<&mut Vec<f32>>,
     cancel: &AtomicBool,
-) -> Result<Option<Vec<(WaveLane, Vec<f32>, Option<qnc_loudness::ChannelLoudness>)>>, String> {
+) -> Result<Vec<(WaveLane, Vec<f32>, Option<qnc_loudness::ChannelLoudness>)>, String> {
     let streams = plan
         .channels
         .iter()
@@ -756,14 +752,6 @@ fn decode_wave(
     // saved format before any reading; every other source through the selected decoder.
     let mut pictures = None;
     let read = match (mxf_sound_elements(media, &streams), mp4_sound(media, &streams)) {
-        // The coarse wave: the sound of the intra frames through the original's own index,
-        // each held over its group of pictures; without an index there is none.
-        (Some((elements, bytes)), _) if coarse => match mxf_intra_sound_samples(&path, &elements, bytes, cancel, &mut on_samples) {
-            Ok(true) => Ok(()),
-            Ok(false) => return Ok(None),
-            Err(error) => Err(error),
-        },
-        _ if coarse => return Ok(None),
         (Some((elements, bytes)), _) => mxf_sound_samples(&path, &elements, bytes, None, &mut pictures, cancel, &mut on_samples),
         // An MP4 with one AAC sound track: its sound chunks and key pictures through its
         // index (user 2026-10-16), decoded from what was read.
@@ -782,7 +770,7 @@ fn decode_wave(
     if !by_lane.contains_key(&WaveLane::A1) {
         return Err(qnc_ui_text::text("wave.wave_got_a1_channel").to_string());
     }
-    Ok(Some(by_lane.into_iter().map(|(lane, (peaks, loudness))| (lane, peaks, loudness)).collect()))
+    Ok(by_lane.into_iter().map(|(lane, (peaks, loudness))| (lane, peaks, loudness)).collect())
 }
 
 // The selected decoder must declare the saved format of every stream it reads (no silent
@@ -857,61 +845,6 @@ fn mp4_sound_samples(
 }
 
 /// Sound elements to whole interleaved f32 frames of the requested streams, in their order.
-/// The coarse sound of an MXF original: the sound elements of its intra frames only,
-/// read through its own index, each intra frame's sound held over the frames up to the next
-/// one, so the wave has every frame's place (a GOP of 24 reads one frame in 24). `false`
-/// when the file has no usable index.
-fn mxf_intra_sound_samples(
-    source: &Path,
-    elements: &[u8],
-    sample_bytes: usize,
-    cancel: &AtomicBool,
-    on_samples: &mut dyn FnMut(&[f32]) -> std::result::Result<(), String>,
-) -> std::result::Result<bool, String> {
-    let Some(index) = qnc_mxf_index::MxfIndex::read(source)? else {
-        return Ok(false);
-    };
-    let intra = index.intra_frames();
-    if intra.is_empty() {
-        return Ok(false);
-    }
-    let mut file = std::fs::File::open(source).map_err(|error| format!("wave original open: {error}"))?;
-    let mut held: Vec<f32> = Vec::new();
-    let mut next = 0usize;
-    for frame in 0..index.entries.len() {
-        if cancel.load(Ordering::Acquire) {
-            return Err(wave_paused_for_playback().into());
-        }
-        if next < intra.len() && intra[next] == frame || held.is_empty() {
-            let at = intra[next.min(intra.len() - 1)];
-            let package = qnc_mxf_index::read_package(&mut file, &index, at, false, true)?;
-            let mut channels = vec![Vec::<f32>::new(); elements.len()];
-            for (number, value) in &package.sound {
-                if let Some(slot) = elements.iter().position(|element| element == number) {
-                    if sample_bytes == 2 {
-                        qnc_mxf_sound::s16le_to_f32(value, &mut channels[slot]);
-                    } else {
-                        qnc_mxf_sound::s24le_to_f32(value, &mut channels[slot]);
-                    }
-                }
-            }
-            let samples = channels.iter().map(Vec::len).min().unwrap_or(0);
-            if samples == 0 {
-                return Ok(false);
-            }
-            held.clear();
-            for sample in 0..samples {
-                held.extend(channels.iter().map(|channel| channel[sample]));
-            }
-            if next < intra.len() && intra[next] <= frame {
-                next += 1;
-            }
-        }
-        on_samples(&held)?;
-    }
-    Ok(true)
-}
-
 fn mxf_sound_samples(
     source: &Path,
     elements: &[u8],

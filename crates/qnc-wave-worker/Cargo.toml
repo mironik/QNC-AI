@@ -7,7 +7,6 @@ description = "Background waveform peak generator for QNC"
 [dependencies]
 qnc-done-count = { workspace = true }
 qnc-background-jobs = { workspace = true }
-qnc-mxf-index = { workspace = true }
 qnc-read-pace = { workspace = true }
 qnc-ui-text = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
