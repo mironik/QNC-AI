@@ -18,6 +18,7 @@ use qnc_wizard_text::{fill, text};
 const STATUS: u32 = 1;
 const QUIT: u32 = 3;
 const ADMIN: u32 = 4;
+const SETTINGS: u32 = 11;
 const INGEST_FOLDER: u32 = 8;
 const STOP_ALL: u32 = 9;
 /// Opens again the form the mode opens after a copy (user 2026-11-19: "nemam šortkat za povratak
@@ -55,6 +56,7 @@ fn menu(running: usize, active: usize, mode: Option<qnc_tray_mode::Mode>, items:
                 MenuItem { id: MODE_FIRST + index as u32, text: text(choice.label()), enabled: true, check: Some(mode == Some(choice)) }
             }
             Item::IngestFolder => MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true, check: None },
+            Item::Settings => MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true, check: None },
             Item::Admin => MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true, check: None },
             Item::OpenForm => MenuItem { id: OPEN_FORM, text: text("tray.open_form"), enabled: opens, check: None },
             Item::Quit => MenuItem { id: QUIT, text: text("tray.quit"), enabled: true, check: None },
@@ -240,6 +242,7 @@ fn main() {
                     stop_asked = Some((ask_stop(&tray, "tray.stop_ask"), false));
                 }
                 TrayEvent::Menu(ADMIN) => open_admin(&tray, &root, &mut ingest),
+                TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
                 TrayEvent::Menu(OPEN_FORM) => open_form(&tray, &root, mode),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
                 // asked whether into a new base or the one Ingest works in (user 2026-11-16).
@@ -528,6 +531,18 @@ const DELETE: &str = "delete";
 fn ask_stop(tray: &Tray, question: &str) -> std::sync::mpsc::Receiver<Option<String>> {
     let buttons = [(KEEP, text("card_ingest.partial_keep")), (DELETE, text("card_ingest.partial_delete")), ("cancel", text("ask.cancel"))];
     tray.choose(&text("tray.title"), &text(question), &buttons, "cancel")
+}
+
+/// The Settings form, beside this program (user 2026-11-24: "u tray dodaj Postavke link"; it was
+/// only in the administration form since c9d9035).
+fn open_settings(tray: &Tray, root: &std::path::Path) {
+    match qnc_ai_open::open(root, "qnc-ai-settings") {
+        Ok(program) => log(format!("settings opened {}", program.display())),
+        Err(error) => {
+            log(format!("settings failed: {error}"));
+            tray.alert("settings", &text("tray.title"), &fill("tray.settings_failed", &[("error", &error)]), &text("tray.ok"));
+        }
+    }
 }
 
 /// The form the tray's mode opens after a copy, on the active project of the database (user

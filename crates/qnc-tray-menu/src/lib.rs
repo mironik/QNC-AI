@@ -23,6 +23,8 @@ pub enum Item {
     Mode(Mode),
     /// Import from a folder.
     IngestFolder,
+    /// The Settings form (user 2026-11-24: "u tray dodaj Postavke link").
+    Settings,
     /// The administrator's form.
     Admin,
     /// Opens the form of the mode again.
@@ -32,13 +34,14 @@ pub enum Item {
 }
 
 /// Every item, in the menu's order.
-pub const ALL: [Item; 9] = [
+pub const ALL: [Item; 10] = [
     Item::Status,
     Item::StopAll,
     Item::Mode(qnc_tray_mode::ALL[0]),
     Item::Mode(qnc_tray_mode::ALL[1]),
     Item::Mode(qnc_tray_mode::ALL[2]),
     Item::IngestFolder,
+    Item::Settings,
     Item::Admin,
     Item::OpenForm,
     Item::Quit,
@@ -56,6 +59,7 @@ impl Item {
                 _ => "mode_net",
             },
             Item::IngestFolder => "ingest_folder",
+            Item::Settings => "settings",
             Item::Admin => "admin",
             Item::OpenForm => "open_form",
             Item::Quit => "quit",
@@ -69,6 +73,7 @@ impl Item {
             Item::StopAll => "tray.stop_all",
             Item::Mode(mode) => mode.label(),
             Item::IngestFolder => "tray.ingest_folder",
+            Item::Settings => "tray.settings",
             Item::Admin => "tray.admin",
             Item::OpenForm => "tray.open_form",
             Item::Quit => "tray.quit",

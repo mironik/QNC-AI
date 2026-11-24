@@ -4013,6 +4013,7 @@ dependencies = [
 name = "qnc-ai-tray"
 version = "0.1.0"
 dependencies = [
+ "qnc-ai-open",
  "qnc-app-mark",
  "qnc-autoplay-guard",
  "qnc-base-admin",
