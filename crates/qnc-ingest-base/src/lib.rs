@@ -578,7 +578,7 @@ fn make(store: &mut ProjectStore, bases: &Path, what: &str) -> Result<IngestBase
         true => format!("{NAME_PREFIX} {}", stamp()),
         false => format!("{NAME_PREFIX} {what} {}", stamp()),
     };
-    let made = store.create_project(&name, "", Some(&settings), &selection());
+    let made = store.create_ingest_base(&name, &settings, &selection());
     let back = store.set_projects_root(&projects);
     let made = made?;
     back?;

@@ -57,6 +57,10 @@ const PROJECT_DIRECTORIES: &[&str] = &[
 ];
 /// The folder all products of a project are in.
 const PRODUCT_ROOT: &str = "products";
+/// The folders of an Ingest base: the copied card and what the wizard's workers make (posters,
+/// filmstrip, the AI shots' posters) and the statements made on it (light: their IN/OUT stills, user
+/// 2026-11-24); a project's own products (story, prerender, voice, exports) are never in a base.
+const INGEST_BASE_DIRECTORIES: &[&str] = &["original", "proxy", "products", "products/thumbnails", "products/filmstrip", "products/ai_shots", "products/virtual_shorts"];
 /// The product folders the settings name, each `products/<field>` (one root, one list).
 const PRODUCT_DIRECTORY_FIELDS: &[&str] = &[
     "thumbnails",
@@ -423,6 +427,29 @@ impl ProjectStore {
         settings: Option<&Value>,
         selection: &SelectionSnapshot,
     ) -> Result<ProjectRow, String> {
+        self.create_in(name, template_id, settings, selection, false)
+    }
+
+    /// An Ingest base (user 2026-11-24: "ingestu pripada samo ono sto naprave radnici
+    /// QNC-Ingest-Wizard, sve drugo pripada projektu"): registered and made as a project, but its
+    /// folder has only what the wizard's workers make (`INGEST_BASE_DIRECTORIES`), no exports.
+    pub fn create_ingest_base(
+        &self,
+        name: &str,
+        settings: &Value,
+        selection: &SelectionSnapshot,
+    ) -> Result<ProjectRow, String> {
+        self.create_in(name, "", Some(settings), selection, true)
+    }
+
+    fn create_in(
+        &self,
+        name: &str,
+        template_id: &str,
+        settings: Option<&Value>,
+        selection: &SelectionSnapshot,
+        ingest_base: bool,
+    ) -> Result<ProjectRow, String> {
         let name = name.trim();
         if name.is_empty() {
             return Err(qnc_ui_text::text("project.store.project_name_empty").to_string());
@@ -468,12 +495,12 @@ impl ProjectStore {
             // Claim a new directory before writing; never reuse or clean an existing one.
             fs::create_dir(&project_dir).map_err(|error| error.to_string())?;
             created_directory = true;
-            if let Some(export_path) = &export_path {
+            if let Some(export_path) = export_path.as_ref().filter(|_| !ingest_base) {
                 fs::create_dir_all(export_path).map_err(|error| {
                     qnc_ui_text::fill("project.store.export_dir_create_failed", &[("v0", &(export_path.display()).to_string()), ("error", &(error).to_string())])
                 })?;
             }
-            self.ensure_workspace_db(&project_id, &project_dir, Some(&template), &origin)?;
+            self.ensure_workspace_db(&project_id, &project_dir, Some(&template), &origin, ingest_base)?;
             lock_project_dir(&project_dir)?;
             lock_projects_root_dir(&projects_root)?;
 
@@ -813,8 +840,9 @@ impl ProjectStore {
         dir: &Path,
         template: Option<&StoredTemplate>,
         origin: &ProjectOrigin,
+        ingest_base: bool,
     ) -> Result<(), String> {
-        ensure_project_dirs_at(dir)?;
+        ensure_project_dirs_at(dir, ingest_base)?;
         let db_path = self.project_workspace_db_path(project_id, dir)?;
         let mut conn = Connection::open(db_path).map_err(|error| error.to_string())?;
         configure_connection(&conn)?;
@@ -869,9 +897,13 @@ impl ProjectStore {
     }
 }
 
-fn ensure_project_dirs_at(base: &Path) -> Result<(), String> {
+fn ensure_project_dirs_at(base: &Path, ingest_base: bool) -> Result<(), String> {
     fs::create_dir_all(base).map_err(|error| error.to_string())?;
-    for subdir in project_directories() {
+    let folders: Vec<String> = match ingest_base {
+        true => INGEST_BASE_DIRECTORIES.iter().map(|folder| folder.to_string()).collect(),
+        false => project_directories().collect(),
+    };
+    for subdir in folders {
         fs::create_dir_all(base.join(&subdir)).map_err(|error| error.to_string())?;
     }
     Ok(())
@@ -2389,6 +2421,23 @@ mod tests {
         assert!(store
             .create_project("Without A", "tpl_breaking_news", None, &selection)
             .is_err());
+        cleanup_temp_root(&root);
+    }
+
+    #[test]
+    fn an_ingest_base_has_only_the_folders_of_the_wizard_and_its_statements() {
+        let root = temp_root("ingest_base_folders");
+        let store = ProjectStore::open(&root).unwrap();
+        let settings = store.selected_template_settings().unwrap().settings;
+        let base = store.create_ingest_base("Ingest base", &settings, &test_selection(&["ingest"])).unwrap();
+        let (file, _) = store.project_db_binding(&base.project_id).unwrap();
+        let dir = file.parent().unwrap().to_path_buf();
+        for folder in INGEST_BASE_DIRECTORIES {
+            assert!(dir.join(folder).is_dir(), "{folder}");
+        }
+        for folder in ["exports", "audio", "incoming", "products/prerender", "products/voice", "products/virtual_segments", "products/b_roll_virtual_clips"] {
+            assert!(!dir.join(folder).exists(), "{folder} is a project's");
+        }
         cleanup_temp_root(&root);
     }
 
