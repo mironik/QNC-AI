@@ -15,3 +15,10 @@ qnc-plugin-process = { workspace = true }
 qnc-sound-range = { workspace = true }
 qnc-still-locator = { workspace = true }
 qnc-transcribe-jobs = { workspace = true }
+
+[dev-dependencies]
+qnc-active-project-read = { workspace = true }
+qnc-player-clip-content = { workspace = true }
+qnc-source-bindings = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-content-read = { workspace = true }
