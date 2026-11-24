@@ -182,13 +182,20 @@ pub fn load(root: &Path) -> Result<TransportBindings, String> {
         .parent()
         .ok_or(qnc_ui_text::text("source.source_configuration_folder"))?;
     let mut bindings = parse(&bytes, base)?;
-    // The disks of this computer and the cards in its card readers on the network (user 2026-11-22).
-    with_attached(&mut bindings, &qnc_card_readers::mounted_and_cards(root));
+    // Where the cards come from is the tray's setting (user 2026-11-24: "koji mu je izvor cita
+    // mora uzimati iz postavki koje su odabrane u trayu"): Local, the card readers of this
+    // computer only; otherwise (Net, or not chosen) also the cards in the card readers on the
+    // network, each by the serial of its volume (user 2026-11-22).
+    let local = matches!(qnc_tray_mode::read(root), Ok(Some(qnc_tray_mode::Mode::Local { .. })));
+    let attached = if local { qnc_source_volumes::mounted() } else { qnc_card_readers::mounted_and_cards(root) };
+    with_attached(&mut bindings, &attached);
     with_card_bases(&mut bindings, root);
-    match qnc_card_readers::readers_of(root) {
-        Ok(readers) => with_card_readers(&mut bindings, &readers),
-        // A setting that cannot be read leaves the readers out and says why; the other sources stay.
-        Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("card readers not read: {error}")),
+    if !local {
+        match qnc_card_readers::readers_of(root) {
+            Ok(readers) => with_card_readers(&mut bindings, &readers),
+            // A setting that cannot be read leaves the readers out and says why; the other sources stay.
+            Err(error) => qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("card readers not read: {error}")),
+        }
     }
     Ok(bindings)
 }

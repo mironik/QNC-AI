@@ -7896,6 +7896,7 @@ dependencies = [
  "qnc-source-reader",
  "qnc-source-volumes",
  "qnc-transport-resolver",
+ "qnc-tray-mode",
  "qnc-ui-text",
  "serde",
  "serde_json",
