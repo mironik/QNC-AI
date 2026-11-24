@@ -1,0 +1,7 @@
+[package]
+name = "qnc-done-count"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: each step of a process adds one for every clip it finishes (user 2026-11-17: \"treba aplikacija samo poslati u array za svaki odrađeni +1\"); read without the database"
+
+[dependencies]

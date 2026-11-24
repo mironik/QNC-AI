@@ -1,0 +1,9 @@
+[package]
+name = "qnc-parakeet-onnx"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public block: NVIDIA Parakeet TDT 0.6B v3 (fp32 ONNX: mel features, encoder, decoder-joint) through the ONNX Runtime library the caller names; the encoder on the graphics card through DirectML or on the processor; greedy TDT decoding into tokens with their times"
+
+[dependencies]
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["load-dynamic", "std", "ndarray", "directml"] }
+qnc-transcribe-jobs = { workspace = true }

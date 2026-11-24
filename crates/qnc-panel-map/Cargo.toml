@@ -1,0 +1,7 @@
+[package]
+name = "qnc-panel-map"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public block: where the panels of a form are on screen, the panel in the direction of an arrow and the panel under a point (Alt + arrows choose the panel, a click focuses it)"
+
+[dependencies]

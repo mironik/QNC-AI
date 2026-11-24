@@ -1,0 +1,70 @@
+{
+  "layout_id": "qnc.ui.shell",
+  "layout_version": "0.1.0",
+  "mirror_policy": "literal_qnc_v4",
+  "font_policy": "single_qnc_font_system",
+  "allowed_deviation_policy": "explicit_approval_required",
+  "qnc_v4_reference": [
+    "qnc-app/src/app.rs",
+    "qnc-app/src/qnc_ui.rs",
+    "qnc-app/src/qnc_theme.rs",
+    "seed/tabs/project/plugin.json",
+    "seed/tabs/ingest/plugin.json",
+    "seed/tabs/media_assist/plugin.json",
+    "seed/tabs/story/plugin.json"
+  ],
+  "application_tabs": ["project", "ingest", "media_assist", "storyboard"],
+  "shell_metrics": {
+    "footer_height": 36.0,
+    "workspace_status_height": 22.0,
+    "host_gate_top_chrome_only": true,
+    "workspace_footer_columns": 3,
+    "footer_tab_alignment": "center",
+    "theme_picker_alignment": "footer_left",
+    "close_project_alignment": "footer_right"
+  },
+  "theme_metrics": {
+    "font_ui": 14.0,
+    "font_timecode": 13.0,
+    "chrome_row_height": 28.0,
+    "chrome_pad_x": 8,
+    "chrome_pad_y": 2,
+    "chrome_control_height": 24.0
+  },
+  "colors": {
+    "bg": [15, 16, 18],
+    "surface": [23, 24, 27],
+    "raised": [32, 34, 38],
+    "border": [38, 40, 44],
+    "text": [237, 237, 237],
+    "muted": [138, 139, 143],
+    "accent": [200, 201, 204],
+    "focus": [154, 155, 160],
+    "media": {
+      "lane": [36, 38, 43],
+      "wave": [128, 130, 137],
+      "wave_zoom": [140, 142, 149],
+      "timeline_focus": [237, 237, 237],
+      "lane_taken": [237, 237, 237],
+      "meter": [[128, 160, 140], [200, 184, 120], [214, 82, 74]],
+      "dot_ready": [138, 139, 143],
+      "dot_original_ready": [200, 201, 204],
+      "dot_pending": [70, 72, 76],
+      "dot_error": [214, 82, 74],
+      "check_on": [237, 237, 237],
+      "level_marks": [[0, 0, 0, 0], [0, 0, 0, 0], [214, 82, 74, 40]],
+      "level_curve": [150, 152, 158],
+      "wave_amplitude": true,
+      "lane_divider": [23, 24, 27],
+      "lane_quiet": true,
+      "press_feedback": true
+    }
+  },
+  "forbidden_changes_without_approval": [
+    "redesign",
+    "different_font_system",
+    "new_tab_order",
+    "moving_tabs_out_of_footer",
+    "replacing_qnc_v4_spacing_with_new_spacing"
+  ]
+}

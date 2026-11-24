@@ -1,0 +1,18 @@
+{
+  "module_id": "qnc.module.done-count",
+  "module_name": "done-count",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": ["done_count.add", "done_count.count"],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": ["windows", "linux", "macos"],
+  "supported_cpu": ["x86_64", "aarch64"],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": ["ffprobe", "media.probe.full", "source.scan", "player.command", "project.workflow"],
+  "forbidden_dependencies": ["qnc.module.media-probe", "qnc.module.scanner"],
+  "state_policy": "session_local",
+  "database_write_policy": "no_db_writes",
+  "runtime_crate": "qnc-done-count",
+  "reader_policy": "Each step of a process adds one for every clip it finishes (the copy, the transcription, the waves, the filmstrips); who leads the steps reads these counts instead of counting the base's database every period (user 2026-11-17). The counts live in the process only and are never the truth of what is done: that stays the base."
+}

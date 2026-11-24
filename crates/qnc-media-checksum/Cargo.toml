@@ -1,0 +1,7 @@
+[package]
+name = "qnc-media-checksum"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public block: the checksum of a medium as it is copied, to prove the copy is the card's (xxHash64 by default; another kind is another implementation of the same trait); no I/O, no DB"
+
+[dependencies]

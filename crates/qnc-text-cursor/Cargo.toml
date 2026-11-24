@@ -1,0 +1,7 @@
+[package]
+name = "qnc-text-cursor"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public block: the keyboard cursor on any text of timed words (transcript, script): the arrows move it a word or a line, Shift with the arrows selects from where the selection started"
+
+[dependencies]
