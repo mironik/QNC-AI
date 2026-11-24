@@ -1,16 +1,11 @@
-//! A block of QNC-AI's Settings form with its own window (user 2026-11-23: "samostalna kocka koja ima
-//! svoj GUI koji će se pozivati iz Forme Postavke; na taj način forma postavke bit će mala"): the
-//! export settings of this computer (`qnc-export-templates`).
-//!
-//! In the Settings form it is one row: how many templates there are and a button that opens its
-//! window. The window is a window of its own in the middle of the screen (user 2026-11-23: "postavi
-//! je na sredinu ekrana"), with its own bar whose hidden dot opens its own look editor (its fixed
-//! size, widths and margin: `contracts/ui/forms/export-templates.look.json`). On the left: the
+//! The Export tab of QNC-AI's Settings form (user 2026-11-24: "dodaj jos AI tab i Export tab i u
+//! njih premjesti sadrzaj tih tabova"; before, a window of its own opened from the Settings form):
+//! the export settings of this computer (`qnc-export-templates`). On the left, the tab's menu: the
 //! templates of this computer and the prepared presets to start from, then, apart under a line,
 //! Export XML (user 2026-11-23: "XML isto postavi u lijevi izbornik, i linijom ga odvoji od enkode
 //! postavki"). On the right: what was chosen, its fields by groups as the contract names them; Save,
-//! Delete. A prepared preset is never written over. What is typed is a draft of the window until
-//! Save. Everything is drawn by the settings style block (`qnc_settings_block::Pen`).
+//! Delete. A prepared preset is never written over. What is typed is a draft of the tab until Save.
+//! Everything is drawn by the settings style block (`qnc_settings_block::Pen`).
 
 use std::path::Path;
 
@@ -20,8 +15,6 @@ use qnc_settings_block::Pen;
 use qnc_wizard_text::text;
 use serde_json::{Map, Value};
 
-/// The form name of the window's look.
-const LOOK: &str = "export-templates";
 
 /// What the right side shows.
 #[derive(Clone, PartialEq)]
@@ -32,7 +25,6 @@ enum Chosen {
 
 #[derive(Clone, Default)]
 struct Draft {
-    open: bool,
     templates: Vec<Template>,
     chosen: Option<Chosen>,
     /// The fields as typed, by their key (a number or text typed is kept as typed until Save).
@@ -67,32 +59,22 @@ impl Draft {
     }
 }
 
-/// Draws the block's row in the Settings form; its window opens in the middle of the screen.
-pub fn show(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
+/// The tab's draft, read from the templates of this computer the first time it is shown.
+fn with(ui: &mut egui::Ui, root: &Path, body: impl FnOnce(&mut egui::Ui, &mut Draft)) {
     let id = egui::Id::new(("qnc-export-templates-view", root.to_string_lossy().to_string()));
     let mut draft = ui.ctx().data_mut(|data| data.get_temp::<Draft>(id)).unwrap_or_else(|| Draft::read(root));
-    pen.title(ui, "export_template.title", "export_template.hint");
-    let count = text("export_template.count").replace("{count}", &draft.templates.len().to_string());
-    let mut open = false;
-    pen.row(ui, &count, |_, _| {}, |ui, buttons| open = buttons.primary(ui, &text("export_template.open"), true));
-    if open && !draft.open {
-        match qnc_settings_window::open(root, LOOK, &text("export_template.window_title")) {
-            Ok(()) => {
-                draft = Draft::read(root);
-                draft.open = true;
-            }
-            Err(error) => draft.said = Some(Err(error)),
-        }
-    }
-    if draft.open {
-        draft.open = qnc_settings_window::show(ui.ctx(), root, LOOK, &text("export_template.window_title"), pen, |ui, pane, pen| match pane {
-            qnc_settings_window::Pane::Menu => list(ui, root, pen, &mut draft),
-            qnc_settings_window::Pane::Panel => editor(ui, root, pen, &mut draft),
-        });
-    } else {
-        pen.said(ui, &draft.said);
-    }
+    body(ui, &mut draft);
     ui.ctx().data_mut(|data| data.insert_temp(id, draft));
+}
+
+/// The tab's menu: the templates of this computer, the prepared presets, then Export XML.
+pub fn menu(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
+    with(ui, root, |ui, draft| list(ui, root, pen, draft));
+}
+
+/// What was chosen in the menu.
+pub fn panel(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
+    with(ui, root, |ui, draft| editor(ui, root, pen, draft));
 }
 
 /// The templates of this computer, the prepared presets a new one starts from, then apart under a

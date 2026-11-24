@@ -43,7 +43,7 @@ impl Draft {
     }
 }
 
-/// The setting in the AI settings window (`qnc-settings-window`), drawn by the settings style block
+/// The setting in the AI tab of the Settings form, drawn by the settings style block
 /// (`qnc_settings_block::Pen`): a row for each value, the token hidden, Save in the button column.
 pub fn panel(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
     let id = egui::Id::new(("qnc-ai-server-view-panel", root.to_string_lossy().to_string()));

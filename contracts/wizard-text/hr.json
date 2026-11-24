@@ -130,6 +130,8 @@
     "settings_tab.general": "Općenito",
     "settings_tab.user": "Korisnik",
     "settings_tab.project": "Projekt",
+    "settings_tab.ai": "AI",
+    "settings_tab.export": "Export",
     "settings_tab.title_general": "Postavke računala",
     "settings_tab.title_user": "Korisnik",
     "settings_tab.title_project": "Projekt",

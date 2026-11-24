@@ -130,6 +130,8 @@
     "settings_tab.general": "General",
     "settings_tab.user": "User",
     "settings_tab.project": "Project",
+    "settings_tab.ai": "AI",
+    "settings_tab.export": "Export",
     "settings_tab.title_general": "This computer",
     "settings_tab.title_user": "User",
     "settings_tab.title_project": "Project",

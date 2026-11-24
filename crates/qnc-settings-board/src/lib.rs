@@ -29,6 +29,10 @@ pub enum Tab {
     User,
     /// The project templates.
     Project,
+    /// The AI settings of this computer: their own menu.
+    Ai,
+    /// The export templates of this computer: their own menu.
+    Export,
 }
 
 impl Tab {
@@ -37,6 +41,8 @@ impl Tab {
             Tab::General => "settings_tab.general",
             Tab::User => "settings_tab.user",
             Tab::Project => "settings_tab.project",
+            Tab::Ai => "settings_tab.ai",
+            Tab::Export => "settings_tab.export",
         }
     }
 
@@ -45,6 +51,8 @@ impl Tab {
             Tab::General => "settings_tab.title_general",
             Tab::User => "settings_tab.title_user",
             Tab::Project => "settings_tab.title_project",
+            Tab::Ai => "settings_tab.ai",
+            Tab::Export => "settings_tab.export",
         }
     }
 }
@@ -57,13 +65,13 @@ pub enum Group {
     Locations,
     /// The ingest orchestrator of each form (`qnc-ingest-orchestrator-view`).
     IngestOrchestrator,
-    /// The AI settings, with their own window (`qnc-ai-settings-view`).
+    /// The AI settings, a tab of their own with their own menu (`qnc-ai-settings-view`).
     Ai,
     /// The card readers on the network (`qnc-card-readers-view`).
     CardReaders,
     /// The tray: what its menu shows, the form each mode opens (`qnc-tray-settings-view`).
     Tray,
-    /// The export templates, with their own window (`qnc-export-templates-view`).
+    /// The export templates, a tab of their own with their own menu (`qnc-export-templates-view`).
     Export,
     /// The settings of the user signed in (`qnc-user-settings-view`).
     User,
@@ -92,8 +100,15 @@ impl Group {
         match self {
             Group::User => Tab::User,
             Group::Templates => Tab::Project,
+            Group::Ai => Tab::Ai,
+            Group::Export => Tab::Export,
             _ => Tab::General,
         }
+    }
+
+    /// Whether the group brings its own menu: alone in its tab, its menu is the tab's menu.
+    fn own_menu(self) -> bool {
+        matches!(self, Group::Ai | Group::Export)
     }
 }
 
@@ -179,13 +194,23 @@ pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Them
         ui.horizontal_top(|ui| {
             ui.vertical(|ui| {
                 ui.set_width(menu_w);
-                let pen = Pen::new(metrics, theme, menu_w);
-                pen.menu_heading(ui, &qnc_wizard_text::text(current.title()));
-                for group in groups {
-                    if pen.menu_item(ui, chosen == Some(*group), &qnc_wizard_text::text(group.name()), "") {
-                        chosen = Some(*group);
+                // A tab of one group with its own menu (AI, Export) has that menu on the left.
+                let own = groups.iter().copied().filter(|group| group.own_menu()).find(|_| groups.len() == 1);
+                egui::ScrollArea::vertical().id_salt(("qnc-settings-board-menu", root.to_string_lossy().to_string())).max_height(height).auto_shrink([false, false]).show(ui, |ui| {
+                    let pen = Pen::new(metrics, theme, menu_w - 8.0);
+                    match own {
+                        Some(Group::Ai) => qnc_ai_settings_view::menu(ui, root, &pen),
+                        Some(_) => qnc_export_templates_view::menu(ui, root, &pen),
+                        None => {
+                            pen.menu_heading(ui, &qnc_wizard_text::text(current.title()));
+                            for group in groups {
+                                if pen.menu_item(ui, chosen == Some(*group), &qnc_wizard_text::text(group.name()), "") {
+                                    chosen = Some(*group);
+                                }
+                            }
+                        }
                     }
-                }
+                });
             });
             ui.separator();
             let width = ui.available_width();
@@ -196,10 +221,10 @@ pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Them
                     match chosen {
                         Some(Group::Locations) => intents.extend(qnc_locations_view::show(ui, &pen, theme, texts, session, true)),
                         Some(Group::IngestOrchestrator) => qnc_ingest_orchestrator_view::show(ui, root, &pen),
-                        Some(Group::Ai) => qnc_ai_settings_view::show(ui, root, &pen),
+                        Some(Group::Ai) => qnc_ai_settings_view::panel(ui, root, &pen),
                         Some(Group::CardReaders) => qnc_card_readers_view::show(ui, root, &pen),
                         Some(Group::Tray) => qnc_tray_settings_view::show(ui, root, &pen),
-                        Some(Group::Export) => qnc_export_templates_view::show(ui, root, &pen),
+                        Some(Group::Export) => qnc_export_templates_view::panel(ui, root, &pen),
                         Some(Group::User) => qnc_user_settings_view::show(ui, root, &pen, &caller.user),
                         Some(Group::Templates) => intents.extend((caller.templates)(ui, session)),
                         None => {}
@@ -219,11 +244,13 @@ mod tests {
     #[test]
     fn the_board_has_the_tabs_of_the_layout_and_a_group_only_under_its_own_tab() {
         let tabs = tabs().unwrap();
-        assert_eq!(tabs.iter().map(|(tab, _)| *tab).collect::<Vec<_>>(), vec![Tab::General, Tab::User, Tab::Project]);
+        assert_eq!(tabs.iter().map(|(tab, _)| *tab).collect::<Vec<_>>(), vec![Tab::General, Tab::User, Tab::Project, Tab::Ai, Tab::Export]);
         assert_eq!(tabs[0].1.first(), Some(&Group::Locations));
-        assert!(tabs[0].1.contains(&Group::CardReaders) && tabs[0].1.contains(&Group::Export));
+        assert!(tabs[0].1.contains(&Group::CardReaders) && !tabs[0].1.contains(&Group::Ai) && !tabs[0].1.contains(&Group::Export));
         assert_eq!(tabs[1].1, vec![Group::User]);
         assert_eq!(tabs[2].1, vec![Group::Templates]);
+        assert_eq!((tabs[3].1.as_slice(), tabs[4].1.as_slice()), (&[Group::Ai][..], &[Group::Export][..]));
+        assert!(tabs_of(r#"{"tabs":[{"tab":"general","groups":["ai"]}]}"#).is_err(), "AI is a tab of its own");
         assert!(tabs_of(r#"{"tabs":[{"tab":"general","groups":["templates"]}]}"#).is_err(), "the templates are not a setting of the computer");
         assert!(tabs_of(r#"{"tabs":[{"tab":"user","groups":["ai"]}]}"#).is_err(), "the AI of the computer is not the user's");
         assert!(tabs_of(r#"{"tabs":[{"tab":"general","groups":["nothing"]}]}"#).is_err());

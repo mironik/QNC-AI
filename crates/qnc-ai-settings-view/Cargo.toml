@@ -2,7 +2,7 @@
 name = "qnc-ai-settings-view"
 version.workspace = true
 edition.workspace = true
-description = "QNC-AI settings block with its own window: only the window and what goes where; every AI settings group (templates, engines, server and LLM, shared folder, shot labels) is a block of its own"
+description = "QNC-AI Settings, tab AI: its menu (AI templates; engines, server and LLM, the shared AI folder, shot labels) and the group chosen, each a block of its own"
 
 [dependencies]
 eframe = { workspace = true }
@@ -11,6 +11,5 @@ qnc-ai-server-view = { workspace = true }
 qnc-ai-share-view = { workspace = true }
 qnc-ai-templates-view = { workspace = true }
 qnc-settings-block = { workspace = true }
-qnc-settings-window = { workspace = true }
 qnc-shot-labels-view = { workspace = true }
 qnc-wizard-text = { workspace = true }
