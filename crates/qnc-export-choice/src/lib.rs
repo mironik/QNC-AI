@@ -18,6 +18,9 @@ pub const PROJECT_SETTINGS: &str = "project";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Xml,
+    /// The cue sheet of the gallery (user 2026-11-24): written from the finished story, nothing
+    /// rendered.
+    Cue,
     /// The story's prerender put together, in the project's delivery format.
     Express,
     /// Rendered from the originals in the format of the originals.
@@ -146,6 +149,7 @@ impl ExportChoice {
         let mut options = vec![
             top(Kind::Xml, "xml", qnc_ui_text::text("export.to_xml").into(), true),
             top(Kind::Express, "express", qnc_ui_text::fill("export.express", &[("format", &prerender_format(export))]), express_made(export, story_fps, outputs)),
+            top(Kind::Cue, "cue", qnc_ui_text::text("export.cue_sheet").into(), story_fps.is_some()),
             ExportOption {
                 kind: Kind::Original,
                 id: "original".into(),
@@ -242,7 +246,7 @@ pub fn delivery_values(id: &str, export: &Value, story: StoryFormat) -> Result<V
     let mut values = export.clone();
     let object = values.as_object_mut().ok_or("The project has no export settings.")?;
     match id {
-        "xml" | "express" => return Err(format!("'{id}' renders no delivery")),
+        "xml" | "express" | "cue" => return Err(format!("'{id}' renders no delivery")),
         PROJECT_SETTINGS => {}
         "original" => {
             let rate = if story.fps.fract().abs() < 1e-6 { format!("{}", story.fps as u32) } else { format!("{:.2}", story.fps) };
@@ -297,11 +301,11 @@ mod tests {
     #[test]
     fn xml_express_original_then_the_default_chosen_then_the_others() {
         let choice = ExportChoice::from_settings(&serde_json::json!({ "preset": "xdcam_hd422_50i", "format": "HD 1080p50", "video_codec": "h264" }), Some(50.0), None);
-        let kinds: Vec<Kind> = choice.options.iter().take(4).map(|option| option.kind).collect();
-        assert_eq!(kinds, [Kind::Xml, Kind::Express, Kind::Original, Kind::Setting]);
+        let kinds: Vec<Kind> = choice.options.iter().take(5).map(|option| option.kind).collect();
+        assert_eq!(kinds, [Kind::Xml, Kind::Express, Kind::Cue, Kind::Original, Kind::Setting]);
         assert!(choice.options[1].label.contains("HD 1080p50 4:2:0"), "{}", choice.options[1].label);
-        assert_eq!((choice.options[3].id.as_str(), choice.options[3].default), ("xdcam_hd422_50i", true));
-        assert_eq!(choice.chosen, 3);
+        assert_eq!((choice.options[4].id.as_str(), choice.options[4].default), ("xdcam_hd422_50i", true));
+        assert_eq!(choice.chosen, 4);
         assert_eq!(choice.options.iter().filter(|option| option.default).count(), 1);
         assert!(choice.options.iter().any(|option| option.id == "h264_1080p50"), "every preset is offered");
     }
@@ -324,7 +328,7 @@ mod tests {
     fn values_of_no_preset_are_offered_as_the_project_settings() {
         let mut choice = ExportChoice::from_settings(&serde_json::json!({ "preset": "manual", "format": "HD 1080i50", "video_codec": "mpeg2_422_50mbit", "fps": 25.0, "field_order": "upper_first" }), Some(50.0), None);
         assert!(choice.options[1].label.contains("4:2:2"));
-        assert_eq!((choice.options[3].id.as_str(), choice.options[3].default), (PROJECT_SETTINGS, true));
+        assert_eq!((choice.options[4].id.as_str(), choice.options[4].default), (PROJECT_SETTINGS, true));
         for _ in 0..5 {
             choice.step(true);
         }
@@ -337,7 +341,7 @@ mod tests {
         let mut choice = ExportChoice::from_settings(&serde_json::json!({ "preset": "h264_1080p50", "video_codec": "h264", "fps": 50.0, "field_order": "progressive" }), Some(50.0), None);
         assert_eq!(choice.tab, Standard::Pal);
         let shown: Vec<&str> = choice.shown().into_iter().map(|index| choice.options[index].id.as_str()).collect();
-        assert_eq!(&shown[..3], ["xml", "express", "original"]);
+        assert_eq!(&shown[..4], ["xml", "express", "cue", "original"]);
         assert!(!shown.contains(&"h264_1080p30"), "NTSC is in the other tab");
         let option = |choice: &ExportChoice, id: &str| choice.options.iter().find(|option| option.id == id).unwrap().clone();
         assert!(option(&choice, "xdcam_hd422_50i").available, "50p gives 50i");

@@ -28,6 +28,7 @@ fn stored(id: &str, kind: &str, range: (u64, u64)) -> ProgramSegment {
         level_keys: Vec::new(),
         text_marks: Vec::new(),
         parts: Vec::new(),
+        origin: String::new(),
     }
 }
 

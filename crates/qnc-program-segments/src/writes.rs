@@ -17,7 +17,9 @@ impl ProgramSegments {
                 out_frame: segment.out_frame,
                 a1: (segment.a1_source_channel, segment.a1_level_db, segment.a1_off),
                 a2: (segment.a2_source_channel, segment.a2_level_db, segment.a2_off),
-                origin: format!("draft:{}", segment.segment_id),
+                // The script block it was made of goes on with it (user 2026-11-24: the cue sheet of the
+                // gallery finds the block of a segment of the Story); else the draft segment.
+                origin: if segment.origin.starts_with("script:") { segment.origin.clone() } else { format!("draft:{}", segment.segment_id) },
                 marks: segment.text_marks.clone(),
                 parts: segment.parts.clone(),
                 // An empty place (an OFF not read yet: an Off of its holder clip with A1 off from

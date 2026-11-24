@@ -4674,6 +4674,17 @@ name = "qnc-ctc-align"
 version = "0.1.0"
 
 [[package]]
+name = "qnc-cue-sheet"
+version = "0.1.0"
+dependencies = [
+ "qnc-program-db",
+ "qnc-script-db",
+ "qnc-script-profile",
+ "qnc-ui-text",
+ "qnc-virtual-shots",
+]
+
+[[package]]
 name = "qnc-db-broker"
 version = "0.1.0"
 dependencies = [
@@ -4971,6 +4982,7 @@ version = "0.1.0"
 dependencies = [
  "qnc-broadcast-engine",
  "qnc-content-store",
+ "qnc-cue-sheet",
  "qnc-db-broker",
  "qnc-decoder-catalog",
  "qnc-dev-diagnostics",
@@ -4979,11 +4991,13 @@ dependencies = [
  "qnc-fcp7-xml",
  "qnc-media-metadata",
  "qnc-media-stream",
+ "qnc-newsroom-sheet-db",
  "qnc-playback-activity",
  "qnc-player-clip-content",
  "qnc-player-input",
  "qnc-prerender-db",
  "qnc-prerender-launch",
+ "qnc-program-db",
  "qnc-program-input",
  "qnc-program-render",
  "qnc-script-db",
@@ -4991,6 +5005,7 @@ dependencies = [
  "qnc-source-bindings",
  "qnc-ui-text",
  "qnc-unit-join",
+ "qnc-virtual-shots",
  "qnc-voice-catalog",
  "qnc-voice-take",
  "qnc-work-settings",

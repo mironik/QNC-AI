@@ -1,0 +1,12 @@
+[package]
+name = "qnc-cue-sheet"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public module: the cue sheet of the gallery (user 2026-11-24, 'tehnicka najava priloga za reziju'): written when the story is finished, from the Story's real times, the script's blocks it was made of and the story's header - the header with the real length, format and sound channels, the anchor's lead, the IN and OUT cues, the list of graphics (CG) with their real in and out, the run of the story with times, key words and notes; it reads and writes nothing"
+
+[dependencies]
+qnc-program-db = { workspace = true }
+qnc-script-db = { workspace = true }
+qnc-script-profile = { workspace = true }
+qnc-virtual-shots = { workspace = true }
+qnc-ui-text = { workspace = true }

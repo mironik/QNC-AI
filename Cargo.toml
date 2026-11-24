@@ -53,6 +53,7 @@ qnc-base-admin = { path = "crates/qnc-base-admin" }
 qnc-base-admin-view = { path = "crates/qnc-base-admin-view" }
 qnc-story-overlay = { path = "crates/qnc-story-overlay" }
 qnc-story-header = { path = "crates/qnc-story-header" }
+qnc-cue-sheet = { path = "crates/qnc-cue-sheet" }
 qnc-ai-features-view = { path = "crates/qnc-ai-features-view" }
 qnc-ai-place = { path = "crates/qnc-ai-place" }
 qnc-ai-store = { path = "crates/qnc-ai-store" }

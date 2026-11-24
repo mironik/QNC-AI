@@ -122,6 +122,7 @@ impl ProgramSegments {
                 // one goes on. Original and the settings are rendered from the originals.
                 let _ = match picked.kind {
                     qnc_export_choice::Kind::Xml => self.export_run.start(&["--xml"]),
+                    qnc_export_choice::Kind::Cue => self.export_run.start(&["--cue"]),
                     qnc_export_choice::Kind::Express => self.export_run.start(&["--express"]),
                     qnc_export_choice::Kind::Original | qnc_export_choice::Kind::Setting => self.export_run.start(&["--render", &picked.id]),
                 };

@@ -80,11 +80,25 @@ impl Store {
                     level_keys: LevelKey::from_column(&row.get::<_, String>(23)?),
                     text_marks: serde_json::from_str(&row.get::<_, String>(24)?).unwrap_or_default(),
                     parts: serde_json::from_str(&row.get::<_, String>(25)?).unwrap_or_default(),
+                    origin: String::new(),
                 })
             })
             .map_err(err)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(err)?;
+        // Where each came from, read from the table (the view of a story made before it has no
+        // origin); a story without the column reads none.
+        let mut rows = rows;
+        if let Ok(mut statement) = self.conn.prepare("SELECT item_id, origin FROM story_items WHERE role = 'segment'") {
+            let origins: std::collections::HashMap<String, String> = statement
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+                .map_err(err)?
+                .filter_map(|row| row.ok())
+                .collect();
+            for segment in &mut rows {
+                segment.origin = origins.get(&segment.segment_id).cloned().unwrap_or_default();
+            }
+        }
         Ok(Data::Segments(rows))
     }
 

@@ -30,6 +30,7 @@ fn part(id: &str, kind: &str, clip: &str, range: (u64, u64), active: bool) -> Pr
         level_keys: Vec::new(),
         text_marks: Vec::new(),
         parts: Vec::new(),
+        origin: String::new(),
     }
 }
 

@@ -1,0 +1,35 @@
+{
+  "module_id": "qnc.module.cue-sheet",
+  "module_name": "Cue sheet",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "story.cue_sheet"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "stateless",
+  "database_write_policy": "no_db_writes",
+  "runtime_crate": "qnc-story.cue_sheet",
+  "input": "The finished Story (its segments, rate and origins), the script blocks it was made of, the statements, the header of the story and the picture of the project.",
+  "output": "The cue sheet of the gallery as an HTML page; nothing is read or written by the module.",
+  "specification": "AGENTS.md 2026-11-24 (user: the cue sheet is sent to the gallery when the story is finished, with the real timecodes and lengths)."
+}

@@ -76,6 +76,10 @@ pub struct ProgramSegment {
     /// segment of one clip. With parts, IN and OUT are a window on the statement's own axis.
     #[serde(default)]
     pub parts: Vec<crate::CompoundPart>,
+    /// Where it came from (`script:<block>:<part>`, `draft:<segment>`; user 2026-11-24: the cue
+    /// sheet of the gallery finds the block of the script a segment of the story was made of).
+    #[serde(default)]
+    pub origin: String,
 }
 
 /// One point of a level curve (docs/98 2.1): a frame of the item's clip (source frames, so

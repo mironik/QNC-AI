@@ -50,13 +50,13 @@ fn run() -> Result<PathBuf> {
     let (mut root, mut what) = (std::env::var_os("QNC_ROOT").map(PathBuf::from), None);
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--xml" | "--express" | "--draft" => what = Some(arg),
+            "--xml" | "--express" | "--draft" | "--cue" => what = Some(arg),
             "--render" => what = Some(format!("--render={}", args.next().ok_or("--render needs an export setting")?)),
             "--root" => root = Some(PathBuf::from(args.next().ok_or("--root needs a value")?)),
             other => return Err(format!("unknown argument {other}")),
         }
     }
-    let what = what.ok_or("--xml, --draft, --express or --render <id>")?;
+    let what = what.ok_or("--xml, --draft, --cue, --express or --render <id>")?;
     // Only the root it is given (audit 2026-10-25: found beside the executable, a test that
     // started it wrote into the real active project).
     let root = root.ok_or("QNC root missing (--root or QNC_ROOT)")?;
@@ -66,6 +66,10 @@ fn run() -> Result<PathBuf> {
     let folder = settings.export_folder(&project_dir).map_err(|e| e.message)?;
 
     let target = qnc_db_broker::ProjectDbTarget::for_project(&reader, &settings)?;
+    // The cue sheet of the gallery (user 2026-11-24): from the finished Story, nothing rendered.
+    if what == "--cue" {
+        return cue_sheet(&settings, &target, &folder);
+    }
     let inputs = InputReader::with_content_reader(reader.clone(), Arc::new(PlayerClipContent { target: ContentTarget::for_project(&reader, &settings) }));
     // Every cover's A2 on its own within the project's loudness rule (user 2026-10-24).
     let loudness = settings.audio_loudness().map_err(|e| e.to_string())?;
@@ -340,3 +344,30 @@ fn local_path(roots: &[(String, PathBuf)], uri: &str) -> Result<PathBuf> {
     path.canonicalize().map_err(|e| format!("{}: {e}", path.display()))
 }
 
+
+/// The cue sheet of the gallery (user 2026-11-24): the Story's real times, the script's blocks
+/// it was made of, the statements and the header of the story, written to the export folder.
+fn cue_sheet(settings: &qnc_work_settings::WorkSettings, target: &qnc_db_broker::ProjectDbTarget, folder: &std::path::Path) -> Result<PathBuf> {
+    let snapshot = qnc_program_db::StoryReader::open(target)?.program_snapshot()?;
+    let blocks = qnc_script_db::read(target)?;
+    let profile = qnc_script_db::read_profile(target)?;
+    let statements = qnc_virtual_shots::list_shorts(target).unwrap_or_default();
+    let sheet = qnc_newsroom_sheet_db::read(target).unwrap_or_default();
+    let header_values = sheet.values.iter().map(|(code, value)| (code.clone(), value.as_str().map_or_else(|| value.to_string(), str::to_string))).collect();
+    let picture = settings.video_picture().ok().map(|(width, height, fps)| (width, height, fps, settings.video_fields().ok().flatten()));
+    let facts = qnc_cue_sheet::Facts {
+        title: &settings.project_name,
+        header: sheet.shown(),
+        header_values,
+        segments: &snapshot.segments,
+        story_fps: snapshot.story_fps.ok_or_else(|| qnc_ui_text::text("cue.no_story").to_string())?,
+        blocks: &blocks,
+        profile: profile.as_ref(),
+        statements: &statements,
+        words_per_second: settings.reading_words_per_second().unwrap_or(0.0),
+        picture,
+    };
+    let file = folder.join(format!("{}_{}_cue.html", qnc_work_settings::export_file_name(&settings.project_name), snapshot.revision));
+    std::fs::write(&file, qnc_cue_sheet::cue_html(&facts)).map_err(|e| format!("{}: {e}", file.display()))?;
+    Ok(file)
+}
