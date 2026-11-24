@@ -1,0 +1,11 @@
+[package]
+name = "qnc-incoming-watch"
+version.workspace = true
+edition.workspace = true
+description = "QNC Wizard: the tray's look at Incoming (user 2026-11-24: automatic ingest): what arrived in its folder, on this computer or a server, once it no longer changes; it only reads the folder"
+
+[dependencies]
+qnc-incoming = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

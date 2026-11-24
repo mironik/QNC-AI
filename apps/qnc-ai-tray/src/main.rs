@@ -159,6 +159,8 @@ fn main() {
     let mut looked: Option<Instant> = None;
     // The question where a folder goes, and the base it would go into besides a new one.
     let mut folder_asked: Option<(std::sync::mpsc::Receiver<qnc_tray::Answer>, String)> = None;
+    // Incoming with automatic ingest: what arrived, once it stopped changing, is ingested (user 2026-11-24).
+    let mut incoming = qnc_incoming_watch::IncomingWatch::new();
     loop {
         let running = ingest.running();
         let active = ingest.work();
@@ -338,7 +340,7 @@ fn main() {
                                 Ok(Some(known)) if known.new.is_empty() && known.unfinished > 0 => {
                                     log(format!("card serial={} known base={} unfinished={}: goes on in that base", volume.serial_number, known.base.label(), known.unfinished));
                                     tray.notify(&text("tray.title"), &fill("tray.card_goes_on", &[("card", &card), ("camera", &camera), ("base", &known.base.shown()), ("count", &known.unfinished.to_string())]));
-                                    open_window(&tray, &root, &mut ingest, known.base, Some(&volume.serial_number), false, true);
+                                    open_window(&tray, &root, &mut ingest, known.base, Some(&volume.serial_number), false, true, None);
                                     continue;
                                 }
                                 Ok(Some(known)) if known.new.is_empty() => {
@@ -353,7 +355,7 @@ fn main() {
                             match orchestrator.card_base(&root, &camera) {
                                 Ok(base) => {
                                     tray.notify(&text("tray.title"), &fill("tray.card_ingest", &[("card", &card), ("camera", &camera), ("base", base.label())]));
-                                    open_window(&tray, &root, &mut ingest, base, Some(&volume.serial_number), false, false);
+                                    open_window(&tray, &root, &mut ingest, base, Some(&volume.serial_number), false, false, None);
                                 }
                                 Err(error) => fail(&tray, error),
                             }
@@ -384,6 +386,15 @@ fn main() {
                 }
             }
         }
+        match incoming.look(&root) {
+            Some(Ok(uri)) => {
+                if !open_incoming(&tray, &root, &mut ingest, &uri) {
+                    incoming.again();
+                }
+            }
+            Some(Err(error)) => log(format!("incoming: {error}")),
+            None => {}
+        }
         std::thread::sleep(Duration::from_millis(150));
     }
 }
@@ -392,8 +403,33 @@ fn main() {
 fn open_folder(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, into: Option<&str>) {
     let Some(orchestrator) = orchestrator(tray, root) else { return };
     match orchestrator.folder_base(root, &text("tray.folder_base"), into) {
-        Ok(base) => open_window(tray, root, ingest, base, None, true, false),
+        Ok(base) => open_window(tray, root, ingest, base, None, true, false, None),
         Err(error) => fail(tray, error),
+    }
+}
+
+/// Incoming ingested as a folder into its own base (one base for Incoming, named by it, its clips
+/// kept and the new ones added on every ingest), with a window as a folder's; false when it could not
+/// start now (its window still works: the next look takes it again).
+fn open_incoming(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, uri: &str) -> bool {
+    let name = text("tray.incoming_base");
+    let known = qnc_ingest_base::all(root).ok().and_then(|bases| bases.into_iter().find(|base| base.name.starts_with(&format!("{} {name} ", qnc_ingest_base::NAME_PREFIX))));
+    if known.as_ref().is_some_and(|base| ingest.runs_base(&base.id)) {
+        return false;
+    }
+    // Without an orchestrator, or a base that cannot be made, it is said once and not tried again
+    // until Incoming changes.
+    let Some(orchestrator) = orchestrator(tray, root) else { return true };
+    match orchestrator.folder_base(root, &name, known.as_ref().map(|base| base.id.as_str())) {
+        Ok(base) => {
+            log(format!("incoming {uri} into base {}", base.id));
+            open_window(tray, root, ingest, base, None, false, false, Some(uri));
+            true
+        }
+        Err(error) => {
+            fail(tray, error);
+            true
+        }
     }
 }
 
@@ -460,7 +496,7 @@ impl Windows {
 /// The ingest window of a base (beside this program), pinned to the base the orchestrator gave
 /// (`QNC_WORK_PROJECT`); with `folder` it first shows Ingest's browser. `card`: the one card it
 /// ingests. Its helper programs share one hidden console.
-fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: qnc_ingest_base::IngestBase, card: Option<&str>, folder: bool, goes_on: bool) {
+fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: qnc_ingest_base::IngestBase, card: Option<&str>, folder: bool, goes_on: bool, folder_uri: Option<&str>) {
     log(format!("ingest base {} {} card={card:?} folder={folder}", base.name, base.uri));
     if ingest.runs_base(&base.id) {
         return;
@@ -473,6 +509,10 @@ fn open_window(tray: &Tray, root: &std::path::Path, ingest: &mut Windows, base: 
     command.current_dir(root).env("QNC_ROOT", root).env(qnc_work_settings::PINNED_PROJECT_ENV, &base.id);
     if folder {
         command.arg("--folder");
+    }
+    // A folder given (Incoming): Selected without being picked.
+    if let Some(uri) = folder_uri {
+        command.arg("--folder-uri").arg(uri);
     }
     if goes_on {
         command.arg("--goes-on");

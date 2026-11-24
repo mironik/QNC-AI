@@ -1,0 +1,35 @@
+{
+  "module_id": "qnc.module.incoming-watch",
+  "module_name": "Incoming watch",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "incoming.watch"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "runtime_crate": "qnc-incoming-watch",
+  "input": "Incoming of this computer (qnc-incoming) and its folder, only read: names, sizes and last writes.",
+  "output": "Incoming's source when automatic ingest is set and what arrived stopped changing (the tray then ingests it as a folder); a look runs on its own thread.",
+  "specification": "AGENTS.md 2026-11-24 (user: automatic or manual ingest of Incoming)."
+}

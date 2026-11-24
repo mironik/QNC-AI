@@ -125,6 +125,7 @@
     "settings_group.ai": "AI",
     "settings_group.card_readers": "Card readers",
     "settings_group.incoming": "Incoming",
+    "tray.incoming_base": "Incoming",
     "incoming.title": "Incoming",
     "incoming.hint": "Where clips sent over FTP or Filemail arrive: a source like a card, nothing is written into it.",
     "incoming.place": "Where",

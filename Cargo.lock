@@ -4006,6 +4006,7 @@ dependencies = [
  "qnc-camera-profiles",
  "qnc-card-watch",
  "qnc-dev-diagnostics",
+ "qnc-incoming-watch",
  "qnc-ingest-base",
  "qnc-ingest-orchestrator",
  "qnc-process-job",
@@ -5314,6 +5315,14 @@ dependencies = [
  "qnc-incoming",
  "qnc-settings-block",
  "qnc-wizard-text",
+]
+
+[[package]]
+name = "qnc-incoming-watch"
+version = "0.1.0"
+dependencies = [
+ "qnc-incoming",
+ "tempfile",
 ]
 
 [[package]]

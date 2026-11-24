@@ -125,6 +125,7 @@
     "settings_group.ai": "AI",
     "settings_group.card_readers": "Čitači kartica",
     "settings_group.incoming": "Incoming",
+    "tray.incoming_base": "Incoming",
     "incoming.title": "Incoming",
     "incoming.hint": "Gdje stižu klipovi poslani preko FTP-a ili Filemaila: izvor kao kartica, u njega se ništa ne piše.",
     "incoming.place": "Gdje",
