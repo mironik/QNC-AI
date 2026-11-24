@@ -3,7 +3,7 @@
 //! sections as the Project layout contract names them, drawn with the settings style block.
 
 use eframe::egui::{self, RichText, Sense};
-use qnc_settings_path::{path_string, set_string_path};
+use qnc_settings_path::path_string;
 use serde_json::Value;
 
 use qnc_project_texts::{AdvancedSection, AdvancedSettings};
@@ -22,10 +22,6 @@ pub struct AdvancedDraft<'a> {
     pub draft_settings: &'a mut Value,
     pub export_preset_draft_name: &'a mut String,
     pub applications: &'a qnc_application_selection::ApplicationSelectionView,
-    /// The keyboard presets of the catalog (id, name) and the one used when the project
-    /// chooses none: a choice of the project, not of its template (user 2026-10-09).
-    pub keyboard_presets: &'a [(String, String)],
-    pub keyboard_default: &'a str,
 }
 
 /// The Advanced bar: opens and closes everything technical of the panel (user 2026-10-27:
@@ -52,8 +48,8 @@ pub fn header(ui: &mut egui::Ui, content_w: f32, advanced: &AdvancedSettings, t:
 /// The Advanced settings: its sections come from the layout contract, and everything in them is
 /// drawn by the settings style block (`qnc_settings_block::Pen`, user 2026-11-23: "prebaci i
 /// napredne postavke projekta na kocku"): each section a section of the Settings form, each field a
-/// row; this board only composes the blocks that are more than fields (keyboard preset, export
-/// preset, interface language, workflow applications).
+/// row; this board only composes the blocks that are more than fields (export preset, workflow
+/// applications). The interface language and the keyboard preset are the user's (Settings, User).
 pub fn show(
     ui: &mut egui::Ui,
     content_w: f32,
@@ -85,14 +81,6 @@ fn section_body(
 ) -> bool {
     let mut changed = false;
     match section.block.as_deref() {
-        Some("keyboard_preset") => {
-            let path = "keyboard_shortcuts.active_preset";
-            let current = path_string(draft.draft_settings, path, draft.keyboard_default);
-            if let Some(chosen) = pen.choice(ui, &section.label, "pts_kbd_preset", &current, draft.keyboard_presets) {
-                set_string_path(draft.draft_settings, path, chosen);
-                changed = true;
-            }
-        }
         Some("export_preset") => {
             let mut presets: Vec<_> = qnc_export_preset::presets(draft.draft_settings).into_iter().map(|preset| (preset.id, preset.name)).collect();
             presets.push((qnc_export_preset::MANUAL_PRESET_ID.to_string(), advanced.texts.manual_preset.clone()));
@@ -101,7 +89,6 @@ fn section_body(
             changed |= qnc_export_preset::apply_preset(draft.draft_settings, &selected);
         }
         Some("applications") => applications(ui, advanced, shell, draft, application_action),
-        Some(qnc_language_choice::SECTION) => language(ui, pen, &section.label),
         _ => {}
     }
     changed |= pen.fields(ui, draft.draft_settings, &section.fields, &advanced.options);
@@ -125,23 +112,6 @@ fn section_body(
         }
     }
     changed
-}
-
-/// The interface language of this computer (the languages QNC has dictionaries for, written to
-/// this computer's setting by `qnc-ui-text`, as the shared block `qnc-language-choice` does), in a
-/// row of the style block; while it is not the language QNC runs in, a note that it applies on restart.
-fn language(ui: &mut egui::Ui, pen: &Pen, label: &str) {
-    let Some(root) = qnc_dev_diagnostics::locate_qnc_root() else { return };
-    let chosen = qnc_ui_text::chosen_language(&root);
-    if let Some(language) = pen.choice(ui, label, "qnc_ui_language", &chosen, &qnc_ui_text::languages()) {
-        if let Err(error) = qnc_ui_text::choose_language(&root, &language) {
-            pen.said(ui, &Some(Err(error)));
-        }
-    }
-    let running = qnc_ui_text::host().map(|texts| texts.language.clone()).unwrap_or_default();
-    if qnc_ui_text::chosen_language(&root) != running {
-        pen.hint(ui, qnc_ui_text::text("project.language_after_restart"));
-    }
 }
 
 fn applications(

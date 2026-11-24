@@ -5847,16 +5847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qnc-language-choice"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "qnc-dev-diagnostics",
- "qnc-settings-form",
- "qnc-ui-text",
-]
-
-[[package]]
 name = "qnc-letter-align"
 version = "0.1.0"
 dependencies = [
@@ -6935,15 +6925,12 @@ dependencies = [
  "eframe",
  "qnc-application-selection",
  "qnc-desktop-theme",
- "qnc-dev-diagnostics",
  "qnc-export-preset",
- "qnc-language-choice",
  "qnc-project-texts",
  "qnc-settings-block",
  "qnc-settings-path",
  "qnc-settings-rows",
  "qnc-ui-kit",
- "qnc-ui-text",
  "serde_json",
 ]
 
@@ -6975,7 +6962,6 @@ dependencies = [
  "qnc-form-look",
  "qnc-keyboard-shortcut",
  "qnc-location-field",
- "qnc-locations-view",
  "qnc-newsroom-sheet",
  "qnc-project-advanced-view",
  "qnc-project-application",

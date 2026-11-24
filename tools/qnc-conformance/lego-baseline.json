@@ -22,7 +22,7 @@
     "C13 media folder literal|qnc-project-store": 2,
     "C2 form colour outside contract|crates/qnc-project-blocks/src/theme.rs": 1,
     "C2 form private widget|crates/qnc-project-blocks/src/settings.rs": 1,
-    "C2 form user text outside contract|crates/qnc-project-blocks/src/settings.rs": 7,
+    "C2 form user text outside contract|crates/qnc-project-blocks/src/settings.rs": 6,
     "C4 form owns a loop or key table|crates/qnc-editorial-desktop/src/app.rs": 1,
     "C4 form owns a loop or key table|crates/qnc-ingest-desktop/src/app.rs": 1,
     "C4 form owns a loop or key table|crates/qnc-project-blocks/src/lib.rs": 1,

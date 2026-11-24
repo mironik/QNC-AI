@@ -16,7 +16,6 @@ qnc-settings-rows = { workspace = true }
 qnc-settings-block = { workspace = true }
 qnc-project-texts = { workspace = true }
 qnc-project-templates-view = { workspace = true }
-qnc-locations-view = { workspace = true }
 qnc-project-advanced-view = { workspace = true }
 qnc-desktop-theme = { workspace = true }
 qnc-keyboard-shortcut = { workspace = true }

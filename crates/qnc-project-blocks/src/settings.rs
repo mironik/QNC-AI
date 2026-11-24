@@ -141,18 +141,15 @@ impl Blocks<'_> {
         });
     }
 
-    /// The location fields: projects, the global Ingest bases (QNC-AI, apart from the projects'),
-    /// export.
-    fn locations(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics) {
-        let theme = &self.contracts.theme;
-        let pen = qnc_settings_block::Pen::new(settings, theme, width);
-        let intents = qnc_locations_view::show(ui, &pen, theme, &self.contracts.project.texts, self.session, self.settings_only);
-        self.intents.extend(intents);
-    }
-
-    /// The template picker, then the Advanced bar; the slots of the scroll show only while it is open.
+    /// The template picker; in the Settings form (its Project tab) then the Advanced bar, and the
+    /// slots of the scroll only while it is open. The Project form shows only the picker and New
+    /// project (user 2026-11-24: "postavke su postavke, ne moze biti vise postavki"): a template's
+    /// settings, the locations and the user's settings are changed only in Settings.
     pub(crate) fn templates(&mut self, ui: &mut egui::Ui, width: f32, settings: &SettingsPanelMetrics) {
         self.pts_fixed(ui, width, settings);
+        if !self.settings_only {
+            return;
+        }
         qnc_project_advanced_view::header(ui, width, &self.contracts.project.advanced_settings, &self.contracts.theme, &mut self.session.advanced_open);
         let slots = if self.session.advanced_open { self.contracts.project.pts_slots.scroll_order.clone() } else { Vec::new() };
         let theme = self.contracts.theme.clone();
@@ -161,7 +158,6 @@ impl Blocks<'_> {
             let texts = &self.contracts.project.texts;
             match slot.as_str() {
                 "AiSettings" => self.ai_settings(ui, width, settings),
-                "Locations" if !self.settings_only => self.locations(ui, width, settings),
                 "TemplateActions" => self.intents.extend(qnc_project_templates_view::actions(ui, &pen, texts, self.session)),
                 "AdvancedSections" => self.advanced(ui, width, settings),
                 "CustomTemplate" if self.session.template_create_open => self.intents.extend(qnc_project_templates_view::own(ui, &pen, texts, self.session)),
@@ -172,7 +168,6 @@ impl Blocks<'_> {
 
     fn advanced(&mut self, ui: &mut egui::Ui, content_w: f32, settings: &SettingsPanelMetrics) {
         let applications = self.session.component.applications.view();
-        let keyboard_presets = self.contracts.shortcuts.preset_choices(&self.contracts.project.advanced_settings.keyboard_preset_order);
         let mut application_action = None;
         if qnc_project_advanced_view::show(
             ui,
@@ -184,8 +179,6 @@ impl Blocks<'_> {
                 draft_settings: &mut self.session.draft_settings,
                 export_preset_draft_name: &mut self.session.export_preset_draft_name,
                 applications: &applications,
-                keyboard_presets: &keyboard_presets,
-                keyboard_default: &self.contracts.shortcuts.active_preset,
             },
             &mut application_action,
         ) {

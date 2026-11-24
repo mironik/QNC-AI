@@ -158,7 +158,6 @@ qnc-key-preset = { path = "crates/qnc-key-preset" }
 qnc-key-row = { path = "crates/qnc-key-row" }
 qnc-keyboard-shortcut = { path = "crates/qnc-keyboard-shortcut" }
 qnc-lane-choice = { path = "crates/qnc-lane-choice" }
-qnc-language-choice = { path = "crates/qnc-language-choice" }
 qnc-level-bar = { path = "crates/qnc-level-bar" }
 qnc-level-curve = { path = "crates/qnc-level-curve" }
 qnc-level-meter = { path = "crates/qnc-level-meter" }

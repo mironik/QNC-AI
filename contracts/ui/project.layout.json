@@ -81,7 +81,6 @@
     ],
     "scroll_order": [
       "AiSettings",
-      "Locations",
       "TemplateActions",
       "AdvancedSections",
       "CustomTemplate"
@@ -505,16 +504,6 @@
             "options": "transcription_languages"
           }
         ]
-      },
-      {
-        "title": "@project.interface",
-        "block": "ui_language",
-        "label": "@project.interface_language"
-      },
-      {
-        "title": "@project.keyboard",
-        "block": "keyboard_preset",
-        "label": "@project.key_preset"
       },
       {
         "title": "@common.export",
