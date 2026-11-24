@@ -110,20 +110,80 @@ pub fn set_readers_of(root: &Path, readers: &[CardReader]) -> Result<(), String>
 /// named by the serial of its volume (`A815-5186`, the exFAT UUID; the same number this computer
 /// reads when the card is in its own reader), so a card is the same card wherever it is put in.
 /// Each is a volume of this computer read over the network. A reader not reachable now has none.
+///
+/// It never waits for the network (2026-11-24 log: a Jetson that did not answer kept the tray's
+/// menu waiting 64 s, every read of the share waiting for the network's timeout): each reader is
+/// read by a thread of its own, again every [`READ_EVERY`], and this gives what each last found.
+/// A reader asked for the first time is given [`FIRST_WAIT`] to answer.
 pub fn cards(root: &Path) -> Vec<qnc_source_volumes::Volume> {
     let Ok(readers) = readers_of(root) else { return Vec::new() };
+    readers.iter().flat_map(|reader| background::found(reader)).collect()
+}
+
+/// How often a reader on the network is read again.
+pub const READ_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
+/// How long a reader asked for the first time is waited for.
+pub const FIRST_WAIT: std::time::Duration = std::time::Duration::from_millis(300);
+
+/// The cards a reader's folder holds now (the network is waited for).
+fn read_reader(reader: &CardReader) -> Vec<qnc_source_volumes::Volume> {
+    let Ok(entries) = std::fs::read_dir(&reader.path) else { return Vec::new() };
     let mut cards = Vec::new();
-    for reader in readers {
-        let Ok(entries) = std::fs::read_dir(&reader.path) else { continue };
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            let Some(serial) = volume_serial(&name) else { continue };
-            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-                cards.push(qnc_source_volumes::Volume { root: entry.path(), serial_number: serial, volume_name: Some(reader.name.clone()) });
-            }
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let Some(serial) = volume_serial(&name) else { continue };
+        if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            cards.push(qnc_source_volumes::Volume { root: entry.path(), serial_number: serial, volume_name: Some(reader.name.clone()) });
         }
     }
     cards
+}
+
+mod background {
+    use std::collections::BTreeMap;
+    use std::sync::{Arc, Mutex, OnceLock};
+    use std::time::Instant;
+
+    use super::{read_reader, CardReader, FIRST_WAIT, READ_EVERY};
+
+    /// What a reader last found: `None` until its first read is done.
+    type Found = Arc<Mutex<Option<Vec<qnc_source_volumes::Volume>>>>;
+
+    /// The readers being read in this process, by name and path.
+    fn readers() -> &'static Mutex<BTreeMap<(String, std::path::PathBuf), Found>> {
+        static READERS: OnceLock<Mutex<BTreeMap<(String, std::path::PathBuf), Found>>> = OnceLock::new();
+        READERS.get_or_init(Default::default)
+    }
+
+    /// What `reader` last found; its thread is started the first time it is asked for.
+    pub(super) fn found(reader: &CardReader) -> Vec<qnc_source_volumes::Volume> {
+        let key = (reader.name.clone(), reader.path.clone());
+        let (found, new) = {
+            let mut readers = readers().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            match readers.get(&key) {
+                Some(found) => (found.clone(), false),
+                None => {
+                    let found: Found = Arc::default();
+                    readers.insert(key, found.clone());
+                    (found, true)
+                }
+            }
+        };
+        if new {
+            let (shared, reader) = (found.clone(), reader.clone());
+            let _ = std::thread::Builder::new().name("qnc-card-reader".into()).spawn(move || loop {
+                let cards = read_reader(&reader);
+                *shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(cards);
+                std::thread::sleep(READ_EVERY);
+            });
+            let since = Instant::now();
+            while since.elapsed() < FIRST_WAIT && found.lock().map(|found| found.is_none()).unwrap_or(false) {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        let latest = found.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+        latest.unwrap_or_default()
+    }
 }
 
 /// The disks attached to this computer and the cards in its card readers on the network.
@@ -178,5 +238,23 @@ mod tests {
         assert_eq!(readers_of(root.path()).unwrap(), readers);
         set_readers_of(root.path(), &[]).unwrap();
         assert!(readers_of(root.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_cards_of_a_reader_are_read_in_the_background_and_never_wait_for_the_network() {
+        let root = tempfile::tempdir().unwrap();
+        let share = tempfile::tempdir().unwrap();
+        std::fs::create_dir(share.path().join("A815-5186")).unwrap();
+        std::fs::create_dir(share.path().join("not a card")).unwrap();
+        // An address that answers nothing (TEST-NET-1) and a folder that is there.
+        let readers = vec![reader("Away", r"\\192.0.2.1\kartice"), reader("Here", &share.path().to_string_lossy())];
+        set_readers_of(root.path(), &readers).unwrap();
+        let since = std::time::Instant::now();
+        let cards = cards(root.path());
+        assert!(since.elapsed() < FIRST_WAIT * 3, "the network is not waited for: {:?}", since.elapsed());
+        assert_eq!(cards.iter().map(|card| card.serial_number.as_str()).collect::<Vec<_>>(), vec!["a8155186"]);
+        let again = std::time::Instant::now();
+        assert_eq!(super::cards(root.path()).len(), 1);
+        assert!(again.elapsed() < std::time::Duration::from_millis(50), "asked again, nothing is waited for");
     }
 }
