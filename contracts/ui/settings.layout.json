@@ -5,7 +5,7 @@
   "tabs": [
     {
       "tab": "general",
-      "groups": ["locations", "ingest_orchestrator", "card_readers", "tray"]
+      "groups": ["locations", "ai_share", "ingest_orchestrator", "card_readers", "tray"]
     },
     {
       "tab": "user",

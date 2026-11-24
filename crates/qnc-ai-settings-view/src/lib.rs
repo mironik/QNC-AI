@@ -4,7 +4,7 @@
 //! block of its own that keeps its own draft and writes its own file:
 //! - AI templates (`qnc-ai-templates-view`);
 //! - apart under a line: AI engines (`qnc-ai-engines-view`), AI server and LLM
-//!   (`qnc-ai-server-view`), the shared AI folder (`qnc-ai-share-view`), shot labels
+//!   (`qnc-ai-server-view`), shot labels
 //!   (`qnc-shot-labels-view`).
 //!
 //! Everything is drawn by the settings style block (`qnc_settings_block::Pen`).
@@ -15,18 +15,18 @@ use eframe::egui;
 use qnc_settings_block::Pen;
 use qnc_wizard_text::text;
 
-/// The group the right side shows.
+/// The group the right side shows (the shared AI folder is a general setting, user 2026-11-24:
+/// "tome je mjesto u tabu Opcenito"; it is the General tab's).
 #[derive(Clone, Copy, PartialEq)]
 enum Group {
     Templates,
     Engines,
     Server,
-    Share,
     Labels,
 }
 
 /// The groups under the line, in the menu's order, with the text code of each.
-const SETTINGS: [(Group, &str); 4] = [(Group::Engines, "ai_settings.engines"), (Group::Server, "ai_settings.server"), (Group::Share, "ai_settings.share"), (Group::Labels, "ai_settings.labels")];
+const SETTINGS: [(Group, &str); 3] = [(Group::Engines, "ai_settings.engines"), (Group::Server, "ai_settings.server"), (Group::Labels, "ai_settings.labels")];
 
 /// The group chosen, kept by the tab.
 fn chosen(ctx: &egui::Context, root: &Path) -> (egui::Id, Option<Group>) {
@@ -56,7 +56,6 @@ pub fn panel(ui: &mut egui::Ui, root: &Path, pen: &Pen) {
         Some(Group::Templates) => qnc_ai_templates_view::panel(ui, root, pen),
         Some(Group::Engines) => qnc_ai_engines_view::panel(ui, root, pen),
         Some(Group::Server) => pen.section(ui, &text("ai_settings.server"), |ui| qnc_ai_server_view::panel(ui, root, pen)),
-        Some(Group::Share) => qnc_ai_share_view::panel(ui, root, pen),
         Some(Group::Labels) => qnc_shot_labels_view::panel(ui, root, pen),
     }
 }

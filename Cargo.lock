@@ -3949,7 +3949,6 @@ dependencies = [
  "eframe",
  "qnc-ai-engines-view",
  "qnc-ai-server-view",
- "qnc-ai-share-view",
  "qnc-ai-templates-view",
  "qnc-settings-block",
  "qnc-shot-labels-view",
@@ -7444,6 +7443,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "qnc-ai-settings-view",
+ "qnc-ai-share-view",
  "qnc-card-readers-view",
  "qnc-desktop-theme",
  "qnc-export-templates-view",

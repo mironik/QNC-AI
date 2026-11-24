@@ -22,3 +22,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 qnc-user-settings-view = { workspace = true }
 qnc-project-blocks = { workspace = true }
+qnc-ai-share-view = { workspace = true }
