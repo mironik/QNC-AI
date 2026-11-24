@@ -48,6 +48,10 @@ impl Store {
     }
 
     pub(crate) fn execute(&mut self, operation: &Operation) -> Result<Data> {
+        // The script is a project's, never written into an Ingest base (user 2026-11-24).
+        if operation.is_write() && qnc_db_broker::is_ingest_base(&self.conn) {
+            return Err(qnc_db_broker::ingest_base_refusal());
+        }
         match operation {
             Operation::Undo | Operation::Redo if !self.ready => Ok(Data::Blocks(Vec::new())),
             Operation::Undo | Operation::Redo => self.in_one(|store| {

@@ -5,6 +5,7 @@ edition = "2021"
 description = "QNC Wizard block: opens a form of the Wizard (its program beside this one) unless that very program already runs; the tray in Breaking news opens AI Media Assist once a card is copied"
 
 [dependencies]
+qnc-work-settings = { workspace = true }
 qnc-plugin-process = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]

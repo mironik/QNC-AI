@@ -108,6 +108,11 @@ fn takers(store: &ProjectStore) -> Takers {
 }
 
 /// The bases the story `story_id` took, with when (its `story_ingest_bases`), newest first.
+/// The Ingest bases the story `story_id` took (their ids), newest first.
+pub fn bases_of_story(root: &Path, story_id: &str) -> Result<Vec<String>, String> {
+    Ok(story_bases(&ProjectStore::open(root)?, story_id)?.into_iter().map(|(base, _)| base).collect())
+}
+
 fn story_bases(store: &ProjectStore, story_id: &str) -> Result<Vec<(String, String)>, String> {
     let (file, _) = store.project_db_binding(story_id)?;
     let conn = rusqlite::Connection::open_with_flags(&file, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| error.to_string())?;
@@ -339,6 +344,21 @@ pub fn take_for_story(root: &Path, base_id: &str, name: &str, template_id: &str)
     // A sheet already filled names the operator of the bases it took.
     let _ = share_operator(&store, &made.project_id);
     Ok(made.project_id)
+}
+
+/// The project of a story written on the base `base_id` (user 2026-11-24: "u brejking nevs ne pravi
+/// se projekt na pocetku, projekt nastaje kada se otvara forma Script; naziv priloga postaje naziv
+/// projekta"): made with `name` where Settings put the projects, from the selected template, it
+/// takes the base and is the active one from now on. Returns its id and the base's card (the
+/// source Select takes it from, as any card: the clips link to the base).
+pub fn project_of_base(root: &Path, base_id: &str, name: &str) -> Result<(String, String), String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("a story needs its name".into());
+    }
+    let story = take_for_story(root, base_id, name, "")?;
+    let (card, _) = card_of(root, base_id, &[])?;
+    Ok((story, card))
 }
 
 /// The clips of the base `base_id` the user chose for the story `story_id` (Uvezi of the Ingest

@@ -11,4 +11,8 @@ qnc-newsroom-sheet-db = { workspace = true }
 qnc-newsroom-sheet-model = { workspace = true }
 qnc-ui-text = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
+qnc-ingest-base = { workspace = true }
+qnc-ai-open = { workspace = true }
+qnc-work-settings = { workspace = true }
+qnc-active-project-read = { workspace = true }
 serde_json = { workspace = true }

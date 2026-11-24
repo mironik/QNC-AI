@@ -401,7 +401,13 @@ pub(crate) fn run_once(root: &Path) -> Result<bool, String> {
                                 idle.store(false, Relaxed);
                                 qnc_ingest_import_worker::run_import(root, &project, run)
                             }) {
-                                Ok(summary) => summary.imported + summary.failed > 0,
+                                Ok(summary) => {
+                                    // A project made from a base takes the base's statements once their clips are in it.
+                                    if summary.imported > 0 {
+                                        crate::copy_base_statements(root);
+                                    }
+                                    summary.imported + summary.failed > 0
+                                }
                                 Err(error) => {
                                     *failure.lock().expect("failure") = Some(error);
                                     false

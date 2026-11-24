@@ -135,6 +135,7 @@ qnc-ingest-blocks = { path = "crates/qnc-ingest-blocks" }
 qnc-ingest-cameras = { path = "crates/qnc-ingest-cameras" }
 qnc-ingest-catalog = { path = "crates/qnc-ingest-catalog" }
 qnc-base-cards = { path = "crates/qnc-base-cards" }
+qnc-base-statements = { path = "crates/qnc-base-statements" }
 qnc-ingest-clip-list = { path = "crates/qnc-ingest-clip-list" }
 qnc-ingest-desktop = { path = "crates/qnc-ingest-desktop" }
 qnc-ingest-import-bar = { path = "crates/qnc-ingest-import-bar" }

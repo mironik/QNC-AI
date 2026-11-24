@@ -21,7 +21,9 @@ pub fn open(root: &Path, program: &str, args: &[&str]) -> Result<Opened, String>
         return Ok(Opened::Running);
     }
     let mut command = std::process::Command::new(&form);
-    command.current_dir(root).env("QNC_ROOT", root).args(args);
+    // A form follows the active project of the database, never the project its opener was pinned
+    // to (user 2026-11-24: the Wizard's window works in a base; the form it opens must not).
+    command.current_dir(root).env("QNC_ROOT", root).env_remove(qnc_work_settings::PINNED_PROJECT_ENV).args(args);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

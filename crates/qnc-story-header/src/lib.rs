@@ -82,9 +82,14 @@ pub struct StoryHeader {
     draft: BTreeMap<String, Value>,
     open: bool,
     reading: Option<Receiver<Result<(SheetSpec, BTreeMap<String, Value>), String>>>,
-    saving: Option<Receiver<Result<(), String>>>,
+    saving: Option<Receiver<Result<Option<String>, String>>>,
+    /// The project the header made from a base (its database's uri): when it is opened the header is
+    /// not asked again, it was just filled.
+    made: Option<String>,
     message: String,
     view: HeaderView,
+    /// The next read keeps the overlay closed (the project the header made).
+    quiet: bool,
 }
 
 impl std::fmt::Debug for StoryHeader {
@@ -109,7 +114,12 @@ impl StoryHeader {
         let before = self.view.clone();
         let key = target.map(|target| target.uri().to_string());
         if key != self.project {
-            *self = Self { project: key, target: target.cloned(), ..Self::default() };
+            // A keep running is the one making the project from a base: it goes on, and the project
+            // it made opens without the overlay (it was just filled).
+            let (made, saving) = (self.made.take(), self.saving.take());
+            let just_made = saving.is_some() || (made.is_some() && made == key);
+            *self = Self { project: key, target: target.cloned(), made: made.filter(|_| !just_made), saving, ..Self::default() };
+            self.quiet = just_made;
             if let Some(target) = target.cloned() {
                 let (send, receive) = mpsc::channel();
                 if std::thread::Builder::new().name("qnc-story-header-read".into()).spawn(move || _ = send.send(read(&target))).is_ok() {
@@ -123,7 +133,9 @@ impl StoryHeader {
                 Ok((sheet, values)) => {
                     self.sheet = Some(sheet);
                     self.kept = values;
-                    self.begin();
+                    if !std::mem::take(&mut self.quiet) {
+                        self.begin();
+                    }
                 }
                 Err(error) => self.message = error,
             }
@@ -131,7 +143,10 @@ impl StoryHeader {
         if let Some(Ok(saved)) = self.saving.as_ref().map(Receiver::try_recv) {
             self.saving = None;
             match saved {
-                Ok(()) => self.message.clear(),
+                Ok(made) => {
+                    self.message.clear();
+                    self.made = made;
+                }
                 Err(error) => {
                     // Not kept: the overlay opens again with what was typed.
                     self.message = error;
@@ -213,9 +228,11 @@ impl StoryHeader {
         }
         self.kept = values.clone();
         self.open = false;
+        // The name of the story (`slug`) names a project made from a base.
+        let name = values.get(SLUG).and_then(Value::as_str).unwrap_or_default().trim().to_string();
         let story = StorySheet { sheet: serde_json::to_value(&sheet).unwrap_or(Value::Null), values };
         let (send, receive) = mpsc::channel();
-        if std::thread::Builder::new().name("qnc-story-header-save".into()).spawn(move || _ = send.send(qnc_newsroom_sheet_db::save(&target, story))).is_ok() {
+        if std::thread::Builder::new().name("qnc-story-header-save".into()).spawn(move || _ = send.send(keep_story(&target, story, &name))).is_ok() {
             self.saving = Some(receive);
         }
     }
@@ -260,6 +277,39 @@ impl StoryHeader {
             .collect();
         self.view = HeaderView { open: self.open, sheet_name: sheet.name.clone(), fields, shown: kept_fields, message: self.message.clone(), saving: self.saving.is_some() };
     }
+}
+
+/// The field that names the story (Radni naziv).
+const SLUG: &str = "slug";
+
+/// Keeps the header. In the project it is filled in, or, when the active project is an Ingest base
+/// (user 2026-11-24: "projekt nastaje kada se otvara forma Script; naziv priloga postaje naziv
+/// projekta"; the base keeps only what the wizard made), in a project made now with the story's
+/// name: it takes the base, becomes the active one, and the base is Selected into it as a card
+/// (the tray's ingest window, working in the new project). Returns the uri of a project made.
+fn keep_story(target: &ProjectDbTarget, story: StorySheet, name: &str) -> Result<Option<String>, String> {
+    let root = qnc_dev_diagnostics::resolve_qnc_root().ok_or_else(|| qnc_ui_text::text("header.no_sheet").to_string())?;
+    let base = match qnc_ingest_base::active_is_base(&root) {
+        true => qnc_ingest_base::active(&root)?,
+        false => None,
+    };
+    let Some(base) = base else {
+        return qnc_newsroom_sheet_db::save(target, story).map(|_| None);
+    };
+    if name.is_empty() {
+        return Err(qnc_ui_text::text("header.slug_needed").to_string());
+    }
+    let (project, card) = qnc_ingest_base::project_of_base(&root, &base.id, name)?;
+    let reader = qnc_work_settings::SettingsReader::from_root(&root).map_err(|error| error.to_string())?.with_project(&project);
+    let settings = qnc_active_project_read::ActiveProjectReader::from_settings_reader(reader.clone()).read().map_err(|error| error.to_string())?.settings;
+    let made = ProjectDbTarget::for_project(&reader, &settings)?;
+    qnc_newsroom_sheet_db::save(&made, story)?;
+    let line = match qnc_ai_open::open_card_ingest(&root, &project, &card) {
+        Ok(_) => format!("story-header project {project} made from base {} ({card} Selected into it)", base.id),
+        Err(error) => format!("story-header project {project} made from base {}, its Select not started: {error}", base.id),
+    };
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+    Ok(Some(made.uri().to_string()))
 }
 
 /// The sheet of the project and its values; a project without a sheet gets the prepared TV

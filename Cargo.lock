@@ -4237,6 +4237,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-base-statements"
+version = "0.1.0"
+dependencies = [
+ "qnc-active-project-read",
+ "qnc-content-read",
+ "qnc-db-broker",
+ "qnc-ingest-base",
+ "qnc-virtual-shots",
+ "qnc-work-settings",
+]
+
+[[package]]
 name = "qnc-board"
 version = "0.1.0"
 dependencies = [
@@ -5699,6 +5711,7 @@ dependencies = [
  "qnc-ai-catalog",
  "qnc-ai-features",
  "qnc-base-contents",
+ "qnc-base-statements",
  "qnc-content-artifacts",
  "qnc-content-read",
  "qnc-content-store",
@@ -8199,12 +8212,16 @@ dependencies = [
 name = "qnc-story-header"
 version = "0.1.0"
 dependencies = [
+ "qnc-active-project-read",
+ "qnc-ai-open",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-field-spec",
+ "qnc-ingest-base",
  "qnc-newsroom-sheet-db",
  "qnc-newsroom-sheet-model",
  "qnc-ui-text",
+ "qnc-work-settings",
  "serde_json",
 ]
 
@@ -8985,6 +9002,7 @@ name = "qnc-wizard-open"
 version = "0.1.0"
 dependencies = [
  "qnc-plugin-process",
+ "qnc-work-settings",
  "windows-sys 0.59.0",
 ]
 

@@ -96,6 +96,10 @@ impl Store {
         if !operation.is_write() {
             return self.dispatch(operation);
         }
+        // The story is a project's, never written into an Ingest base (user 2026-11-24).
+        if qnc_db_broker::is_ingest_base(&self.conn) {
+            return Err(qnc_db_broker::ingest_base_refusal());
+        }
         // Every write is one transaction (external audit 2026-10-17): an edit, its check and
         // its undo step are written together or not at all, so no other process ever reads
         // a half done or refused edit, and a crash between them leaves nothing behind.

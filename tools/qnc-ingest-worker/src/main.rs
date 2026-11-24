@@ -624,3 +624,21 @@ fn process_times() -> std::collections::HashMap<u32, (String, u64)> {
 fn process_times() -> std::collections::HashMap<u32, (String, u64)> {
     Default::default()
 }
+
+/// The statements of the Ingest bases the project took, copied into it (`qnc-base-statements`);
+/// what it did goes into the log.
+pub(crate) fn copy_base_statements(root: &Path) {
+    let project = match crate::project(root).and_then(|active| active.read().map_err(|error| error.to_string())) {
+        Ok(snapshot) => snapshot.project_id,
+        Err(error) => {
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("base-statements project not read: {error}"));
+            return;
+        }
+    };
+    let line = match qnc_base_statements::copy(root, &project) {
+        Ok(done) if done.copied + done.waiting == 0 => return,
+        Ok(done) => format!("base-statements project={project} copied={} waiting={}", done.copied, done.waiting),
+        Err(error) => format!("base-statements project={project} failed: {error}"),
+    };
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+}

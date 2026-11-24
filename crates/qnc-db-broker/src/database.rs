@@ -54,6 +54,26 @@ pub fn is_draft(conn: &Connection) -> bool {
     conn.path().and_then(|path| Path::new(path).file_name()).and_then(|name| name.to_str()).is_some_and(|name| name.starts_with(DRAFT_PREFIX))
 }
 
+/// How every Ingest base is named (`qnc-ingest-base` `NAME_PREFIX` and a space); a story's name never
+/// starts with it.
+pub const INGEST_BASE_PREFIX: &str = "Ingest ";
+
+/// Whether the database of `conn` (the project database, or one attached to a draft as `project`)
+/// is an Ingest base's (user 2026-11-24: "ingestu pripada samo ono sto naprave radnici
+/// QNC-Ingest-Wizard, sve drugo pripada projektu"): its own origin says the name. A base holds only
+/// what the wizard made and the statements; a story, a script and their drafts are a project's.
+pub fn is_ingest_base(conn: &Connection) -> bool {
+    ["main", "project"].iter().any(|schema| {
+        conn.query_row(&format!("SELECT project_name FROM {schema}.public_project_origin LIMIT 1"), [], |row| row.get::<_, String>(0))
+            .is_ok_and(|name| name.starts_with(INGEST_BASE_PREFIX))
+    })
+}
+
+/// The refusal of a project's write into an Ingest base.
+pub fn ingest_base_refusal() -> String {
+    qnc_ui_text::text("db.ingest_base_project_only").to_string()
+}
+
 impl std::fmt::Debug for ProjectDb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProjectDb")
@@ -105,6 +125,13 @@ impl ProjectDb {
     /// The AI results of the project (`ai.db`) are such a companion file too.
     pub fn with_companion(mut self, name: &str) -> Result<Self> {
         let file = self.file.with_file_name(name);
+        // A draft story is a project's, never made beside an Ingest base (its AI file is the wizard's).
+        if !file.is_file() && name.starts_with(DRAFT_PREFIX) {
+            let base = Connection::open_with_flags(&self.file, OpenFlags::SQLITE_OPEN_READ_ONLY).is_ok_and(|conn| is_ingest_base(&conn));
+            if base {
+                return Err(ingest_base_refusal());
+            }
+        }
         if !file.is_file() {
             Connection::open_with_flags(&file, OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE)
                 .map_err(|e| e.to_string())?;
@@ -233,5 +260,25 @@ fn keep_wal_file(conn: &Connection, schema: &std::ffi::CStr) {
             rusqlite::ffi::SQLITE_FCNTL_PERSIST_WAL,
             (&mut on as *mut std::os::raw::c_int).cast(),
         );
+    }
+}
+
+#[cfg(test)]
+mod base_tests {
+    use super::*;
+
+    #[test]
+    fn an_ingest_base_is_known_by_its_own_name_and_gets_no_draft_story() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("project.db");
+        let conn = Connection::open(&file).unwrap();
+        conn.execute_batch("CREATE TABLE public_project_origin (project_name TEXT); CREATE TABLE project_settings (project_id TEXT); INSERT INTO project_settings VALUES ('p'); CREATE VIEW public_project_settings AS SELECT project_id FROM project_settings;").unwrap();
+        conn.execute("INSERT INTO public_project_origin VALUES ('Ingest Sony ILME-FX6V 2026-11-24 14:06:29 3370')", []).unwrap();
+        assert!(is_ingest_base(&conn));
+        let db = ProjectDb::open(&file, "qnc://local/db/project_db/p", Access::ReadWrite, Vec::new()).unwrap();
+        assert!(db.with_companion(&draft_file(1)).is_err(), "no S-Story beside a base");
+        assert!(!dir.path().join(draft_file(1)).exists());
+        conn.execute("UPDATE public_project_origin SET project_name = 'Poplava u Mostaru'", []).unwrap();
+        assert!(!is_ingest_base(&conn));
     }
 }

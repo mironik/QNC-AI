@@ -166,6 +166,7 @@
     "sheet.daily_news": "Dnevni informativni prilog",
     "sheet.tv_prilog": "TV prilog (OFF / montaža)",
     "header.no_sheet": "Nema obrasca priloga za popuniti.",
+    "header.slug_needed": "Upiši radni naziv priloga: po njemu se zove projekt.",
     "header.title": "Zaglavlje priloga",
     "header.add_name": "+ dodaj",
     "header.write": "Pisanje priloga",
