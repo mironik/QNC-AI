@@ -1,0 +1,35 @@
+{
+  "module_id": "qnc.module.incoming-view",
+  "module_name": "Incoming (incoming-view)",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "incoming.setting"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "runtime_crate": "qnc-incoming-view",
+  "input": "The QNC root and the Settings form's pen.",
+  "output": "The Incoming block of Settings: where, folder, ingest; Save and Remove write qnc-incoming.",
+  "specification": "AGENTS.md 2026-11-24 (user: Incoming in Settings with its folder; automatic or manual ingest)."
+}

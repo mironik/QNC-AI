@@ -73,6 +73,9 @@ pub enum Group {
     System,
     /// The card readers on the network (`qnc-card-readers-view`).
     CardReaders,
+    /// Incoming of this computer: where clips sent over FTP or Filemail arrive, ingested by the
+    /// tray or by the user (`qnc-incoming-view`).
+    Incoming,
     /// The tray: what its menu shows, the form each mode opens (`qnc-tray-settings-view`).
     Tray,
     /// The export templates, a tab of their own with their own menu (`qnc-export-templates-view`).
@@ -92,6 +95,7 @@ impl Group {
             Group::Ai => "settings_group.ai",
             Group::System => "settings_group.system",
             Group::CardReaders => "settings_group.card_readers",
+            Group::Incoming => "settings_group.incoming",
             Group::Tray => "settings_group.tray",
             Group::Export => "settings_group.export",
             Group::User => "settings_group.user",
@@ -229,6 +233,7 @@ pub fn show(ui: &mut egui::Ui, root: &Path, metrics: &PanelMetrics, theme: &Them
                         Some(Group::Ai) => qnc_ai_settings_view::panel(ui, root, &pen),
                         Some(Group::System) => intents.extend(qnc_locations_view::show_targets(ui, &pen, theme, texts, session, Some(&qnc_wizard_text::text("settings_group.system")), &[LocationTarget::AiShare, LocationTarget::BasesRoot])),
                         Some(Group::CardReaders) => qnc_card_readers_view::show(ui, root, &pen),
+                        Some(Group::Incoming) => qnc_incoming_view::show(ui, root, &pen),
                         Some(Group::Tray) => qnc_tray_settings_view::show(ui, root, &pen),
                         Some(Group::Export) => qnc_export_templates_view::panel(ui, root, &pen),
                         Some(Group::User) => qnc_user_settings_view::show(ui, root, &pen, &caller.user),

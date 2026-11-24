@@ -5297,6 +5297,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-incoming"
+version = "0.1.0"
+dependencies = [
+ "qnc-user-settings",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-incoming-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-incoming",
+ "qnc-settings-block",
+ "qnc-wizard-text",
+]
+
+[[package]]
 name = "qnc-ingest"
 version = "0.1.0"
 dependencies = [
@@ -7469,6 +7489,7 @@ dependencies = [
  "qnc-card-readers-view",
  "qnc-desktop-theme",
  "qnc-export-templates-view",
+ "qnc-incoming-view",
  "qnc-ingest-orchestrator-view",
  "qnc-locations-view",
  "qnc-project-blocks",

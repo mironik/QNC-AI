@@ -1,0 +1,13 @@
+[package]
+name = "qnc-incoming"
+version.workspace = true
+edition.workspace = true
+description = "QNC Wizard: Incoming, a setting of the computer (user 2026-11-24): where clips sent over FTP or Filemail arrive (this computer, LAN or intranet) and whether the tray ingests them by itself or the user takes them"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+qnc-user-settings = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

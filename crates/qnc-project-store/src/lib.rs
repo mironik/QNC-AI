@@ -52,8 +52,6 @@ const PROJECT_DIRECTORIES: &[&str] = &[
     "proxy",
     "original",
     "audio",
-    "incoming/card",
-    "incoming/ftp",
 ];
 /// The folder all products of a project are in.
 const PRODUCT_ROOT: &str = "products";
@@ -3074,12 +3072,12 @@ mod tests {
         let project_dir = root.join("projects").join(safe_dir_name(&row.project_id));
         unlock_project_dir(&project_dir).expect("unlock for external test delete");
         fs::remove_dir_all(project_dir.join("proxy")).expect("remove proxy");
-        fs::remove_dir_all(project_dir.join("incoming")).expect("remove incoming");
+        fs::remove_dir_all(project_dir.join("audio")).expect("remove audio");
 
         let _reopened = ProjectStore::open(&root).expect("reopen");
 
         assert!(!project_dir.join("proxy").exists());
-        assert!(!project_dir.join("incoming").exists());
+        assert!(!project_dir.join("audio").exists());
         unlock_project_dir(&project_dir).expect("unlock cleanup");
         cleanup_temp_root(&root);
     }

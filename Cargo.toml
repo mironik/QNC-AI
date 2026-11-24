@@ -289,6 +289,8 @@ qnc-transport-panel = { path = "crates/qnc-transport-panel" }
 qnc-transport-resolver = { path = "crates/qnc-transport-resolver" }
 qnc-tray = { path = "crates/qnc-tray" }
 qnc-tray-mode = { path = "crates/qnc-tray-mode" }
+qnc-incoming = { path = "crates/qnc-incoming" }
+qnc-incoming-view = { path = "crates/qnc-incoming-view" }
 qnc-tray-menu = { path = "crates/qnc-tray-menu" }
 qnc-tray-settings-view = { path = "crates/qnc-tray-settings-view" }
 qnc-export-templates = { path = "crates/qnc-export-templates" }

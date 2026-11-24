@@ -1,0 +1,35 @@
+{
+  "module_id": "qnc.module.incoming",
+  "module_name": "Incoming (incoming)",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "incoming.setting"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "runtime_crate": "qnc-incoming",
+  "input": "The QNC root of this computer.",
+  "output": "Incoming of this computer (data/incoming.qncincoming): where it is (computer, LAN, intranet), its folder or address and how it is ingested (automatic or manual); none until set.",
+  "specification": "AGENTS.md 2026-11-24 (user: Incoming is an input like a card for clips sent over FTP or Filemail; on this computer or a server; automatic or manual ingest)."
+}
