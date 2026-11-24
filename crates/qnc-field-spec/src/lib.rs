@@ -26,6 +26,11 @@ pub enum FieldKind {
     Text,
     /// A length typed as `m:ss` (or whole seconds), stored as whole seconds; 0 is none.
     Duration,
+    /// Several names, one per row (user 2026-11-24: "nekad više novinara učestvuje u nastanku
+    /// priloga"); stored as text, the names joined by ", ".
+    Names,
+    /// A date typed as text; empty, it is today.
+    Date,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,0 +1,14 @@
+[package]
+name = "qnc-story-header"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: the header of a story (user 2026-11-24: show, date, slug, length, journalists, editors, camera operators, source, notes for the gallery) - read from the project's story sheet, filled in an overlay before writing, kept in the project database; it draws nothing and knows no form"
+
+[dependencies]
+qnc-db-broker = { workspace = true }
+qnc-field-spec = { workspace = true }
+qnc-newsroom-sheet-db = { workspace = true }
+qnc-newsroom-sheet-model = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+serde_json = { workspace = true }

@@ -359,11 +359,13 @@ fn sheet_button(ui: &mut egui::Ui, theme: &Theme, label: &str, enabled: bool, fo
     }
 }
 
-const KINDS: [(FieldKind, &str); 4] = [
+const KINDS: [(FieldKind, &str); 6] = [
     (FieldKind::Text, "sheet.kind_text"),
     (FieldKind::Choice, "sheet.kind_choice"),
     (FieldKind::Duration, "sheet.kind_duration"),
     (FieldKind::Integer, "sheet.kind_number"),
+    (FieldKind::Names, "sheet.kind_names"),
+    (FieldKind::Date, "sheet.kind_date"),
 ];
 
 /// The editor of the sheet: its name, the lock, each field (name, kind, choices, order,

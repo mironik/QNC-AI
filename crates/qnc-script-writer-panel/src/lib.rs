@@ -14,6 +14,8 @@ use qnc_action_event::ActionEvent;
 use qnc_script::{seconds_label, KindSpec, Role, ScriptView, ADD_CLIP, CLEAR_EDITOR, DRAFT, EDITOR_NOTE, EDITOR_TEXT, EXPORT, OPEN_EXPORT, PANEL, SAVE_TEXT, SEND_STORY};
 use qnc_text_source_editor::{Answer, Editor, EditorButton};
 
+mod header;
+
 pub const MODULE_ID: &str = "qnc.module.script-writer-panel";
 
 /// The width of a story button and the gap between them.
@@ -51,7 +53,7 @@ pub fn show(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme) ->
     let open_spec = open.as_deref().and_then(|code| view.profile.as_ref()?.kind(code));
 
     // The header: title, lengths and the document buttons.
-    let header_height = theme.chrome_row_height * 2.0 + theme.font_ui + 30.0;
+    let header_height = theme.chrome_row_height * 2.0 + theme.font_ui + 30.0 + header::shown_rows(&view.header) as f32 * (theme.font_ui + 4.0);
     let header = Rect::from_min_size(inner.min, Vec2::new(inner.width(), header_height));
     let mut top = ui.new_child(UiBuilder::new().max_rect(header).layout(Layout::top_down(Align::Min)));
     if let Some(event) = paint_header(&mut top, view, theme, style) {
@@ -149,6 +151,10 @@ pub fn show(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme) ->
     }
     qnc_script_panel::recording_press(ui, rect, view, &mut asked);
     ui.allocate_rect(rect, Sense::hover());
+    // The header of the story over everything while it is open (user 2026-11-24).
+    if let Some(event) = header::overlay(ui.ctx(), &view.header, theme) {
+        return Some(event);
+    }
     asked
 }
 
@@ -185,7 +191,10 @@ fn paint_header(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme
                 asked = Some(ActionEvent::key(EXPORT).at(PANEL));
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                ui.add(egui::Label::new(RichText::new(title).color(theme.text).strong().size(theme.font_ui + 5.0)).truncate());
+                // The title opens the header again (user 2026-11-24).
+                if ui.add(egui::Label::new(RichText::new(title).color(theme.text).strong().size(theme.font_ui + 5.0)).truncate().sense(Sense::click())).on_hover_text(qnc_ui_text::text("header.edit")).clicked() {
+                    asked = Some(ActionEvent::key(qnc_story_header::OPEN).at(PANEL));
+                }
             });
         });
     });
@@ -215,6 +224,8 @@ fn paint_header(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme
     ui.vertical_centered(|ui| {
         ui.label(job);
     });
+    // The header kept, in several columns (user 2026-11-24).
+    header::shown(ui, &view.header, theme);
     ui.horizontal(|ui| {
         if view.anchor_seconds > 0.0 {
             ui.label(muted(&qnc_ui_text::fill("writer.anchor", &[("anchor", &seconds_label(view.anchor_seconds))])));

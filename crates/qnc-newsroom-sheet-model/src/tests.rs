@@ -21,7 +21,7 @@ fn the_sheets_qnc_brings_all_load_with_their_choices() {
     let (sheets, errors) = Sheets::load(&root);
     assert!(errors.is_empty(), "{errors:?}");
     let prepared: Vec<_> = sheets.list.iter().filter(|(_, origin)| *origin == Origin::Prepared).map(|(sheet, _)| sheet).collect();
-    assert_eq!(prepared.len(), 6);
+    assert_eq!(prepared.len(), 7);
     for sheet in prepared {
         assert!(!sheet.name.starts_with('@'), "{} has a text code left", sheet.sheet_id);
         for field in &sheet.fields {

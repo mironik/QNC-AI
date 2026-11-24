@@ -10,6 +10,8 @@ qnc-action-event = { workspace = true }
 qnc-desktop-theme = { workspace = true }
 qnc-media-overlay = { workspace = true }
 qnc-script = { workspace = true }
+qnc-story-header = { workspace = true }
+qnc-field-spec = { workspace = true }
 qnc-script-panel = { workspace = true }
 qnc-text-source-editor = { workspace = true }
 qnc-transcript-panel = { workspace = true }

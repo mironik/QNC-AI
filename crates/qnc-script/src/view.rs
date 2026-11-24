@@ -187,6 +187,8 @@ pub use qnc_clip_row::TabCard as SubsegmentCard;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScriptView {
     pub blocks: Vec<BlockRow>,
+    /// The header of the story (user 2026-11-24): its overlay opens before the story is written.
+    pub header: qnc_story_header::HeaderView,
     /// The script profile of the project (none until it is read).
     pub profile: Option<ScriptProfile>,
     /// The chosen block: new blocks go after it.

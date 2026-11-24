@@ -196,6 +196,24 @@
     "script_field_text": {
       "label": "Tekst polja bloka scenarija"
     },
+    "story_header_open": {
+      "label": "Otvori zaglavlje priloga"
+    },
+    "story_header_text": {
+      "label": "Tekst polja zaglavlja priloga"
+    },
+    "story_header_name": {
+      "label": "Ime u polju imena zaglavlja priloga"
+    },
+    "story_header_remove_name": {
+      "label": "Ukloni ime iz zaglavlja priloga"
+    },
+    "story_header_confirm": {
+      "label": "Spremi zaglavlje priloga i otvori pisanje"
+    },
+    "story_header_cancel": {
+      "label": "Zatvori zaglavlje priloga bez spremanja"
+    },
     "script_field_commit": {
       "label": "Spremi polja bloka scenarija"
     },

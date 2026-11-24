@@ -7237,6 +7237,7 @@ dependencies = [
  "qnc-source-preview",
  "qnc-source-timecode",
  "qnc-status-line",
+ "qnc-story-header",
  "qnc-subsegment-edit",
  "qnc-take-heard",
  "qnc-timeline-model",
@@ -7348,9 +7349,11 @@ dependencies = [
  "eframe",
  "qnc-action-event",
  "qnc-desktop-theme",
+ "qnc-field-spec",
  "qnc-media-overlay",
  "qnc-script",
  "qnc-script-panel",
+ "qnc-story-header",
  "qnc-text-source-editor",
  "qnc-transcript-panel",
  "qnc-ui-kit",
@@ -8173,6 +8176,19 @@ dependencies = [
  "qnc-editorial-desktop",
  "qnc-shell-desktop-api",
  "qnc-status-line",
+]
+
+[[package]]
+name = "qnc-story-header"
+version = "0.1.0"
+dependencies = [
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-field-spec",
+ "qnc-newsroom-sheet-db",
+ "qnc-newsroom-sheet-model",
+ "qnc-ui-text",
+ "serde_json",
 ]
 
 [[package]]

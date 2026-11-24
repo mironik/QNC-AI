@@ -186,6 +186,8 @@ pub struct Script {
     /// The statements of the pool as last read (user 2026-11-24): a clip block remembers the one
     /// it was made from and shows its caption.
     statements: Vec<qnc_virtual_shots::ShortClip>,
+    /// The header of the story (show, date, journalists...), filled before writing.
+    header: qnc_story_header::StoryHeader,
     /// The statement chosen in the pool (AI Media Assist, MA Script's overlay): + statement takes
     /// it whole while the player shows it.
     chosen_statement: Option<String>,
@@ -220,7 +222,7 @@ pub struct Script {
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), chosen_statement: None, letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), chosen_statement: None, header: qnc_story_header::StoryHeader::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
     }
 }
 
@@ -330,6 +332,10 @@ impl Script {
     }
 
     fn act_own(&mut self, action_id: &str, target: Option<&str>, (preview, timeline, timecode, transcript): (&SourcePreview, &TimelineProjection, Option<&SourceTimecode>, &TranscriptView)) -> Option<bool> {
+        if let Some(done) = self.header.act(action_id, target) {
+            self.view.header = self.header.view().clone();
+            return Some(done);
+        }
         // While a SubSegment is open in place of the source timeline its keys are its own
         // (`qnc-subsegment-edit`). A pointer on its timeline comes as the mouse map's row action
         // (AGENTS 0.12): the SubSegment's own action of it, with the frame or part it points at.
@@ -971,6 +977,8 @@ impl Script {
         if key != self.project {
             *self = Self { project: key, ..Self::default() };
         }
+        self.header.poll(project.as_ref());
+        self.view.header = self.header.view().clone();
         // The reading speed is the project's; without it a text has no length and the panel says why.
         self.words_per_second = match preview.still_locator() {
             Some(locator) => locator.settings().reading_words_per_second().map_err(|e| e.message),

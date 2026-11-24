@@ -1,0 +1,18 @@
+{
+  "sheet_id": "tv_prilog",
+  "name": "@sheet.tv_prilog",
+  "fields": [
+    { "kind": "text", "label": "@sheet.f.show", "id": "show", "path": "show", "hint": "@sheet.f.show_hint" },
+    { "kind": "date", "label": "@sheet.f.air_date", "id": "air_date", "path": "air_date", "hint": "@sheet.f.air_date_hint" },
+    { "kind": "text", "label": "@sheet.f.slug", "id": "slug", "path": "slug", "hint": "@sheet.f.slug_hint" },
+    { "kind": "duration", "label": "@sheet.f.trt", "id": "target_seconds", "path": "target_seconds", "hint": "@sheet.f.target_hint" },
+    { "kind": "names", "label": "@sheet.f.journalist", "id": "journalist", "path": "journalist" },
+    { "kind": "names", "label": "@sheet.f.editor", "id": "editor", "path": "editor" },
+    { "kind": "names", "label": "@sheet.f.camera", "id": "camera_operator", "path": "camera_operator" },
+    { "kind": "choice", "label": "@sheet.f.source", "id": "source", "path": "source", "options": "sources", "default": "server" },
+    { "kind": "text", "label": "@sheet.f.notes_direction", "id": "notes_direction", "path": "notes_direction", "hint": "@sheet.f.notes_direction_hint" }
+  ],
+  "options": {
+    "sources": [["server", "@sheet.f.source_server"], ["live", "@sheet.f.source_live"], ["off_live", "@sheet.f.source_off_live"]]
+  }
+}

@@ -88,6 +88,11 @@ impl SheetOverlay {
     }
 }
 
+/// Today as a date of a story sheet (`24. 11. 2026.`): a date field left empty is today.
+pub fn date_today() -> String {
+    chrono::Local::now().format("%-d. %-m. %Y.").to_string()
+}
+
 /// Today on this computer as `yyyy/mm/dd `, the start of a new project name.
 pub fn today() -> String {
     chrono::Local::now().format("%Y/%m/%d ").to_string()
