@@ -1,0 +1,35 @@
+{
+  "module_id": "qnc.module.base-statements",
+  "module_name": "Statements of an Ingest base into its project",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "base.statements.copy"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "runtime_crate": "qnc-base-statements",
+  "input": "The project made from an Ingest base (its story_ingest_bases) and the bases' statements (virtual_shots shorts, read only).",
+  "output": "The statements written into the project through qnc-virtual-shots once their clips (by name) are imported there; the bases are never written.",
+  "specification": "AGENTS.md 2026-11-24 (user: statements may stay in the base; when the project is made they are copied into it)."
+}

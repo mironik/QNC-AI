@@ -31,9 +31,9 @@ fn target_of(root: &Path, project_id: &str) -> Result<(ProjectDbTarget, qnc_cont
     Ok((target, content))
 }
 
-/// Copies into the project `story_id` the statements of the bases it took.
-pub fn copy(root: &Path, story_id: &str) -> Result<Copied, String> {
-    let bases = qnc_ingest_base::bases_of_story(root, story_id)?;
+/// Copies into the project `story_id` the statements of the `bases` it took (their ids).
+pub fn copy(root: &Path, story_id: &str, bases: &[String]) -> Result<Copied, String> {
+    let bases = bases.to_vec();
     if bases.is_empty() {
         return Ok(Copied::default());
     }

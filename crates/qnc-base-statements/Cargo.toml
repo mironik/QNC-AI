@@ -5,7 +5,6 @@ edition = "2021"
 description = "QNC-AI public piece: the statements made on an Ingest base copied into the project that took it (user 2026-11-24), once their clips are imported there; nothing in a base is changed"
 
 [dependencies]
-qnc-ingest-base = { workspace = true }
 qnc-virtual-shots = { workspace = true }
 qnc-db-broker = { workspace = true }
 qnc-work-settings = { workspace = true }

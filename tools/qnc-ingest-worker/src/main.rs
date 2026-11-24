@@ -635,7 +635,15 @@ pub(crate) fn copy_base_statements(root: &Path) {
             return;
         }
     };
-    let line = match qnc_base_statements::copy(root, &project) {
+    let bases = match qnc_ingest_base::bases_of_story(root, &project) {
+        Ok(bases) if bases.is_empty() => return,
+        Ok(bases) => bases,
+        Err(error) => {
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("base-statements bases not read: {error}"));
+            return;
+        }
+    };
+    let line = match qnc_base_statements::copy(root, &project, &bases) {
         Ok(done) if done.copied + done.waiting == 0 => return,
         Ok(done) => format!("base-statements project={project} copied={} waiting={}", done.copied, done.waiting),
         Err(error) => format!("base-statements project={project} failed: {error}"),
