@@ -54,7 +54,7 @@ impl EditorialView {
         match action_id {
             action_ids::SAVE_VIRTUAL_SHOT | action_ids::ADD_TON_SEGMENT | action_ids::ADD_OFF_SEGMENT | "script_subsegment" => self.chosen_clip_id().is_some(),
             qnc_short_save::ADD_PART => qnc_short_save::can_add_part(qnc_virtual_short_cards::chosen(&self.shorts, self.chosen_shot_id.as_deref()), self.chosen_clip_id(), self.preview.timeline.visible_source_marks()),
-            qnc_short_save::UPDATE => qnc_short_save::changed(qnc_virtual_short_cards::chosen(&self.shorts, self.chosen_shot_id.as_deref()), self.chosen_clip_id(), self.preview.timeline.visible_source_marks()),
+            qnc_short_save::UPDATE => qnc_short_save::changed(qnc_virtual_short_cards::chosen_single(&self.shorts, self.chosen_shot_id.as_deref()), self.chosen_clip_id(), self.preview.timeline.visible_source_marks()),
             action if self.focus.decides(action) => self.focus.enabled(action, self.chosen_clip_id().is_some()),
             action_ids::DELETE_SEGMENT | action_ids::DELETE_PART => self.segments.selected().is_some(),
             tab if LibraryTab::from_action(tab).is_some() => qnc_pool_tabs::Contents { clips: self.clips.len(), shorts: self.shorts.iter().filter(|s| !s.b_roll).count(), b_roll: self.shorts.iter().filter(|s| s.b_roll).count(), segments: self.segments.parts.len(), transcribed: self.focus.transcript.pool_clips(true, &self.clips).len(), subsegments: self.focus.script.subsegment_count(), voices: self.focus.script.voice_cards().len(), stories: self.focus.versions.count(), ai_broll: self.focus.ai_broll.count() }.has(tab).unwrap_or(false) || self.focus.opening_tab.as_deref() == Some(tab),

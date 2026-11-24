@@ -49,7 +49,7 @@ pub const JOIN_CUT: &str = "subsegment_join_cut";
 /// The smooth cut of a join (user 2026-11-08): on or off, or its pictures two more or fewer.
 pub const JOIN_SMOOTH: &str = "subsegment_join_smooth";
 /// The pictures a smooth cut replaces when it is turned on (user 2026-11-07).
-const SMOOTH_DEFAULT: u64 = 8;
+pub const SMOOTH_DEFAULT: u64 = 8;
 /// The most pictures a smooth cut replaces.
 const SMOOTH_MOST: u64 = 24;
 /// The SubSegment closes; the source timeline is back.

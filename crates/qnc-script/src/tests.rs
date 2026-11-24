@@ -186,8 +186,7 @@ fn statement(id: &str, clip: &str, from: u64, to: u64, name: &str) -> qnc_virtua
 fn a_clip_block_finds_its_statement_and_reads_its_caption() {
     let statements = [statement("s1", "c", 0, 100, "Ivo"), statement("s2", "c", 200, 400, "Ana"), statement("s3", "d", 200, 400, "Pero")];
     assert_eq!(statement_of(&statements, "c", 200, 400).map(|s| s.shot_id.as_str()), Some("s2"), "the same IN/OUT first");
-    assert_eq!(statement_of(&statements, "c", 250, 390).map(|s| s.shot_id.as_str()), Some("s2"), "else the one it overlaps most");
-    assert_eq!(statement_of(&statements, "c", 120, 180), None, "a range no statement of its clip overlaps has none");
+    assert_eq!(statement_of(&statements, "c", 250, 390), None, "never guessed by overlap");
     let block = Block { clip_id: "c".into(), from_frame: 200, to_frame: 400, statement_id: "s2".into(), ..Block::written("sot", "") };
     let mut shown = rows(&[block, Block { clip_id: "c".into(), ..Block::written("sot", "") }], Some(&general_tv()), 2.5);
     with_statements(&mut shown, &statements);

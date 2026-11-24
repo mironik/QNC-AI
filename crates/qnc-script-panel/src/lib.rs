@@ -430,6 +430,8 @@ fn paint_caption(ui: &mut egui::Ui, row: &qnc_script::BlockRow, theme: &qnc_desk
             (parts.join(", "), theme.text)
         }
         Some(_) => (qnc_ui_text::text("script.caption_unwritten").to_string(), theme.text_muted),
+        // A block remembers its statement; a statement deleted since leaves no caption.
+        None if !row.block.statement_id.is_empty() => (qnc_ui_text::text("script.caption_statement_gone").to_string(), theme.text_muted),
         None => (qnc_ui_text::text("script.caption_no_statement").to_string(), theme.text_muted),
     };
     ui.horizontal(|ui| {

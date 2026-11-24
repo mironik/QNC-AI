@@ -21,6 +21,7 @@
     "script.caption": "Potpis",
     "script.caption_unwritten": "još bez potpisa (upisuje se uz izjavu u AI Media Assistu)",
     "script.caption_no_statement": "nije nastao iz izjave",
+    "script.caption_statement_gone": "izjava iz koje je nastao je obrisana",
     "script.subsegment": "Složena izjava",
     "script.add_subsegment": "Dodaj složenu izjavu",
     "script.go_to_script": "Idi na Script (OFF)",

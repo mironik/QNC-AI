@@ -186,6 +186,9 @@ pub struct Script {
     /// The statements of the pool as last read (user 2026-11-24): a clip block remembers the one
     /// it was made from and shows its caption.
     statements: Vec<qnc_virtual_shots::ShortClip>,
+    /// The statement chosen in the pool (AI Media Assist, MA Script's overlay): + statement takes
+    /// it whole while the player shows it.
+    chosen_statement: Option<String>,
     letter_times: qnc_letter_times::LetterTimes,
     /// The in-between pictures of the smooth cuts, made in the background (user 2026-11-08).
     smooth_joins: qnc_smooth_joins::SmoothJoins,
@@ -217,7 +220,7 @@ pub struct Script {
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), chosen_statement: None, letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
     }
 }
 
@@ -601,6 +604,10 @@ impl Script {
 
     /// The shown clip's IN/OUT as a block of clip kind `kind`, with the words said there.
     fn add_clip(&mut self, preview: &SourcePreview, timeline: &TimelineProjection, timecode: Option<&SourceTimecode>, transcript: &TranscriptView, kind: String) -> bool {
+        if let Some(block) = self.chosen_statement_block(preview, timecode, transcript, &kind) {
+            let after = self.view.selected;
+            return self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some));
+        }
         let Some(piece) = self.marked_piece(preview, timeline, timecode, transcript) else { return true };
         let block = Block::of_pieces(kind, vec![piece]);
         // A block of one range keeps no parts (its range is its own).
@@ -642,8 +649,14 @@ impl Script {
             self.view.message = qnc_ui_text::text("script.sot_marks").into();
             return None;
         };
+        Some(self.piece_of(clip_id, from, to, timecode, transcript))
+    }
+
+    /// The range `[from, to)` of `clip_id` as a part, with the words said there; `timecode` is the
+    /// shown clip's (another clip's range is labelled in frames).
+    fn piece_of(&self, clip_id: String, from: u64, to: u64, timecode: Option<&SourceTimecode>, transcript: &TranscriptView) -> Piece {
         let at = |frame: u64| timecode.map_or_else(|| frame.to_string(), |tc| tc.label(frame));
-        Some(Piece {
+        Piece {
             smooth_frames: 0,
             smooth_clip: String::new(),
             clip_name: self.names.get(&clip_id).map_or_else(|| clip_id.clone(), |(name, _, _)| name.clone()),
@@ -666,7 +679,36 @@ impl Script {
             v_lead_frames: 0,
             v_tail_frames: 0,
             level_keys: Vec::new(),
-        })
+        }
+    }
+
+    /// The statement chosen in the pool as a block of clip kind `kind` (user 2026-11-24: a
+    /// statement goes into the script whole, a composite one with its parts and joins): only
+    /// while the player shows it (its clip, or its parts played as a program).
+    fn chosen_statement_block(&self, preview: &SourcePreview, timecode: Option<&SourceTimecode>, transcript: &TranscriptView, kind: &str) -> Option<Block> {
+        let statement = self.statements.iter().find(|s| self.chosen_statement.as_deref() == Some(s.shot_id.as_str()) && !s.b_roll)?;
+        let shown = if statement.parts.is_empty() { preview.view().clip_id.as_deref() == Some(statement.clip_id.as_str()) && !preview.in_program() } else { preview.in_program() };
+        if !shown {
+            return None;
+        }
+        let tc_of = |clip: &str| (preview.view().clip_id.as_deref() == Some(clip)).then_some(timecode).flatten();
+        let mut pieces = vec![self.piece_of(statement.clip_id.clone(), statement.in_frame, statement.out_frame, tc_of(&statement.clip_id), transcript)];
+        for part in &statement.parts {
+            let mut piece = self.piece_of(part.clip_id.clone(), part.in_frame, part.out_frame, tc_of(&part.clip_id), transcript);
+            // Blic has no join in the script yet: a cut.
+            piece.cut = part.join != qnc_virtual_shots::JoinKind::Smooth;
+            piece.smooth_frames = if part.join == qnc_virtual_shots::JoinKind::Smooth { qnc_subsegment_edit::SMOOTH_DEFAULT } else { 0 };
+            pieces.push(piece);
+        }
+        let block = Block::of_pieces(kind, pieces);
+        // A statement of one range keeps no parts (its range is its own).
+        let block = if statement.parts.is_empty() { Block { pieces: Vec::new(), ..block } } else { block };
+        Some(Block { statement_id: statement.shot_id.clone(), ..block })
+    }
+
+    /// The statement chosen in the pool (`None`: a clip was chosen).
+    pub fn chose_statement(&mut self, shot_id: Option<&str>) {
+        self.chosen_statement = shot_id.map(str::to_string);
     }
 
     /// Starts the take of block `block` (of a recorded kind), or stops the take that records

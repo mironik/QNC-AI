@@ -548,10 +548,8 @@ pub fn with_statements(rows: &mut [BlockRow], statements: &[qnc_virtual_shots::S
     }
 }
 
-/// The statement a clip range was made from: the statement of the same clip with the same IN/OUT,
-/// else the one that overlaps it most; none when no statement of that clip overlaps it.
+/// The statement a clip range was made from: the statement of the same clip with the same IN/OUT
+/// (user 2026-11-24: never guessed by overlap; the statement chosen in the pool goes in whole).
 pub fn statement_of<'a>(statements: &'a [qnc_virtual_shots::ShortClip], clip_id: &str, from: u64, to: u64) -> Option<&'a qnc_virtual_shots::ShortClip> {
-    let overlap = |s: &qnc_virtual_shots::ShortClip| to.min(s.out_frame).saturating_sub(from.max(s.in_frame));
-    let of_clip = || statements.iter().filter(move |s| !s.b_roll && s.clip_id == clip_id);
-    of_clip().find(|s| s.in_frame == from && s.out_frame == to).or_else(|| of_clip().filter(|s| overlap(s) > 0).max_by_key(|s| overlap(s)))
+    statements.iter().find(|s| !s.b_roll && s.parts.is_empty() && s.clip_id == clip_id && s.in_frame == from && s.out_frame == to)
 }

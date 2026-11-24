@@ -129,6 +129,13 @@ impl SidePieces {
         self.statement.open(parts, clips);
     }
 
+    /// The statement chosen in the pool (`None`: a clip): the script's + statement takes it whole.
+    pub fn chose_statement(&mut self, shot_id: Option<&str>) {
+        if let Some(script) = &mut self.script {
+            script.chose_statement(shot_id);
+        }
+    }
+
 
     pub fn views(&self) -> &SideViews {
         &self.views

@@ -8,7 +8,7 @@ fn main() -> Result<(), String> {
     let target = qnc_db_broker::ProjectDbTarget::for_project(reader.settings_reader(), &snapshot.settings)?;
     println!("project {}", snapshot.settings.project_id);
     for shot in qnc_virtual_shots::list_pool_shots(&target)? {
-        println!("{} {} {}..{} b_roll={} still={} {}", shot.shot_id, shot.clip_id, shot.in_frame, shot.out_frame, shot.b_roll, shot.still_status, shot.name);
+        println!("{} {} {}..{} b_roll={} still={} {} caption={:?}/{:?} parts={:?}", shot.shot_id, shot.clip_id, shot.in_frame, shot.out_frame, shot.b_roll, shot.still_status, shot.name, shot.caption_name, shot.caption_role, shot.parts);
     }
     Ok(())
 }

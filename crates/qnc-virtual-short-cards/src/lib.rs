@@ -45,6 +45,13 @@ pub fn chosen<'a>(cards: &'a [VirtualShortCard], shot_id: Option<&str>) -> Optio
     Some((card.shot_id.as_str(), card.clip_id.as_str(), (card.in_frame, card.out_frame)))
 }
 
+/// The chosen statement of one range (`chosen`), for Update and its fine tuning on the source
+/// timeline (user 2026-11-24: Update with a composite statement open wrote the shown part's IN/OUT
+/// over the whole statement; a composite one is edited on its own timeline).
+pub fn chosen_single<'a>(cards: &'a [VirtualShortCard], shot_id: Option<&str>) -> Option<(&'a str, &'a str, (u64, u64))> {
+    cards.iter().any(|card| Some(card.shot_id.as_str()) == shot_id && card.parts.is_empty()).then(|| chosen(cards, shot_id)).flatten()
+}
+
 /// The parts of the chosen statement in the clip shown, its own IN/OUT first, while it has parts
 /// (user 2026-11-19: a compound statement lights all its parts in the transcript; from the
 /// statement's record, the text is the transcript's).
@@ -261,6 +268,16 @@ mod tests {
         assert_eq!(read[0].poster_image, Some(picture), "with the IN picture until its own still is read");
         drop_saving(&mut shown);
         assert!(shown.is_empty());
+    }
+
+    #[test]
+    fn update_and_fine_tuning_take_only_a_statement_of_one_range() {
+        let clip = qnc_clip_row::ClipRow { clip_id: "clip-a".into(), name: "Mironik 001".into(), duration_seconds: 10.0, duration_frames: 250, ..Default::default() };
+        let part = qnc_virtual_shots::ShotPart { clip_id: "clip-a".into(), in_frame: 100, out_frame: 150, join: qnc_virtual_shots::JoinKind::Smooth };
+        let shown = cards(vec![row(), qnc_virtual_shots::ShortClip { shot_id: "shot-2".into(), parts: vec![part], ..row() }], std::slice::from_ref(&clip), &[]);
+        assert!(chosen_single(&shown, Some("shot-1")).is_some());
+        assert!(chosen_single(&shown, Some("shot-2")).is_none(), "a composite statement is edited on its own timeline");
+        assert!(chosen(&shown, Some("shot-2")).is_some(), "a part may still be added to it");
     }
 
     #[test]

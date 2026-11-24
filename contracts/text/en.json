@@ -752,6 +752,7 @@
     "script.caption": "Caption",
     "script.caption_unwritten": "no caption yet (written with the statement in the AI Media Assist)",
     "script.caption_no_statement": "not made from a statement",
+    "script.caption_statement_gone": "its statement was deleted",
     "script.subsegment": "SubSegment",
     "script.add_subsegment": "Add composite statement",
     "script.go_to_script": "Go to Script (OFF)",

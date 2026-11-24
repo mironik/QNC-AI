@@ -240,6 +240,7 @@ impl PanelFocus {
     /// 2026-10-13: the keys belong to the panel in use).
     pub fn chose_clip(&mut self, wrap: &mut WrapSession) -> bool {
         wrap.leave();
+        self.side.chose_statement(None);
         self.panel = if self.walk.take_opening() { Panel::SourceTimeline } else { Panel::Pool };
         true
     }
@@ -258,8 +259,9 @@ impl PanelFocus {
 
     /// A statement chosen: as a clip chosen; with the statements in a column of their own
     /// (`column`) the keyboard goes to that column (user 2026-11-15).
-    pub fn chose_statement(&mut self, wrap: &mut WrapSession, column: bool) -> bool {
+    pub fn chose_statement(&mut self, wrap: &mut WrapSession, column: bool, shot_id: &str) -> bool {
         self.chose_clip(wrap);
+        self.side.chose_statement(Some(shot_id));
         if column {
             self.panel = Panel::Statements;
         }
