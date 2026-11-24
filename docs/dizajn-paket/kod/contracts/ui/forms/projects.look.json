@@ -1,0 +1,15 @@
+{
+  "form": "projects",
+  "values": [
+    { "key": "window_width", "label": "Prozor: širina", "value": 640.0, "min": 360.0, "max": 2000.0, "step": 1.0 },
+    { "key": "panel_pad", "label": "Margina panela", "value": 20.0, "min": 0.0, "max": 120.0, "step": 1.0, "pointer": "/left_project_list/panel_pad" },
+    { "key": "title_row_height", "label": "Naslov: visina reda", "value": 28.0, "min": 10.0, "max": 120.0, "step": 1.0, "pointer": "/left_project_list/title_row_height" },
+    { "key": "below_title_pad", "label": "Razmak ispod naslova", "value": 40.0, "min": 0.0, "max": 160.0, "step": 1.0, "pointer": "/left_project_list/below_title_pad" },
+    { "key": "row_height", "label": "Projekt: visina reda", "value": 60.0, "min": 16.0, "max": 200.0, "step": 1.0, "pointer": "/left_project_list/row_height" },
+    { "key": "row_gap", "label": "Razmak između projekata", "value": 10.0, "min": 0.0, "max": 80.0, "step": 1.0, "pointer": "/left_project_list/row_gap" },
+    { "key": "column_gap", "label": "Razmak stupaca", "value": 8.0, "min": 0.0, "max": 80.0, "step": 1.0, "pointer": "/left_project_list/column_gap" },
+    { "key": "delete_column_width", "label": "Stupac X: širina", "value": 28.0, "min": 10.0, "max": 120.0, "step": 1.0, "pointer": "/left_project_list/delete_column_width" },
+    { "key": "confirm_button_width", "label": "Potvrda: širina", "value": 28.0, "min": 10.0, "max": 200.0, "step": 1.0, "pointer": "/left_project_list/confirm_button_width" },
+    { "key": "confirm_button_height", "label": "Potvrda: visina", "value": 22.0, "min": 10.0, "max": 80.0, "step": 1.0, "pointer": "/left_project_list/confirm_button_height" }
+  ]
+}
