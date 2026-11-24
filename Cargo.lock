@@ -7219,6 +7219,7 @@ dependencies = [
  "qnc-dev-diagnostics",
  "qnc-edit-words",
  "qnc-export-launch",
+ "qnc-field-spec",
  "qnc-letter-db",
  "qnc-letter-times",
  "qnc-newsroom-sheet-db",
@@ -7287,6 +7288,7 @@ name = "qnc-script-export"
 version = "0.1.0"
 dependencies = [
  "qnc-script-profile",
+ "qnc-ui-text",
 ]
 
 [[package]]

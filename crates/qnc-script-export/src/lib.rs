@@ -15,6 +15,9 @@
 pub use qnc_script_profile::Labels;
 use qnc_script_profile::Role;
 
+mod review;
+pub use review::review_html;
+
 pub const MODULE_ID: &str = "qnc.module.script-export";
 
 /// The script to write out.
@@ -58,6 +61,20 @@ pub struct Item {
     pub cues: Option<(String, String)>,
     /// The timecode of its recording, when it was recorded.
     pub recorded_tc: Option<String>,
+    /// What the review of the editor and the proofreader shows of it.
+    pub review: Review,
+}
+
+/// A block as the review of the editor and the proofreader shows it (user 2026-11-24): its mark,
+/// its shots (one per line, numbered through the story), its captions and data (the fields its
+/// kind places left: CG, the caption of a statement) and its notes (the fields it places right,
+/// other than the shots), each name with its value as people read it.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Review {
+    pub mark: String,
+    pub shots: Vec<String>,
+    pub captions: Vec<(String, String)>,
+    pub notes: Vec<(String, String)>,
 }
 
 /// Seconds as `m:ss`.

@@ -10,7 +10,8 @@ use qnc_still_locator::StillLocator;
 
 pub const MODULE_ID: &str = "qnc.module.script-files";
 
-/// Writes `story` out; the file of the A/V script. Reads the story sheet and writes files:
+/// Writes `story` out (text, A/V script, MOS, and the review of the editor and the
+/// proofreader); the file of the review. Reads the story sheet and writes files:
 /// call it off the form thread.
 pub fn write(locator: &StillLocator, target: &ProjectDbTarget, mut story: Story) -> Result<String, String> {
     let settings = locator.settings();
@@ -27,12 +28,15 @@ pub fn write(locator: &StillLocator, target: &ProjectDbTarget, mut story: Story)
         message_id: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()),
     };
     let av = folder.join(format!("{base}.html"));
+    // The review of the editor and the proofreader (user 2026-11-24): the file the status links to.
+    let review = folder.join(format!("{base}_review.html"));
     for (file, text) in [
+        (review.clone(), qnc_script_export::review_html(&story)),
         (folder.join(format!("{base}.txt")), qnc_script_export::text(&story)),
         (av.clone(), qnc_script_export::av_html(&story)),
         (folder.join(format!("{base}.mos.xml")), qnc_script_export::mos_xml(&story, &ids)),
     ] {
         std::fs::write(&file, text).map_err(|e| format!("{}: {e}", file.display()))?;
     }
-    Ok(av.display().to_string())
+    Ok(review.display().to_string())
 }

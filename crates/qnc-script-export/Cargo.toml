@@ -6,3 +6,4 @@ description = "QNC public module: the script of a story written out for the peop
 
 [dependencies]
 qnc-script-profile = { workspace = true }
+qnc-ui-text = { workspace = true }

@@ -11,8 +11,8 @@ fn story() -> Story {
         anchor: "0:06".into(),
         labels: Labels { cut_to_package: "[Cut to package]".into(), ..Labels::default() },
         items: vec![
-            Item { heading: "Lead-in (on cam)".into(), role: Some(Role::Anchor), text: "Radnici su danas blokirali promet.".into(), speaker: "Anchor (live)".into(), length: "0:06".into(), seconds: 6.0, in_story: false, fields: vec![("Camera".into(), "Kamera 1 (srednji plan)".into())], cues: None, recorded_tc: None },
-            Item { heading: "OFF 1 (B-roll)".into(), role: Some(Role::Spoken), text: "Unatoč lošem vremenu, više od petsto radnika <okupilo> se.".into(), speaker: "Reporter (VO)".into(), length: "0:12".into(), seconds: 12.0, in_story: true, fields: vec![("B-roll".into(), "Gužva na tržnici".into())], cues: None, recorded_tc: Some("18:01:02:03".into()) },
+            Item { heading: "Lead-in (on cam)".into(), role: Some(Role::Anchor), text: "Radnici su danas blokirali promet.".into(), speaker: "Anchor (live)".into(), length: "0:06".into(), seconds: 6.0, in_story: false, fields: vec![("Camera".into(), "Kamera 1 (srednji plan)".into())], cues: None, recorded_tc: None, review: Default::default() },
+            Item { heading: "OFF 1 (B-roll)".into(), role: Some(Role::Spoken), text: "Unatoč lošem vremenu, više od petsto radnika <okupilo> se.".into(), speaker: "Reporter (VO)".into(), length: "0:12".into(), seconds: 12.0, in_story: true, fields: vec![("B-roll".into(), "Gužva na tržnici".into())], cues: None, recorded_tc: Some("18:01:02:03".into()), review: Default::default() },
             Item {
                 heading: "SOT 1: Mironik 2002 10:00:02:00 - 10:00:06:49".into(),
                 role: Some(Role::Clip),
@@ -24,6 +24,7 @@ fn story() -> Story {
                 fields: vec![("Caption: name".into(), "Marko Marković".into())],
                 cues: Some(("Ne odustajemo od...".into(), "...od naših zahtjeva.".into())),
                 recorded_tc: None,
+                review: Default::default(),
             },
         ],
     }
@@ -85,4 +86,19 @@ fn every_word_of_the_written_out_script_comes_from_the_profile() {
     assert!(text.contains("od Ne odustajemo od... do ...od naših zahtjeva."));
     assert!(!text.contains("CUT TO PACKAGE"));
     assert!(!text.contains("VO TC") && !text.contains("IN-CUE"));
+}
+
+#[test]
+fn the_review_has_the_status_the_shots_numbered_the_captions_and_an_empty_column_of_notes() {
+    let mut story = story();
+    story.items[1].review = Review { mark: "OFF 1".into(), shots: vec!["Total ulice".into(), "Vozač u autu".into()], captions: vec![("CG tekst".into(), "Split".into())], notes: vec![("Napomena".into(), "pojačati ton".into())] };
+    story.items[2].review = Review { mark: "IZJAVA 1".into(), shots: Vec::new(), captions: vec![("CG (Potpis)".into(), "Marko Marković, vozač".into())], notes: Vec::new() };
+    let page = review_html(&story);
+    assert!(page.contains("&#9744;"), "the boxes of the status");
+    assert!(page.contains("Radnici su danas blokirali promet."), "the anchor's lead");
+    assert!(page.contains("SHOT 1:</span> Total ulice") && page.contains("SHOT 2:</span> Vozač u autu"), "the shots numbered");
+    assert!(page.matches("Total ulice").count() == 1);
+    assert!(page.contains("Marko Marković, vozač"));
+    assert!(page.contains("&quot;Ne odustajemo od naših zahtjeva.&quot;"), "a statement in quotes");
+    assert!(page.contains("pojačati ton"));
 }

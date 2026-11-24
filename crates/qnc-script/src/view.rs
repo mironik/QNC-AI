@@ -492,6 +492,7 @@ pub fn export_story(view: &ScriptView) -> qnc_script_export::Story {
                 fields,
                 cues: (row.cues && !block.text.trim().is_empty()).then(|| (in_cue(&block.text), out_cue(&block.text))),
                 recorded_tc: (!block.voice_uri.is_empty()).then(|| block.voice_tc.clone()),
+                review: review_of(row, kind, view.profile.as_ref()),
             }
         })
         .collect();
@@ -554,4 +555,34 @@ pub fn with_statements(rows: &mut [BlockRow], statements: &[qnc_virtual_shots::S
 /// (user 2026-11-24: never guessed by overlap; the statement chosen in the pool goes in whole).
 pub fn statement_of<'a>(statements: &'a [qnc_virtual_shots::ShortClip], clip_id: &str, from: u64, to: u64) -> Option<&'a qnc_virtual_shots::ShortClip> {
     statements.iter().find(|s| !s.b_roll && s.parts.is_empty() && s.clip_id == clip_id && s.in_frame == from && s.out_frame == to)
+}
+
+/// A block as the review of the editor and the proofreader shows it (user 2026-11-24): its mark,
+/// its shots (the lines of its fields of lines), its captions (the caption of its statement as
+/// one line, then the fields its kind places left) and its notes (the other fields it places
+/// right). A kind that places nothing gives all its fields as captions. Choices by their names.
+fn review_of(row: &BlockRow, kind: Option<&qnc_script_profile::KindSpec>, profile: Option<&ScriptProfile>) -> qnc_script_export::Review {
+    let mut review = qnc_script_export::Review { mark: row.mark.clone(), ..Default::default() };
+    let Some(kind) = kind else { return review };
+    let shown = |field: &qnc_field_spec::FieldSpec| -> Option<String> {
+        let value = row.block.fields.get(&field.path)?.trim().to_string();
+        let value = field.options.as_ref().and_then(|set| profile?.options.get(set)?.iter().find(|(code, _)| *code == value).map(|(_, name)| name.clone())).unwrap_or(value);
+        (!value.is_empty()).then_some(value)
+    };
+    let caption: Vec<String> = CAPTION_FIELDS.iter().filter_map(|path| row.block.fields.get(*path)).map(|value| value.trim().to_string()).filter(|value| !value.is_empty()).collect();
+    if !caption.is_empty() {
+        review.captions.push((qnc_ui_text::text("review.cg_caption").to_string(), caption.join(", ")));
+    }
+    let placed = !kind.left.is_empty() || !kind.right.is_empty();
+    for field in kind.fields.iter().filter(|field| !CAPTION_FIELDS.contains(&field.path.as_str())) {
+        let Some(value) = shown(field) else { continue };
+        if field.kind == qnc_field_spec::FieldKind::Lines {
+            review.shots.extend(value.lines().map(str::trim).filter(|line| !line.is_empty()).map(str::to_string));
+        } else if !placed || kind.left.contains(&field.path) {
+            review.captions.push((field.label.clone(), value));
+        } else if kind.right.contains(&field.path) {
+            review.notes.push((field.label.clone(), value));
+        }
+    }
+    review
 }
