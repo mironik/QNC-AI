@@ -7243,6 +7243,7 @@ dependencies = [
  "qnc-transcript",
  "qnc-transcript-db",
  "qnc-ui-text",
+ "qnc-virtual-shots",
  "qnc-voice-catalog",
  "qnc-voice-record",
  "qnc-voice-take",

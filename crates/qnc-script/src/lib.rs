@@ -183,6 +183,9 @@ pub struct Script {
     /// The fine times of the letters of those words, as last read, and the background work that
     /// lays the letters of the words shown without them (user 2026-11-05).
     letters: HashMap<String, Vec<qnc_letter_db::WordLetters>>,
+    /// The statements of the pool as last read (user 2026-11-24): a clip block remembers the one
+    /// it was made from and shows its caption.
+    statements: Vec<qnc_virtual_shots::ShortClip>,
     letter_times: qnc_letter_times::LetterTimes,
     /// The in-between pictures of the smooth cuts, made in the background (user 2026-11-08).
     smooth_joins: qnc_smooth_joins::SmoothJoins,
@@ -214,7 +217,7 @@ pub struct Script {
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
     }
 }
 
@@ -439,6 +442,7 @@ impl Script {
                     seconds,
                     ..Block::written(kind, quote.text)
                 };
+                let block = Block { statement_id: self.statement_id(&block), ..block };
                 let after = self.view.selected;
                 self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some))
             }
@@ -600,7 +604,7 @@ impl Script {
         let Some(piece) = self.marked_piece(preview, timeline, timecode, transcript) else { return true };
         let block = Block::of_pieces(kind, vec![piece]);
         // A block of one range keeps no parts (its range is its own).
-        let block = Block { pieces: Vec::new(), ..block };
+        let block = Block { pieces: Vec::new(), statement_id: self.statement_id(&block), ..block };
         let after = self.view.selected;
         self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some))
     }
@@ -618,8 +622,16 @@ impl Script {
             return true;
         };
         let block = Block::of_pieces(kind, vec![piece]);
+        let block = Block { statement_id: self.statement_id(&block), ..block };
         let after = self.view.selected;
         self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some))
+    }
+
+    /// The statement of the pool a new clip block is made from: its first range's clip and
+    /// frames (`statement_of`); empty when no statement covers it.
+    fn statement_id(&self, block: &Block) -> String {
+        let (clip, from, to) = block.pieces.first().map_or((block.clip_id.as_str(), block.from_frame, block.to_frame), |piece| (piece.clip_id.as_str(), piece.from_frame, piece.to_frame));
+        statement_of(&self.statements, clip, from, to).map(|s| s.shot_id.clone()).unwrap_or_default()
     }
 
     /// The shown clip's IN/OUT as a part, with the words said there (none, and the reason in
@@ -941,6 +953,7 @@ impl Script {
             }
         }
         self.view.blocks = rows(&self.blocks, self.view.profile.as_ref(), self.reading_speed());
+        with_statements(&mut self.view.blocks, &self.statements);
         for row in &mut self.view.blocks {
             row.voice = self.voices.iter().find(|(voice, _)| voice.block_id == row.block.id).map(|(voice, present)| {
                 let mut shown = VoiceRow::of(voice, *present, &row.block.text);
@@ -1119,8 +1132,9 @@ impl Script {
         if let Some(reading) = &self.reading {
             if let Ok(result) = reading.try_recv() {
                 match result {
-                    Ok(read::Script { blocks, profile, target, title, voices, letters }) => {
+                    Ok(read::Script { blocks, profile, target, title, voices, letters, statements }) => {
                         self.letters = letters;
+                        self.statements = statements;
                         self.blocks = blocks;
                         self.view.profile = profile;
                         self.view.target_seconds = target;

@@ -19,6 +19,9 @@ pub(crate) struct Script {
     /// by letters). The words themselves come from the one reader of transcripts
     /// (`qnc-clip-transcripts`), not from here.
     pub letters: std::collections::HashMap<String, Vec<qnc_letter_db::WordLetters>>,
+    /// The statements of the pool (user 2026-11-24): the clip blocks made from them read their
+    /// caption there.
+    pub statements: Vec<qnc_virtual_shots::ShortClip>,
 }
 
 pub(crate) type Read = Result<Script, String>;
@@ -69,5 +72,11 @@ pub(crate) fn read_script(target: &ProjectDbTarget, locator: Option<&StillLocato
             }
         }
     }
-    Ok(Script { blocks, profile, target: length, title, voices, letters })
+    // A failed read of the statements leaves the captions out, the script is read (the reason
+    // goes to the log).
+    let statements = qnc_virtual_shots::list_shorts(target).unwrap_or_else(|error| {
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("script statements not read: {error}"));
+        Vec::new()
+    });
+    Ok(Script { blocks, profile, target: length, title, voices, letters, statements })
 }

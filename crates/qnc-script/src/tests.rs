@@ -177,3 +177,21 @@ fn every_off_of_the_story_is_asked_for_b_roll_a_slot_between_its_marks_with_its_
     assert_eq!(note, "luka, brodovi");
     assert_eq!(offs[1].2.len(), 1, "an OFF without marks is one slot");
 }
+
+fn statement(id: &str, clip: &str, from: u64, to: u64, name: &str) -> qnc_virtual_shots::ShortClip {
+    qnc_virtual_shots::ShortClip { shot_id: id.into(), clip_id: clip.into(), in_frame: from, out_frame: to, name: id.into(), in_still_uri: None, out_still_uri: None, still_status: String::new(), b_roll: false, caption_name: name.into(), caption_role: "ribar".into(), parts: Vec::new() }
+}
+
+#[test]
+fn a_clip_block_finds_its_statement_and_reads_its_caption() {
+    let statements = [statement("s1", "c", 0, 100, "Ivo"), statement("s2", "c", 200, 400, "Ana"), statement("s3", "d", 200, 400, "Pero")];
+    assert_eq!(statement_of(&statements, "c", 200, 400).map(|s| s.shot_id.as_str()), Some("s2"), "the same IN/OUT first");
+    assert_eq!(statement_of(&statements, "c", 250, 390).map(|s| s.shot_id.as_str()), Some("s2"), "else the one it overlaps most");
+    assert_eq!(statement_of(&statements, "c", 120, 180), None, "a range no statement of its clip overlaps has none");
+    let block = Block { clip_id: "c".into(), from_frame: 200, to_frame: 400, statement_id: "s2".into(), ..Block::written("sot", "") };
+    let mut shown = rows(&[block, Block { clip_id: "c".into(), ..Block::written("sot", "") }], Some(&general_tv()), 2.5);
+    with_statements(&mut shown, &statements);
+    assert_eq!(shown[0].caption, Some(Caption { name: "Ana".into(), role: "ribar".into() }));
+    assert_eq!(shown[0].block.fields.get("caption_name").map(String::as_str), Some("Ana"), "the written-out script has it");
+    assert_eq!(shown[1].caption, None, "a block made from no statement");
+}

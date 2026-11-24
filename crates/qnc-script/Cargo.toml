@@ -25,6 +25,7 @@ qnc-timeline-model = { workspace = true }
 qnc-transcript = { workspace = true }
 qnc-transcript-db = { workspace = true }
 qnc-letter-db = { workspace = true }
+qnc-virtual-shots = { workspace = true }
 qnc-letter-times = { workspace = true }
 qnc-ui-text = { workspace = true }
 qnc-voice-record = { workspace = true }

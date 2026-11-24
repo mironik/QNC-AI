@@ -87,6 +87,11 @@ pub struct Block {
     /// confirmation"), in the order it covers the text.
     #[serde(default)]
     pub covers: Vec<Cover>,
+    /// The statement of the pool (`virtual_shots`) a clip block was made from (user 2026-11-24:
+    /// "neka blok zapamti iz koje je izjave nastao"): its caption is read from there, not
+    /// written in the script. Empty: made from no statement.
+    #[serde(default)]
+    pub statement_id: String,
 }
 
 /// A shot covering a text block: its clip, clip frames `[from, to)`, the second of the text it
@@ -112,7 +117,7 @@ pub const NOTE_MOST: usize = 500;
 impl Block {
     /// A text block of kind `kind`.
     pub fn written(kind: impl Into<String>, text: impl Into<String>) -> Self {
-        Self { id: 0, kind: kind.into(), text: text.into(), clip_id: String::new(), clip_name: String::new(), from_frame: 0, to_frame: 0, start_tc: String::new(), end_tc: String::new(), length: String::new(), seconds: 0.0, voice_uri: String::new(), voice_seconds: 0.0, voice_tc: String::new(), fields: BTreeMap::new(), pieces: Vec::new(), marks: Vec::new(), broll_note: String::new(), covers: Vec::new() }
+        Self { id: 0, kind: kind.into(), text: text.into(), clip_id: String::new(), clip_name: String::new(), from_frame: 0, to_frame: 0, start_tc: String::new(), end_tc: String::new(), length: String::new(), seconds: 0.0, voice_uri: String::new(), voice_seconds: 0.0, voice_tc: String::new(), fields: BTreeMap::new(), pieces: Vec::new(), marks: Vec::new(), broll_note: String::new(), covers: Vec::new(), statement_id: String::new() }
     }
 
     /// A clip block of kind `kind` made of `pieces` (at least one): its clip, IN and timecodes

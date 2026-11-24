@@ -384,7 +384,12 @@ fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView
     let kind = profile.kind(&row.block.kind)?;
     let mut asked = None;
     let id = row.block.id;
-    for field in &kind.fields {
+    // A statement's caption is written when the statement is made (AI Media Assist), the script
+    // reads it (user 2026-11-24).
+    if kind.role == qnc_script::Role::Clip {
+        paint_caption(ui, row, theme);
+    }
+    for field in kind.fields.iter().filter(|field| !qnc_script::CAPTION_FIELDS.contains(&field.path.as_str())) {
         ui.horizontal(|ui| {
             ui.add_sized([LABEL_WIDTH, theme.chrome_control_height], egui::Label::new(RichText::new(&field.label).color(theme.text_muted).size(theme.font_ui)));
             let stored = view.field_value(id, &field.path);
@@ -414,6 +419,23 @@ fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView
         });
     }
     asked
+}
+
+/// The caption of the statement a clip block was made from, as the statement has it (not edited
+/// here).
+fn paint_caption(ui: &mut egui::Ui, row: &qnc_script::BlockRow, theme: &qnc_desktop_theme::Theme) {
+    let (shown, colour) = match &row.caption {
+        Some(caption) if !caption.name.is_empty() || !caption.role.is_empty() => {
+            let parts: Vec<&str> = [caption.name.as_str(), caption.role.as_str()].into_iter().filter(|part| !part.is_empty()).collect();
+            (parts.join(", "), theme.text)
+        }
+        Some(_) => (qnc_ui_text::text("script.caption_unwritten").to_string(), theme.text_muted),
+        None => (qnc_ui_text::text("script.caption_no_statement").to_string(), theme.text_muted),
+    };
+    ui.horizontal(|ui| {
+        ui.add_sized([LABEL_WIDTH, theme.chrome_control_height], egui::Label::new(RichText::new(qnc_ui_text::text("script.caption")).color(theme.text_muted).size(theme.font_ui)));
+        ui.label(RichText::new(shown).color(colour).size(theme.font_ui));
+    });
 }
 
 /// The width of a field's name in front of it.

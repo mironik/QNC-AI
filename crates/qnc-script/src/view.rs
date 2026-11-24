@@ -75,6 +75,10 @@ pub struct BlockRow {
     pub words: Vec<Vec<TimedWord>>,
     /// The seconds of the shots its M markers make (empty without markers).
     pub mark_lengths: Vec<f64>,
+    /// The caption of the statement a clip block was made from (user 2026-11-24: captions are
+    /// written when statements are made, the script reads them): `None` when the block
+    /// remembers no statement or the statement is gone.
+    pub caption: Option<Caption>,
 }
 
 /// A word of a statement: its clip frames `[from, to)`, its text, the source timecode of its
@@ -458,7 +462,7 @@ pub fn rows(blocks: &[Block], profile: Option<&ScriptProfile>, words_per_second:
             } else {
                 kind.map_or_else(|| block.kind.to_uppercase(), |kind| kind.short.clone())
             };
-            BlockRow { seconds: block_seconds(block, kind, words_per_second), mark, role: kind.map(|kind| kind.role), recorded: kind.is_some_and(|kind| kind.recorded), cues: kind.is_some_and(|kind| kind.cues), in_story: kind.is_some_and(|kind| kind.counts == Counts::Story), voice: None, words: Vec::new(), mark_lengths: Vec::new(), block: block.clone() }
+            BlockRow { seconds: block_seconds(block, kind, words_per_second), mark, role: kind.map(|kind| kind.role), recorded: kind.is_some_and(|kind| kind.recorded), cues: kind.is_some_and(|kind| kind.cues), in_story: kind.is_some_and(|kind| kind.counts == Counts::Story), voice: None, words: Vec::new(), mark_lengths: Vec::new(), caption: None, block: block.clone() }
         })
         .collect()
 }
@@ -514,4 +518,40 @@ impl FieldEdit {
     pub fn target(block: i64, field: &str, value: &str) -> String {
         serde_json::to_string(&Self { block, field: field.into(), value: value.into() }).unwrap_or_default()
     }
+}
+
+/// The caption of a statement: who speaks and their role, either empty until written in the
+/// AI Media Assist.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Caption {
+    pub name: String,
+    pub role: String,
+}
+
+/// The fields of a clip kind a statement fills (the profiles name them so): the script shows them
+/// from the statement and does not write them.
+pub const CAPTION_FIELDS: [&str; 2] = ["caption_name", "caption_role"];
+
+/// Each clip row made from a statement of `statements` gets its caption, and its caption fields
+/// the statement's (so the written-out script has them).
+pub fn with_statements(rows: &mut [BlockRow], statements: &[qnc_virtual_shots::ShortClip]) {
+    for row in rows {
+        let Some(statement) = statements.iter().find(|s| !row.block.statement_id.is_empty() && s.shot_id == row.block.statement_id) else { continue };
+        for (field, value) in CAPTION_FIELDS.iter().zip([&statement.caption_name, &statement.caption_role]) {
+            if value.trim().is_empty() {
+                row.block.fields.remove(*field);
+            } else {
+                row.block.fields.insert((*field).into(), value.trim().into());
+            }
+        }
+        row.caption = Some(Caption { name: statement.caption_name.trim().into(), role: statement.caption_role.trim().into() });
+    }
+}
+
+/// The statement a clip range was made from: the statement of the same clip with the same IN/OUT,
+/// else the one that overlaps it most; none when no statement of that clip overlaps it.
+pub fn statement_of<'a>(statements: &'a [qnc_virtual_shots::ShortClip], clip_id: &str, from: u64, to: u64) -> Option<&'a qnc_virtual_shots::ShortClip> {
+    let overlap = |s: &qnc_virtual_shots::ShortClip| to.min(s.out_frame).saturating_sub(from.max(s.in_frame));
+    let of_clip = || statements.iter().filter(move |s| !s.b_roll && s.clip_id == clip_id);
+    of_clip().find(|s| s.in_frame == from && s.out_frame == to).or_else(|| of_clip().filter(|s| overlap(s) > 0).max_by_key(|s| overlap(s)))
 }

@@ -525,3 +525,12 @@ fn an_off_keeps_its_b_roll_note_and_its_accepted_covers_in_one_undo_step() {
     assert!(block(&target).covers.is_empty(), "undo takes the covers back");
     assert_eq!(block(&target).broll_note, "luka, brodovi");
 }
+
+#[test]
+fn a_clip_block_remembers_the_statement_it_was_made_from_and_an_older_table_gets_none() {
+    let (_dir, target) = written();
+    let old = add(&target, None, sot("2002")).unwrap();
+    add(&target, Some(old), Block { statement_id: "clip-1_shot_003".into(), ..sot("2002") }).unwrap();
+    let blocks = read(&target).unwrap();
+    assert_eq!(blocks.iter().map(|b| b.statement_id.as_str()).collect::<Vec<_>>(), ["", "clip-1_shot_003"]);
+}

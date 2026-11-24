@@ -20,6 +20,8 @@ pub(crate) struct Store {
     no_marks: bool,
     /// A table made before the B-roll of a text block: its blocks are read without it.
     no_broll: bool,
+    /// A table made before blocks remembered their statement: its blocks are read without one.
+    no_statement: bool,
 }
 
 impl Store {
@@ -41,7 +43,8 @@ impl Store {
         let no_pieces = ready && !has_column(&conn, "pieces_json")?;
         let no_marks = ready && !has_column(&conn, "marks_json")?;
         let no_broll = ready && !has_column(&conn, "covers_json")?;
-        Ok(Self { conn, ready, legacy, no_fields, no_pieces, no_marks, no_broll })
+        let no_statement = ready && !has_column(&conn, "statement_id")?;
+        Ok(Self { conn, ready, legacy, no_fields, no_pieces, no_marks, no_broll, no_statement })
     }
 
     pub(crate) fn execute(&mut self, operation: &Operation) -> Result<Data> {
@@ -131,10 +134,11 @@ impl Store {
         let pieces = if self.no_pieces { "'[]'" } else { "pieces_json" };
         let marks = if self.no_marks { "'[]'" } else { "marks_json" };
         let broll = if self.no_broll { "'', '[]'" } else { "broll_note, covers_json" };
+        let statement_id = if self.no_statement { "''" } else { "statement_id" };
         let mut statement = self
             .conn
             .prepare(&format!(
-                "SELECT block_id, kind, text, clip_id, clip_name, from_frame, to_frame, start_tc, end_tc, length, seconds, {voice}, {fields}, {pieces}, {marks}, {broll}
+                "SELECT block_id, kind, text, clip_id, clip_name, from_frame, to_frame, start_tc, end_tc, length, seconds, {voice}, {fields}, {pieces}, {marks}, {broll}, {statement_id}
                  FROM public_script_blocks ORDER BY position"
             ))
             .map_err(err)?;
@@ -160,6 +164,7 @@ impl Store {
                     marks: serde_json::from_str(&r.get::<_, String>(16)?).unwrap_or_default(),
                     broll_note: r.get(17)?,
                     covers: serde_json::from_str(&r.get::<_, String>(18)?).unwrap_or_default(),
+                    statement_id: r.get(19)?,
                 })
             })
             .map_err(err)?;
@@ -223,8 +228,8 @@ impl Store {
         };
         tx.execute("UPDATE script_blocks SET position = position + 1 WHERE position >= ?1", params![at]).map_err(err)?;
         tx.execute(
-            "INSERT INTO script_blocks (position, kind, text, clip_id, clip_name, from_frame, to_frame, start_tc, end_tc, length, seconds, fields_json, pieces_json, updated_at_utc)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            "INSERT INTO script_blocks (position, kind, text, clip_id, clip_name, from_frame, to_frame, start_tc, end_tc, length, seconds, fields_json, pieces_json, statement_id, updated_at_utc)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             params![
                 at,
                 block.kind,
@@ -238,7 +243,8 @@ impl Store {
                 block.length,
                 block.seconds,
                 fields,
-                pieces
+                pieces,
+                block.statement_id
             ],
         )
         .map_err(err)?;
@@ -609,6 +615,7 @@ const COLUMNS: &str = "block_id INTEGER PRIMARY KEY AUTOINCREMENT,
             marks_json TEXT NOT NULL DEFAULT '[]',
             broll_note TEXT NOT NULL DEFAULT '',
             covers_json TEXT NOT NULL DEFAULT '[]',
+            statement_id TEXT NOT NULL DEFAULT '',
             updated_at_utc TEXT NOT NULL";
 
 /// The M markers of `old` in the text as edited to `new`: each with its word, the words the two
@@ -686,10 +693,14 @@ fn ensure_schema(conn: &Connection) -> Result<()> {
         )
         .map_err(err)?;
     }
+    // Blocks written before they remembered their statement keep everything and get none.
+    if !has_column(conn, "statement_id")? {
+        conn.execute_batch("DROP VIEW IF EXISTS public_script_blocks; ALTER TABLE script_blocks ADD COLUMN statement_id TEXT NOT NULL DEFAULT '';").map_err(err)?;
+    }
     conn.execute_batch(&format!(
         "CREATE TABLE IF NOT EXISTS script_blocks ({COLUMNS});
         CREATE VIEW IF NOT EXISTS public_script_blocks AS
-            SELECT block_id, position, kind, text, clip_id, clip_name, from_frame, to_frame, start_tc, end_tc, length, seconds, voice_uri, voice_seconds, voice_tc, fields_json, pieces_json, marks_json, broll_note, covers_json, updated_at_utc
+            SELECT block_id, position, kind, text, clip_id, clip_name, from_frame, to_frame, start_tc, end_tc, length, seconds, voice_uri, voice_seconds, voice_tc, fields_json, pieces_json, marks_json, broll_note, covers_json, statement_id, updated_at_utc
             FROM script_blocks;
         CREATE TABLE IF NOT EXISTS script_profile (
             singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
