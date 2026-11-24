@@ -131,14 +131,19 @@ impl Blocks<'_> {
         );
     }
 
+    /// The template's AI: only which AI template it takes (user 2026-11-24: what an AI template
+    /// switches on is the AI tab's), and the template's switches of the layout (filmstrip).
     fn ai_settings(&mut self, ui: &mut egui::Ui, content_w: f32, settings: &SettingsPanelMetrics) {
-        widgets::section(ui, content_w, "AI", settings, &self.contracts.theme, |ui| {
-            ui.spacing_mut().item_spacing.y = 8.0;
-            let (switches, session) = (&self.contracts.project.ai_switches, &mut self.session);
-            if qnc_ai_features_view::show(ui, &mut session.ai, &mut session.draft_settings) | qnc_settings_switches::show(ui, &mut session.draft_settings, switches) {
-                self.session.status = self.contracts.project.texts.settings_changed.clone();
-            }
+        let theme = self.contracts.theme.clone();
+        let pen = qnc_settings_block::Pen::new(settings, &theme, content_w);
+        let (switches, session) = (&self.contracts.project.ai_switches, &mut self.session);
+        let mut changed = false;
+        pen.section(ui, "AI", |ui| {
+            changed = qnc_ai_features_view::show(ui, &pen, &mut session.ai, &mut session.draft_settings) | qnc_settings_switches::show(ui, &mut session.draft_settings, switches);
         });
+        if changed {
+            self.session.status = self.contracts.project.texts.settings_changed.clone();
+        }
     }
 
     /// The template picker; in the Settings form (its Project tab) then the Advanced bar, and the

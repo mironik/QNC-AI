@@ -1,84 +1,24 @@
-//! The AI section of a settings draft (docs/102, user 2026-11-11): the AI template, one switch per
-//! AI feature, and keep or delete an own AI template. A feature a chosen feature needs is shown
-//! on and greyed, with what needs it; the rule and the writing are `qnc-ai-features`.
+//! The AI of a project template (docs/102; user 2026-11-24: "u projektu AI postavke trebaju imati
+//! samo izbor AI templatea, ne prikaz pojedinacnih dijelova... to imamo u AI tabu"): one row, the AI
+//! template the project template takes. What each AI template switches on, and keeping or deleting
+//! an own one, are the AI tab's (`qnc-ai-templates-view`); the rule and the writing are
+//! `qnc-ai-features`. Drawn with the settings style block.
 
-use eframe::egui::{self, RichText, Vec2};
-use qnc_ai_features::{chosen_of, template_of, Choice};
+use qnc_ai_features::{template_of, Choice};
+use qnc_settings_block::Pen;
 use serde_json::Value;
 
-/// Paints the section; true when the draft changed.
-pub fn show(ui: &mut egui::Ui, choice: &mut Choice, settings: &mut Value) -> bool {
-    let features = match &choice.features {
-        Ok(features) => features.clone(),
-        Err(error) => {
-            ui.label(qnc_ui_text::fill("ai.features_unreadable", &[("error", error)]));
-            return false;
-        }
-    };
-    let mut changed = false;
-    let chosen = chosen_of(settings);
+/// Paints the row; true when the draft changed.
+pub fn show(ui: &mut eframe::egui::Ui, pen: &Pen, choice: &mut Choice, settings: &mut Value) -> bool {
     let current = template_of(settings);
-    let shown = match choice.templates.iter().find(|template| template.id == current) {
-        Some(template) if template.features == chosen => Choice::template_name(template),
-        Some(template) => qnc_ui_text::fill("ai.template_changed", &[("name", &Choice::template_name(template))]),
-        None => current.clone(),
-    };
-    let mut picked = None;
-    let mut delete = None;
-    ui.horizontal(|ui| {
-        ui.label(qnc_ui_text::text("ai.template_label"));
-        egui::ComboBox::from_id_salt("qnc_ai_template").selected_text(shown).width(260.0).show_ui(ui, |ui| {
-            for template in &choice.templates {
-                if ui.selectable_label(template.id == current, Choice::template_name(template)).clicked() {
-                    picked = Some(template.id.clone());
-                }
-            }
-        });
-        let own = choice.templates.iter().any(|template| template.id == current && template.own);
-        if own && ui.add(qnc_ui_kit::sized_button(qnc_ui_text::text("ai.delete_template"), Vec2::new(0.0, 22.0))).clicked() {
-            delete = Some(current.clone());
-        }
-    });
-    if let Some(id) = picked {
-        choice.choose_template(settings, &id);
-        changed = true;
+    let templates: Vec<(String, String)> = choice.templates.iter().map(|template| (template.id.clone(), Choice::template_name(template))).collect();
+    let picked = pen.choice(ui, qnc_ui_text::text("ai.template_label"), "qnc_ai_template", &current, &templates);
+    if let Some(id) = &picked {
+        choice.choose_template(settings, id);
     }
-    if let Some(id) = delete {
-        choice.delete_template(&id);
+    let errors: Vec<String> = choice.errors.iter().cloned().chain(choice.features.as_ref().err().cloned()).collect();
+    if !errors.is_empty() {
+        pen.said(ui, &Some(Err(errors.join("\n"))));
     }
-    let chosen = chosen_of(settings);
-    for feature in &features.list {
-        let mut on = chosen.contains(&feature.code);
-        let needed: Vec<String> = features.needed_by(&chosen, &feature.code).iter().map(|by| qnc_ai_features::words_of(&by.name)).collect();
-        if qnc_ui_kit::check_box(ui, &mut on, qnc_ai_features::words_of(&feature.name), needed.is_empty()).changed() {
-            choice.switch(settings, &feature.code, on);
-            changed = true;
-        }
-        // Under the switch, wrapped inside the panel (a long line pushed the panel past the window).
-        ui.indent(("ai-feature-notes", &feature.code), |ui| {
-            if !needed.is_empty() {
-                ui.add(egui::Label::new(RichText::new(qnc_ui_text::fill("ai.needed_lock", &[("names", &needed.join(", "))])).weak().small()).wrap());
-            }
-            // Where its engine runs on this computer, or why it is not installed (docs/102 step 4).
-            for state in choice.engines_of(feature) {
-                let note = match state {
-                    Ok(qnc_ai_engines::Runs::Here(engine)) => RichText::new(qnc_ui_text::fill("ai.engine_here", &[("engine", engine)])).weak(),
-                    Ok(qnc_ai_engines::Runs::Server { address, engine }) => RichText::new(qnc_ui_text::fill("ai.engine_server", &[("address", address), ("engine", engine)])).weak(),
-                    Err(why) => RichText::new(qnc_ui_text::fill("ai.engine_missing", &[("why", why)])).color(qnc_desktop_theme::danger()),
-                };
-                ui.add(egui::Label::new(note.small()).wrap());
-            }
-        });
-    }
-    ui.horizontal(|ui| {
-        ui.add(qnc_ui_kit::text_field(&mut choice.name).desired_width(220.0).hint_text(qnc_ui_text::text("ai.keep_name_hint")));
-        if ui.add(qnc_ui_kit::sized_button(qnc_ui_text::text("ai.keep_template"), Vec2::new(0.0, 22.0))).clicked() {
-            choice.keep_template(settings);
-            changed = true;
-        }
-    });
-    for line in choice.errors.iter().chain(std::iter::once(&choice.message).filter(|message| !message.is_empty())) {
-        ui.label(RichText::new(line).small());
-    }
-    changed
+    picked.is_some()
 }

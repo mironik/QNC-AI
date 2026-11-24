@@ -3852,10 +3852,8 @@ name = "qnc-ai-features-view"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "qnc-ai-engines",
  "qnc-ai-features",
- "qnc-desktop-theme",
- "qnc-ui-kit",
+ "qnc-settings-block",
  "qnc-ui-text",
  "serde_json",
 ]
