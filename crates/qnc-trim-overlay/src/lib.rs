@@ -40,8 +40,8 @@ const LABEL_SIZE: Vec2 = Vec2::new(30.0, 20.0);
 /// "so placing the playhead and saving are not confused"); each is its key's action.
 const BUTTONS_HEIGHT: f32 = 30.0;
 const BUTTON_SIZE: Vec2 = Vec2::new(78.0, 24.0);
-/// Save keeps what is taken (user 2026-11-04: "after Save do not close"); Close is Escape.
-const BUTTONS: [(&str, &str); 4] = [("zoom.play", PLAY), ("zoom.cancel", qnc_edit_verbs::UNDO), ("common.save", qnc_edit_verbs::SAVE), ("zoom.close", qnc_edit_verbs::DROP)];
+/// Save is Enter (it saves and the zoom stays open, user 2026-11-25); Close is Escape.
+const BUTTONS: [(&str, &str); 4] = [("zoom.play", PLAY), ("zoom.cancel", qnc_edit_verbs::UNDO), ("common.save", qnc_edit_verbs::KEEP), ("zoom.close", qnc_edit_verbs::DROP)];
 /// Play/Pause of the zoom's transport (docs/zoom-skeleton.md [D]): the action of Space.
 const PLAY: &str = "play_pause";
 /// The window's top bar (docs/zoom-skeleton.md [A]): held to move the window; its ✕ is Close.

@@ -458,6 +458,10 @@ pub fn hand_player(stills: &mut [EditStill], origin: Option<StillPicture>) {
     let Some(origin) = origin else { return };
     let Some(side) = stills.iter().position(|still| still.cut && !still.middle) else { return };
     let Some(middle) = stills.iter().position(|still| still.middle) else { return };
+    // Not moved (just taken, or saved): the middle stays the player of the whole timeline.
+    if stills[side].picture.as_ref() == Some(&origin) {
+        return;
+    }
     stills[side].live = true;
     let held = &mut stills[middle];
     held.live = false;
@@ -497,5 +501,8 @@ mod player_tests {
         let mut stills = three(true);
         hand_player(&mut stills, None);
         assert!(stills[1].live && !stills[0].live);
+        let mut stills = three(true);
+        hand_player(&mut stills, Some(StillPicture { clip_id: "c".into(), source_frame: 10 }));
+        assert!(stills[1].live && !stills[0].live, "a side where it was (saved) leaves the middle the player");
     }
 }

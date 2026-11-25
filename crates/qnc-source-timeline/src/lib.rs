@@ -413,6 +413,7 @@ impl SourceTimeline {
     /// IN or OUT dragged to `frame` of the clip: taken while it is dragged, the playhead
     /// on the cut; letting the button go keeps it (`KEEP_MARK`).
     pub fn drag(&mut self, in_mark: bool, frame: u64, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> bool {
+        self.keep_lane(preview);
         self.keys.remember(timeline, in_mark);
         let key = qnc_source_mark_focus::drag(timeline, in_mark, frame);
         self.keys.set_mark_taken(key != qnc_source_mark_focus::MarkKey::Refused);
@@ -450,6 +451,14 @@ impl SourceTimeline {
     }
 
     fn route_keys(&mut self, action_id: &str, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
+        // One taken at a time (audit 2026-11-25 A3, docs/zoom-skeleton.md): a lane taken lets a taken IN
+        // or OUT go where it is, an IN or OUT taken keeps a taken lane's draft, both as Enter does.
+        if matches!(LaneKey::of(action_id), Some(LaneKey::Take(_))) {
+            self.keys.keep_marks(timeline);
+        }
+        if matches!(action_id, "select_mark_in" | "select_mark_out") {
+            self.keep_lane(preview);
+        }
         // The level curve of A1/A2 (user 2026-11-07), the same tool as on a Wrap row.
         if let Some(changed) = self.level_key(action_id, preview, timeline) {
             return Some(changed);
@@ -483,6 +492,14 @@ impl SourceTimeline {
                 Some(self.after_lane(closed, preview))
             }
             _ => self.keys.route(action_id, preview, timeline),
+        }
+    }
+
+    /// A taken lane kept as Enter keeps it (one taken at a time).
+    fn keep_lane(&mut self, preview: &mut SourcePreview) {
+        if self.lane_taken() {
+            let kept = lane_key(&mut self.lanes, LaneKey::Keep);
+            self.after_lane(kept, preview);
         }
     }
 
@@ -639,6 +656,21 @@ mod tests {
         source.route("step_next_part", &mut preview, &mut timeline);
         source.route("clear_focus", &mut preview, &mut timeline);
         assert_eq!(source.kept_curves()[1], vec![(40, 20)], "Esc keeps what was kept");
+    }
+
+    /// One taken at a time (audit 2026-11-25, live 2026-11-24: A1 stayed taken beside IN, the wheel
+    /// moved the playhead and Save did nothing).
+    #[test]
+    fn a_lane_and_a_mark_are_never_taken_together() {
+        let (mut source, mut preview, mut timeline) = (with_channels(4), SourcePreview::default(), TimelineProjection::new(0, 100).with_playhead(10).with_source_in_at_confirmed().with_playhead(40).with_source_out_at_confirmed());
+        source.route("select_mark_in", &mut preview, &mut timeline);
+        assert!(source.keys.mark_taken(&timeline));
+        source.route("select_audio_a1", &mut preview, &mut timeline);
+        assert!(source.lane_taken() && !source.keys.mark_taken(&timeline), "A1 taken lets IN go");
+        source.route("step_next_part", &mut preview, &mut timeline);
+        source.route("select_mark_out", &mut preview, &mut timeline);
+        assert!(!source.lane_taken() && source.keys.mark_taken(&timeline), "OUT taken keeps A1's draft");
+        assert_eq!(source.kept(0).channel, 1, "kept as Enter keeps it");
     }
 
     #[test]

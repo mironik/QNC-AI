@@ -218,6 +218,8 @@ pub struct ProgramSegments {
     /// The statement whose zoom stays open with no mark taken (user 2026-11-22: a click on the
     /// player lets the mark go but keeps the zoom; Esc or Close closes it).
     statement_zoom: Option<String>,
+    /// The side last taken in the source zoom left open (IN `true`).
+    source_zoom_side: bool,
     /// Where the trim zoom's playhead is: the play, and a pause until the cut moves.
     zoom_follow: qnc_program_view::ZoomFollow,
     /// The last Cover slot / Overwrite asked for (see `SegmentsView::cover_pressed`).
@@ -595,9 +597,12 @@ impl ProgramSegments {
             .then_some(self.source.in_mark)
             .flatten();
         self.source = source;
-        if self.source.statement && self.source.taken.is_some() {
+        // A source zoom stays open after its mark is let go (user 2026-11-25: "Enter snima, ali ne
+        // zatvara prozor"), on the side last taken, until Esc or Close or another clip.
+        if let Some(side) = self.source.taken {
             self.statement_zoom = self.source.clip_id.clone();
-        } else if !self.source.statement || self.statement_zoom != self.source.clip_id {
+            self.source_zoom_side = side;
+        } else if self.statement_zoom != self.source.clip_id {
             self.statement_zoom = None;
         }
         self.view.source_edit_stills = self.source_stills();

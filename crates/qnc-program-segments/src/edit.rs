@@ -123,12 +123,12 @@ impl ProgramSegments {
         if !edge.is_empty() {
             return edge;
         }
-        // A statement's zoom stays open after its mark is let go (no cut then).
-        let open = self.source.statement && self.statement_zoom.is_some() && self.statement_zoom == self.source.clip_id;
+        // A source zoom stays open after its mark is let go (no cut then; user 2026-11-25).
+        let open = self.statement_zoom.is_some() && self.statement_zoom == self.source.clip_id;
         let (Some(clip_id), Some((in_frame, out_frame))) = (self.source.clip_id.as_ref(), self.source.marks) else {
             return Vec::new();
         };
-        let Some(taken) = self.source.taken.or(open.then_some(true)) else {
+        let Some(taken) = self.source.taken.or(open.then_some(self.source_zoom_side)) else {
             return Vec::new();
         };
         let held = self.source.taken.is_some();
@@ -152,7 +152,7 @@ impl ProgramSegments {
         player.live = true; // the player itself, the monitor's picture as it plays
         player.middle = true;
         // The player lets the mark go and puts the playhead on IN; the zoom stays.
-        player.click = Some(qnc_program_view::StillAction::new("zoom_save", None, Some(in_frame)));
+        player.click = Some(qnc_program_view::StillAction::new("activate_focused_item", None, Some(in_frame)));
         let mut out_still = qnc_program_view::EditStill::new(out_frame, false, picture(last)).labelled(&qnc_ui_text::text("story.still.out_last"));
         out_still.click = action("select_mark_out");
         out_still.cut = held && !taken;

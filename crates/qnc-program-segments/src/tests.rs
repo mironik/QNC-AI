@@ -1385,7 +1385,7 @@ fn a_click_on_the_in_or_out_picture_takes_the_mark_the_player_lets_it_go() {
     segments.set_source(pick);
     let clicks: Vec<_> = segments.view().source_edit_stills.iter().map(|still| still.click.as_ref().map(|click| (click.action.clone(), click.value))).collect();
     let take = |action: &str| Some((action.to_string(), None));
-    assert_eq!(clicks, [take("select_mark_in"), Some(("zoom_save".to_string(), Some(10))), take("select_mark_out")]);
+    assert_eq!(clicks, [take("select_mark_in"), Some(("activate_focused_item".to_string(), Some(10))), take("select_mark_out")]);
 }
 
 /// User 2026-11-22: a statement's zoom stays open when its mark is let go (no cut then), until
@@ -1405,4 +1405,20 @@ fn a_statements_zoom_stays_open_after_its_mark_is_let_go_until_it_is_closed() {
     assert!(segments.view().source_edit_stills.is_empty(), "closed");
     segments.set_source(pick.with_taken(None));
     assert!(segments.view().source_edit_stills.is_empty(), "nothing opens it again until a mark is taken");
+}
+
+/// User 2026-11-25: "Enter snima, ali ne zatvara prozor": the zoom of a plain IN or OUT stays open
+/// on the side last taken after the mark is let go, until Esc or Close.
+#[test]
+fn a_source_zoom_stays_open_on_its_side_after_enter_until_it_is_closed() {
+    let mut segments = component();
+    let mut pick = marked(10).with_taken(Some(false));
+    pick.marks = Some((10, 40));
+    segments.set_source(pick.clone());
+    let taken = segments.view().source_edit_stills.len();
+    assert!(taken > 0);
+    segments.set_source(pick.clone().with_taken(None));
+    assert_eq!(segments.view().source_edit_stills.len(), taken, "the zoom stays on OUT");
+    segments.close_statement_zoom();
+    assert!(segments.view().source_edit_stills.is_empty(), "closed");
 }

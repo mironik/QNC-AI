@@ -268,9 +268,6 @@
     "subsegment_zoom_word": {
       "label": "Uzeti rub dijela SubSegmenta na rijec kliknutu u zoomu"
     },
-    "zoom_save": {
-      "label": "Spremi uzeto u zoomu, uzeto ostaje uzeto (gumb Spremi)"
-    },
     "script_word_cue": {
       "label": "Playhead na rijec izjave u scenariju"
     },
@@ -840,7 +837,7 @@
       { "keys": "Ctrl + Alt + strelice", "meaning": "Playhead skače na sljedeći objekt i ništa ne uzima: M marker ili početak segmenta; na source timelineu početak, IN, OUT; u složenoj izjavi rubovi dijelova." },
       { "keys": "Strelice", "meaning": "Lijevo/desno za jedan frame, a kad je nešto uzeto mijenjaju to; gore/dolje prethodni ili sljedeći blok, a dok je rez uzet skok na prethodnu ili sljedeću ključnu sliku." },
       { "keys": "J / K / L", "meaning": "J unazad, L naprijed (ponovno 2x, 4x, 8x), K stani. Shift+K: play oko uzetog reza ukrug; K tada zaustavlja i uzeti rub ide na playhead." },
-      { "keys": "Enter", "meaning": "Potvrda, uvijek u panelu u fokusu." },
+      { "keys": "Enter", "meaning": "Potvrda, uvijek u panelu u fokusu. U zoomu Enter (gumb Spremi) sprema uzeto, a prozor ostaje otvoren; Esc (gumb Zatvori) ga zatvara." },
       { "keys": "Esc", "meaning": "Odustani od onoga što nije zapisano, jedno po pritisku: pusti uzeto, odbaci nacrt Synca, zatvori uređivanje segmenta, zatvori uvećani slot." },
       { "keys": "Delete", "meaning": "Briše objekt, jedan po pritisku, samo ono uzeto (Ctrl ili desni klik): uzeti M marker, uzeti B-roll ili B-roll odabranog slota. Ctrl+Delete trajno briše isključeni segment." },
       { "keys": "Backspace", "meaning": "Briše zadnju radnju (Undo); Shift+Backspace je vraća (Redo). Ctrl+Backspace poništava zadnju izmjenu odabranog objekta bez obzira kad je bila (Undo selected), Ctrl+Shift+Backspace je vraća. U polju za upis teksta briše slovo; u pregledniku lokacija Ingesta znači Gore." },

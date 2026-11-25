@@ -163,20 +163,12 @@ impl PanelFocus {
             }
             return Some(true);
         }
-        // The zoom's Save (user 2026-11-04: "after Save do not close"): what is taken is written
-        // and stays taken. On the source timeline a taken IN or OUT is already where it is shown
-        // (it stays taken); a taken lane is kept and taken again.
-        if action_id == qnc_edit_verbs::SAVE {
-            if pieces.2.save_and_keep() {
-                return Some(true);
-            }
-            // A taken IN or OUT: Save lets the marks go where they are and the owner writes
-            // them (user 2026-11-20: the marks change only on Save).
-            let kept = self.source.keep_marks(pieces.3);
-            // The player of a statement's zoom (user 2026-11-22): the mark goes, the playhead goes
-            // on IN, the zoom stays open.
-            let cued = event.unsigned().is_some_and(|frame| self.source.cue(&qnc_timeline_model::TimelineIntent::CueFrame(frame), pieces.0));
-            return Some(kept || cued);
+        // Enter saves and the zoom stays open (user 2026-11-25: "Enter snima, ali ne zatvara
+        // prozor"; the zoom's Save is Enter): a taken slot edge or M marker on the segment panel is
+        // written and taken again. On the source timeline Enter lets the mark go where it is (the
+        // owner writes it) and the source zoom stays open on that side.
+        if action_id == qnc_edit_verbs::KEEP && self.panel == Panel::Segments && pieces.2.save_and_keep() {
+            return Some(true);
         }
         // Esc or the zoom's Close also closes a statement's zoom left open with no mark taken.
         if action_id == "clear_focus" {

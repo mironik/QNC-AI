@@ -24,8 +24,8 @@ fn a_taken_mark_moves_only_with_i_or_o_and_cancel_save_close_do_what_they_say() 
     focus.route("select_mark_out", (&mut preview, &mut wrap, &mut segments, &mut timeline));
     timeline.playhead_frame = Some(30);
     focus.route("mark_out", (&mut preview, &mut wrap, &mut segments, &mut timeline));
-    focus.route("zoom_save", (&mut preview, &mut wrap, &mut segments, &mut timeline));
-    assert_eq!(timeline.source_out_frame, Some(30), "Save keeps it");
+    focus.route("activate_focused_item", (&mut preview, &mut wrap, &mut segments, &mut timeline));
+    assert_eq!(timeline.source_out_frame, Some(30), "Save (Enter) keeps it");
     assert!(!focus.source_timeline_mut().mark_taken(&timeline), "and lets it go");
 }
 

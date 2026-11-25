@@ -621,6 +621,13 @@ impl SubsegmentEdit {
         if let Some(done) = self.level_key(action_id, target, &block, &pieces, preview) {
             return Some(done);
         }
+        // Enter saves and the zoom stays open (user 2026-11-25: "Enter snima, ali ne zatvara
+        // prozor"): a taken edge, cut, join sound, part sound, slot or slip is written and stays taken.
+        if action_id == qnc_edit_verbs::KEEP {
+            if let Some(done) = self.save_and_keep(&block, &pieces, preview) {
+                return Some(done);
+            }
+        }
         if let Some(done) = self.slip_key(action_id, &block, &pieces, preview) {
             return Some(done);
         }
@@ -641,9 +648,6 @@ impl SubsegmentEdit {
         }
         if action_id == ZOOM_WORD {
             return self.zoom_word(target, &block);
-        }
-        if action_id == qnc_edit_verbs::SAVE {
-            return self.save_and_keep(&block, &pieces, preview);
         }
         if action_id == DRAG_EDGE {
             return self.drag_edge(target, &block, &pieces);
