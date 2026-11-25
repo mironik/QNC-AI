@@ -89,7 +89,7 @@ qnc-clip-row = { path = "crates/qnc-clip-row" }
 qnc-clip-sound = { path = "crates/qnc-clip-sound" }
 qnc-change-capture = { path = "crates/qnc-change-capture" }
 qnc-project-journal = { path = "crates/qnc-project-journal" }
-qnc-edit-history = { path = "crates/qnc-edit-history" }
+qnc-clip-marks = { path = "crates/qnc-clip-marks" }
 qnc-clip-window = { path = "crates/qnc-clip-window" }
 qnc-confirm-dialog = { path = "crates/qnc-confirm-dialog" }
 qnc-content-artifacts = { path = "crates/qnc-content-artifacts" }

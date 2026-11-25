@@ -1,0 +1,18 @@
+[package]
+name = "qnc-clip-marks"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: the IN and OUT of each clip as last saved on the source timeline, a table module of the project database intermediary whose writes the project's journal keeps; the history of a clip is read from that journal (user 2026-11-25: kept per clip, any position can be gone back to)."
+
+[dependencies]
+qnc-clip-follow = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-project-journal = { workspace = true }
+rusqlite = { workspace = true, features = ["hooks"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

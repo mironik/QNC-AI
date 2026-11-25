@@ -1,0 +1,24 @@
+{
+  "database_id": "qnc.db.clip_marks",
+  "database_owner": "project",
+  "owner_application": "qnc.module.clip-marks",
+  "ownership_rule": "The project owns this database; no application owns it or its table. The IN and OUT of a clip reach it only through the one intermediary of the project database (qnc.module.db-broker), whose table module qnc.module.clip-marks owns it.",
+  "schema_version": "0.2.0",
+  "qnc_uri": "qnc://local/db/project_db",
+  "tables": [
+    "clip_marks"
+  ],
+  "public_read_views": [
+    "public_clip_marks"
+  ],
+  "write_owner": "qnc.module.clip-marks",
+  "public_read_policy": "public_read_views",
+  "rules": {
+    "per_clip": "One row per clip: its IN and OUT as last saved on the source timeline. A clip's first Save keeps where they were before it.",
+    "history": "The table is journaled: every write is a commit of the project's journal (who, when, before and after). The history of a clip is read from the journal; no second history is kept.",
+    "back": "Going back to a position is a write of the row and itself a commit; nothing is deleted by it."
+  },
+  "migration_policy": "owner_application_only",
+  "created_at": "2026-11-25T00:00:00Z",
+  "updated_at": "2026-11-25T00:00:00Z"
+}

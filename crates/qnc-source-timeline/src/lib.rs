@@ -206,7 +206,7 @@ impl SourceTimeline {
     /// The history of the clip in the zoom (user 2026-11-25): Ctrl+H, a row of its list and the keys
     /// of the open list; `None`: not the history's. A restore takes the side the zoom shows.
     pub fn history_key(&mut self, action_id: &str, value: Option<i64>, preview: &SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
-        let done = self.zoom.history_key(action_id, value, preview, timeline, self.view.timecode)?;
+        let done = self.zoom.history_key(action_id, value, preview, timeline)?;
         if qnc_source_mark_focus::is_taken(timeline) {
             self.keys.set_mark_taken(true);
         }

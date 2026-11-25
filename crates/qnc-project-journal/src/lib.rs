@@ -119,6 +119,47 @@ pub fn read(conn: &Connection, limit: usize) -> Result<Vec<Commit>> {
     Ok(commits)
 }
 
+/// The history of one row: the newest `limit` commits that changed a row of `table` whose column
+/// `key` is `value` (before or after), the oldest first, each with only the changes of that row.
+pub fn row_history(conn: &Connection, table: &str, key: &str, value: &str, limit: usize) -> Result<Vec<Commit>> {
+    if !ready(conn) {
+        return Ok(Vec::new());
+    }
+    if !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(format!("not a column name: {key}"));
+    }
+    let path = format!("$.{key}");
+    let mut statement = conn
+        .prepare(
+            "SELECT j.id, j.made_at_utc, j.author, j.module, j.action, c.op, c.before_row, c.after_row
+             FROM project_journal_changes c JOIN project_journal j ON j.id = c.commit_id
+             WHERE c.commit_id IN (
+                 SELECT DISTINCT commit_id FROM project_journal_changes
+                 WHERE tbl = ?1 AND (json_extract(after_row, ?2) = ?3 OR json_extract(before_row, ?2) = ?3)
+                 ORDER BY commit_id DESC LIMIT ?4)
+               AND c.tbl = ?1 AND (json_extract(c.after_row, ?2) = ?3 OR json_extract(c.before_row, ?2) = ?3)
+             ORDER BY c.commit_id, c.seq",
+        )
+        .map_err(err)?;
+    let parse = |text: Option<String>| text.and_then(|text| serde_json::from_str(&text).ok()).unwrap_or(serde_json::Value::Null);
+    let rows = statement
+        .query_map(params![table, path, value, limit as i64], |row| {
+            let head = Commit { id: row.get(0)?, made_at_utc: row.get(1)?, author: row.get(2)?, module: row.get(3)?, action: row.get(4)?, changes: Vec::new() };
+            Ok((head, RowChange { table: table.to_string(), op: row.get(5)?, before: parse(row.get(6)?), after: parse(row.get(7)?) }))
+        })
+        .map_err(err)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(err)?;
+    let mut commits: Vec<Commit> = Vec::new();
+    for (head, change) in rows {
+        match commits.last_mut() {
+            Some(last) if last.id == head.id => last.changes.push(change),
+            _ => commits.push(Commit { changes: vec![change], ..head }),
+        }
+    }
+    Ok(commits)
+}
+
 fn err(error: impl std::fmt::Display) -> String {
     error.to_string()
 }
@@ -143,5 +184,25 @@ mod tests {
         let read = read(&conn, 10).unwrap();
         assert_eq!(read.len(), 1);
         assert_eq!((read[0].author.as_str(), read[0].action.as_str(), read[0].changes[0].after["v"].as_i64()), ("miron@laptop", "create", Some(1)));
+    }
+
+    /// The history of one row: only the commits and changes of that row, the oldest first.
+    #[test]
+    fn the_history_of_one_row_is_its_commits_the_oldest_first() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE t (id TEXT PRIMARY KEY, v INTEGER);").unwrap();
+        ensure_schema(&conn).unwrap();
+        qnc_change_capture::install(&conn, &["t"]).unwrap();
+        let commit = |sql: &str| {
+            conn.execute_batch(sql).unwrap();
+            let changes = qnc_change_capture::take(&conn).unwrap();
+            append(&conn, &NewCommit { author: "u".into(), module: "m".into(), action: "set".into(), changes }).unwrap();
+        };
+        commit("INSERT INTO t VALUES ('a', 1); INSERT INTO t VALUES ('b', 9);");
+        commit("UPDATE t SET v = 2 WHERE id = 'a';");
+        commit("UPDATE t SET v = 8 WHERE id = 'b';");
+        let a = row_history(&conn, "t", "id", "a", 10).unwrap();
+        assert_eq!(a.iter().map(|commit| commit.changes.iter().map(|change| change.after["v"].as_i64().unwrap()).collect::<Vec<_>>()).collect::<Vec<_>>(), [vec![1], vec![2]]);
+        assert_eq!(row_history(&conn, "t", "id", "a", 1).unwrap()[0].changes[0].after["v"], 2, "the newest ones");
     }
 }

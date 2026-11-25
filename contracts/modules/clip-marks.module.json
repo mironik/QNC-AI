@@ -1,0 +1,46 @@
+{
+  "module_id": "qnc.module.clip-marks",
+  "module_name": "Clip Marks Table",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "db.clip_marks.read",
+    "db.clip_marks.write"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "transport_protocol_version": "0.1.0",
+  "transport_scope": [
+    "local",
+    "lan",
+    "intranet"
+  ],
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "module_dependencies": [
+    "qnc.module.db-broker",
+    "qnc.module.project-journal"
+  ],
+  "forbidden_calls": [
+    "media.decode",
+    "media.probe.full",
+    "file.write",
+    "playback.clock"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.scanner",
+    "qnc.module.broadcast-player-core"
+  ],
+  "adapter_policy": "The IN and OUT of each clip as last saved on the source timeline (user 2026-11-25): a Save that moved them writes the clip's row of clip_marks (view public_clip_marks); a clip's first Save keeps where they were before it. The table is journaled, so the project's journal keeps every write (who, when, before and after); the history of a clip is read from that journal, there is no second history. Going back to a position is a write like any other. A table module of the project database intermediary (qnc-db-broker); it owns only its table and is written only through the intermediary. The source timeline does not take its marks from here.",
+  "specification": "AGENTS.md"
+}

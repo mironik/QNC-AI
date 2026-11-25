@@ -4539,6 +4539,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-clip-marks"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-follow",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-project-journal",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-clip-posters"
 version = "0.1.0"
 dependencies = [
@@ -4893,20 +4908,6 @@ version = "0.1.0"
 [[package]]
 name = "qnc-edit-edge"
 version = "0.1.0"
-
-[[package]]
-name = "qnc-edit-history"
-version = "0.1.0"
-dependencies = [
- "qnc-clip-follow",
- "qnc-db-broker",
- "qnc-dev-diagnostics",
- "qnc-ui-text",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
-]
 
 [[package]]
 name = "qnc-edit-step"
@@ -8181,11 +8182,11 @@ name = "qnc-source-timeline"
 version = "0.1.0"
 dependencies = [
  "qnc-action-event",
+ "qnc-clip-marks",
  "qnc-clip-sound",
  "qnc-clip-window",
  "qnc-dev-diagnostics",
  "qnc-edit-edge",
- "qnc-edit-history",
  "qnc-edit-step",
  "qnc-edit-verbs",
  "qnc-edit-words",

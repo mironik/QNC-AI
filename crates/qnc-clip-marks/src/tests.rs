@@ -17,10 +17,6 @@ fn project() -> (tempfile::TempDir, ProjectDbTarget) {
     (dir, ProjectDbTarget::from_owner_binding(&file, PROJECT_DB).unwrap())
 }
 
-fn entry(clip: &str, label: &str, at: u64) -> NewEntry {
-    NewEntry { clip_id: clip.into(), kind: "source_marks".into(), label: label.into(), state: serde_json::json!({ "in": at }) }
-}
-
 fn wait(history: &mut ClipHistory, target: &ProjectDbTarget, clip: &str, count: usize) -> Vec<Entry> {
     for _ in 0..1000 {
         if let Some(entries) = history.for_clip(Some(target), Some(clip)) {
@@ -33,25 +29,27 @@ fn wait(history: &mut ClipHistory, target: &ProjectDbTarget, clip: &str, count: 
     panic!("not read")
 }
 
-/// User 2026-11-25: the history is kept per clip, not together; each entry keeps its owner's state.
+/// User 2026-11-25: the history is kept per clip and read from the project's journal; a clip's
+/// first Save keeps where IN and OUT were before it, a going back is a position like any other.
 #[test]
-fn the_history_is_kept_per_clip_the_oldest_first_with_its_state() {
+fn the_history_of_a_clip_is_its_rows_writes_in_the_journal() {
     let (_dir, target) = project();
     assert!(read(&target, "a").unwrap().is_empty(), "a project without the table has no history");
     let mut history = ClipHistory::new();
-    history.add(&target, entry("a", "IN 10", 10));
-    history.add(&target, entry("b", "IN 99", 99));
-    history.add(&target, entry("a", "IN 12", 12));
-    let a = wait(&mut history, &target, "a", 2);
-    assert_eq!(a.iter().map(|entry| entry.label.as_str()).collect::<Vec<_>>(), ["IN 10", "IN 12"]);
-    assert_eq!(a[1].state, serde_json::json!({ "in": 12 }));
-    assert_eq!(read(&target, "b").unwrap().len(), 1, "another clip has its own history");
+    history.keep(&target, "a", (0, 100), (10, 100));
+    history.keep(&target, "b", (0, 50), (5, 50));
+    history.keep(&target, "a", (10, 100), (12, 90));
+    history.back(&target, "a", (0, 100));
+    let a = wait(&mut history, &target, "a", 4);
+    assert_eq!(a.iter().map(|entry| (entry.in_frame, entry.out_frame, entry.back)).collect::<Vec<_>>(), [(0, 100, false), (10, 100, false), (12, 90, false), (0, 100, true)]);
+    assert!(a.iter().all(|entry| !entry.author.is_empty() && !entry.made_at_utc.is_empty()), "who and when, from the journal");
+    assert_eq!(read(&target, "b").unwrap().len(), 2, "another clip has its own history");
 }
 
 #[test]
-fn an_entry_without_a_clip_or_a_label_is_refused() {
+fn marks_without_a_clip_or_with_out_before_in_are_refused() {
     let (_dir, target) = project();
-    let mut client = target.open(Access::ReadWrite, vec![EditHistoryModule::factory()]).unwrap();
-    let refused = client.execute(MODULE_ID, encode(&Operation::Add(entry("a", "", 1))).unwrap());
-    assert!(refused.is_err());
+    let mut client = target.open(Access::ReadWrite, vec![ClipMarksModule::factory()]).unwrap();
+    assert!(client.execute(MODULE_ID, encode(&Operation::Back { clip_id: String::new(), to: (0, 10) }).unwrap()).is_err());
+    assert!(client.execute(MODULE_ID, encode(&Operation::Back { clip_id: "a".into(), to: (10, 10) }).unwrap()).is_err());
 }
