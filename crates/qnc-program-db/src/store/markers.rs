@@ -244,6 +244,76 @@ impl Store {
         Ok(Data::Changed)
     }
 
+    /// An empty slot deleted (user 2026-11-25): the slot is a container of the cover layer, it
+    /// goes with its IN/OUT. Its end marker goes, so the OUT before and the IN after are its
+    /// start marker, one M; the markers after it move up by its length, so the slots after keep
+    /// their lengths and their covers. The program and A1 do not change: the last slot ends
+    /// with the story, so when it holds a cover a new M keeps its length and the room left at
+    /// the end is an empty slot.
+    pub(crate) fn delete_slot(&mut self, slot_id: &str) -> Result<Data> {
+        if qnc_db_broker::is_draft(&self.conn) {
+            return Err(qnc_ui_text::text("story.slot_delete_story_only").into());
+        }
+        let fps = require_story_fps(&self.conn)?;
+        let duration = program_length(&self.conn)?;
+        let tx = self.conn.savepoint().map_err(err)?;
+        let (start_id, end_id, start, end): (String, String, i64, i64) = tx
+            .query_row(
+                "SELECT start_marker_id, end_marker_id, start_frame, end_frame FROM story_marker_slots WHERE slot_id = ?1",
+                [slot_id.trim()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()
+            .map_err(err)?
+            .ok_or_else(|| format!("slot not found: {slot_id}"))?;
+        let has_cover: bool = tx
+            .query_row("SELECT EXISTS(SELECT 1 FROM story_items WHERE role = 'cover' AND slot_id = ?1)", [slot_id.trim()], |row| row.get(0))
+            .map_err(err)?;
+        if has_cover {
+            return Err(qnc_ui_text::text("story.slot_delete_has_cover").into());
+        }
+        if end >= duration {
+            return Err(qnc_ui_text::text("story.last_slot_ends_with_story").into());
+        }
+        // The cover of the slot after takes the deleted slot's start marker for its own.
+        let after = {
+            let mut statement = tx.prepare("SELECT item_id, slot_id FROM story_items WHERE role = 'cover'").map_err(err)?;
+            let rows = statement
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+                .map_err(err)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(err)?;
+            rows
+        };
+        for (cover_id, cover_slot) in after {
+            if let Some((first, second)) = cover_slot.split_once('|') {
+                if first == end_id {
+                    tx.execute("UPDATE story_items SET slot_id = ?1 WHERE role = 'cover' AND item_id = ?2", params![super::slots::slot_id(&start_id, second), cover_id])
+                        .map_err(err)?;
+                }
+            }
+        }
+        tx.execute("DELETE FROM story_markers WHERE marker_id = ?1", [&end_id]).map_err(err)?;
+        shift_markers_from(&tx, end, start - end, fps)?;
+        finalize_story(&tx)?;
+        // The last slot grew by the slot deleted; with a cover it keeps its length.
+        let last: Option<(String, i64, i64)> = tx
+            .query_row(
+                "SELECT slot_id, start_frame, end_frame FROM story_marker_slots s
+                 WHERE end_frame >= ?1 AND EXISTS(SELECT 1 FROM story_items c WHERE c.role = 'cover' AND c.slot_id = s.slot_id)
+                 ORDER BY start_frame DESC LIMIT 1",
+                [duration],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(err)?;
+        if let Some((last_id, last_start, last_end)) = last {
+            split_slot_for(&tx, &last_id, last_end - last_start - (end - start))?;
+        }
+        tx.commit().map_err(err)?;
+        Ok(Data::Changed)
+    }
+
     /// v5 `delete_marker`: the start and the end marker are locked.
     pub(crate) fn delete_marker(&mut self, marker_id: &str) -> Result<Data> {
         require_story_fps(&self.conn)?;

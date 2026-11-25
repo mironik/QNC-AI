@@ -727,7 +727,7 @@ fn a_click_that_only_places_the_playhead_lets_go_of_a_chosen_cover() {
 }
 
 #[test]
-fn ctrl_delete_on_a_chosen_slot_without_b_roll_says_so() {
+fn delete_on_a_chosen_empty_slot_deletes_the_slot() {
     let mut segments = component();
     segments.set_playhead(Some(20));
     segments.apply(SegmentCommand::SelectSlotAtPlayhead);
@@ -735,7 +735,10 @@ fn ctrl_delete_on_a_chosen_slot_without_b_roll_says_so() {
     let slot = segments.selected_slot.clone().expect("a chosen slot");
     segments.stored_covers.retain(|cover| cover.slot_id != slot);
     segments.apply(SegmentCommand::DeleteFocused);
-    assert_eq!(segments.view().message, qnc_ui_text::text("story.msg.slot_has_no_broll"));
+    // An empty slot may be deleted (user 2026-11-25): the write is asked (no database here) and
+    // the slot is no longer chosen.
+    assert_eq!(segments.view().message, qnc_ui_text::text("story.msg.db_unavailable"));
+    assert!(segments.selected_slot.is_none());
 }
 
 #[test]

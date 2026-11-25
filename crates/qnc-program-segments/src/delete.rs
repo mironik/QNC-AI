@@ -1,6 +1,6 @@
 //! Delete removes an object, one per press, the nearest first (user 2026-10-21: "Backspace
 //! deletes the last action, Delete deletes an object"): the taken M marker, the taken B-roll,
-//! the B-roll of a taken or chosen slot. Only what is taken (rule 2026-09-25); a click alone
+//! the B-roll of a taken or chosen slot, an empty taken or chosen slot itself. Only what is taken (rule 2026-09-25); a click alone
 //! does not arm it. Something not saved (a Sync draft) is not an object: Escape
 //! drops it. Ctrl+Delete removes an excluded segment for good.
 
@@ -46,7 +46,12 @@ impl ProgramSegments {
                     self.end_edit();
                     self.write(Operation::DeleteSegment { segment_id })
                 }
-                (None, None) => self.refresh_view(qnc_ui_text::text("story.msg.slot_has_no_broll").into()),
+                // An empty slot may be deleted (user 2026-11-25): it goes, the slots after it move up.
+                (None, None) => {
+                    self.slot_trim = None;
+                    self.selected_slot = None;
+                    self.write(Operation::DeleteSlot { slot_id })
+                }
             };
         }
         // Delete takes only what is taken (rule 2026-09-25): a click alone does not arm it.

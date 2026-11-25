@@ -124,8 +124,9 @@ C4. **[POPRAVLJENO 2026-11-25]** **Scenarij**:
     - snimanje takea ne provjerava je li u tijeku snimanje cijelog priloga;
     - promjena projekta ruši take koji se snima.
 C5. Spremljena XML postavka exporta (`export-xml.qncxml`) nikad se ne koristi.
-C6. Tray pri zatvaranju gasi i QNC formu u kojoj korisnik radi (zastavica "outlives" ne vrijedi
-    uz job objekt).
+C6. Tray pri zatvaranju gasi i QNC formu u kojoj korisnik radi. Nije kvar nego pitanje: pravilo
+    17. 11. kaze da gasenjem traya prestaje sve sto je pokrenuo (komentar "outlives" je o prozoru
+    kartice). Treba odluka: smije li vidljiva forma ostati otvorena.
 C7. Mrtav kod:
     - `qnc-wizard-flow`, `qnc-wizard-db`, `qnc-wizard-steps` (nitko ih ne koristi);
     - `StartAsk`, `stored()`;
@@ -147,7 +148,7 @@ C11. `qnc-take-heard` nije vezan uz AI mogućnost projekta i u dvije otvorene fo
 
 ## D. Pravila korisnika koja kod još ne slijedi
 
-D1. **Prazan slot se može obrisati** (V2): odlazi s IN/OUT-om, OUT prije i IN poslije postaju
+D1. **[IZVEDENO 2026-11-25]** **Prazan slot se može obrisati** (V2): odlazi s IN/OUT-om, OUT prije i IN poslije postaju
     jedan M, slotovi iza se pomaknu naprijed. Danas: nema operacije, Delete javlja poruku.
 D2. **Traka trajanja selektira slot**, i prazan: danas je prazan slot nema.
 D3. **Sve na V2 ne dira V1/A1**: S-Story (`clip_slots.rs`) to krši (A12).

@@ -390,6 +390,12 @@ pub enum Operation {
     /// earlier or later in its source.
     TrimSlot { slot_id: String, start: bool, frames: i64 },
     DeleteMarker { marker_id: String },
+    /// An empty slot deleted (user 2026-11-25: "prazan slot se MOZE obrisati"): it goes with its
+    /// IN/OUT, the OUT before and the IN after become one M, the slots after it move up by its
+    /// length (V2 only; the program and A1 stay). The last slot keeps its length: the room at
+    /// the end is an empty slot. A slot with a cover, the last slot and an S-Story slot are
+    /// refused. One UNDO step.
+    DeleteSlot { slot_id: String },
     ListMarkers,
     ListSlots,
     ListCovers,
@@ -456,7 +462,8 @@ impl Operation {
         matches!(
             self,
             Self::CreateSegment { .. }
-                | Self::AppendSegments { .. }
+                                | Self::DeleteSlot { .. }
+| Self::AppendSegments { .. }
                 | Self::DeleteSegment { .. }
                 | Self::IncludeSegment { .. }
                 | Self::ReplaceSegment { .. }

@@ -312,6 +312,8 @@
     "story.purge_only_excluded": "Trajno se briše samo isključeni segment.",
     "story.slot_moves_to_neighbour": "Slot se pomiče samo do susjednog M markera.",
     "story.last_slot_ends_with_story": "Zadnji slot završava s pričom: pomaknite njegov početni M marker.",
+    "story.slot_delete_has_cover": "Slot s pokrivalicom se ne briše: najprije obrišite pokrivalicu.",
+    "story.slot_delete_story_only": "U S-Storyju je svaki slot klip: Delete izbacuje klip.",
     "shell.app_active": "{app} aktivan.",
     "shell.app_no_entry": "{app} nema ulaz za shell desktop ({id}).",
     "output.cannot_start": "Programski izlaz: {error}",

@@ -312,6 +312,8 @@
     "story.purge_only_excluded": "Only an excluded segment is deleted for good.",
     "story.slot_moves_to_neighbour": "A slot moves only up to its neighbouring M marker.",
     "story.last_slot_ends_with_story": "The last slot ends with the story: move its start M marker.",
+    "story.slot_delete_has_cover": "A slot with a B-roll is not deleted: delete its B-roll first.",
+    "story.slot_delete_story_only": "In an S-Story every slot is a clip: Delete takes the clip out.",
     "shell.app_active": "{app} active.",
     "shell.app_no_entry": "{app} has no shell desktop entry ({id}).",
     "output.cannot_start": "Program output: {error}",

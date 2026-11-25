@@ -296,6 +296,7 @@ impl Store {
                 None => self.trim_slot(slot_id, *start, *frames),
             },
             Operation::DeleteMarker { marker_id } => self.delete_marker(marker_id),
+            Operation::DeleteSlot { slot_id } => self.delete_slot(slot_id),
             Operation::ListMarkers => self.list_markers(),
             Operation::ListSlots => self.list_slots(),
             Operation::ListCovers => self.list_covers(),

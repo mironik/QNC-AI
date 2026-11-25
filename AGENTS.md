@@ -98,6 +98,9 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   ga ne brise; brisanje pokrivalice ostavlja prazan slot. Pokrivalica se mijenja Overwriteom.
 - Prazan slot se ne brise sam, ali se MOZE obrisati: odlazi sa svojim IN/OUT-om, OUT prije i IN
   poslije spoje se u jedan M, slotovi iza se pomaknu naprijed (samo V2).
+  Brise se Deleteom na izabranom ili uzetom praznom slotu, jedan korak Undo. Zadnji slot ostaje
+  (zavrsava s pricom); ako zadnji slot ima pokrivalicu, ona zadrzava duljinu, a oslobodeni
+  prostor na kraju postaje prazan slot. Slot s pokrivalicom se ne brise.
 - U slotu je traka koja pokazuje trajanje; klik na nju selektira slot.
 - Lead-in i lead-out stoje uz prvi i zadnji segment, i u Storyju i u S-Storyju.
 - Undo, Redo i povijest projekta (Ctrl+Shift+H) idu iz dnevnika projekta.

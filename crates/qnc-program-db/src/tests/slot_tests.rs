@@ -266,3 +266,30 @@ fn without_an_empty_slot_after_it_the_last_slot_takes_the_difference() {
     run(&mut store, Operation::TrimSlot { slot_id: slot, start: false, frames: 2 }).unwrap();
     assert_eq!(markers(&mut store), vec![10, 18, 24], "every covered slot after it moves, the last one is shorter");
 }
+
+#[test]
+fn an_empty_slot_is_deleted_and_the_slots_after_it_move_up_keeping_their_lengths() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let mut store = imported_store(&path);
+    three_segments(&mut store);
+    marker(&mut store, 12).unwrap();
+    marker(&mut store, 22).unwrap();
+    let (first, middle, last) = (slot_at_frame(&path, 5), slot_at_frame(&path, 15), slot_at_frame(&path, 25));
+    drop(store);
+    put_cover(&path, "cover_first", &first);
+    put_cover(&path, "cover_last", &last);
+    let mut store = reopen(&path);
+    assert!(run(&mut store, Operation::DeleteSlot { slot_id: first.clone() }).is_err(), "a slot with a cover is not deleted");
+    run(&mut store, Operation::DeleteSlot { slot_id: middle }).unwrap();
+    // The OUT before and the IN after are one M at 12; the last slot moved up by 10 frames and
+    // keeps its 8 frames with its cover; the room at the end is an empty slot. The program stays.
+    assert_eq!(slot_rows(&path), vec![(0, 12, true), (12, 20, true), (20, 30, false)]);
+    assert_eq!(cover_row(&path, "cover_last").1..cover_row(&path, "cover_last").2, 12..20);
+    assert_eq!(cover_row(&path, "cover_first").1..cover_row(&path, "cover_first").2, 0..12);
+    assert_eq!(segments(&mut store).len(), 3, "the segments (V1/A1) are not touched");
+    let end = slot_at_frame(&path, 25);
+    assert!(run(&mut store, Operation::DeleteSlot { slot_id: end }).is_err(), "the last slot ends with the story");
+    run(&mut store, Operation::UndoStory).unwrap();
+    assert_eq!(slot_rows(&path), vec![(0, 12, true), (12, 22, false), (22, 30, true)], "one undo step brings it back");
+}
