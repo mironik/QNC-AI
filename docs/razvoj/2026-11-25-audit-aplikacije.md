@@ -118,7 +118,7 @@ C2. **[POPRAVLJENO 2026-11-25]** **Povijest projekta u Ingestu**: Ctrl+Shift+H o
     (`theme: None`), a ona od tada guta svaku tipku.
 C3. **[POPRAVLJENO 2026-11-25]** **AI ograničenja vrijede samo u sučelju**: tipka ili radnja iz kataloga zaobilazi sivi gumb
     (snimka OFF-ova, Smooth, prijedlog pokrivalica).
-C4. **Scenarij**:
+C4. **[POPRAVLJENO 2026-11-25]** **Scenarij**:
     - nakon neuspjelog Spremi sljedeći uspješan upis prazni uređivač;
     - dodani blok briše nespremljeni nacrt;
     - snimanje takea ne provjerava je li u tijeku snimanje cijelog priloga;

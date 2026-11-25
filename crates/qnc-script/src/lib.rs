@@ -393,7 +393,9 @@ impl Script {
                 };
                 // An OFF goes in with the shots the reporter wants under it.
                 let broll_note = if kind.role == Role::Spoken { self.view.editor_note.trim().to_string() } else { String::new() };
-                self.view.editor_note.clear();
+                // The editor and its note are cleared once the block is written, not before (audit
+                // 2026-11-25: a refused write lost them).
+                self.clear_after_write = true;
                 self.write(preview, move |target| qnc_script_db::add_at(target, place, Block { broll_note, ..Block::written(kind.id, text) }).map(Some))
             }
             SAVE_TEXT => match self.view.editing {
@@ -424,6 +426,10 @@ impl Script {
                     self.view.message = qnc_ui_text::text("script.choose_text").into();
                     return Some(true);
                 };
+                if text.is_empty() {
+                    self.view.message = qnc_ui_text::text("script.write_first").into();
+                    return Some(true);
+                }
                 self.write(preview, move |target| qnc_script_db::set_text(target, block, text).map(|_| None))
             }
             ADD_CLIP => {
@@ -724,6 +730,10 @@ impl Script {
         if self.taking.is_some() {
             return true;
         }
+        // One microphone: no OFF is recorded while the whole story is (audit 2026-11-25).
+        if self.session.is_some() || self.session_busy.is_some() {
+            return false;
+        }
         if let Some((id, take)) = self.take.take() {
             let mark = self.view.blocks.iter().find(|row| row.block.id == id).map(|row| row.mark.clone()).unwrap_or_default();
             self.view.message = qnc_ui_text::text("script.making_clip").into();
@@ -975,6 +985,14 @@ impl Script {
         let project = preview.project_target().cloned();
         let key = project.as_ref().map(|target| target.uri().to_string());
         if key != self.project {
+            // A recording of the project left stops (audit 2026-11-25: the microphone was left
+            // open); what it recorded is not kept, it belonged to the other project.
+            if let Some((_, take)) = self.take.take() {
+                let _ = take.cancel();
+            }
+            if let Some(session) = self.session.take() {
+                let _ = session.cancel();
+            }
             *self = Self { project: key, ..Self::default() };
         }
         self.header.poll(project.as_ref());
@@ -1166,13 +1184,15 @@ impl Script {
                             }
                             if let Some(id) = added {
                                 self.view.selected = Some(id);
-                                // The editor's text is in the script now.
-                                if self.view.editing.is_none() {
-                                    self.view.editor.clear();
-                                }
                             }
                         }
-                        Err(error) => self.view.message = error,
+                        Err(error) => {
+                            // What was to follow the write does not (audit 2026-11-25: a later
+                            // write emptied the editor or opened marks).
+                            self.marks_after_write = None;
+                            self.clear_after_write = false;
+                            self.view.message = error;
+                        }
                     }
                     self.writing = None;
                     self.read_at = None; // read now
