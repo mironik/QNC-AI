@@ -49,6 +49,64 @@ QNC-AI je samostalna aplikacija: AI wizard koji novinara vodi od kartice do expo
 - Izolirani korijen za probu: `cargo run -p qnc-wizard-flow --example iso_root -- <QNC> <novi>`
   (kopija registra i baze aktivnog projekta), zatim `QNC_ROOT=<novi>`.
 
+## 3a. Pravila ponasanja
+
+Ovo je opis sto aplikacija radi, ne povijest (korisnik 2026-11-25: "da si u Agents.md pisao
+pravila, sad ne bi trebao raditi audit"). Prije promjene ponasanja najprije se mijenja pravilo
+ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
+`docs/razvoj/2026-11-25-audit-aplikacije.md`; to nisu pravila dok ih korisnik ne odluci.
+
+### Opca
+
+- Baza projekta je jedina istina. Svaki upis ide kroz vlasnika tablice i posrednika baze
+  (`qnc-db-broker`); nijedna forma ni pomocni program ne pise SQL mimo njih. Kartica i izvor su
+  samo za citanje.
+- Projekt pripada korisniku koji ga je napravio (vlasnik u `project_owner`). Samo vlasnik smije
+  vratiti projekt na raniji trenutak ili ga obrisati.
+- Forma je samo raspored; sto radi je u kocki s jednom odgovornoscu. Logika, citanje datoteka i
+  stanje rada ne zive u formi ni u egui memoriji.
+- Svaka radnja ima sifru u katalogu tipki i ide istim putem s bilo kojeg uredaja (tipka, gumb,
+  mis, touchpad). Svaka radnja koju korisnik pokrece ima tipku. Mis i geste daju se kartom
+  (`contracts/input/*.json`), ne kodom panela.
+- AI mogucnost koju projekt nema ne radi ni kroz gumb ni kroz tipku ni kroz katalog.
+- Natpisi su sifre rjecnika; engleski je osnovni jezik.
+
+### Tipke i geste (svaki panel isto)
+
+- Obicna tipka radi odmah; Ctrl+ uzima kontrolu nad necim sto postoji (IN, OUT, M, slot, A1/A2);
+  Shift+ dodaje; Alt+ skace.
+- Desni klik = Ctrl+ (uzima ono na sto pokazuje). Lijevi klik postavlja playhead; dok je nesto
+  uzeto, sprema kao Enter. Povlacenje vuce samo uzeto. Kotacic = strelice lijevo/desno,
+  Ctrl+kotacic = Ctrl+strelice.
+- Enter potvrduje ono sto je uzeto na panelu u fokusu. Esc odustaje od onoga sto nije zapisano
+  i zatvara prozor. Delete brise samo uzeto. Backspace je Undo, Shift+Backspace Redo.
+- Tipke djeluju samo na panel u fokusu. Tab/Shift+Tab hoda panelima po redu iz rasporeda forme;
+  klik u panel daje mu fokus.
+- Timeline i njegov zoom imaju iste radnje; zoom je samo uvecani isjecak.
+
+### Story i S-Story
+
+- Klasican timeline s dvije trake: segmenti su V1/A1, pokrivalice V2/A2. Sto se radi na V2 ne
+  mijenja V1 ni A1.
+- A1 je kontinuirani govor price (segmenti Ton i Off) i zakljucan je: ne pokriva se i ne reze.
+  Program je flat, nepromjenjive duljine: nijedna radnja markera ni slota ne mijenja duljinu.
+- M marker postoji samo na sloju pokrivalica. M je OUT kadra prije i IN kadra poslije. Spoj dva
+  segmenta nije M.
+- Slot je prostor izmedu dva M markera i kontejner je: pokrivalica se ugnjezduje u slot i nikad
+  ga ne brise; brisanje pokrivalice ostavlja prazan slot. Pokrivalica se mijenja Overwriteom.
+- Prazan slot se ne brise sam, ali se MOZE obrisati: odlazi sa svojim IN/OUT-om, OUT prije i IN
+  poslije spoje se u jedan M, slotovi iza se pomaknu naprijed (samo V2).
+- U slotu je traka koja pokazuje trajanje; klik na nju selektira slot.
+- Lead-in i lead-out stoje uz prvi i zadnji segment, i u Storyju i u S-Storyju.
+- Undo, Redo i povijest projekta (Ctrl+Shift+H) idu iz dnevnika projekta.
+
+### Ingest, tray, AI
+
+- Tray i projekt rade po postavkama projekta: kartica se kopira, link je samo za breaking news.
+- AI motori su u zajednickom AI direktoriju racunala; mjesto rada (lokalno ili AI server) je
+  postavka racunala, AI mogucnosti projekta su iz AI templatea izabranog pri kreiranju projekta i
+  u pokrenutom projektu se ne mijenjaju.
+
 ## 4. Kocke QNC-a preuzete u QNC-AI
 
 Nijedna (2026-11-11).
