@@ -91,6 +91,9 @@ qnc-change-capture = { path = "crates/qnc-change-capture" }
 qnc-project-journal = { path = "crates/qnc-project-journal" }
 qnc-clip-marks = { path = "crates/qnc-clip-marks" }
 qnc-journal-revert = { path = "crates/qnc-journal-revert" }
+qnc-project-restore = { path = "crates/qnc-project-restore" }
+qnc-project-history = { path = "crates/qnc-project-history" }
+qnc-project-history-view = { path = "crates/qnc-project-history-view" }
 qnc-clip-window = { path = "crates/qnc-clip-window" }
 qnc-confirm-dialog = { path = "crates/qnc-confirm-dialog" }
 qnc-content-artifacts = { path = "crates/qnc-content-artifacts" }

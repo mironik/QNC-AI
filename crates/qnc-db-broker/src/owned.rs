@@ -1,6 +1,7 @@
 //! What every table module repeated (user 2026-10-26, step 1 of the architecture cleanup,
 //! before AI tables come): joining the intermediary with typed requests, and the authorizer
-//! that lets a module write only its own tables.
+//! that lets a module write only its own tables. Every module whose writes are journaled can be
+//! taken back to a moment of the project's journal the same way (user 2026-11-25).
 
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -8,7 +9,7 @@ use std::sync::Arc;
 use rusqlite::Connection;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::{Access, Result, TableModule, TableModuleFactory};
 
@@ -18,6 +19,9 @@ pub trait OwnedTables: Send + Sized + 'static {
     const ID: &'static str;
     /// The tables whose writes are the user's edits (the journal of the project keeps them).
     const JOURNALED: &'static [&'static str] = &[];
+    /// The columns of its journaled tables that a step of undo or a going back neither checks nor
+    /// puts back (a selection, a recording, a stamp).
+    const LOOSE: qnc_journal_revert::Loose<'static> = &[];
     type Operation: DeserializeOwned;
     type Data: Serialize;
     fn is_write(operation: &Self::Operation) -> bool;
@@ -36,6 +40,25 @@ pub trait OwnedTables: Send + Sized + 'static {
     fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
         None
     }
+    /// After the module was taken back to a moment, in the same transaction: what its readers
+    /// must notice (a revision) or what no longer holds (a history of its own).
+    fn after_restore(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// The request that takes a journaled module back to the moment right after the commit `to` of
+/// the project's journal (`0`: before its first commit); `check`: only tried, nothing kept.
+pub fn restore_payload(to: i64, check: bool) -> Value {
+    json!({ "kind": RESTORE, "value": { "to": to, "check": check } })
+}
+
+const RESTORE: &str = "journal_restore";
+
+fn restore_request(payload: &Value) -> Option<(i64, bool)> {
+    (payload.get("kind")?.as_str()? == RESTORE).then_some(())?;
+    let value = payload.get("value")?;
+    Some((value.get("to")?.as_i64()?, value.get("check").and_then(Value::as_bool).unwrap_or(false)))
 }
 
 /// How the module `M` joins the intermediary.
@@ -50,10 +73,13 @@ impl<M: OwnedTables> TableModuleFactory for Factory<M> {
         M::ID
     }
     fn is_write(&self, payload: &Value) -> bool {
+        if restore_request(payload).is_some() {
+            return !M::JOURNALED.is_empty();
+        }
         serde_json::from_value::<M::Operation>(payload.clone()).is_ok_and(|operation| M::is_write(&operation))
     }
     fn attach(&self, connection: Connection, access: Access) -> Result<Box<dyn TableModule>> {
-        Ok(Box::new(Attached(M::attach(connection, access)?)))
+        Ok(Box::new(Attached(M::attach(connection, access)?, None)))
     }
     fn journaled(&self) -> &'static [&'static str] {
         M::JOURNALED
@@ -66,10 +92,50 @@ impl<M: OwnedTables> TableModuleFactory for Factory<M> {
     }
 }
 
-struct Attached<M>(M);
+/// The module, and the going back its last write was.
+struct Attached<M>(M, Option<qnc_project_journal::Step>);
+
+impl<M: OwnedTables> Attached<M> {
+    /// Every commit of the module after `to` taken back, the newest first, in one transaction (a
+    /// row someone changed since refuses all of it); `check`: rolled back, nothing kept.
+    fn restore(&mut self, to: i64, check: bool) -> Result<Value> {
+        if M::JOURNALED.is_empty() {
+            return Err(format!("{} keeps nothing in the journal", M::ID));
+        }
+        let own = self.0.connection().is_autocommit();
+        self.0.connection().execute_batch(if own { "BEGIN IMMEDIATE" } else { "SAVEPOINT journal_restore" }).map_err(|e| e.to_string())?;
+        let done = (|| -> Result<usize> {
+            let commits = qnc_project_journal::after(self.0.connection(), M::ID, to)?;
+            for commit in commits.iter().rev() {
+                qnc_journal_revert::revert(self.0.connection(), &commit.changes, M::LOOSE)?;
+            }
+            if !commits.is_empty() && !check {
+                self.0.after_restore()?;
+            }
+            Ok(commits.len())
+        })();
+        let keep = matches!(done, Ok(taken) if taken > 0 && !check);
+        let end = match (own, keep) {
+            (true, true) => "COMMIT",
+            (true, false) => "ROLLBACK",
+            (false, true) => "RELEASE journal_restore",
+            (false, false) => "ROLLBACK TO journal_restore; RELEASE journal_restore",
+        };
+        self.0.connection().execute_batch(end).map_err(|e| e.to_string())?;
+        let taken = done?;
+        if keep {
+            self.1 = Some(qnc_project_journal::Step::Restore(to));
+        }
+        Ok(json!({ "taken": taken }))
+    }
+}
 
 impl<M: OwnedTables> TableModule for Attached<M> {
     fn execute(&mut self, payload: Value) -> Result<Value> {
+        self.1 = None;
+        if let Some((to, check)) = restore_request(&payload) {
+            return self.restore(to, check);
+        }
         let operation: M::Operation = serde_json::from_value(payload).map_err(|e| e.to_string())?;
         let data = self.0.execute(&operation)?;
         serde_json::to_value(data).map_err(|e| e.to_string())
@@ -78,7 +144,7 @@ impl<M: OwnedTables> TableModule for Attached<M> {
         self.0.connection()
     }
     fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
-        self.0.journal_step()
+        self.1.take().or_else(|| self.0.journal_step())
     }
 }
 

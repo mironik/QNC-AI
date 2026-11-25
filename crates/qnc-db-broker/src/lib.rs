@@ -13,7 +13,7 @@ mod owned;
 mod transport;
 
 pub use database::{draft_file, highest_draft, ingest_base_refusal, is_draft, is_ingest_base, ProjectDb, AI_FILE, DRAFT_PREFIX, INGEST_BASE_PREFIX, PROJECT_SCHEMA};
-pub use owned::{owned_tables, write_only_own_tables, OwnedTables};
+pub use owned::{owned_tables, restore_payload, write_only_own_tables, OwnedTables};
 pub use qnc_json_transport::{Access, Credentials};
 pub use qnc_write_lease::{begin_write, WriteLease, WriteTx};
 pub use transport::{

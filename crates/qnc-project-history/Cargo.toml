@@ -1,0 +1,21 @@
+[package]
+name = "qnc-project-history"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: the history of a project (user 2026-11-25): its moments from the journal (when, who, which piece, what), who owns it, and going back to a moment only for its owner; read and done in the background through the project database intermediary. No paint, no form."
+
+[dependencies]
+qnc-db-broker = { workspace = true }
+qnc-project-journal = { workspace = true }
+qnc-project-restore = { workspace = true }
+qnc-user-settings = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-work-settings = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+rusqlite = { workspace = true, features = ["hooks"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+qnc-clip-marks = { workspace = true }
+tempfile = "3"

@@ -1,0 +1,12 @@
+[package]
+name = "qnc-project-history-view"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: the window of a project's history over the form (user 2026-11-25): its moments, who owns it and going back to a moment; passive paint, it gives back the action clicked."
+
+[dependencies]
+qnc-project-history = { workspace = true }
+eframe = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-ui-text = { workspace = true }

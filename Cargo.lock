@@ -4727,6 +4727,7 @@ dependencies = [
  "qnc-change-capture",
  "qnc-contracts",
  "qnc-dev-diagnostics",
+ "qnc-journal-revert",
  "qnc-json-transport",
  "qnc-project-journal",
  "qnc-transport-resolver",
@@ -5228,6 +5229,8 @@ dependencies = [
  "qnc-notice",
  "qnc-paint-pace",
  "qnc-pool-pointer",
+ "qnc-project-history",
+ "qnc-project-history-view",
 ]
 
 [[package]]
@@ -7104,6 +7107,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-project-history"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-marks",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-project-journal",
+ "qnc-project-restore",
+ "qnc-ui-text",
+ "qnc-user-settings",
+ "qnc-work-settings",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "qnc-project-history-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-desktop-theme",
+ "qnc-project-history",
+ "qnc-ui-kit",
+ "qnc-ui-text",
+]
+
+[[package]]
 name = "qnc-project-jobs"
 version = "0.1.0"
 dependencies = [
@@ -7126,6 +7158,21 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-project-restore"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-marks",
+ "qnc-clip-sound",
+ "qnc-db-broker",
+ "qnc-newsroom-sheet-db",
+ "qnc-program-db",
+ "qnc-script-db",
+ "qnc-skeleton-db",
+ "qnc-ui-text",
+ "qnc-virtual-shots",
 ]
 
 [[package]]

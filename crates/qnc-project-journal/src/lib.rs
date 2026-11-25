@@ -43,6 +43,9 @@ pub struct NewCommit {
 pub enum Step {
     Undo(i64),
     Redo(i64),
+    /// The piece taken back to the moment right after a commit (user 2026-11-25: going back to a
+    /// moment of the project); Undo may take it back again.
+    Restore(i64),
 }
 
 impl Step {
@@ -50,12 +53,17 @@ impl Step {
         match self {
             Self::Undo(_) => "undo",
             Self::Redo(_) => "redo",
+            Self::Restore(_) => "restore",
         }
     }
     pub fn refers(self) -> i64 {
         match self {
-            Self::Undo(id) | Self::Redo(id) => id,
+            Self::Undo(id) | Self::Redo(id) | Self::Restore(id) => id,
         }
+    }
+    /// A going back to a moment is a step of the piece's Undo; an undo or a redo is not.
+    pub fn undoable(self) -> bool {
+        matches!(self, Self::Restore(_))
     }
 }
 
@@ -222,6 +230,43 @@ pub fn stacks(conn: &Connection, module: &str) -> Result<Stacks> {
         }
     }
     Ok(stacks)
+}
+
+/// The commits of `module` after the commit `to` (all of them for `0`), the oldest first, with
+/// their changes: what going back to the moment right after `to` takes back.
+pub fn after(conn: &Connection, module: &str, to: i64) -> Result<Vec<Commit>> {
+    if !ready(conn) {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare(&format!("{HEAD} WHERE module = ?1 AND id > ?2 ORDER BY id")).map_err(err)?;
+    let mut commits = statement.query_map(params![module, to], head).map_err(err)?.collect::<rusqlite::Result<Vec<_>>>().map_err(err)?;
+    for commit in &mut commits {
+        commit.changes = changes_of(conn, commit.id)?;
+    }
+    Ok(commits)
+}
+
+/// The pieces with commits after the commit `to`.
+pub fn modules_after(conn: &Connection, to: i64) -> Result<Vec<String>> {
+    if !ready(conn) {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare("SELECT DISTINCT module FROM project_journal WHERE id > ?1 ORDER BY module").map_err(err)?;
+    let modules = statement.query_map([to], |row| row.get(0)).map_err(err)?.collect::<rusqlite::Result<Vec<_>>>().map_err(err)?;
+    Ok(modules)
+}
+
+/// The newest `limit` commits without their changes, the newest first, the time of each as the
+/// computer reading it keeps local time (`YYYY-MM-DD HH:MM:SS`): the moments of the project.
+pub fn moments(conn: &Connection, limit: usize) -> Result<Vec<Commit>> {
+    if !ready(conn) {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn
+        .prepare("SELECT id, COALESCE(datetime(made_at_utc, 'localtime'), made_at_utc), author, module, action, undoable, refers FROM project_journal ORDER BY id DESC LIMIT ?1")
+        .map_err(err)?;
+    let commits = statement.query_map([limit as i64], head).map_err(err)?.collect::<rusqlite::Result<Vec<_>>>().map_err(err)?;
+    Ok(commits)
 }
 
 /// The history of one row: the newest `limit` commits that changed a row of `table` whose column

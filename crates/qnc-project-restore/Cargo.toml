@@ -1,0 +1,16 @@
+[package]
+name = "qnc-project-restore"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: takes the whole project back to a moment of its journal (user 2026-11-25): every journaled piece with commits after it is first tried, then taken back, each through the project database intermediary; it knows the pieces, no form."
+
+[dependencies]
+qnc-db-broker = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-program-db = { workspace = true }
+qnc-script-db = { workspace = true }
+qnc-virtual-shots = { workspace = true }
+qnc-clip-sound = { workspace = true }
+qnc-skeleton-db = { workspace = true }
+qnc-newsroom-sheet-db = { workspace = true }
+qnc-clip-marks = { workspace = true }

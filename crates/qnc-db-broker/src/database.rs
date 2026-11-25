@@ -233,7 +233,7 @@ fn commit(conn: &Connection, author: String, kept: Kept) {
             return Ok(());
         }
         let (action, undoable, refers) = match kept.step {
-            Some(step) => (step.action().to_string(), false, Some(step.refers())),
+            Some(step) => (step.action().to_string(), step.undoable(), Some(step.refers())),
             None => (kept.action, kept.undoable, None),
         };
         conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;

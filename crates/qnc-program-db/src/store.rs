@@ -364,6 +364,7 @@ impl qnc_db_broker::OwnedTables for Store {
     const ID: &'static str = MODULE_ID;
     /// The user's edits, kept in the journal of the project (user 2026-11-25).
     const JOURNALED: &'static [&'static str] = &["story_items", "story_markers", "story_marker_slots", "story_state"];
+    const LOOSE: qnc_journal_revert::Loose<'static> = crate::undo::LOOSE;
     type Operation = Operation;
     type Data = Data;
     fn is_write(operation: &Operation) -> bool {
@@ -387,5 +388,11 @@ impl qnc_db_broker::OwnedTables for Store {
     }
     fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
         self.step.take()
+    }
+    /// The story taken back to a moment: its readers see a new revision, the own histories of
+    /// its objects are gone (their steps moved).
+    fn after_restore(&mut self) -> Result<()> {
+        crate::object_undo::forget_all(&self.conn)?;
+        bump_revision(&self.conn)
     }
 }

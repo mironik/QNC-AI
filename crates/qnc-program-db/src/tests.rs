@@ -146,7 +146,7 @@ fn run(story: &mut Story, operation: Operation) -> Result<Data> {
         let changes = qnc_change_capture::take(story.store.connection()).unwrap();
         if store::Store::journals(&operation) || step.is_some() {
             let (action, undoable, refers) = match step {
-                Some(step) => (step.action().to_string(), false, Some(step.refers())),
+                Some(step) => (step.action().to_string(), step.undoable(), Some(step.refers())),
                 None => ("edit".to_string(), store::Store::undoable(&operation), None),
             };
             let commit = qnc_project_journal::NewCommit { author: "test".into(), module: MODULE_ID.into(), action, undoable, refers, changes };

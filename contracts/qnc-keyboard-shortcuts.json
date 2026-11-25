@@ -502,6 +502,12 @@
     "zoom_history_open": {
       "label": "Povijest zooma (popis izmjena klipa)"
     },
+    "project_history_open": {
+      "label": "Povijest projekta (vrati projekt na trenutak)"
+    },
+    "project_history_restore": {
+      "label": "Vrati projekt na trenutak iz povijesti"
+    },
     "zoom_history_restore": {
       "label": "Vrati klip na stanje iz povijesti"
     },
@@ -865,7 +871,7 @@
       { "title": "Markeri i slotovi", "actions": ["add_marker", "add_marker_continue", "select_marker", "delete_marker", "select_current_marker_slot", "select_mark_in", "select_mark_out", "navigate_prev_object", "navigate_next_object"] },
       { "title": "Pokrivalice", "actions": ["quick_overwrite_cover", "overwrite_cover", "cover_mode_covers", "cover_mode_sync"] },
       { "title": "Pool i tabovi", "actions": ["save_virtual_shot", "page_prev", "page_next", "toggle_focused_item", "editorial_tab_all", "editorial_tab_virtual", "editorial_tab_broll", "editorial_tab_segment", "editorial_tab_transcript"] },
-      { "title": "Općenito", "actions": ["undo_object", "redo_object", "undo_selected", "redo_selected", "zoom_history_open", "toggle_snapping", "panel_left", "panel_right", "panel_up", "panel_down", "focus_next", "focus_prev", "toggle_cheatsheet"] }
+      { "title": "Općenito", "actions": ["undo_object", "redo_object", "undo_selected", "redo_selected", "zoom_history_open", "project_history_open", "toggle_snapping", "panel_left", "panel_right", "panel_up", "panel_down", "focus_next", "focus_prev", "toggle_cheatsheet"] }
     ]
   },
   "presets": {
@@ -1000,6 +1006,7 @@
       "source_timeline": {
         "play_pause": [{ "code": "Space" }, { "key": " " }],
         "zoom_history_open": [{ "code": "KeyH", "ctrl": true, "shift": false }],
+        "project_history_open": [{ "code": "KeyH", "ctrl": true, "shift": true }],
         "step_back_frame": [{ "code": "ArrowLeft", "key": "ArrowLeft" }],
         "step_forward_frame": [{ "code": "ArrowRight", "key": "ArrowRight" }],
         "mark_in": [{ "code": "KeyI", "shift": false }],
@@ -1032,6 +1039,7 @@
       },
       "storyboard": {
         "zoom_history_open": [{ "code": "KeyH", "ctrl": true, "shift": false }],
+        "project_history_open": [{ "code": "KeyH", "ctrl": true, "shift": true }],
         "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }, { "code": "ArrowLeft", "key": "ArrowLeft", "tab": true }],
         "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }, { "code": "ArrowRight", "key": "ArrowRight", "tab": true }],
         "panel_up": [{ "key": "ArrowUp", "alt": true }, { "key": "ArrowUp", "tab": true }],

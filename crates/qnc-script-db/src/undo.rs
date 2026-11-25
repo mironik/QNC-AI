@@ -10,7 +10,7 @@ use rusqlite::Connection;
 use crate::Result;
 
 /// What a step neither checks nor puts back: the recording of a block and its stamp.
-const LOOSE: qnc_journal_revert::Loose<'static> = &[("script_blocks", &["voice_uri", "voice_seconds", "voice_tc", "updated_at_utc"])];
+pub(crate) const LOOSE: qnc_journal_revert::Loose<'static> = &[("script_blocks", &["voice_uri", "voice_seconds", "voice_tc", "updated_at_utc"])];
 
 /// One step back (`undo`) or forward; `None`: there is none. A block changed since by another
 /// edit refuses the step.

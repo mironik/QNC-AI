@@ -16,3 +16,5 @@ qnc-action-event.workspace = true
 qnc-choice-box.workspace = true
 qnc-desktop-theme.workspace = true
 qnc-notice.workspace = true
+qnc-project-history.workspace = true
+qnc-project-history-view.workspace = true

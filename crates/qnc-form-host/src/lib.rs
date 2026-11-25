@@ -44,6 +44,9 @@ pub struct FormKeys<'a> {
 #[derive(Debug, Default)]
 pub struct FormHost {
     pace: PaintPace,
+    /// The history of the project (user 2026-11-25: Ctrl+Shift+H over every form): while it is
+    /// open it takes the keys.
+    history: qnc_project_history::ProjectHistory,
 }
 
 impl FormHost {
@@ -60,12 +63,29 @@ impl FormHost {
         let pointed = qnc_pool_pointer::take(ctx);
         let changed = qnc_dev_diagnostics::timed_block("form-poll", || application.poll(pointed.as_deref()));
         self.pace.after_poll(ctx, changed, application.playing(), application.next_repaint_delay());
+        if self.history.poll() {
+            ctx.request_repaint();
+        }
+        if self.history.busy() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(50));
+        }
+        let history = &mut self.history;
         qnc_dev_diagnostics::timed_block("form-keys", || {
             for action_id in qnc_key_intents::action_ids_in(ctx, keys.catalog, application.key_scope(), keys.scopes, keys.play_action) {
+                if history.key(&action_id, None) {
+                    ctx.request_repaint();
+                    continue;
+                }
                 dispatch(ctx, application, A::intent_of(qnc_action_event::ActionEvent::key(action_id)));
             }
         });
         qnc_alert::show_raised(ctx);
+        if let (Some(theme), Some(view)) = (keys.theme, self.history.view()) {
+            if let Some((action, value)) = qnc_project_history_view::show(ctx, theme, &view) {
+                self.history.key(action, value);
+                ctx.request_repaint();
+            }
+        }
         // A question a piece asked over the form (qnc-notice): its answer is an action of the
         // form, with the target the option carries.
         let answer = keys.theme.zip(qnc_notice::asked()).and_then(|(theme, choice)| qnc_choice_box::show_option(ctx, theme, &choice));

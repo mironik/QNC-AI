@@ -479,6 +479,7 @@ impl ProjectStore {
             name: name.to_string(),
             created_at: now.clone(),
             identity: qnc_workstation_identity::read_local_identity(),
+            owner: qnc_user_settings::user_name().ok(),
         };
         let projects_root = self.create_projects_root(&conn, &template.settings)?;
         let project_dir = projects_root.join(safe_dir_name(&project_id));

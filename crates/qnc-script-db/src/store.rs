@@ -722,6 +722,7 @@ impl qnc_db_broker::OwnedTables for Store {
     const ID: &'static str = MODULE_ID;
     /// The user's edits, kept in the journal of the project (user 2026-11-25).
     const JOURNALED: &'static [&'static str] = &["script_blocks", "script_profile", "script_voice", "script_voice_takes", "script_sessions"];
+    const LOOSE: qnc_journal_revert::Loose<'static> = crate::undo::LOOSE;
     type Operation = Operation;
     type Data = Data;
     fn is_write(operation: &Operation) -> bool {

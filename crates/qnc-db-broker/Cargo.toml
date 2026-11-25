@@ -13,6 +13,7 @@ qnc-transport-resolver = { workspace = true }
 qnc-work-settings = { workspace = true }
 qnc-change-capture = { workspace = true }
 qnc-project-journal = { workspace = true }
+qnc-journal-revert = { workspace = true }
 qnc-workstation-identity = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
 rusqlite = { workspace = true, features = ["hooks"] }

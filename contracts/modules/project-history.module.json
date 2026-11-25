@@ -1,0 +1,43 @@
+{
+  "module_id": "qnc.module.project-history",
+  "module_name": "Project History",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "db.project_history.read",
+    "db.project.restore_owner"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "transport_protocol_version": "0.1.0",
+  "transport_scope": [
+    "local",
+    "lan",
+    "intranet"
+  ],
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "module_dependencies": ["qnc.module.db-broker", "qnc.module.project-journal", "qnc.module.project-restore"],
+  "forbidden_calls": [
+    "media.decode",
+    "media.probe.full",
+    "file.write",
+    "playback.clock"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.scanner",
+    "qnc.module.broadcast-player-core"
+  ],
+  "adapter_policy": "The history of a project (user 2026-11-25): its moments from the journal (when, who, which piece, what), who owns it (public_project_owner: the QNC user who made it), and going back to a moment only for that owner (a project without an owner kept: anyone). Read and done in the background through the project database intermediary; its read module owns no table and writes none. No paint.",
+  "specification": "AGENTS.md"
+}

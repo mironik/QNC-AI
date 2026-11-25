@@ -5,6 +5,9 @@ pub(super) struct ProjectOrigin {
     pub name: String,
     pub created_at: String,
     pub identity: IdentitySnapshot,
+    /// The QNC user who made the project (user 2026-11-25: "the project belongs to its user"; only
+    /// they may take it back to a moment of its journal). None: nobody was signed in.
+    pub owner: Option<String>,
 }
 
 pub(super) fn init_schema(conn: &Connection) -> Result<(), String> {
@@ -24,7 +27,12 @@ pub(super) fn init_schema(conn: &Connection) -> Result<(), String> {
                 json_extract(identity_json, '$.hardware_serial.kind') AS serial_kind,
                 json_extract(identity_json, '$.hardware_serial.source') AS serial_source,
                 identity_json
-            FROM project_origin;",
+            FROM project_origin;
+        CREATE TABLE IF NOT EXISTS project_owner (
+            project_id TEXT PRIMARY KEY,
+            qnc_user TEXT NOT NULL
+        );
+        CREATE VIEW IF NOT EXISTS public_project_owner AS SELECT project_id, qnc_user FROM project_owner;",
     )
     .map_err(|error| error.to_string())
 }
@@ -40,6 +48,9 @@ pub(super) fn insert(
         "INSERT INTO project_origin (project_id, project_name, created_at, identity_json) VALUES (?1, ?2, ?3, ?4)",
         params![project_id, origin.name, origin.created_at, identity],
     ).map_err(|error| error.to_string())?;
+    if let Some(owner) = origin.owner.as_deref().filter(|owner| !owner.is_empty()) {
+        conn.execute("INSERT INTO project_owner (project_id, qnc_user) VALUES (?1, ?2)", params![project_id, owner]).map_err(|error| error.to_string())?;
+    }
     Ok(())
 }
 
@@ -77,8 +88,11 @@ mod tests {
                     reason: ReadFailure::Unavailable,
                 }],
             },
+            owner: Some("urednik".into()),
         };
         insert(&db, "test-id", &origin).unwrap();
+        let owner: String = db.query_row("SELECT qnc_user FROM public_project_owner", [], |r| r.get(0)).unwrap();
+        assert_eq!(owner, "urednik", "the QNC user who made it owns it");
         let value: Option<String> = db
             .query_row("SELECT serial_number FROM public_project_origin", [], |r| {
                 r.get(0)
