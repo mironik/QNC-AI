@@ -219,7 +219,7 @@ impl PanelFocus {
 
     /// Whether a key picture search runs (the caller repaints soon).
     pub fn busy(&self) -> bool {
-        self.keyframes.busy() || self.side.busy() || self.moves.running()
+        self.keyframes.busy() || self.side.busy() || self.moves.running() || self.source.zoom_loading()
     }
 
     /// The cut the trim zoom shows (the SubSegment's first: it stands instead of the source

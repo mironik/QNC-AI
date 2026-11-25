@@ -227,14 +227,14 @@ impl EditorialApplication {
         let timebase = self.preview.player_view().source_timebase();
         let timeline = self.view.preview.timeline;
         let source = self.focus.source_timeline_mut(); // the one source timeline: lanes, channels, timecode
-        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref())).clone()).with_question(self.short_save.question());
+        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref()), if self.segments.trimming_edge() { qnc_source_timeline::ZoomUse::Yield } else { qnc_source_timeline::ZoomUse::On }).clone()).with_question(self.short_save.question());
         self.segments.set_source(SourcePick::new(
             self.view.chosen_clip_id(),
             self.view.current_clip_label(),
             self.view.preview.timeline.visible_source_marks(),
             (timeline.source_in_frame, timeline.duration_frames),
             timebase.map(|timebase| (timebase.fps_num, timebase.fps_den)),
-        ).with_lanes(source.kept_lanes(), source.holds_enter()).with_lane_choices(source.lanes_shown()).with_curves(source.kept_curves()).with_taken(timeline.taken_source_mark()).with_playing(self.preview.playing_at()).with_statement(self.view.source_timeline.enlarged.is_some()).with_origin(source.mark_origin()));
+        ).with_lanes(source.kept_lanes(), source.holds_enter()).with_lane_choices(source.lanes_shown()).with_curves(source.kept_curves()).with_taken(timeline.taken_source_mark()).with_playing(self.preview.playing_at()));
         // Source and Wrap stay apart (v5): the Wrap timeline plays the program in the same player.
         let seek = self.segments.take_seek();
         let total = self.segments.view().total_frames;
@@ -253,7 +253,7 @@ impl EditorialApplication {
         self.view.focus = qnc_dev_diagnostics::timed_block("poll-focus", || self.focus.poll((&mut self.preview, &mut self.wrap, &mut self.segments, &mut self.view.preview.timeline, &mut self.view.clips)));
         if self.view.focus.transcript.all_done { self.view.library_tab = LibraryTab::Transcript } // all asked are transcribed (user 2026-10-28)
         self.view.segments = qnc_dev_diagnostics::timed_block("poll-segments-view", || self.segments.view_with_waves(self.view.clips.iter().map(|clip| (clip.clip_id.as_str(), clip.duration_frames, clip.thumb_image.as_ref()))));
-        qnc_dev_diagnostics::timed_block("poll-trim", || { self.trim_stills.give(self.view.preview.clip_id.as_deref(), self.view.source_timeline.enlarged.as_ref().map_or(&[], |enlarged| &enlarged.pictures)); self.trim_stills.fill(&mut self.view.segments, self.preview.still_locator(), self.preview.shown_program_picture().and_then(|s| Some((self.segments.stored_picture_at(s.frame)?, s))), self.preview.shown_picture()) }); // edit pictures, the monitor's first
+        qnc_dev_diagnostics::timed_block("poll-trim", || { self.trim_stills.fill(&mut self.view.segments, self.preview.still_locator(), self.preview.shown_program_picture().and_then(|s| Some((self.segments.stored_picture_at(s.frame)?, s))), self.preview.shown_picture()) }); // edit pictures, the monitor's first
     }
 
 

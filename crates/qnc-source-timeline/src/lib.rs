@@ -17,6 +17,9 @@ use std::time::Duration;
 mod assist;
 mod level;
 mod voice_end;
+mod zoom;
+
+pub use zoom::ZoomUse;
 
 /// The clip's wave read for the sound assistant (with its loudness).
 #[derive(Default)]
@@ -85,6 +88,9 @@ pub struct SourceTimelineView {
     pub level_curves: Vec<qnc_program_view::LevelCurve>,
     /// The window of the clip shown instead of its whole length (a statement enlarged).
     pub enlarged: Option<qnc_clip_window::Enlarged>,
+    /// The zoom of the timeline (its taken IN or OUT enlarged, user 2026-11-25), drawn over
+    /// everything by the timeline itself; `None`: closed or unused by the form.
+    pub zoom: Option<Box<qnc_program_view::SegmentsView>>,
 }
 
 impl SourceTimelineView {
@@ -133,6 +139,8 @@ pub struct SourceTimeline {
     marked_by_text: Option<(u64, u64)>,
     /// The OUT words of the transcript marked, moved on to the end of the voice once it is read.
     voice_end: voice_end::VoiceEnd,
+    /// The zoom of the source timeline: its taken IN or OUT enlarged (user 2026-11-25).
+    zoom: zoom::SourceZoom,
 }
 
 impl SourceTimeline {
@@ -143,7 +151,8 @@ impl SourceTimeline {
     /// Once a frame: the shown clip and the project content its stored record is read
     /// from. Another clip starts on the A1/A2 sound kept for it in the project database,
     /// else on A1 channel 1 and A2 channel 2 (user rules 2026-10-01, 2026-10-24).
-    pub fn sync(&mut self, clip_id: Option<&str>, content: Option<&ContentTarget>, preview: &mut SourcePreview, timeline: &TimelineProjection, enlarge: Option<(u64, u64)>) -> &SourceTimelineView {
+    /// `zoom`: whether the form uses the timeline's zoom this frame.
+    pub fn sync(&mut self, clip_id: Option<&str>, content: Option<&ContentTarget>, preview: &mut SourcePreview, timeline: &TimelineProjection, enlarge: Option<(u64, u64)>, zoom: ZoomUse) -> &SourceTimelineView {
         // A statement shown plays from its IN to its OUT (user 2026-11-23).
         self.keys.stop_on_out(preview, timeline, enlarge.is_some());
         // A statement enlarged, with its own wave and pictures (user 2026-11-09).
@@ -170,7 +179,32 @@ impl SourceTimeline {
         self.refresh(timecode);
         self.view.levels = preview.view().output_levels;
         self.view.level_curves = self.drawn_curves(timeline);
+        let clip = zoom::Clip {
+            clip_id,
+            lanes: self.kept_lanes(),
+            lane_choices: self.lanes_shown().map(|lane| lane.map(|(now, count, open)| qnc_program_view::ZoomLane { channel: now.channel, count, open, off: now.off, level_db: now.level_db })),
+            curves: self.kept_curves(),
+            origin: self.keys.origin(),
+            statement: self.view.enlarged.is_some(),
+            message: &self.view.message,
+        };
+        let given = self.view.enlarged.as_ref().map_or(&[][..], |enlarged| &enlarged.pictures[..]);
+        self.view.zoom = self.zoom.view(zoom, clip, timeline, preview, given);
         &self.view
+    }
+
+    /// Esc or the zoom's Close: the zoom left open after Enter closes.
+    pub fn close_zoom(&mut self) -> bool {
+        let closed = self.zoom.close();
+        if closed {
+            self.view.zoom = None;
+        }
+        closed
+    }
+
+    /// The zoom decodes its pictures or reads its sound (the form repaints soon).
+    pub fn zoom_loading(&self) -> bool {
+        self.zoom.loading()
     }
 
     /// The sound `sound` names for its clip is heard and kept as soon as the clip is shown and
@@ -612,6 +646,7 @@ impl SourceTimeline {
             sound_assist: self.view.sound_assist,
             question: None,
             level_curves: std::mem::take(&mut self.view.level_curves),
+            zoom: self.view.zoom.take(),
         };
     }
 }
@@ -782,7 +817,7 @@ mod tests {
         source.route("step_next_part", &mut preview, &mut timeline);
         source.route("activate_focused_item", &mut preview, &mut timeline);
         assert_eq!(source.kept(0).channel, 1);
-        source.sync(Some("b"), None, &mut SourcePreview::new(), &timeline, None);
+        source.sync(Some("b"), None, &mut SourcePreview::new(), &timeline, None, ZoomUse::Off);
         assert_eq!((source.kept(0).channel, source.kept(1).channel), (0, 1), "A1 on channel 1, A2 on channel 2");
     }
 }

@@ -107,24 +107,9 @@ pub struct SourcePick {
     /// The A1 and A2 level curves the source timeline keeps for the clip (clip frames, tenths of
     /// a dB; user 2026-11-07): a new segment takes A1's, a new cover A2's.
     pub curves: [Vec<(u64, i16)>; 2],
-    /// A statement is enlarged on the source timeline: its trim zoom has four pictures.
-    pub statement: bool,
-    /// Where IN and OUT were when the taken mark was taken (the zoom's middle holds that picture).
-    pub origin: (Option<u64>, Option<u64>),
 }
 
 impl SourcePick {
-    /// Whether a statement is enlarged on the source timeline.
-    pub fn with_statement(mut self, statement: bool) -> Self {
-        self.statement = statement;
-        self
-    }
-
-    /// Where IN and OUT were when the taken mark was taken.
-    pub fn with_origin(mut self, origin: (Option<u64>, Option<u64>)) -> Self {
-        self.origin = origin;
-        self
-    }
 
     /// The clip's level curves as the source timeline keeps them.
     pub fn with_curves(mut self, curves: [Vec<(u64, i16)>; 2]) -> Self {
@@ -164,8 +149,6 @@ impl SourcePick {
             playing: None,
             lane_choices: [None, None],
             curves: [Vec::new(), Vec::new()],
-            statement: false,
-            origin: (None, None),
         }
     }
 
@@ -215,11 +198,6 @@ type LoudnessKey = (u64, (u32, u32), u64, Vec<qnc_program_waveform::Placement>, 
 /// The program of the active project: read, written and turned into a view.
 #[derive(Default)]
 pub struct ProgramSegments {
-    /// The statement whose zoom stays open with no mark taken (user 2026-11-22: a click on the
-    /// player lets the mark go but keeps the zoom; Esc or Close closes it).
-    statement_zoom: Option<String>,
-    /// The side last taken in the source zoom left open (IN `true`).
-    source_zoom_side: bool,
     /// Where the trim zoom's playhead is: the play, and a pause until the cut moves.
     zoom_follow: qnc_program_view::ZoomFollow,
     /// The last Cover slot / Overwrite asked for (see `SegmentsView::cover_pressed`).
@@ -597,25 +575,9 @@ impl ProgramSegments {
             .then_some(self.source.in_mark)
             .flatten();
         self.source = source;
-        // A source zoom stays open after its mark is let go (user 2026-11-25: "Enter snima, ali ne
-        // zatvara prozor"), on the side last taken, until Esc or Close or another clip.
-        if let Some(side) = self.source.taken {
-            self.statement_zoom = self.source.clip_id.clone();
-            self.source_zoom_side = side;
-        } else if self.statement_zoom != self.source.clip_id {
-            self.statement_zoom = None;
-        }
         self.view.source_edit_stills = self.source_stills();
         self.view.zoom_sound = self.zoom_sound(&self.view);
         self.arm_sync_on_new_in(previous_in);
-    }
-
-    /// Esc or the zoom's Close: the statement's zoom open with no mark taken closes.
-    pub fn close_statement_zoom(&mut self) {
-        if self.statement_zoom.take().is_some() {
-            self.view.source_edit_stills = self.source_stills();
-            self.view.zoom_sound = self.zoom_sound(&self.view);
-        }
     }
 
     /// Whether the playable program (segments or covers) changed since the last

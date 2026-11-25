@@ -179,9 +179,9 @@ impl PanelFocus {
         if action_id == qnc_edit_verbs::KEEP && self.panel == Panel::Segments && pieces.2.save_and_keep() {
             return Some(true);
         }
-        // Esc or the zoom's Close also closes a statement's zoom left open with no mark taken.
+        // Esc or the zoom's Close also closes the source timeline's zoom left open with no mark taken.
         if action_id == "clear_focus" {
-            pieces.2.close_statement_zoom();
+            self.source.close_zoom();
         }
         // A double click on a word is a cut (user 2026-10-26): IN at its start, OUT at the end
         // of a word after the first cut; the source timeline keeps the pair as for scissors.
@@ -587,7 +587,8 @@ impl PanelFocus {
 
 impl PanelFocus {
     /// The part the open zoom plays, in frames of what the player plays (`ZoomSound::play_part`):
-    /// the SubSegment's zoom, else the story's or the source timeline's, only while the player plays
+    /// the SubSegment's zoom, else the story's or a segment edge's on the source timeline (the source
+    /// timeline's own zoom plays by its own rule: from the playhead, stopping at OUT), only while the player plays
     /// that axis (a story or SubSegment program, else the clip). `None`: no zoom open.
     fn zoom_play_part(&self, preview: &SourcePreview, segments: &ProgramSegments) -> Option<(u64, u64)> {
         let views = self.side.views();

@@ -96,3 +96,74 @@ mod tests {
         assert_eq!(edge.len(), 1);
     }
 }
+
+/// A clip on its own axis, as a source timeline shows it (the zoom of its IN or OUT, of a segment
+/// edge opened on it): what the source timeline knows of the clip and of its lanes.
+pub struct ClipAxis<'a> {
+    pub clip_id: &'a str,
+    pub cut: u64,
+    /// The clip's timebase (numerator, denominator).
+    pub timebase: (u64, u64),
+    pub duration: u64,
+    /// The player's confirmed clip frame and whether it plays; `None` while it plays a program.
+    pub position: Option<(u64, bool)>,
+    pub follow: &'a ZoomFollow,
+    /// A1 and A2 as they are heard (their channel, level and off).
+    pub heard: [crate::ZoomLane; 2],
+    /// A1 and A2 as the source timeline's lanes show them.
+    pub lane_choices: [Option<crate::ZoomLane>; 2],
+    /// The clip's kept A1 and A2 level curves (clip frames, tenths of a dB).
+    pub curves: [Vec<(u64, i16)>; 2],
+    /// The clip's IN and OUT (greyed outside, and the part a Play of the zoom stops in).
+    pub marks: Option<(u64, u64)>,
+}
+
+impl ClipAxis<'_> {
+    /// The zoom's sound on the clip's own axis: a second on each side of the cut (or of the
+    /// playhead while the player plays the clip), the whole clip in reach, the lanes and the kept
+    /// level curves as the source timeline has them.
+    pub fn sound(self) -> ZoomSound {
+        let (num, den) = self.timebase;
+        let half = (num as f64 / den.max(1) as f64).round().max(1.0) as u64;
+        // The whole clip, so a played window can read its sound ahead.
+        let length = self.duration.max(self.cut + 1);
+        let lane = |index: usize| qnc_program_waveform::Placement {
+            clip_id: self.clip_id.to_string(),
+            channel: self.heard[index].channel,
+            program_start: 0,
+            program_end: length,
+            source_in: 0,
+            source_out: length,
+            level_db: self.heard[index].level_db,
+            off: self.heard[index].off,
+            curve: self.curves[index].clone(),
+        };
+        let span = qnc_level_curve::Span { start: 0, end: length, source_in: 0, source_out: length };
+        let level_curves = (0..2u8)
+            .map(|index| {
+                let keys: Vec<_> = self.curves[usize::from(index)].iter().map(|(frame, db10)| qnc_program_db::LevelKey { frame: *frame, db10: *db10 }).collect();
+                crate::LevelCurve { lane: index, id: index.to_string(), span, placed: qnc_level_curve::place(span, &keys), taken: false }
+            })
+            .collect();
+        let axis = ZoomAxis { cut: self.cut, holds: (self.cut, self.cut), half, total: self.duration, position: self.position, follow: self.follow, lanes: [vec![lane(0)], vec![lane(1)]] };
+        ZoomSound { lane_choices: self.lane_choices, level_curves, marks: self.marks, play_part: self.marks, ..axis.sound() }
+    }
+}
+
+#[cfg(test)]
+mod clip_axis_tests {
+    use super::*;
+
+    /// A clip on its own axis: a second each side of the cut, the lanes as they are heard, and the
+    /// part a Play of the zoom stops in (docs/zoom-skeleton.md [D]).
+    #[test]
+    fn a_clip_zoom_is_a_second_each_side_on_its_frames_with_its_lanes() {
+        let follow = ZoomFollow::default();
+        let heard = [crate::ZoomLane { channel: 0, ..Default::default() }, crate::ZoomLane { channel: 1, ..Default::default() }];
+        let axis = ClipAxis { clip_id: "clip-c", cut: 300, timebase: (50, 1), duration: 600, position: None, follow: &follow, heard, lane_choices: [None, None], curves: Default::default(), marks: Some((300, 450)) };
+        let sound = axis.sound();
+        assert_eq!((sound.from, sound.cut, sound.to), (250, 300, 350));
+        assert_eq!((sound.lanes[0][0].channel, sound.lanes[1][0].channel), (0, 1));
+        assert_eq!(sound.play_part, Some((300, 450)));
+    }
+}

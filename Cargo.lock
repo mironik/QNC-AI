@@ -8151,6 +8151,7 @@ dependencies = [
  "qnc-edit-step",
  "qnc-edit-words",
  "qnc-fine-wave",
+ "qnc-image-assets",
  "qnc-lane-choice",
  "qnc-level-curve",
  "qnc-notice",
@@ -8165,6 +8166,7 @@ dependencies = [
  "qnc-source-preview",
  "qnc-source-timecode",
  "qnc-timeline-model",
+ "qnc-trim-stills",
  "qnc-ui-text",
 ]
 

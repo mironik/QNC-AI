@@ -21,7 +21,7 @@ pub fn show(
     (projection, assets): (&TimelineProjection, &SourceTimelineAssets),
     view: &SourceTimelineView,
 ) -> TimelineIntent {
-    show_with(ui, rect, (theme, header_gap), title, header, (projection, assets), view, None).0
+    show_with(ui, rect, (theme, header_gap), title, header, (projection, assets), view, None, None).0
 }
 
 /// What a form draws under the header in place of the timeline, and its answer.
@@ -39,7 +39,12 @@ pub fn show_with(
     (projection, assets): (&TimelineProjection, &SourceTimelineAssets),
     view: &SourceTimelineView,
     instead: Option<&mut Instead<'_>>,
+    search: Option<qnc_trim_overlay::Search<'_>>,
 ) -> (TimelineIntent, Option<qnc_action_event::ActionEvent>) {
+    // The timeline's own zoom (user 2026-11-25: the zoom is the timeline enlarged, in every form
+    // that embeds it): its taken IN or OUT, over everything, the search of the statement's text
+    // in its status bar when the caller has a transcript to search.
+    let zoomed = view.zoom.as_deref().and_then(|zoom| qnc_trim_overlay::show(ui.ctx(), zoom, &qnc_theme_styles::timeline(theme), search));
     let style = &qnc_theme_styles::dock(theme, header_gap);
     // The whole clip, before a statement narrows the window: the bar's end is the clip's end.
     let clip_frames = projection.range_start_frame + projection.duration_frames;
@@ -79,7 +84,7 @@ pub fn show_with(
             None => event,
         }
     });
-    (intent, asked.or(answer).or(norm))
+    (intent, asked.or(zoomed).or(answer).or(norm))
 }
 
 /// One action button of the header, as a form lists them (label, catalog action).

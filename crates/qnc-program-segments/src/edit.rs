@@ -114,53 +114,11 @@ impl ProgramSegments {
         pictures.stills()
     }
 
-    /// The pictures of the source timeline's trim zoom: a segment edge's, else those of the
-    /// taken IN or OUT (user 2026-10-25: as an M marker's, the picture before the cut and the
-    /// one after it, the cut between them).
+    /// The pictures of a segment edge taken on the source timeline (Ctrl+Shift+I/O, Edit). The
+    /// zoom of the source timeline's own IN and OUT is the source timeline's (piece
+    /// `qnc-source-timeline`: the zoom is the timeline enlarged, user 2026-11-25).
     pub(crate) fn source_stills(&self) -> Vec<qnc_program_view::EditStill> {
-        use qnc_program_view::{CutPictures, StillPicture};
-        let edge = self.edge_stills();
-        if !edge.is_empty() {
-            return edge;
-        }
-        // A source zoom stays open after its mark is let go (no cut then; user 2026-11-25).
-        let open = self.statement_zoom.is_some() && self.statement_zoom == self.source.clip_id;
-        let (Some(clip_id), Some((in_frame, out_frame))) = (self.source.clip_id.as_ref(), self.source.marks) else {
-            return Vec::new();
-        };
-        let Some(taken) = self.source.taken.or(open.then_some(self.source_zoom_side)) else {
-            return Vec::new();
-        };
-        let held = self.source.taken.is_some();
-        let picture = |frame: u64| Some(StillPicture { clip_id: clip_id.clone(), source_frame: frame });
-        let in_cut = CutPictures { cut: in_frame, before: (in_frame > 0).then(|| (picture(in_frame - 1), qnc_ui_text::text("story.still.before_in"))), after: Some((picture(in_frame), qnc_ui_text::text("story.still.in_first"))), moving_after: true };
-        let out_cut = CutPictures { cut: out_frame, before: Some((picture(out_frame.saturating_sub(1)), qnc_ui_text::text("story.still.out_last"))), after: (out_frame < self.source.duration_frames).then(|| (picture(out_frame), qnc_ui_text::text("story.still.after_out"))), moving_after: false };
-        if !self.source.statement {
-            return if taken { in_cut.stills() } else { out_cut.stills() };
-        }
-        // A statement (user 2026-11-20): three windows, its IN picture, the player (the picture
-        // at the playhead) and its OUT picture. A click on IN or OUT takes that mark and puts the
-        // playhead on it, as Ctrl+I / Ctrl+O; a click on the player lets go of the taken mark
-        // where it is (user 2026-11-22). The taken edge is the cut; I or O moves it to the playhead.
-        let action = |action: &str| Some(qnc_program_view::StillAction::new(action, None, None));
-        let last = out_frame.saturating_sub(1).max(in_frame);
-        let playhead = self.source.playing.filter(|(program, _, _)| !program).map_or(if taken { in_frame } else { last }, |(_, frame, _)| frame);
-        let mut in_still = qnc_program_view::EditStill::new(in_frame, true, picture(in_frame)).labelled(&qnc_ui_text::text("story.still.in_first"));
-        in_still.click = action("select_mark_in");
-        in_still.cut = held && taken;
-        let mut player = qnc_program_view::EditStill::new(playhead, true, picture(playhead)).labelled(&qnc_ui_text::text("zoom.player"));
-        player.live = true; // the player itself, the monitor's picture as it plays
-        player.middle = true;
-        // The player lets the mark go and puts the playhead on IN; the zoom stays.
-        player.click = Some(qnc_program_view::StillAction::new("activate_focused_item", None, Some(in_frame)));
-        let mut out_still = qnc_program_view::EditStill::new(out_frame, false, picture(last)).labelled(&qnc_ui_text::text("story.still.out_last"));
-        out_still.click = action("select_mark_out");
-        out_still.cut = held && !taken;
-        let mut stills = vec![in_still, player, out_still];
-        // The taken side is the player, the middle holds where the mark was (docs/zoom-skeleton.md [B]).
-        let origin = if taken { self.source.origin.0 } else { self.source.origin.1.map(|out| out.saturating_sub(1)) };
-        qnc_program_view::hand_player(&mut stills, origin.filter(|_| held).and_then(picture));
-        stills
+        self.edge_stills()
     }
 
     /// The sound around the cut of the trim zoom (user 2026-10-25: "zoom the audio so the
@@ -171,40 +129,12 @@ impl ProgramSegments {
         let cut_of = |stills: &[qnc_program_view::EditStill]| stills.iter().find(|still| still.cut).or(stills.first()).map(|still| still.marker_frame);
         let second = |(num, den): (u64, u64)| (num as f64 / den.max(1) as f64).round().max(1.0) as u64;
         if let Some(cut) = cut_of(&view.source_edit_stills) {
-            let clip_id = self.source.clip_id.clone()?;
+            let clip_id = self.source.clip_id.as_deref()?;
             let (num, den) = self.source.timebase?;
-            let half = second((num.max(0) as u64, den.max(1) as u64));
-            // The zoom is always around the playhead (user 2026-11-20: it stands in the middle,
-            // the sound and the pictures move under it; the taken mark stays until Save).
+            let heard = self.source.lanes.map(|lane| qnc_program_view::ZoomLane { channel: lane.channel, off: lane.off, level_db: lane.level_db, ..Default::default() });
             let position = self.source.playing.filter(|(program, _, _)| !program).map(|(_, frame, _)| (frame, true));
-            // The whole clip, so a played window can read its sound ahead.
-            let length = self.source.duration_frames.max(cut + 1);
-            let lane = |lane: &qnc_lane_choice::Lane| qnc_program_waveform::Placement {
-                clip_id: clip_id.clone(),
-                channel: lane.channel,
-                program_start: 0,
-                program_end: length,
-                source_in: 0,
-                source_out: length,
-                level_db: lane.level_db,
-                off: lane.off,
-                curve: Vec::new(),
-            };
-            // The clip's kept level curves, on its own axis as the source timeline has them.
-            let span = qnc_level_curve::Span { start: 0, end: length, source_in: 0, source_out: length };
-            let level_curves = (0..2u8)
-                .map(|index| {
-                    let keys = self.source.curve(usize::from(index));
-                    qnc_program_view::LevelCurve { lane: index, id: index.to_string(), span, placed: qnc_level_curve::place(span, &keys), taken: false }
-                })
-                .collect();
-            let mut lanes = [vec![lane(&self.source.lanes[0])], vec![lane(&self.source.lanes[1])]];
-            for (index, placements) in lanes.iter_mut().enumerate() {
-                placements[0].curve = self.source.curves[index].clone();
-            }
-            let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half, total: self.source.duration_frames, position, follow: &self.zoom_follow, lanes };
-            // Play of the zoom: the clip from IN to OUT (docs/zoom-skeleton.md [D]).
-            return Some(qnc_program_view::ZoomSound { lane_choices: self.source.lane_choices, level_curves, marks: self.source.marks, play_part: self.source.marks, ..axis.sound() });
+            let axis = qnc_program_view::ClipAxis { clip_id, cut, timebase: (num.max(0) as u64, den.max(1) as u64), duration: self.source.duration_frames, position, follow: &self.zoom_follow, heard, lane_choices: self.source.lane_choices, curves: self.source.curves.clone(), marks: self.source.marks };
+            return Some(axis.sound());
         }
         if let Some(zoom) = self.clip_edge_zoom(view) {
             return Some(zoom);

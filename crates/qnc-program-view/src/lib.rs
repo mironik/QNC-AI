@@ -5,7 +5,7 @@
 
 mod edit_stills;
 mod zoom_axis;
-pub use zoom_axis::{CutPictures, ZoomAxis};
+pub use zoom_axis::{ClipAxis, CutPictures, ZoomAxis};
 mod markers;
 mod program;
 pub use program::*;

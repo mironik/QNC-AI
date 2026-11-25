@@ -1138,22 +1138,14 @@ fn the_export_box_opens_with_the_project_setting_chosen_and_says_what_is_exporte
     assert!(segments.view().export_alert, "an export running is shown red");
 }
 
+/// User 2026-11-25: the zoom of a taken IN or OUT is the source timeline's own (the zoom is the
+/// timeline enlarged); the story makes only a segment edge's.
 #[test]
-fn a_taken_in_or_out_shows_the_pictures_around_its_cut_and_a_second_of_sound_each_side() {
+fn a_taken_in_or_out_is_no_zoom_of_the_story() {
     let mut segments = component();
-    let pick = |taken| SourcePick::new(Some("clip-c"), Some("C"), Some((300, 450)), (Some(300), 600), Some((50, 1))).with_taken(taken);
-    segments.set_source(pick(None));
-    assert!(segments.view().source_edit_stills.is_empty() && segments.view().zoom_sound.is_none(), "nothing taken");
-    segments.set_source(pick(Some(true)));
-    let frames = |segments: &ProgramSegments| -> Vec<_> {
-        segments.view().source_edit_stills.iter().map(|still| (still.picture.as_ref().map(|p| p.source_frame), still.cut)).collect()
-    };
-    assert_eq!(frames(&segments), vec![(Some(299), false), (Some(300), true)], "before IN, IN first");
-    let sound = segments.view().zoom_sound.clone().expect("the sound of the IN");
-    assert_eq!((sound.from, sound.cut, sound.to), (250, 300, 350), "a second each side on the clip's frames");
-    assert_eq!((sound.lanes[0][0].channel, sound.lanes[1][0].channel), (0, 1), "A1 and A2 as the source timeline hears them");
-    segments.set_source(pick(Some(false)));
-    assert_eq!(frames(&segments), vec![(Some(449), true), (Some(450), false)], "OUT last, after OUT");
+    let pick = SourcePick::new(Some("clip-c"), Some("C"), Some((300, 450)), (Some(300), 600), Some((50, 1))).with_taken(Some(true));
+    segments.set_source(pick);
+    assert!(segments.view().source_edit_stills.is_empty() && segments.view().zoom_sound.is_none());
 }
 
 #[test]
@@ -1359,76 +1351,4 @@ fn the_sound_assistants_proposal_is_kept_only_while_it_is_on_and_proposes() {
     segments.apply_action("toggle_sound_assist");
     assert!(!segments.apply_action("sound_assist_keep") || segments.view().message == qnc_ui_text::text("story.msg.sound_assist_keep_none"));
     assert_eq!(segments.view().message, qnc_ui_text::text("story.msg.sound_assist_keep_none"), "no waves read: nothing proposed");
-}
-
-/// User 2026-11-20: a statement's zoom is three windows, its IN picture, the player (the picture
-/// at the playhead) and its OUT picture; the taken edge is the cut.
-#[test]
-fn a_statements_zoom_is_its_in_the_player_and_its_out_and_the_taken_edge_is_the_cut() {
-    let mut segments = component();
-    let frames = |segments: &ProgramSegments| segments.view().source_edit_stills.iter().map(|still| (still.picture.as_ref().map(|p| p.source_frame), still.cut)).collect::<Vec<_>>();
-    segments.set_source(marked(10).with_statement(true).with_taken(Some(true)));
-    assert_eq!(frames(&segments), [(Some(10), true), (Some(10), false), (Some(59), false)], "no player frame yet: the player shows the taken IN");
-    let mut pick = marked(10).with_statement(true).with_taken(Some(false));
-    pick.marks = Some((10, 40));
-    segments.set_source(pick);
-    assert_eq!(frames(&segments), [(Some(10), false), (Some(39), false), (Some(39), true)]);
-}
-
-/// User 2026-11-22: a click on the IN or OUT picture takes that mark (the playhead goes on it, as
-/// Ctrl+I / Ctrl+O), a click on the player lets go of the taken mark.
-#[test]
-fn a_click_on_the_in_or_out_picture_takes_the_mark_the_player_lets_it_go() {
-    let mut segments = component();
-    let mut pick = marked(10).with_statement(true).with_taken(Some(true));
-    pick.marks = Some((10, 40));
-    segments.set_source(pick);
-    let clicks: Vec<_> = segments.view().source_edit_stills.iter().map(|still| still.click.as_ref().map(|click| (click.action.clone(), click.value))).collect();
-    let take = |action: &str| Some((action.to_string(), None));
-    assert_eq!(clicks, [take("select_mark_in"), Some(("activate_focused_item".to_string(), Some(10))), take("select_mark_out")]);
-}
-
-/// User 2026-11-22: a statement's zoom stays open when its mark is let go (no cut then), until
-/// Esc or Close.
-#[test]
-fn a_statements_zoom_stays_open_after_its_mark_is_let_go_until_it_is_closed() {
-    let mut segments = component();
-    let mut pick = marked(10).with_statement(true).with_taken(Some(false));
-    pick.marks = Some((10, 40));
-    segments.set_source(pick.clone());
-    assert_eq!(segments.view().source_edit_stills.len(), 3);
-    segments.set_source(pick.clone().with_taken(None));
-    let stills = &segments.view().source_edit_stills;
-    assert_eq!(stills.len(), 3, "the zoom stays");
-    assert!(stills.iter().all(|still| !still.cut), "no mark is taken");
-    segments.close_statement_zoom();
-    assert!(segments.view().source_edit_stills.is_empty(), "closed");
-    segments.set_source(pick.with_taken(None));
-    assert!(segments.view().source_edit_stills.is_empty(), "nothing opens it again until a mark is taken");
-}
-
-/// User 2026-11-25: "Enter snima, ali ne zatvara prozor": the zoom of a plain IN or OUT stays open
-/// on the side last taken after the mark is let go, until Esc or Close.
-#[test]
-fn a_source_zoom_stays_open_on_its_side_after_enter_until_it_is_closed() {
-    let mut segments = component();
-    let mut pick = marked(10).with_taken(Some(false));
-    pick.marks = Some((10, 40));
-    segments.set_source(pick.clone());
-    let taken = segments.view().source_edit_stills.len();
-    assert!(taken > 0);
-    segments.set_source(pick.clone().with_taken(None));
-    assert_eq!(segments.view().source_edit_stills.len(), taken, "the zoom stays on OUT");
-    segments.close_statement_zoom();
-    assert!(segments.view().source_edit_stills.is_empty(), "closed");
-}
-
-/// docs/zoom-skeleton.md [D]: Play of a source zoom plays the clip from IN to OUT.
-#[test]
-fn a_source_zoom_plays_from_in_to_out() {
-    let mut segments = component();
-    let mut pick = marked(10).with_taken(Some(true));
-    pick.marks = Some((10, 40));
-    segments.set_source(pick);
-    assert_eq!(segments.view().zoom_sound.as_ref().and_then(|sound| sound.play_part), Some((10, 40)));
 }
