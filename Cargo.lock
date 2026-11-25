@@ -5914,14 +5914,19 @@ dependencies = [
 name = "qnc-letter-times"
 version = "0.1.0"
 dependencies = [
+ "qnc-active-project-read",
  "qnc-ai-catalog",
  "qnc-ai-features",
+ "qnc-content-read",
+ "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-letter-align",
  "qnc-letter-db",
+ "qnc-player-clip-content",
  "qnc-plugin-process",
  "qnc-sound-range",
+ "qnc-source-bindings",
  "qnc-still-locator",
  "qnc-transcribe-jobs",
 ]

@@ -22,6 +22,8 @@
     "common.cancel": "Cancel",
     "common.save": "Save",
     "zoom.close": "Close (Esc)",
+    "zoom.title": "Zoom",
+    "zoom.play": "Play / Pause",
     "zoom.cancel": "Cancel",
     "zoom.player": "Player",
     "common.export": "Export",

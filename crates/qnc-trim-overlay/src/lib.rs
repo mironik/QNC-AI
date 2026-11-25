@@ -41,7 +41,14 @@ const LABEL_SIZE: Vec2 = Vec2::new(30.0, 20.0);
 const BUTTONS_HEIGHT: f32 = 30.0;
 const BUTTON_SIZE: Vec2 = Vec2::new(78.0, 24.0);
 /// Save keeps what is taken (user 2026-11-04: "after Save do not close"); Close is Escape.
-const BUTTONS: [(&str, &str); 3] = [("zoom.cancel", qnc_edit_verbs::UNDO), ("common.save", qnc_edit_verbs::SAVE), ("zoom.close", qnc_edit_verbs::DROP)];
+const BUTTONS: [(&str, &str); 4] = [("zoom.play", PLAY), ("zoom.cancel", qnc_edit_verbs::UNDO), ("common.save", qnc_edit_verbs::SAVE), ("zoom.close", qnc_edit_verbs::DROP)];
+/// Play/Pause of the zoom's transport (docs/zoom-skeleton.md [D]): the action of Space.
+const PLAY: &str = "play_pause";
+/// The window's top bar (docs/zoom-skeleton.md [A]): held to move the window; its ✕ is Close.
+const HEADER_HEIGHT: f32 = 26.0;
+/// The status bar at the bottom ([H]): the message on the left, the search of a statement's text on
+/// the right (its place is kept; the search comes in a later step).
+const STATUS_HEIGHT: f32 = 24.0;
 /// The share of the screen width the window may take.
 const SCREEN_SHARE: f32 = 0.92;
 
@@ -62,10 +69,13 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme)
     let picture = Vec2::new(width.max(16.0), width.max(16.0) * 9.0 / 16.0);
     let sound = segments.zoom_sound.as_ref().filter(|sound| sound.to > sound.from);
     let lanes = if sound.is_some() { LANES_GAP + 2.0 * LANE_HEIGHT + GAP / 2.0 + WORDS_HEIGHT } else { 0.0 };
-    let size = Vec2::new(count * picture.x + GAP * (count - 1.0), picture.y + LABEL_HEIGHT + BUTTONS_HEIGHT + lanes) + Vec2::splat(2.0 * MARGIN);
+    let size = Vec2::new(count * picture.x + GAP * (count - 1.0), picture.y + LABEL_HEIGHT + BUTTONS_HEIGHT + lanes) + Vec2::splat(2.0 * MARGIN) + Vec2::new(0.0, HEADER_HEIGHT + STATUS_HEIGHT);
+    // Where the user moved the window by its top bar, kept while the application runs.
+    let moved_id = egui::Id::new("qnc_trim_overlay_moved");
+    let moved = ctx.data(|data| data.get_temp::<Vec2>(moved_id)).unwrap_or_default();
     egui::Area::new(egui::Id::new("qnc_trim_overlay"))
         .order(egui::Order::Foreground)
-        .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+        .anchor(Align2::CENTER_CENTER, moved)
         .interactable(true)
         .show(ctx, |ui| {
             let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
@@ -75,7 +85,15 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme)
             let visuals = ui.visuals().clone();
             ui.painter().rect_filled(rect, 6.0, visuals.window_fill);
             ui.painter().rect_stroke(rect, 6.0, visuals.window_stroke, StrokeKind::Inside);
-            let top = rect.min + Vec2::splat(MARGIN);
+            // [A] The top bar: the window is moved by it; its ✕ is Close (Esc).
+            let header = Rect::from_min_size(rect.min, Vec2::new(rect.width(), HEADER_HEIGHT));
+            if let Some(closed) = paint_header(ui, header, moved_id, &visuals) {
+                turned = Some(closed);
+            }
+            // [H] The status bar.
+            let status = Rect::from_min_max(egui::pos2(rect.left(), rect.bottom() - STATUS_HEIGHT), rect.max);
+            paint_status(ui, status, &segments.message, &visuals);
+            let top = rect.min + Vec2::new(MARGIN, MARGIN + HEADER_HEIGHT);
             let row_width = size.x - 2.0 * MARGIN;
             let (mut gap_at, mut gap_at_cut) = (None, false);
             // The side in focus (user 2026-11-04): its pictures framed red, the same in every zoom.
@@ -176,6 +194,35 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme)
             }
         });
     turned
+}
+
+/// The top bar: the zoom's name on the left, ✕ on the right (Close, the action of Escape); a drag
+/// anywhere else on it moves the window.
+fn paint_header(ui: &mut egui::Ui, bar: Rect, moved_id: egui::Id, visuals: &egui::Visuals) -> Option<ActionEvent> {
+    ui.painter().rect_filled(bar, egui::CornerRadius { nw: 6, ne: 6, sw: 0, se: 0 }, visuals.faint_bg_color);
+    let close = Rect::from_center_size(egui::pos2(bar.right() - HEADER_HEIGHT / 2.0 - 4.0, bar.center().y), Vec2::splat(HEADER_HEIGHT - 6.0));
+    let drag = ui.interact(Rect::from_min_max(bar.min, egui::pos2(close.left() - 4.0, bar.bottom())), ui.id().with("header"), Sense::drag());
+    if drag.dragged() {
+        let delta = drag.drag_delta();
+        ui.ctx().data_mut(|data| *data.get_temp_mut_or_default::<Vec2>(moved_id) += delta);
+    }
+    if drag.hovered() || drag.dragged() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+    }
+    ui.painter().text(egui::pos2(bar.left() + MARGIN, bar.center().y), Align2::LEFT_CENTER, qnc_ui_text::text("zoom.title"), FontId::proportional(14.0), visuals.text_color());
+    let pressed = ui.put(close, qnc_ui_kit::sized_button("×", close.size())).clicked();
+    pressed.then(|| ActionEvent::key(qnc_edit_verbs::DROP))
+}
+
+/// The status bar: the message of the zoom's owner on the left; the right part is kept for the
+/// search of a statement's text.
+fn paint_status(ui: &egui::Ui, bar: Rect, message: &str, visuals: &egui::Visuals) {
+    ui.painter().rect_filled(bar, egui::CornerRadius { nw: 0, ne: 0, sw: 6, se: 6 }, visuals.faint_bg_color);
+    if !message.is_empty() {
+        let shown = ui.painter().layout_no_wrap(message.to_string(), FontId::proportional(13.0), visuals.weak_text_color());
+        let clip = Rect::from_min_max(bar.min, egui::pos2(bar.center().x, bar.max.y));
+        ui.painter().with_clip_rect(clip).galley(egui::pos2(bar.left() + MARGIN, bar.center().y - shown.size().y / 2.0), shown, visuals.weak_text_color());
+    }
 }
 
 /// Undo, Save and Close in one row in the middle of the window; a press is the system action of
