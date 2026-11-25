@@ -26,6 +26,7 @@
     "zoom.play": "Play / Pauza",
     "zoom.cancel": "Odustani",
     "zoom.player": "Player",
+    "zoom.before": "Prije",
     "common.export": "Izvoz",
     "export.to_xml": "Export u XML",
     "export.project_settings": "Postavke exporta projekta",

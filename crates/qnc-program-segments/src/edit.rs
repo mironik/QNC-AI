@@ -150,12 +150,17 @@ impl ProgramSegments {
         in_still.cut = held && taken;
         let mut player = qnc_program_view::EditStill::new(playhead, true, picture(playhead)).labelled(&qnc_ui_text::text("zoom.player"));
         player.live = true; // the player itself, the monitor's picture as it plays
+        player.middle = true;
         // The player lets the mark go and puts the playhead on IN; the zoom stays.
         player.click = Some(qnc_program_view::StillAction::new("zoom_save", None, Some(in_frame)));
         let mut out_still = qnc_program_view::EditStill::new(out_frame, false, picture(last)).labelled(&qnc_ui_text::text("story.still.out_last"));
         out_still.click = action("select_mark_out");
         out_still.cut = held && !taken;
-        vec![in_still, player, out_still]
+        let mut stills = vec![in_still, player, out_still];
+        // The taken side is the player, the middle holds where the mark was (docs/zoom-skeleton.md [B]).
+        let origin = if taken { self.source.origin.0 } else { self.source.origin.1.map(|out| out.saturating_sub(1)) };
+        qnc_program_view::hand_player(&mut stills, origin.filter(|_| held).and_then(picture));
+        stills
     }
 
     /// The sound around the cut of the trim zoom (user 2026-10-25: "zoom the audio so the

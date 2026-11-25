@@ -338,6 +338,8 @@ impl SubsegmentEdit {
         }
         // The assistant's curves of the stored parts (AI on), played and drawn with the draft.
         self.assist_curves = self.propose(&block);
+        // The stored parts: where a taken edge was before it moved (the zoom's middle holds it).
+        let stored = view::block_pieces(&block);
         let block = self.drafted(block);
         let inputs = view::piece_inputs(&block);
         if playing.is_some_and(|playing| playing != inputs.as_slice()) && self.pieces_request.is_none() {
@@ -407,6 +409,7 @@ impl SubsegmentEdit {
         let joined = self.trim.filter(|trim| trim.roll.is_some()).map(|trim| if trim.out || trim.roll.is_some() { trim.index + 1 } else { trim.index }).filter(|index| *index > 0 && pieces.get(*index).is_some_and(|piece| piece.gap_before == 0));
         let join_sound = self.join_sound;
         let chosen = self.chosen;
+        let trim = self.trim;
         // A1 of the trimmed part as its lane shows it (AGENTS 0.12, docs/97 step 3).
         let sound_open = self.sound.is_some();
         let a1_lane = self.trim.and_then(|trim| shown.parts.get(trim.index)).and_then(|part| {
@@ -426,6 +429,10 @@ impl SubsegmentEdit {
                 // The scope's zoom frames the edge taken (its IN left, its OUT right), else nothing.
                 sound.focus_side = own_focus.unwrap_or(sound_side.or(chosen_side));
             }
+            // A part's own edge taken: that side is the player, the middle holds where the edge was
+            // (docs/zoom-skeleton.md [B]).
+            let origin = own_focus.flatten().and(trim).and_then(|trim| stored.get(trim.index).map(|piece| qnc_program_view::StillPicture { clip_id: piece.clip_id.clone(), source_frame: if trim.out { piece.to_frame.saturating_sub(1).max(piece.from_frame) } else { piece.from_frame } }));
+            qnc_program_view::hand_player(&mut zoom.source_edit_stills, origin);
             if let (Some(index), Some(sound)) = (joined.or(join_sound.map(|join| join.index)), zoom.zoom_sound.as_mut()) {
                 let marker_id = format!("join:{index}");
                 sound.taken_cut = Some(marker_id.clone());

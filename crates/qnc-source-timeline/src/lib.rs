@@ -216,6 +216,11 @@ impl SourceTimeline {
         self.curves.clone()
     }
 
+    /// Where IN and OUT were when a mark was taken (its trim zoom's middle holds that picture).
+    pub fn mark_origin(&self) -> (Option<u64>, Option<u64>) {
+        self.keys.origin()
+    }
+
     /// A1 and A2 as its lanes show them now: the lane playing, its channels and whether it is
     /// taken (its trim zoom shows the same lanes, AGENTS 0.12).
     pub fn lanes_shown(&self) -> [Option<(Lane, u16, bool)>; 2] {

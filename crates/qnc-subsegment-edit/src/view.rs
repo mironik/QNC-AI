@@ -213,6 +213,7 @@ pub fn subsegment_zoom(
     let at_axis = view.parts.iter().zip(pieces).find(|(part, _)| (part.start..part.end).contains(&playhead)).and_then(|(part, piece)| picture(piece, piece.from_frame + (playhead - part.start)));
     let mut player = EditStill::new(playhead, true, at_axis).labelled(&qnc_ui_text::text("zoom.player"));
     player.live = true;
+    player.middle = true;
     player.click = Some(action(qnc_edit_verbs::SAVE, None, cut));
     player.clip_frames = player.picture.as_ref().and_then(|picture| clip_frames(&picture.clip_id));
     let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half: rate.max(1), total: view.total_frames, position, follow, lanes: [subsegment_placements(view, pieces), Vec::new()] };
@@ -276,6 +277,7 @@ pub fn scope_zoom(
     let at_axis = view.parts.iter().zip(pieces).find(|(part, _)| (part.start..part.end).contains(&playhead)).and_then(|(part, piece)| picture(piece, piece.from_frame + (playhead - part.start)));
     let mut player = EditStill::new(playhead, true, at_axis).labelled(&qnc_ui_text::text("zoom.player"));
     player.live = true;
+    player.middle = true;
     // The player clicked: the whole statement.
     player.click = Some(StillAction::new(crate::SUBSEGMENT_SELECT, Some("whole".to_string()), None));
     player.clip_frames = player.picture.as_ref().and_then(|picture| clip_frames(&picture.clip_id));

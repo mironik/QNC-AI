@@ -10,7 +10,7 @@ mod markers;
 mod program;
 pub use program::*;
 
-pub use edit_stills::{edit_stills, mark_clip_edges, point_stills, program_picture, trim_stills, ClipEdge, EditStill, StillAction, StillPicture, StillStrip, story_zoom_clicks};
+pub use edit_stills::{edit_stills, hand_player, mark_clip_edges, point_stills, program_picture, trim_stills, ClipEdge, EditStill, StillAction, StillPicture, StillStrip, story_zoom_clicks};
 
 pub use markers::{
     check_move, first_empty_slot, neighbour_marker, neighbour_segment, neighbour_slot,

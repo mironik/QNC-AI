@@ -92,6 +92,12 @@ impl SourcePanel {
         self.origin[usize::from(!in_mark)].get_or_insert(now);
     }
 
+    /// Where IN and OUT were when the marks were first taken (the zoom's middle holds that picture,
+    /// docs/zoom-skeleton.md [B]); meaningful only while a mark is taken.
+    pub fn origin(&self) -> (Option<u64>, Option<u64>) {
+        (self.origin[0].flatten(), self.origin[1].flatten())
+    }
+
     /// IN and OUT back where they were when a mark was first taken (Cancel, user 2026-11-20:
     /// "odustani vraća stare postavke"); the mark stays taken.
     fn back_to_origin(&mut self, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> bool {

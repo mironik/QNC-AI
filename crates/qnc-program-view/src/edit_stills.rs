@@ -54,6 +54,10 @@ pub struct EditStill {
     /// The place shows the player itself, the monitor's picture as it plays (user 2026-11-20:
     /// "in the zoom the player moves into the middle window"), not a decoded still.
     pub live: bool,
+    /// The middle place of a zoom (docs/zoom-skeleton.md [B]): the player of the whole timeline, or,
+    /// while a side is taken, the picture where the taken edge was before it moved. Never a side of
+    /// the cut.
+    pub middle: bool,
 }
 
 /// The length strip under a zoom picture: the slot's length in the colour of its length.
@@ -176,7 +180,7 @@ impl EditStill {
         let id = picture
             .as_ref()
             .map_or_else(String::new, |p| format!("qnc_edit_still:{}:{}", p.clip_id, p.source_frame));
-        Self { marker_frame, after, picture, image: None, id, label: String::new(), cut: false, clip_edge: None, clip_frames: None, past_end: false, click: None, right_click: None, strip: None, live: false }
+        Self { marker_frame, after, picture, image: None, id, label: String::new(), cut: false, clip_edge: None, clip_frames: None, past_end: false, click: None, right_click: None, strip: None, live: false, middle: false }
     }
 
     /// The same picture with what it is.
@@ -443,4 +447,55 @@ pub fn point_stills(view: &SegmentsView, slots: &[Slot], frame: u64) -> Vec<Edit
         moving_after: true,
     }
     .stills()
+}
+
+/// The players of a zoom (docs/zoom-skeleton.md [B], user 2026-11-25): while a side is taken
+/// (`cut`) and its owner gives where the edge was before it moved (`origin`), that side becomes the
+/// player (the monitor's picture as the arrows and the wheel move the edge) and the middle place
+/// holds the old picture for comparison. Nothing taken or no origin: the middle is the player of
+/// the whole timeline. After Save the owner gives no origin and everything is back.
+pub fn hand_player(stills: &mut [EditStill], origin: Option<StillPicture>) {
+    let Some(origin) = origin else { return };
+    let Some(side) = stills.iter().position(|still| still.cut && !still.middle) else { return };
+    let Some(middle) = stills.iter().position(|still| still.middle) else { return };
+    stills[side].live = true;
+    let held = &mut stills[middle];
+    held.live = false;
+    held.id = format!("qnc_edit_still:{}:{}", origin.clip_id, origin.source_frame);
+    held.picture = Some(origin);
+    held.label = qnc_ui_text::text("zoom.before").to_string();
+}
+
+#[cfg(test)]
+mod player_tests {
+    use super::*;
+
+    fn three(cut_in: bool) -> Vec<EditStill> {
+        let at = |frame| Some(StillPicture { clip_id: "c".into(), source_frame: frame });
+        let mut in_still = EditStill::new(10, true, at(10));
+        in_still.cut = cut_in;
+        let mut player = EditStill::new(40, true, at(40));
+        (player.live, player.middle) = (true, true);
+        vec![in_still, player, EditStill::new(90, false, at(89))]
+    }
+
+    #[test]
+    fn a_taken_side_is_the_player_and_the_middle_holds_where_it_was() {
+        let mut stills = three(true);
+        hand_player(&mut stills, Some(StillPicture { clip_id: "c".into(), source_frame: 7 }));
+        assert!(stills[0].live, "the taken IN plays");
+        assert!(!stills[1].live && stills[1].middle, "the middle no longer plays");
+        assert_eq!(stills[1].picture.as_ref().map(|p| p.source_frame), Some(7), "it holds the old IN");
+        assert!(!stills[2].live);
+    }
+
+    #[test]
+    fn nothing_taken_or_no_origin_leaves_the_middle_the_player() {
+        let mut stills = three(false);
+        hand_player(&mut stills, Some(StillPicture { clip_id: "c".into(), source_frame: 7 }));
+        assert!(stills[1].live && !stills[0].live);
+        let mut stills = three(true);
+        hand_player(&mut stills, None);
+        assert!(stills[1].live && !stills[0].live);
+    }
 }

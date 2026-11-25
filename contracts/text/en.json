@@ -26,6 +26,7 @@
     "zoom.play": "Play / Pause",
     "zoom.cancel": "Cancel",
     "zoom.player": "Player",
+    "zoom.before": "Before",
     "common.export": "Export",
     "export.to_xml": "Export to XML",
     "export.project_settings": "Project export settings",

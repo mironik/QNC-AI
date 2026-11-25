@@ -109,12 +109,20 @@ pub struct SourcePick {
     pub curves: [Vec<(u64, i16)>; 2],
     /// A statement is enlarged on the source timeline: its trim zoom has four pictures.
     pub statement: bool,
+    /// Where IN and OUT were when the taken mark was taken (the zoom's middle holds that picture).
+    pub origin: (Option<u64>, Option<u64>),
 }
 
 impl SourcePick {
     /// Whether a statement is enlarged on the source timeline.
     pub fn with_statement(mut self, statement: bool) -> Self {
         self.statement = statement;
+        self
+    }
+
+    /// Where IN and OUT were when the taken mark was taken.
+    pub fn with_origin(mut self, origin: (Option<u64>, Option<u64>)) -> Self {
+        self.origin = origin;
         self
     }
 
@@ -157,6 +165,7 @@ impl SourcePick {
             lane_choices: [None, None],
             curves: [Vec::new(), Vec::new()],
             statement: false,
+            origin: (None, None),
         }
     }
 
