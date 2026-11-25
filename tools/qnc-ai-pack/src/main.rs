@@ -108,7 +108,10 @@ fn main() {
 fn used() -> Vec<(&'static str, Result<Used, String>)> {
     use qnc_ai_catalog::Quality;
     let transcriber = |job, quality| {
-        qnc_ai_catalog::installed_transcriber_for(quality).map(|engine| Used { job, program: engine.program, models: std::iter::once(engine.model).chain(engine.vad_model).collect() })
+        // The speech finder before the transcription runs inside the program that transcribes, so
+        // its model goes with the transcriber (user 2026-11-25).
+        let speech = qnc_ai_catalog::installed_vad().ok().flatten();
+        qnc_ai_catalog::installed_transcriber_for(quality).map(|engine| Used { job, program: engine.program, models: std::iter::once(engine.model).chain(engine.vad_model).chain(speech).collect() })
     };
     let mut used = vec![
         ("transcribe.best", transcriber("transcribe.best", Quality::Best)),

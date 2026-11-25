@@ -8303,6 +8303,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-speech-vad"
+version = "0.1.0"
+dependencies = [
+ "ort",
+]
+
+[[package]]
 name = "qnc-status-line"
 version = "0.1.0"
 
@@ -8694,6 +8701,7 @@ dependencies = [
  "qnc-media-metadata",
  "qnc-playback-activity",
  "qnc-sound-range",
+ "qnc-speech-vad",
  "qnc-still-locator",
  "qnc-transcribe-jobs",
  "qnc-transcript-db",

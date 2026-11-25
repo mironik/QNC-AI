@@ -262,6 +262,7 @@ fn hear_while_read(
     let window = (PIECE_SECONDS as usize + 5) * rate;
     let (mut processed, mut heard_seconds) = (0usize, 0.0f64);
     let (mut noise, mut floor) = (f32::INFINITY, qnc_transcribe_jobs::FLOOR_CEILING_DBFS);
+    let mut vad = speech_finder()?;
     // Where the time goes, for the log (live 2026-10-27: "the speed is broken").
     let (started, mut engine_time, mut waited) = (std::time::Instant::now(), Duration::ZERO, Duration::ZERO);
     let mut read_took = None;
@@ -300,11 +301,19 @@ fn hear_while_read(
             false => &block[..qnc_transcribe_jobs::quiet_pieces(&block, rate, PIECE_SECONDS as usize)[0].end],
         };
         let block_start = start + processed as f64 / rate as f64;
-        if let Some(block_noise) = qnc_transcribe_jobs::noise_dbfs(block, rate) {
-            noise = noise.min(block_noise);
-            floor = qnc_transcribe_jobs::clip_floor_dbfs(noise);
-        }
-        for span in qnc_transcribe_jobs::loud_spans(block, rate, floor) {
+        // Where speech is: Silero VAD when this host's AI catalog names it (user 2026-11-25), else
+        // the sound over the clip's floor.
+        let spans = match &mut vad {
+            Some(vad) => speech_spans(vad, block, rate)?,
+            None => {
+                if let Some(block_noise) = qnc_transcribe_jobs::noise_dbfs(block, rate) {
+                    noise = noise.min(block_noise);
+                    floor = qnc_transcribe_jobs::clip_floor_dbfs(noise);
+                }
+                qnc_transcribe_jobs::loud_spans(block, rate, floor)
+            }
+        };
+        for span in spans {
             for piece in qnc_transcribe_jobs::quiet_pieces(&block[span.clone()], rate, PIECE_SECONDS as usize) {
                 let range = span.start + piece.start..span.start + piece.end;
                 // Each piece starts two seconds earlier, so the words a cut took from the piece
@@ -337,8 +346,12 @@ fn hear_while_read(
             break;
         }
     }
+    let gate = match vad {
+        Some(_) => "of speech (Silero VAD)".to_string(),
+        None => format!("over {floor:.1} dBFS (noise {noise:.1})"),
+    };
     log(&format!(
-        "transcribe background {} {:.1}s of {:.1}s over {floor:.1} dBFS (noise {noise:.1}); read {:.1}s, engine {:.1}s, waited for the read {:.1}s, all {:.1}s",
+        "transcribe background {} {:.1}s of {:.1}s {gate}; read {:.1}s, engine {:.1}s, waited for the read {:.1}s, all {:.1}s",
         ask.clip_id,
         heard_seconds,
         total,
@@ -353,6 +366,22 @@ fn hear_while_read(
         language = job.language.clone();
     }
     Ok((lines, language, made_by))
+}
+
+/// The speech finder of this host (its AI catalog names Silero VAD), loaded for one clip; none
+/// when the catalog names none. A model named but not here is an error, not the floor.
+fn speech_finder() -> Result<Option<qnc_speech_vad::SpeechVad>, String> {
+    match qnc_ai_catalog::installed_vad()? {
+        Some(model) => Ok(Some(qnc_speech_vad::SpeechVad::load(&model, &qnc_speech_vad::runtime_beside_program()?)?)),
+        None => Ok(None),
+    }
+}
+
+/// The spans of speech in `block` (`rate` Hz), in its samples.
+fn speech_spans(vad: &mut qnc_speech_vad::SpeechVad, block: &[f32], rate: usize) -> Result<Vec<std::ops::Range<usize>>, String> {
+    let heard = qnc_transcribe_jobs::to_whisper_rate(block, rate as u32)?;
+    let back = |at: usize| (at as u64 * rate as u64 / qnc_speech_vad::RATE as u64) as usize;
+    Ok(vad.speech(&heard)?.into_iter().map(|span| back(span.start).min(block.len())..back(span.end).min(block.len())).filter(|span| !span.is_empty()).collect())
 }
 
 /// One piece (16 kHz, from `start` media seconds) through the engine while the player is idle.

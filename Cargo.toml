@@ -410,6 +410,7 @@ qnc-desktop-tabs = { path = "crates/qnc-desktop-tabs" }
 qnc-desktop = { path = "crates/qnc-desktop" }
 qnc-fcp7-xml = { path = "crates/qnc-fcp7-xml" }
 qnc-florence2 = { path = "crates/qnc-florence2" }
+qnc-speech-vad = { path = "crates/qnc-speech-vad" }
 qnc-ingest-desktop-adapter = { path = "crates/qnc-ingest-desktop-adapter" }
 qnc-installed-versions = { path = "crates/qnc-installed-versions" }
 qnc-ma-script-desktop-adapter = { path = "crates/qnc-ma-script-desktop-adapter" }

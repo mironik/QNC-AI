@@ -91,6 +91,35 @@ struct File {
     #[serde(default)]
     #[allow(dead_code)]
     store: Option<StoreJob>,
+    /// Where speech is in a sound (user 2026-11-25: Silero VAD before the transcription, in place
+    /// of the loudness floor); a host without it keeps the floor.
+    #[serde(default)]
+    vad: Option<VadJob>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VadJob {
+    model: String,
+}
+
+/// The speech finder of this host: its model (one ONNX file), run inside the program that asks
+/// (it is some hundred times faster than real time, a plug-in process would cost more than it).
+pub fn installed_vad() -> Result<Option<std::path::PathBuf>, String> {
+    vad(&installed_path()?)
+}
+
+/// The speech finder of the catalog at `path`: `None` when the catalog names none; a model named
+/// but not on this host is an error (nothing falls back to the loudness floor then).
+pub fn vad(path: &Path) -> Result<Option<std::path::PathBuf>, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let file: File = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let Some(job) = file.vad else { return Ok(None) };
+    let model = model_path(path.parent().ok_or("the AI catalog has no folder")?, &job.model)?;
+    if !model.is_file() {
+        return Err(format!("speech finder: the model {} is not on this host", model.display()));
+    }
+    Ok(Some(model))
 }
 
 #[derive(Debug, Clone, Deserialize)]

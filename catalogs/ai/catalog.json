@@ -3,6 +3,9 @@
     "model": "share:models/wav2vec2-parlaspeech-hr",
     "program": "qnc-align-wav2vec2"
   },
+  "vad": {
+    "model": "share:models/silero-vad-v5/silero_vad.onnx"
+  },
   "shot_content": {
     "model": "share:models/siglip2-base-patch16-224",
     "pictures": 2,

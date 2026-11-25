@@ -1,0 +1,8 @@
+[package]
+name = "qnc-speech-vad"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public block: where speech is in a sound (Silero VAD v5, ONNX, through the ONNX Runtime library beside the program, in process)"
+
+[dependencies]
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["load-dynamic", "std"] }

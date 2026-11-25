@@ -34,6 +34,7 @@
     { "model": "ggml-large-v3-turbo.bin", "licence": "MIT", "source": "https://huggingface.co/ggerganov/whisper.cpp (OpenAI Whisper)", "attribution": "OpenAI", "status": "known" },
     { "model": "ggml-large-v3-turbo-q5_0.bin", "licence": "MIT", "source": "https://huggingface.co/ggerganov/whisper.cpp (OpenAI Whisper)", "attribution": "OpenAI", "status": "known" },
     { "model": "ggml-silero-v5.1.2.bin", "licence": "MIT", "source": "https://github.com/snakers4/silero-vad", "attribution": "Silero Team", "status": "known" },
+    { "model": "silero_vad.onnx", "licence": "MIT", "source": "https://github.com/snakers4/silero-vad (src/silero_vad/data/silero_vad.onnx, v5)", "attribution": "Silero Team", "status": "known" },
     { "model": "rife-v4.6", "licence": "MIT", "source": "https://github.com/hzwer/ECCV2022-RIFE (ncnn by nihui)", "attribution": "hzwer, nihui", "status": "known" },
     { "model": "moondream-q4", "licence": "Apache-2.0", "source": "https://huggingface.co/vikhyatk/moondream2", "attribution": "vikhyatk", "status": "known" }
   ]

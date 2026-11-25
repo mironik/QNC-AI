@@ -119,6 +119,9 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
 ### Ingest, tray, AI
 
 - Tray i projekt rade po postavkama projekta: kartica se kopira, link je samo za breaking news.
+- AI model koji je sporiji od SigLIP-a (oko 0,45 s po slici) se ne uvodi (korisnik 2026-11-25).
+- Prijepisu ide samo zvuk u kojem Silero VAD nade govor (AI katalog racunala `vad`); racunalo bez
+  njega koristi prag glasnoce prema sumu klipa. VAD govorom smatra i glas u pozadini i djecu.
 - AI motori su u zajednickom AI direktoriju racunala; mjesto rada (lokalno ili AI server) je
   postavka racunala, AI mogucnosti projekta su iz AI templatea izabranog pri kreiranju projekta i
   u pokrenutom projektu se ne mijenjaju.
