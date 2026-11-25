@@ -51,9 +51,9 @@ impl IngestApp {
         // QNC-AI: while the story is asked over the form its keys are the overlay's.
         let over = self.application.story_offer().is_some() || self.application.story_sheet_mut().is_some();
         let scopes: &[&str] = if over { &[] } else { &["ingest"] };
-        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes, play_action: action_ids::PLAY_PAUSE, theme: None };
-        self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
         let theme = Theme::from_contract(&self.contracts.shell);
+        let keys = qnc_form_host::FormKeys { catalog: &self.contracts.shortcuts, scopes, play_action: action_ids::PLAY_PAUSE, theme: Some(&theme) };
+        self.host.before_paint(ctx, &mut Hosted(&mut self.application), &keys);
         theme::apply(ctx, &theme);
         // The view is borrowed, not copied: it holds every clip and the timeline data.
         if let Some(intent) = qnc_ingest_blocks::render_desktop(ui, frame, &self.contracts, &theme, self.application.view()) {

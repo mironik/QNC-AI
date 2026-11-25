@@ -21,6 +21,9 @@ pub type Result<T> = std::result::Result<T, String>;
 /// The action that opens and closes the window (Ctrl+Shift+H) and the one that goes back.
 pub const OPEN: &str = "project_history_open";
 pub const RESTORE: &str = "project_history_restore";
+/// The keys of the window while it is open: its own scope of the catalog, the same in every form
+/// (user 2026-11-25: Esc closes it, Enter goes back, arrows light a row).
+pub const KEY_SCOPE: &str = "project_history";
 
 /// One moment of the project: a commit of its journal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -151,6 +154,11 @@ impl ProjectHistory {
     /// Reading or going back.
     pub fn busy(&self) -> bool {
         self.reading.is_some() || self.restoring.is_some()
+    }
+
+    /// Whether the window is open (its keys are then the only keys of the form).
+    pub fn is_open(&self) -> bool {
+        self.open
     }
 
     /// The window, while it is open.

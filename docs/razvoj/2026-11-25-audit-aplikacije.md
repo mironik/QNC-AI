@@ -114,7 +114,7 @@ B6. `qnc-prerender-launch` provjerava najam zadanog projekta, a pokreće prerend
 C1. **Složena izjava u AI Media Assistu**: `StatementPlay` baca izmjene (`take_writes` se
     odbacuje); Update radi samo za jednostavnu izjavu. Dijelovi složene izjave ne mijenjaju se
     nigdje. `StatementPlay` uzima tipke i kad nije nacrtan.
-C2. **Povijest projekta u Ingestu**: Ctrl+Shift+H otvara povijest, ali se prozor ne crta
+C2. **[POPRAVLJENO 2026-11-25]** **Povijest projekta u Ingestu**: Ctrl+Shift+H otvara povijest, ali se prozor ne crta
     (`theme: None`), a ona od tada guta svaku tipku.
 C3. **AI ograničenja vrijede samo u sučelju**: tipka ili radnja iz kataloga zaobilazi sivi gumb
     (snimka OFF-ova, Smooth, prijedlog pokrivalica).

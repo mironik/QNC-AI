@@ -70,9 +70,23 @@ impl FormHost {
             ctx.request_repaint_after(std::time::Duration::from_millis(50));
         }
         let history = &mut self.history;
+        // The history window is a window over the form: while it is open only its own keys are
+        // read (Esc, Enter, arrows; the same in every form). A form that cannot draw it (no
+        // theme) never opens it, so it can never take keys while unseen.
+        let drawn = keys.theme.is_some();
+        let history_scope = [qnc_project_history::KEY_SCOPE];
         qnc_dev_diagnostics::timed_block("form-keys", || {
-            for action_id in qnc_key_intents::action_ids_in(ctx, keys.catalog, application.key_scope(), keys.scopes, keys.play_action) {
-                if history.key(&action_id, None) {
+            let ids = if history.is_open() {
+                qnc_key_intents::action_ids_in(ctx, keys.catalog, Some(qnc_project_history::KEY_SCOPE), &history_scope, keys.play_action)
+            } else {
+                qnc_key_intents::action_ids_in(ctx, keys.catalog, application.key_scope(), keys.scopes, keys.play_action)
+            };
+            for action_id in ids {
+                let taken = if history.is_open() {
+                    history.key(&action_id, None);
+                    true
+                } else { drawn && history.key(&action_id, None) };
+                if taken {
                     ctx.request_repaint();
                     continue;
                 }

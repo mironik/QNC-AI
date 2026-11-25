@@ -900,6 +900,15 @@
         "transcript_search_next": [{ "key": "Enter" }],
         "zoom_search_next": [{ "key": "Enter" }]
       },
+      "project_history": {
+        "step_prev_part": [{ "code": "ArrowUp", "key": "ArrowUp" }],
+        "step_next_part": [{ "code": "ArrowDown", "key": "ArrowDown" }],
+        "page_prev": [{ "key": "PageUp" }],
+        "page_next": [{ "key": "PageDown" }],
+        "activate_focused_item": [{ "key": "Enter" }],
+        "clear_focus": [{ "key": "Escape" }],
+        "project_history_open": [{ "code": "KeyH", "ctrl": true, "shift": true }]
+      },
       "ingest": {
         "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }, { "code": "ArrowLeft", "key": "ArrowLeft", "tab": true }],
         "panel_right": [{ "code": "ArrowRight", "key": "ArrowRight", "alt": true }, { "code": "ArrowRight", "key": "ArrowRight", "tab": true }],

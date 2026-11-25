@@ -83,6 +83,8 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
 - Tipke djeluju samo na panel u fokusu. Tab/Shift+Tab hoda panelima po redu iz rasporeda forme;
   klik u panel daje mu fokus.
 - Timeline i njegov zoom imaju iste radnje; zoom je samo uvecani isjecak.
+- Prozor preko forme ima svoje tipke, iste u svakoj formi: dok je otvoren, tipke forme ne rade.
+  Povijest projekta (Ctrl+Shift+H): strelice biraju, Enter vraca, Esc zatvara.
 
 ### Story i S-Story
 
