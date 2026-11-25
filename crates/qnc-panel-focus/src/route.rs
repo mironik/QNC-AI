@@ -15,6 +15,12 @@ impl PanelFocus {
         ),
     ) -> Option<bool> {
         let event = event.into();
+        // An action of an AI feature the project has off is refused whatever sends it (audit
+        // 2026-11-25: only its buttons were grey, a key or the catalog went past them).
+        if !self.side.views().ai.allows(&event.action_id) {
+            qnc_notice::raise(qnc_ui_text::text("ai.action_off_in_project"));
+            return Some(false);
+        }
         let panel = self.panel;
         let routed = self.route_once(event.clone(), (&mut *pieces.0, &mut *pieces.1, &mut *pieces.2, &mut *pieces.3));
         // Every action of the story in the player log, whatever answered it (live 2026-10-16:

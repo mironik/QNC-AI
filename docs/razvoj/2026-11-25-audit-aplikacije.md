@@ -116,7 +116,7 @@ C1. **[POPRAVLJENO 2026-11-25]** **Složena izjava u AI Media Assistu**: `Statem
     nigdje. `StatementPlay` uzima tipke i kad nije nacrtan.
 C2. **[POPRAVLJENO 2026-11-25]** **Povijest projekta u Ingestu**: Ctrl+Shift+H otvara povijest, ali se prozor ne crta
     (`theme: None`), a ona od tada guta svaku tipku.
-C3. **AI ograničenja vrijede samo u sučelju**: tipka ili radnja iz kataloga zaobilazi sivi gumb
+C3. **[POPRAVLJENO 2026-11-25]** **AI ograničenja vrijede samo u sučelju**: tipka ili radnja iz kataloga zaobilazi sivi gumb
     (snimka OFF-ova, Smooth, prijedlog pokrivalica).
 C4. **Scenarij**:
     - nakon neuspjelog Spremi sljedeći uspješan upis prazni uređivač;

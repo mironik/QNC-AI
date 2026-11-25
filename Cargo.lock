@@ -6522,6 +6522,7 @@ dependencies = [
  "qnc-text-cursor",
  "qnc-timeline-model",
  "qnc-transcript",
+ "qnc-ui-text",
  "qnc-virtual-shots",
  "qnc-wrap-session",
 ]
