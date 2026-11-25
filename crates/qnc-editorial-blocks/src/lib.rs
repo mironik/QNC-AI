@@ -95,7 +95,7 @@ fn resize_panels(ui: &mut Ui, theme: &Theme, id: egui::Id, sizes: qnc_editorial_
 
 fn preview(ui: &mut Ui, rect: Rect, contracts: &EditorialContracts, theme: &Theme, view: &EditorialView) -> Option<EditorialIntent> {
     let label = view.current_clip_label().unwrap_or(contracts.editorial.preview.empty_label.as_str());
-    let turned = qnc_segment_panel::trim_zoom(ui.ctx(), &view.segments, &contracts.editorial.cover_lengths, &qnc_theme_styles::timeline(theme)); // the trim zoom, its wheel the panel's
+    let turned = qnc_segment_panel::trim_zoom(ui.ctx(), &view.segments, &contracts.editorial.cover_lengths, &qnc_theme_styles::timeline(theme), Some(&mut qnc_transcript_panel::zoom_search(&view.focus.transcript, theme))); // the trim zoom, its wheel the panel's, the statement's search in its status bar
     let shown = view.shown_clip().map(|clip| clip as &dyn qnc_clip_row::PoolItem);
     qnc_monitor_panel::show(ui, rect, egui::Id::new(("qnc-monitor", "editorial-source")), theme, &view.preview.monitor(), shown, label);
     turned.map(EditorialIntent::Action) // the monitor gives no intent

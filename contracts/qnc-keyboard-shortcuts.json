@@ -493,6 +493,12 @@
     "transcript_search_term": {
       "label": "Pojam koji se trazi u prijepisu (drzi ga prijepis)"
     },
+    "zoom_search_term": {
+      "label": "Pojam u trazilici zooma (unutar izjave)"
+    },
+    "zoom_search_next": {
+      "label": "Sljedeci nalaz trazilice zooma, playhead na njega"
+    },
     "project_open_row": {
       "label": "Otvori projekt iz popisa"
     },
@@ -879,7 +885,8 @@
         "script_text_revert": [{ "key": "Escape" }]
       },
       "transcript_search": {
-        "transcript_search_next": [{ "key": "Enter" }]
+        "transcript_search_next": [{ "key": "Enter" }],
+        "zoom_search_next": [{ "key": "Enter" }]
       },
       "ingest": {
         "panel_left": [{ "code": "ArrowLeft", "key": "ArrowLeft", "alt": true }, { "code": "ArrowLeft", "key": "ArrowLeft", "tab": true }],

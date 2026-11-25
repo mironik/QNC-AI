@@ -49,6 +49,10 @@ const HEADER_HEIGHT: f32 = 26.0;
 /// The status bar at the bottom ([H]): the message on the left, the search of a statement's text on
 /// the right (its place is kept; the search comes in a later step).
 const STATUS_HEIGHT: f32 = 24.0;
+/// The field of the status bar's search, drawn by the caller (the zoom draws, the caller's piece knows
+/// the text it searches): it gives what was typed or Enter as a system action.
+pub type Search<'a> = &'a mut dyn FnMut(&mut egui::Ui) -> Option<ActionEvent>;
+
 /// The share of the screen width the window may take.
 const SCREEN_SHARE: f32 = 0.92;
 
@@ -56,7 +60,7 @@ const SCREEN_SHARE: f32 = 0.92;
 /// rows' or, for a segment edge, the source timeline's).
 /// The wheel and the touchpad over the window are the wheel of the panel the taken thing is
 /// on (user 2026-10-26: "in the zoom only the arrows work"), its system action.
-pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme) -> Option<ActionEvent> {
+pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme, search: Option<Search<'_>>) -> Option<ActionEvent> {
     let source = !segments.source_edit_stills.is_empty();
     let stills = if source { &segments.source_edit_stills } else { &segments.edit_stills };
     if stills.is_empty() {
@@ -92,7 +96,9 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme)
             }
             // [H] The status bar.
             let status = Rect::from_min_max(egui::pos2(rect.left(), rect.bottom() - STATUS_HEIGHT), rect.max);
-            paint_status(ui, status, &segments.message, &visuals);
+            if let Some(searched) = paint_status(ui, status, &segments.message, &visuals, search) {
+                turned = Some(searched);
+            }
             let top = rect.min + Vec2::new(MARGIN, MARGIN + HEADER_HEIGHT);
             let row_width = size.x - 2.0 * MARGIN;
             let (mut gap_at, mut gap_at_cut) = (None, false);
@@ -216,15 +222,20 @@ fn paint_header(ui: &mut egui::Ui, bar: Rect, moved_id: egui::Id, visuals: &egui
     pressed.then(|| ActionEvent::key(qnc_edit_verbs::DROP))
 }
 
-/// The status bar: the message of the zoom's owner on the left; the right part is kept for the
-/// search of a statement's text.
-fn paint_status(ui: &egui::Ui, bar: Rect, message: &str, visuals: &egui::Visuals) {
+/// The status bar: the message of the zoom's owner on the left; on the right the search of a
+/// statement's text when the caller gives its field (docs/zoom-skeleton.md [H]).
+fn paint_status(ui: &mut egui::Ui, bar: Rect, message: &str, visuals: &egui::Visuals, search: Option<Search<'_>>) -> Option<ActionEvent> {
     ui.painter().rect_filled(bar, egui::CornerRadius { nw: 0, ne: 0, sw: 6, se: 6 }, visuals.faint_bg_color);
     if !message.is_empty() {
         let shown = ui.painter().layout_no_wrap(message.to_string(), FontId::proportional(13.0), visuals.weak_text_color());
         let clip = Rect::from_min_max(bar.min, egui::pos2(bar.center().x, bar.max.y));
         ui.painter().with_clip_rect(clip).galley(egui::pos2(bar.left() + MARGIN, bar.center().y - shown.size().y / 2.0), shown, visuals.weak_text_color());
     }
+    let search = search?;
+    let right = Rect::from_min_max(egui::pos2(bar.center().x, bar.top() + 1.0), egui::pos2(bar.right() - MARGIN, bar.bottom() - 1.0));
+    let mut row = ui.new_child(egui::UiBuilder::new().max_rect(right).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    row.set_clip_rect(right);
+    search(&mut row)
 }
 
 /// Undo, Save and Close in one row in the middle of the window; a press is the system action of

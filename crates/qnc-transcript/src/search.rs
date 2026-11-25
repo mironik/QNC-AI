@@ -9,6 +9,10 @@ use crate::Line;
 pub const SEARCH_TERM: &str = "transcript_search_term";
 /// Enter in the search field: the next find, the playhead there.
 pub const SEARCH_NEXT: &str = "transcript_search_next";
+/// The search in the zoom's status bar (docs/zoom-skeleton.md [H], user 2026-11-25): the same, only within the
+/// statement (the clip's IN to OUT).
+pub const ZOOM_SEARCH_TERM: &str = "zoom_search_term";
+pub const ZOOM_SEARCH_NEXT: &str = "zoom_search_next";
 
 /// The search as the transcript panel and its field show it.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -23,6 +27,8 @@ pub struct SearchView {
     pub current: Vec<(u64, u64)>,
     /// Grows when the current find is to be brought into view (a new term, Enter).
     pub bring: u64,
+    /// Only finds within these clip frames `[from, to)` count (the zoom's statement); `None`: all.
+    pub within: Option<(u64, u64)>,
 }
 
 impl SearchView {
@@ -53,7 +59,8 @@ impl SearchView {
 
     /// The finds made again from `lines` (a new term, other lines), the current kept in range.
     pub(crate) fn found(&mut self, lines: &[Line]) {
-        let words: Vec<(&str, u64, u64)> = lines.iter().flat_map(line_words).collect();
+        let within = self.within;
+        let words: Vec<(&str, u64, u64)> = lines.iter().flat_map(line_words).filter(|(_, from, _)| within.is_none_or(|(start, end)| (start..end).contains(from))).collect();
         let all = finds(&self.term, &words);
         self.count = all.len();
         self.at = self.at.min(all.len().saturating_sub(1));
@@ -118,5 +125,20 @@ mod tests {
         assert_eq!(search.bring, 3);
         search.set_term("nema", &lines);
         assert_eq!((search.count, search.next(&lines)), (0, None));
+    }
+}
+
+#[cfg(test)]
+mod within_tests {
+    use super::*;
+
+    /// docs/zoom-skeleton.md [H]: the zoom's search counts only the finds within the statement.
+    #[test]
+    fn a_search_within_a_statement_finds_only_there() {
+        let line = |from: u64, text: &str| Line { from, to: from + 10, text: text.into(), words: Vec::new() };
+        let lines = [line(0, "skandal"), line(10, "nista"), line(20, "Skandalom"), line(30, "skandal")];
+        let mut search = SearchView { within: Some((10, 30)), ..Default::default() };
+        search.set_term("skandal", &lines);
+        assert_eq!((search.count, search.current.clone()), (1, vec![(20, 30)]));
     }
 }

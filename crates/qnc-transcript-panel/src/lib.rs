@@ -11,7 +11,7 @@ use qnc_transcript::{line_words, Line, TranscriptView, CUE_WORD, CUT_WORD, PANEL
 mod quotes;
 mod search;
 
-pub use search::search_field;
+pub use search::{search_field, zoom_search, zoom_search_field};
 pub use qnc_transcript::SearchView;
 
 pub const MODULE_ID: &str = "qnc.module.transcript-panel";

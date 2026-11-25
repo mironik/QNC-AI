@@ -23,7 +23,7 @@ pub use qnc_transcript_db::{ClipTranscript, Line, Quote, Word};
 mod search;
 mod sentences;
 pub use sentences::{sentence_pause, sentences, SENTENCE_PAUSE_SECONDS};
-pub use search::{finds, line_words, SearchView, SEARCH_NEXT, SEARCH_TERM};
+pub use search::{finds, line_words, SearchView, SEARCH_NEXT, SEARCH_TERM, ZOOM_SEARCH_NEXT, ZOOM_SEARCH_TERM};
 use qnc_source_timecode::SourceTimecode;
 
 pub const MODULE_ID: &str = "qnc.module.transcript";
@@ -123,7 +123,10 @@ pub struct TranscriptView {
     pub all_done: bool,
     /// The term searched in the lines and the find that is current (docs/99 step 4).
     pub search: SearchView,
+    /// The search of the zoom's status bar, within the statement (the clip's IN to OUT).
+    pub zoom_search: SearchView,
 }
+
 
 impl TranscriptView {
     /// The clips the pool shows: on the Transcript tab those with a kept transcript, else all.
@@ -294,6 +297,15 @@ impl Transcript {
             SEARCH_NEXT => {
                 let lines = Arc::clone(&self.view.lines);
                 Some(self.view.search.next(&lines).is_some_and(|(from, _)| preview.cue(from)))
+            }
+            ZOOM_SEARCH_TERM => {
+                let lines = Arc::clone(&self.view.lines);
+                self.view.zoom_search.set_term(target.unwrap_or_default(), &lines);
+                Some(true)
+            }
+            ZOOM_SEARCH_NEXT => {
+                let lines = Arc::clone(&self.view.lines);
+                Some(self.view.zoom_search.next(&lines).is_some_and(|(from, _)| preview.cue(from)))
             }
             FAST | BEST => {
                 self.quality = if action_id == FAST { QueueQuality::Fast } else { QueueQuality::Best };
@@ -476,6 +488,16 @@ impl Transcript {
     pub fn poll(&mut self, preview: &SourcePreview, timeline: &TimelineProjection, clips: &mut [ClipRow], transcripts: &mut ClipTranscripts) -> bool {
         let before = self.view.clone();
         self.view.all_done = false;
+        // The zoom's search is within the statement: the shown clip's IN to OUT (clip frames).
+        let start = timeline.range_start_frame;
+        let within = (timeline.source_in_frame.is_some() || timeline.source_out_frame.is_some())
+            .then(|| (start + timeline.source_in_frame.unwrap_or(0), start + timeline.source_out_frame.unwrap_or(timeline.duration_frames)))
+            .filter(|(from, to)| to > from);
+        if self.view.zoom_search.within != within {
+            self.view.zoom_search.within = within;
+            let lines = Arc::clone(&self.view.lines);
+            self.view.zoom_search.found(&lines);
+        }
         self.names = clips.iter().map(|clip| (clip.clip_id.clone(), (clip.name.clone(), clip.duration_frames, clip.duration_seconds))).collect();
         self.ticks.retain(|clip| self.names.contains_key(clip));
         for clip in clips.iter_mut() {
@@ -533,6 +555,7 @@ impl Transcript {
         self.built = Some(key);
         self.view.lines = Arc::new(lines(kept, running.map(|run| (run.range, run.lines.as_slice()))));
         self.view.search.found(&self.view.lines);
+        self.view.zoom_search.found(&self.view.lines);
         let fps = clip_id.as_ref().and_then(|clip| self.names.get(clip)).and_then(|(_, frames, seconds)| (*seconds > 0.0).then(|| *frames as f64 / seconds));
         self.view.silences = Arc::new(fps.map_or_else(Vec::new, |fps| {
             let mut heard: Vec<(u64, u64)> = kept.iter().map(|t| (t.from_frame, t.to_frame)).collect();

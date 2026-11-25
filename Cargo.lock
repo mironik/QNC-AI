@@ -4966,6 +4966,7 @@ dependencies = [
  "qnc-theme-styles",
  "qnc-timeline",
  "qnc-transcript",
+ "qnc-transcript-panel",
  "qnc-transport-panel",
  "qnc-ui-kit",
 ]

@@ -5,7 +5,7 @@
 
 use eframe::egui::{self, RichText};
 use qnc_action_event::ActionEvent;
-use qnc_transcript::{SearchView, PANEL, SEARCH_NEXT, SEARCH_TERM};
+use qnc_transcript::{SearchView, PANEL, SEARCH_NEXT, SEARCH_TERM, ZOOM_SEARCH_NEXT, ZOOM_SEARCH_TERM};
 
 /// The catalog scope of Enter in the field.
 const SCOPE: &str = "transcript_search";
@@ -18,19 +18,29 @@ fn catalog() -> Option<&'static qnc_keyboard_shortcut::ShortcutCatalog> {
 /// The search field: `Search:`, the term and, when the transcript has it, which find of how
 /// many is current. Gives what was typed or Enter.
 pub fn search_field(ui: &mut egui::Ui, search: &SearchView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
+    search_field_as(ui, search, theme, (SEARCH_TERM, SEARCH_NEXT))
+}
+
+/// The zoom's search field (docs/zoom-skeleton.md [H]): the same field for the search within the statement.
+pub fn zoom_search_field(ui: &mut egui::Ui, search: &SearchView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
+    search_field_as(ui, search, theme, (ZOOM_SEARCH_TERM, ZOOM_SEARCH_NEXT))
+}
+
+/// The field sending `term` for what is typed and `next` for Enter.
+fn search_field_as(ui: &mut egui::Ui, search: &SearchView, theme: &qnc_desktop_theme::Theme, (term_action, next_action): (&str, &str)) -> Option<ActionEvent> {
     let ctx = ui.ctx().clone();
     let mut term = search.term.clone();
     ui.label(RichText::new(qnc_ui_text::text("transcript.search")).color(theme.text).size(theme.font_ui));
     let field = qnc_ui_kit::search_field(&mut term, 260.0, qnc_ui_text::text("transcript.search_hint"), egui::FontId::proportional(theme.font_ui));
     // Asked while the field still has the keyboard (it lets it go on Enter).
-    let next = catalog().is_some_and(|catalog| qnc_keyboard_shortcut::pressed_while_typing(&ctx, catalog, SCOPE, SEARCH_NEXT));
+    let next = catalog().is_some_and(|catalog| qnc_keyboard_shortcut::pressed_while_typing(&ctx, catalog, SCOPE, next_action));
     let response = ui.add(field);
     let mut asked = None;
     if next && (response.lost_focus() || response.has_focus()) {
-        asked = Some(ActionEvent::key(SEARCH_NEXT).at(PANEL));
+        asked = Some(ActionEvent::key(next_action).at(PANEL));
         response.request_focus();
     } else if term != search.term {
-        asked = Some(ActionEvent::key(SEARCH_TERM).with_target(term.clone()).at(PANEL));
+        asked = Some(ActionEvent::key(term_action).with_target(term.clone()).at(PANEL));
     }
     if !search.term.trim().is_empty() {
         let (text, color) = if search.count == 0 {
@@ -60,4 +70,10 @@ pub(crate) fn shown<'a>(ctx: &egui::Context, search: &'a SearchView) -> Shown<'a
     let bring = ctx.data(|data| data.get_temp::<u64>(seen)) != Some(search.bring) && !search.current.is_empty();
     ctx.data_mut(|data| data.insert_temp(seen, search.bring));
     Shown { lit: &search.lit, current: &search.current, bring }
+}
+
+/// The search of the zoom's status bar for a form's transcript (docs/zoom-skeleton.md [H]): the field
+/// of the search within the statement, drawn only when the shown clip has a transcript.
+pub fn zoom_search<'a>(view: &'a qnc_transcript::TranscriptView, theme: &'a qnc_desktop_theme::Theme) -> impl FnMut(&mut egui::Ui) -> Option<ActionEvent> + 'a {
+    move |ui| (!view.lines.is_empty()).then(|| zoom_search_field(ui, &view.zoom_search, theme)).flatten()
 }
