@@ -3,11 +3,6 @@
     "model": "share:models/wav2vec2-parlaspeech-hr",
     "program": "qnc-align-wav2vec2"
   },
-  "shot_caption": {
-    "backend": "directml",
-    "model": "share:models/florence-2-base-ft",
-    "program": "qnc-shot-caption-florence"
-  },
   "shot_content": {
     "model": "share:models/siglip2-base-patch16-224",
     "pictures": 2,

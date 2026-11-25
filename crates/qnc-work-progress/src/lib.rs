@@ -234,8 +234,8 @@ fn progress_in(root: &PathBuf, active: &qnc_active_project_read::ActiveProjectRe
         let clips: std::collections::BTreeSet<_> = qnc_shot_content_db::read_all(&target, &engine.model_name()).map_err(|error| error.to_string())?.into_iter().filter(|content| content.parts.iter().any(|part| part.kind != "poster")).map(|content| content.clip_id).collect();
         progress.content = Some(clips.union(&statements).count());
     }
-    if feature("shot_caption") {
-        let captioner = qnc_ai_catalog::installed_shot_captioner()?;
+    // No captioner on this computer (user 2026-11-25: Florence-2 is of no use): no captions counted.
+    if let Some(captioner) = feature("shot_caption").then(qnc_ai_catalog::installed_shot_captioner).and_then(Result::ok) {
         let keys = qnc_shot_captions::captioned(root, &captioner.model_name(), &snapshot.project_uri)?;
         let clips: std::collections::BTreeSet<_> = keys.iter().filter_map(|key| key.split('|').nth(1)).collect();
         let statements: std::collections::BTreeSet<&str> = statements.iter().map(String::as_str).collect();
