@@ -131,18 +131,19 @@ fn log(line: String) {
 }
 
 impl PlayheadMoves {
-    /// Play/Pause (Space) of a zoom (docs/zoom-skeleton.md [D], user 2026-11-25): the playhead on the
-    /// start of the part the zoom shows (`from`) and a play to its OUT (`to`, exclusive), where it
-    /// stops on the part's last picture. False for an empty part.
+    /// Play/Pause (Space, the zoom's Play) of a zoom (docs/zoom-skeleton.md [D], user 2026-11-25:
+    /// "Space plays from where the playhead is"): a play from the playhead, never a jump to the
+    /// part's start (only a click on the player in the middle of the zoom goes there). With the
+    /// playhead inside the part the zoom shows (`from` to `to`, exclusive) the play stops on its last
+    /// picture; outside it, or with no playhead, false: the plain play goes on.
     pub fn play_part(&mut self, from: u64, to: u64, preview: &mut SourcePreview) -> bool {
-        if to <= from {
-            return false;
-        }
+        let at = preview.playing_at().map(|(_, frame, _)| frame);
+        let Some(at) = at.filter(|at| (from..to).contains(at)) else { return false };
         self.shuttle.stop();
         self.around = None;
         preview.set_scrubbing(false);
         self.part = Some((to, None));
-        preview.play_from(from)
+        preview.play_from(at)
     }
 
     /// The play of a part stops on its last picture; a pause by anything else ends it.

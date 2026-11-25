@@ -38,7 +38,8 @@ gradi kostur grafičkih dijelova, zatim ponašanje.
 - **Dvostruko stanje videa**: klik na sliku mijenja IN/OUT (rez slike); klik na traku slota mijenja
   slot.
 - **[D] Transport**: Play/Pause (novo) · Odustani (Backspace) · Spremi (Enter) · Zatvori (Esc).
-  - Space ili Play/Pause nakon Spremi: playhead na početak odabranog dijela klipa, pušta do njegova OUT.
+  - Space ili Play/Pause pušta od mjesta gdje playhead stoji (izmjena 2026-11-25); playhead unutar
+    odabranog dijela klipa staje na njegovu OUT-u. Na početak dijela vodi samo klik na player u sredini.
 - **[E] A1**, **[F] riječi A1** (odmah ispod A1), **[G] A2**: oznaka, razina, val, slova; crveni rez i
   bijeli playhead prolaze kroz sve tri.
 - **[H] Statusna traka**: lijevo poruka zooma; desno tražilica teksta u izjavi kad je otvorena izjava

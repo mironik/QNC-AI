@@ -160,8 +160,8 @@ pub struct ZoomSound {
     /// clip's of the source timeline, the parts' of a SubSegment.
     pub level_curves: Vec<LevelCurve>,
     /// The part a Play of the zoom plays (docs/zoom-skeleton.md [D]), in frames of what the player plays
-    /// (the clip, the story, the SubSegment): from its IN to its OUT (exclusive); `None`: Play plays on
-    /// from the playhead.
+    /// (the clip, the story, the SubSegment): from its IN to its OUT (exclusive). Play goes on from the
+    /// playhead and stops at the OUT while the playhead is inside it; `None`: no stop.
     pub play_part: Option<(u64, u64)>,
 }
 

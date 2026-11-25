@@ -103,11 +103,13 @@ impl PanelFocus {
         if let Some(done) = self.moves.key(action_id, pieces.0) {
             return Some(done);
         }
-        // Space or the zoom's Play with a zoom open (docs/zoom-skeleton.md [D], user 2026-11-25): the playhead
-        // on the start of the part the zoom shows and a play to its OUT; playing, it pauses as always.
+        // Space or the zoom's Play with a zoom open (docs/zoom-skeleton.md [D], user 2026-11-25): a play from
+        // the playhead that stops at the OUT of the part the zoom shows; playing, it pauses as always.
         if action_id == "play_pause" && !pieces.0.player_view().playing() {
             if let Some((from, to)) = self.zoom_play_part(pieces.0, pieces.2) {
-                return Some(self.moves.play_part(from, to, pieces.0));
+                if self.moves.play_part(from, to, pieces.0) {
+                    return Some(true);
+                }
             }
         }
         if matches!(action_id, "play_pause" | "timeline_cue_frame") {
