@@ -104,6 +104,19 @@ pub fn show(
     theme: &qnc_desktop_theme::Theme,
     lengths: &[CoverLengthBand],
 ) -> Option<ActionEvent> {
+    // The trim zoom of this panel's rows (a Wrap cut, a slot, a segment edge on the source timeline):
+    // the panel draws it itself, over everything (user 2026-11-25: the zoom is the timeline enlarged,
+    // no form's).
+    let zoomed = trim_zoom(ui.ctx(), segments, lengths, &qnc_theme_styles::timeline(theme), None);
+    show_panel(ui, segments, theme, lengths).or(zoomed)
+}
+
+fn show_panel(
+    ui: &mut egui::Ui,
+    segments: &SegmentsView,
+    theme: &qnc_desktop_theme::Theme,
+    lengths: &[CoverLengthBand],
+) -> Option<ActionEvent> {
     let timeline_theme = qnc_theme_styles::timeline(theme);
     // A refused take, on top of the screen so it is noticed (user 2026-10-21).
     qnc_alert::show(ui.ctx(), segments.alert.as_ref(), timeline_theme.lane_silent, timeline_theme.text);
