@@ -159,6 +159,10 @@ pub struct ZoomSound {
     /// 2026-11-07: "the zoom is the same timeline, it uses the same code"): the story's, the
     /// clip's of the source timeline, the parts' of a SubSegment.
     pub level_curves: Vec<LevelCurve>,
+    /// The part a Play of the zoom plays (docs/zoom-skeleton.md [D]), in frames of what the player plays
+    /// (the clip, the story, the SubSegment): from its IN to its OUT (exclusive); `None`: Play plays on
+    /// from the playhead.
+    pub play_part: Option<(u64, u64)>,
 }
 
 /// A lane of the zoom as the timeline's lane is: what plays on it now.

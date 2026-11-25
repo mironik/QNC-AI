@@ -203,7 +203,8 @@ impl ProgramSegments {
                 placements[0].curve = self.source.curves[index].clone();
             }
             let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half, total: self.source.duration_frames, position, follow: &self.zoom_follow, lanes };
-            return Some(qnc_program_view::ZoomSound { lane_choices: self.source.lane_choices, level_curves, marks: self.source.marks, ..axis.sound() });
+            // Play of the zoom: the clip from IN to OUT (docs/zoom-skeleton.md [D]).
+            return Some(qnc_program_view::ZoomSound { lane_choices: self.source.lane_choices, level_curves, marks: self.source.marks, play_part: self.source.marks, ..axis.sound() });
         }
         if let Some(zoom) = self.clip_edge_zoom(view) {
             return Some(zoom);
@@ -234,7 +235,15 @@ impl ProgramSegments {
         let taken_cut = self.marker_edit.as_ref().map(|(id, _)| id.clone());
         let focus_side = self.zoom_focus();
         let axis = qnc_program_view::ZoomAxis { cut, holds: (earliest, latest), half, total: view.total_frames, position, follow: &self.zoom_follow, lanes: [segments, covers] };
-        Some(qnc_program_view::ZoomSound { cut_sound, picture_taken: taken_cut.is_some() && matches!(self.cut_part, crate::CutPart::Picture), taken_cut, focus_side, level_curves: view.level_curves(), ..axis.sound() })
+        // Play of the zoom (docs/zoom-skeleton.md [D]): the slot taken (whole or by an edge), else the slot
+        // after the taken marker.
+        let slot_of = |id: &str| view.slots.iter().find(|slot| slot.slot_id == id).map(|slot| (slot.start_frame, slot.end_frame));
+        let play_part = match self.held() {
+            Some(crate::confirm::Take::Slot(id) | crate::confirm::Take::SlotEdge(id, _)) => slot_of(&id),
+            Some(crate::confirm::Take::Marker(_)) => qnc_program_view::slot_at(&view.slots, cut).map(|slot| (slot.start_frame, slot.end_frame)),
+            _ => None,
+        };
+        Some(qnc_program_view::ZoomSound { cut_sound, picture_taken: taken_cut.is_some() && matches!(self.cut_part, crate::CutPart::Picture), taken_cut, focus_side, level_curves: view.level_curves(), play_part, ..axis.sound() })
     }
 
     /// The zoom of a taken S-Story clip edge is the zoom of an IN or OUT on the source timeline
@@ -262,7 +271,8 @@ impl ProgramSegments {
         // The M marker of this edge: its video and sound are chosen alone in the zoom.
         let (before, after) = trim.slot_id.split_once('|')?;
         let taken_cut = Some(if trim.start { before } else { after }.to_string());
-        Some(qnc_program_view::ZoomSound { taken_cut, ..axis.sound() })
+        // Play of the zoom: this clip in the story the player plays.
+        Some(qnc_program_view::ZoomSound { taken_cut, play_part: Some((slot_start, slot_end)), ..axis.sound() })
     }
 
     /// Whether a segment edge taken from the segment panel waits for Enter or Escape.

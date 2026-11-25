@@ -1422,3 +1422,13 @@ fn a_source_zoom_stays_open_on_its_side_after_enter_until_it_is_closed() {
     segments.close_statement_zoom();
     assert!(segments.view().source_edit_stills.is_empty(), "closed");
 }
+
+/// docs/zoom-skeleton.md [D]: Play of a source zoom plays the clip from IN to OUT.
+#[test]
+fn a_source_zoom_plays_from_in_to_out() {
+    let mut segments = component();
+    let mut pick = marked(10).with_taken(Some(true));
+    pick.marks = Some((10, 40));
+    segments.set_source(pick);
+    assert_eq!(segments.view().zoom_sound.as_ref().and_then(|sound| sound.play_part), Some((10, 40)));
+}

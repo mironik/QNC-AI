@@ -410,6 +410,7 @@ impl SubsegmentEdit {
         let join_sound = self.join_sound;
         let chosen = self.chosen;
         let trim = self.trim;
+        let scope = self.scope;
         // A1 of the trimmed part as its lane shows it (AGENTS 0.12, docs/97 step 3).
         let sound_open = self.sound.is_some();
         let a1_lane = self.trim.and_then(|trim| shown.parts.get(trim.index)).and_then(|part| {
@@ -428,6 +429,13 @@ impl SubsegmentEdit {
             if let Some(sound) = zoom.zoom_sound.as_mut() {
                 // The scope's zoom frames the edge taken (its IN left, its OUT right), else nothing.
                 sound.focus_side = own_focus.unwrap_or(sound_side.or(chosen_side));
+                // Play of the zoom (docs/zoom-skeleton.md [D]): the part taken or chosen, else the scope.
+                let part = |index: usize| shown.parts.get(index).map(|part| (part.start, part.end));
+                sound.play_part = trim.map(|trim| trim.index).or(chosen).and_then(part).or_else(|| match scope {
+                    Some(Scope::Slot(index)) => part(index),
+                    Some(Scope::Whole) => slots.and_then(|(first, last)| Some((part(first)?.0, part(last)?.1))),
+                    None => None,
+                });
             }
             // A part's own edge taken: that side is the player, the middle holds where the edge was
             // (docs/zoom-skeleton.md [B]).

@@ -103,6 +103,13 @@ impl PanelFocus {
         if let Some(done) = self.moves.key(action_id, pieces.0) {
             return Some(done);
         }
+        // Space or the zoom's Play with a zoom open (docs/zoom-skeleton.md [D], user 2026-11-25): the playhead
+        // on the start of the part the zoom shows and a play to its OUT; playing, it pauses as always.
+        if action_id == "play_pause" && !pieces.0.player_view().playing() {
+            if let Some((from, to)) = self.zoom_play_part(pieces.0, pieces.2) {
+                return Some(self.moves.play_part(from, to, pieces.0));
+            }
+        }
         if matches!(action_id, "play_pause" | "timeline_cue_frame") {
             self.moves.stop(pieces.0);
         }
@@ -573,5 +580,23 @@ impl PanelFocus {
             (Panel::PoolTabs | Panel::SourceButtons, "step_prev_part" | "step_next_part") => Some(false),
             _ => return None,
         })
+    }
+}
+
+impl PanelFocus {
+    /// The part the open zoom plays, in frames of what the player plays (`ZoomSound::play_part`):
+    /// the SubSegment's zoom, else the story's or the source timeline's, only while the player plays
+    /// that axis (a story or SubSegment program, else the clip). `None`: no zoom open.
+    fn zoom_play_part(&self, preview: &SourcePreview, segments: &ProgramSegments) -> Option<(u64, u64)> {
+        let views = self.side.views();
+        if let Some(zoom) = views.script.subsegment.as_ref().and_then(|subsegment| subsegment.zoom.as_ref()) {
+            return zoom.zoom_sound.as_ref()?.play_part.filter(|_| preview.in_program());
+        }
+        let view = segments.view();
+        let source = !view.source_edit_stills.is_empty();
+        if !source && view.edit_stills.is_empty() {
+            return None;
+        }
+        view.zoom_sound.as_ref()?.play_part.filter(|_| preview.in_program() != source)
     }
 }

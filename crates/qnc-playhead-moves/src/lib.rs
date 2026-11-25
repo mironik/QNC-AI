@@ -26,6 +26,9 @@ pub struct PlayheadMoves {
     cued: Option<u64>,
     /// The play round a taken cut while it goes round.
     around: Option<qnc_trim_play::TrimLoop>,
+    /// The play of the part a zoom shows (docs/zoom-skeleton.md [D]): where it stops (its OUT, exclusive)
+    /// and the last frame seen.
+    part: Option<(u64, Option<u64>)>,
 }
 
 impl PlayheadMoves {
@@ -53,17 +56,19 @@ impl PlayheadMoves {
     pub fn stop(&mut self, preview: &mut SourcePreview) {
         self.shuttle.stop();
         self.around = None;
+        self.part = None;
         preview.set_scrubbing(false);
     }
 
     /// Whether either move runs (the caller repaints soon).
     pub fn running(&self) -> bool {
-        self.shuttle.running() || self.around.is_some()
+        self.shuttle.running() || self.around.is_some() || self.part.is_some()
     }
 
     /// One look at the player: the shuttle's speed moves the playhead, the play round a taken
     /// cut goes round (it ends when nothing is taken any more).
     pub fn tick(&mut self, preview: &mut SourcePreview, cut: TakenCut) {
+        self.follow_part(preview);
         if let Some(interval) = preview.player_view().source_frame_interval() {
             if let Some(frame) = self.shuttle.frame_at(std::time::Instant::now(), interval) {
                 if self.cued != Some(frame) {
@@ -122,5 +127,44 @@ impl PlayheadMoves {
 fn log(line: String) {
     if qnc_dev_diagnostics::player_diagnostics_enabled() {
         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+    }
+}
+
+impl PlayheadMoves {
+    /// Play/Pause (Space) of a zoom (docs/zoom-skeleton.md [D], user 2026-11-25): the playhead on the
+    /// start of the part the zoom shows (`from`) and a play to its OUT (`to`, exclusive), where it
+    /// stops on the part's last picture. False for an empty part.
+    pub fn play_part(&mut self, from: u64, to: u64, preview: &mut SourcePreview) -> bool {
+        if to <= from {
+            return false;
+        }
+        self.shuttle.stop();
+        self.around = None;
+        preview.set_scrubbing(false);
+        self.part = Some((to, None));
+        preview.play_from(from)
+    }
+
+    /// The play of a part stops on its last picture; a pause by anything else ends it.
+    fn follow_part(&mut self, preview: &mut SourcePreview) {
+        let Some((to, last)) = self.part else { return };
+        let playing = preview.player_view().playing();
+        let frame = preview.playing_at().map(|(_, frame, _)| frame);
+        // Not playing yet (the cue to its start in flight), or a pause after it played.
+        if !playing {
+            if last.is_some() {
+                self.part = None;
+            }
+            return;
+        }
+        if let Some(frame) = frame {
+            if frame + 1 >= to && last.is_some_and(|last| last + 1 < to) {
+                self.part = None;
+                preview.pause();
+                preview.cue(to - 1);
+                return;
+            }
+            self.part = Some((to, Some(frame)));
+        }
     }
 }
