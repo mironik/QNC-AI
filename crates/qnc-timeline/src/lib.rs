@@ -313,6 +313,11 @@ pub struct TimelineSlotSpan<'a> {
     pub end_frame: u64,
     pub has_cover: bool,
     pub selected: bool,
+    /// The colour of an empty slot's duration strip (e.g. by its length) and the text in it (its
+    /// length); none: the theme's shot range colour, no text (user 2026-11-25: an empty slot
+    /// shows its duration on a strip, and a click on it chooses the slot).
+    pub fill: Option<Color32>,
+    pub label: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1410,6 +1415,10 @@ fn take_or_keep_intent(response: &egui::Response, track: Rect, input: &TimelineI
                 None => TimelineIntent::TakeCover { id: cover.to_string(), frame },
             });
         }
+        // On an empty slot's duration strip a right click takes the slot (as Ctrl+S).
+        if let Some(slot) = empty_slot_at(track, range_start, duration, pos, input) {
+            return Some(TimelineIntent::TakeSlot { id: slot.to_string(), frame });
+        }
         // Near the taken M marker only its picture (user 2026-10-22: a second right click).
         if let Some(id) = taken_marker_for_right_click(track, range_start, duration, pos, input.markers) {
             return Some(TimelineIntent::TakeMarkerPicture { id: id.to_string() });
@@ -1703,6 +1712,7 @@ fn paint_video_layers(ui: &mut egui::Ui, track: Rect, input: &TimelineInput<'_>)
     }
     if input.layers.covers {
         paint_covers(ui, track, range_start, duration, input.covers, input);
+        paint_empty_slots(ui, track, range_start, duration, input);
         if input.layers.marker_slots {
             paint_marker_slots(
                 ui,
@@ -1992,6 +2002,55 @@ fn paint_covers(
             );
         }
     }
+}
+
+/// The duration strip of an empty slot (user 2026-11-25: "u slotu postoji traka koja pokazuje
+/// trajanje, to je traka kojom se selektira slot"): a thin strip at the bottom of the video part,
+/// outlined in its length colour, so a click on it chooses the slot and a click above still
+/// moves the playhead. Over the filmstrip it shows as a cover strip does: under the mouse or
+/// when the slot is chosen.
+fn paint_empty_slots(ui: &mut egui::Ui, track: Rect, range_start: u64, duration: u64, input: &TimelineInput<'_>) {
+    if !input.layers.marker_slots {
+        return;
+    }
+    let rows = empty_slot_rows(track, input);
+    for slot in input.marker_slots.iter().filter(|slot| !slot.has_cover && slot.end_frame > slot.start_frame) {
+        let x0 = x_for_frame(track, range_start, duration, slot.start_frame);
+        let x1 = x_for_frame(track, range_start, duration, slot.end_frame);
+        let rect = Rect::from_min_max(egui::pos2(x0 + 1.0, rows.0), egui::pos2((x1 - 1.0).max(x0 + 3.0), rows.1));
+        if cover_strip(input) && !input.layers.covers_shown && !slot.selected && !ui.rect_contains_pointer(rect) {
+            continue;
+        }
+        let colour = slot.fill.unwrap_or(input.theme.shot_range);
+        ui.painter().rect_filled(rect, 1.0, colour.linear_multiply(if slot.selected { 0.35 } else { 0.12 }));
+        ui.painter().rect_stroke(rect, 1.0, Stroke::new(if slot.selected { 2.0 } else { 1.0 }, colour), StrokeKind::Inside);
+        if let Some(label) = slot.label.filter(|_| rect.width() >= 34.0) {
+            ui.painter().text(rect.center(), Align2::CENTER_CENTER, label, FontId::proportional(10.0), input.theme.text);
+        }
+    }
+}
+
+/// The rows of an empty slot's strip: the bottom of a cover's place, as high as a cover strip.
+fn empty_slot_rows(track: Rect, input: &TimelineInput<'_>) -> (f32, f32) {
+    let (top, bottom) = cover_rows(track, input);
+    ((bottom - COVER_STRIP).max(top), bottom)
+}
+
+/// The empty slot of a row whose duration strip is at `pos`.
+fn empty_slot_at<'a>(track: Rect, range_start: u64, duration: u64, pos: egui::Pos2, input: &TimelineInput<'a>) -> Option<&'a str> {
+    if !(input.layers.covers && input.layers.marker_slots) {
+        return None;
+    }
+    empty_slot_hit(track, range_start, duration, pos, input.marker_slots, empty_slot_rows(track, input))
+}
+
+fn empty_slot_hit<'a>(track: Rect, range_start: u64, duration: u64, pos: egui::Pos2, slots: &[TimelineSlotSpan<'a>], rows: (f32, f32)) -> Option<&'a str> {
+    slots.iter().filter(|slot| !slot.has_cover && slot.end_frame > slot.start_frame).find_map(|slot| {
+        let x0 = x_for_frame(track, range_start, duration, slot.start_frame);
+        let x1 = x_for_frame(track, range_start, duration, slot.end_frame);
+        let rect = Rect::from_min_max(egui::pos2(x0, rows.0), egui::pos2(x1.max(x0 + 3.0), rows.1));
+        rect.contains(pos).then_some(slot.id)
+    })
 }
 
 fn paint_marker_slots(
@@ -2422,6 +2481,14 @@ fn video_intent_from_response(
                     (false, None) => TimelineIntent::SelectCover { id, frame },
                 };
             }
+            // The duration strip of an empty slot chooses it; Ctrl takes it (for Delete).
+            if let Some(id) = empty_slot_at(track, input.state.range_start(), input.state.duration_frames(), pos, input) {
+                let id = id.to_string();
+                return match modifiers.command {
+                    true => TimelineIntent::TakeSlot { id, frame },
+                    false => TimelineIntent::SelectMarkerSlot { id, frame },
+                };
+            }
         }
         // Outside the colour strip a left click only places the playhead (user 2026-10-17).
         if input.layers.virtual_spans {
@@ -2781,6 +2848,8 @@ mod tests {
             end_frame: 85,
             has_cover: false,
             selected: false,
+            fill: None,
+            label: None,
         }];
         let markers = [TimelineMarkerPin {
             id: "m_mid",
@@ -2805,6 +2874,9 @@ mod tests {
             Some("cover_mid")
         );
         assert_eq!(slot_of_frame(&slots, 70), Some("slot_mid"), "a click on a strip is the slot of its frame");
+        // An empty slot's duration strip chooses it (user 2026-11-25); above the strip nothing.
+        assert_eq!(empty_slot_hit(track, 50, 100, egui::pos2(130.0, 20.0), &slots, (14.0, 26.0)), Some("slot_mid"));
+        assert_eq!(empty_slot_hit(track, 50, 100, egui::pos2(130.0, 8.0), &slots, (14.0, 26.0)), None);
         assert_eq!(
             virtual_span_hit(track, 50, 100, egui::pos2(150.0, 34.0), &spans, (VIDEO_BAND, VIDEO_FOOT)),
             Some("virtual_b")

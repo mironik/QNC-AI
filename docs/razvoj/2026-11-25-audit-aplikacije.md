@@ -150,7 +150,7 @@ C11. `qnc-take-heard` nije vezan uz AI mogućnost projekta i u dvije otvorene fo
 
 D1. **[IZVEDENO 2026-11-25]** **Prazan slot se može obrisati** (V2): odlazi s IN/OUT-om, OUT prije i IN poslije postaju
     jedan M, slotovi iza se pomaknu naprijed. Danas: nema operacije, Delete javlja poruku.
-D2. **Traka trajanja selektira slot**, i prazan: danas je prazan slot nema.
+D2. **[IZVEDENO 2026-11-25]** **Traka trajanja selektira slot**, i prazan: danas je prazan slot nema.
 D3. **Sve na V2 ne dira V1/A1**: S-Story (`clip_slots.rs`) to krši (A12).
 
 ## E. Isti kod napisan više puta (pravilo: jednom, u kocki)

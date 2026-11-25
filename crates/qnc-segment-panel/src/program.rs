@@ -42,16 +42,21 @@ pub(crate) fn paint_program(
             selected: row.selected,
         })
         .collect::<Vec<_>>();
-    let slots = segments
-        .slots
+    let rate = segments.timebase.unwrap_or((0, 1));
+    let shown_slots = segments.slots.iter().filter(|slot| slot.end_frame > start && slot.start_frame < end).collect::<Vec<_>>();
+    // An empty slot shows its whole length on its duration strip (user 2026-11-25).
+    let slot_labels = shown_slots.iter().map(|slot| qnc_program_view::duration_label(slot.end_frame - slot.start_frame, rate.0, rate.1)).collect::<Vec<_>>();
+    let slots = shown_slots
         .iter()
-        .filter(|slot| slot.end_frame > start && slot.start_frame < end)
-        .map(|slot| TimelineSlotSpan {
+        .zip(&slot_labels)
+        .map(|(slot, label)| TimelineSlotSpan {
             id: &slot.slot_id,
             start_frame: local(slot.start_frame),
             end_frame: local(slot.end_frame),
             has_cover: slot.has_cover,
             selected: slot.selected,
+            fill: cover_fill(slot.end_frame - slot.start_frame, segments.timebase, lengths),
+            label: Some(label.as_str()),
         })
         .collect::<Vec<_>>();
     // A saved cover shows its whole length (colour and seconds:frames), also where a
@@ -61,7 +66,6 @@ pub(crate) fn paint_program(
         .iter()
         .filter(|cover| cover.end_frame > start && cover.start_frame < end)
         .collect::<Vec<_>>();
-    let rate = segments.timebase.unwrap_or((0, 1));
     let labels = shown
         .iter()
         .map(|cover| qnc_program_view::duration_label(cover.end_frame - cover.start_frame, rate.0, rate.1))

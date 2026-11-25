@@ -101,7 +101,10 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   Brise se Deleteom na izabranom ili uzetom praznom slotu, jedan korak Undo. Zadnji slot ostaje
   (zavrsava s pricom); ako zadnji slot ima pokrivalicu, ona zadrzava duljinu, a oslobodeni
   prostor na kraju postaje prazan slot. Slot s pokrivalicom se ne brise.
-- U slotu je traka koja pokazuje trajanje; klik na nju selektira slot.
+- U slotu je traka koja pokazuje trajanje (i u praznom slotu: tanka traka na dnu videa, obrub u
+  boji duljine, s duljinom). Klik na nju selektira slot, Ctrl+klik i desni klik ga uzimaju.
+  Klik iznad trake postavlja playhead. Preko filmstripa traka se vidi pod misem ili kad je slot
+  izabran, kao traka pokrivalice.
 - Lead-in i lead-out stoje uz prvi i zadnji segment, i u Storyju i u S-Storyju.
 - Undo, Redo i povijest projekta (Ctrl+Shift+H) idu iz dnevnika projekta.
 
