@@ -314,6 +314,11 @@ impl ProgramSegments {
             }
             SegmentCommand::TakeCutEdge { marker_id, frame } => return self.take_sound_edge_at(&marker_id, frame),
             SegmentCommand::ZoomSide { marker_id, after } => return self.zoom_side(&marker_id, after),
+            SegmentCommand::ZoomSlotEdge { slot_id, start } => {
+                self.let_go_if_unmoved();
+                self.selected_slot = Some(slot_id);
+                return self.take_slot_edge(start);
+            }
             SegmentCommand::ZoomTakeSlot(slot_id) => {
                 self.let_go_if_unmoved();
                 self.take_slot(&slot_id);

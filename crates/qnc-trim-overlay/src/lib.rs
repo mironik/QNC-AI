@@ -112,7 +112,6 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme)
                 // Three separate choices in every zoom (user 2026-11-09): the picture is the video
                 // of the cut, the strip its slot, the waves below its sound.
                 let picture_pick = still.click.as_ref().map(|action| event_of(action, panel)).or_else(|| taken_cut.clone().map(|cut| Verb::TakePicture { cut }.event(panel)));
-                let strip_pick = still.strip.as_ref().and_then(|strip| strip.select.as_ref()).map(|action| event_of(action, panel));
                 // The slot's length strip at the bottom of the picture (user 2026-11-05), as on the
                 // timeline: a right click on it takes the slot, a right click on the picture
                 // outside it the marker of the cut (a right click is Ctrl+, everywhere).
@@ -120,6 +119,9 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme)
                 let response = ui.interact(pane, ui.id().with(("still", index)), Sense::click());
                 let at = response.interact_pointer_pos();
                 let on_strip = strip_rect.zip(at).is_some_and(|(strip, at)| strip.contains(at));
+                // The strip: its middle moves the whole slot, an end lengthens or shortens that edge
+                // (docs/zoom-skeleton.md [C]).
+                let strip_pick = still.strip.as_ref().zip(strip_rect).zip(at).and_then(|((strip, rect), at)| strip.left_click((at.x - rect.left()) / rect.width().max(1.0))).map(|action| event_of(action, panel));
                 if let (Some(strip), Some(rect)) = (still.strip.as_ref(), strip_rect) {
                     // Only the picture taken: the slot's strip is not chosen (user 2026-11-09).
                     let only_picture = sound.is_some_and(|sound| sound.picture_taken);
@@ -554,6 +556,20 @@ fn paint_strip(ui: &egui::Ui, rect: Rect, strip: &qnc_program_view::StillStrip, 
     let base = strip.fill.map_or(ui.visuals().selection.bg_fill, qnc_desktop_theme::rgb);
     let fill = if focused || strip.chosen || hovered { base.linear_multiply(0.95) } else { base.linear_multiply(0.6) };
     ui.painter().rect_filled(rect, 1.0, fill);
+    // Its ends (docs/zoom-skeleton.md [C]): a darker band each, an edge of the slot; the cursor says
+    // what a click does there (resize at an end, move in the middle).
+    if strip.edges.is_some() {
+        let end = rect.width() * qnc_program_view::STRIP_END_SHARE;
+        let left = Rect::from_min_max(rect.min, egui::pos2(rect.left() + end, rect.bottom()));
+        let right = Rect::from_min_max(egui::pos2(rect.right() - end, rect.top()), rect.max);
+        for band in [left, right] {
+            ui.painter().rect_filled(band, 1.0, Color32::from_black_alpha(60));
+        }
+        if let Some(at) = ui.ctx().pointer_hover_pos().filter(|at| rect.contains(*at)) {
+            let edge = left.contains(at) || right.contains(at);
+            ui.ctx().set_cursor_icon(if edge { egui::CursorIcon::ResizeHorizontal } else { egui::CursorIcon::Move });
+        }
+    }
     // The side the next action is on: framed red as its pictures (user 2026-11-05).
     if focused {
         ui.painter().rect_stroke(rect, 1.0, Stroke::new(3.0, theme.cut), StrokeKind::Inside);

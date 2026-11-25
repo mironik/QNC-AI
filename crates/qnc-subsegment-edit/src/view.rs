@@ -190,8 +190,9 @@ pub fn subsegment_zoom(
             chosen: view.chosen == Some(index),
             // A left click picks this side's slot (user 2026-11-05: "a click in the zoom must not
             // close it, it marks what is chosen"), the edge held stays.
-            select: Some(qnc_program_view::StillAction::new(crate::SUBSEGMENT_SELECT, Some(index.to_string()), None)),
+            select: Some(qnc_program_view::StillAction::new("select_current_marker_slot", Some(index.to_string()), None)),
             take: action("timeline_take_cover", id, frame),
+            edges: Some(part_edges(index, frame)),
         })
     };
     let still = |still: EditStill, side: Option<usize>, last: bool| {
@@ -236,9 +237,17 @@ fn part_strip(view: &SubsegmentView, index: usize, frame: u64) -> Option<qnc_pro
         frames,
         fill: None,
         chosen: view.chosen == Some(index),
-        select: Some(qnc_program_view::StillAction::new(crate::SUBSEGMENT_SELECT, Some(index.to_string()), None)),
+        select: Some(qnc_program_view::StillAction::new("select_current_marker_slot", Some(index.to_string()), None)),
         take: qnc_program_view::StillAction::new("timeline_take_cover", Some(format!("part-{index}")), Some(frame)),
+        edges: Some(part_edges(index, frame)),
     })
+}
+
+/// The ends of part `index`'s strip (docs/zoom-skeleton.md [C]): the left end takes its IN, the right
+/// end its OUT, as Ctrl+I / Ctrl+O of that part; the middle (`select`) takes the part whole to move it.
+fn part_edges(index: usize, frame: u64) -> [qnc_program_view::StillAction; 2] {
+    let edge = |side: &str| qnc_program_view::StillAction::new(crate::TAKE_EDGE, Some(format!("{index}:{side}")), Some(frame));
+    [edge("in"), edge("out")]
 }
 
 /// The zoom of a scope (user 2026-11-23): parts `from` to `to` (the whole statement or one slot;

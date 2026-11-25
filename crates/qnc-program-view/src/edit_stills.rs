@@ -74,6 +74,28 @@ pub struct StillStrip {
     /// one pick of the side); a right click takes it, as on the timeline.
     pub select: Option<StillAction>,
     pub take: StillAction,
+    /// A left click on an end of the strip (docs/zoom-skeleton.md [C], user 2026-11-25: "sredina pomak,
+    /// kraj rub"): the left end takes the slot's IN edge, the right end its OUT edge (lengthened
+    /// or shortened there); the middle is `select` (the whole slot moves). `None`: no ends.
+    pub edges: Option<[StillAction; 2]>,
+}
+
+/// The target prefix of a slot's edge taken from a zoom strip (`slot:<slot id>`).
+pub const SLOT_EDGE: &str = "slot:";
+
+/// The share of a strip's width each end takes (a click there is that edge of the slot).
+pub const STRIP_END_SHARE: f32 = 0.25;
+
+impl StillStrip {
+    /// What a left click at `share` of the strip's width (0 left, 1 right) does: an end its edge,
+    /// the middle `select`.
+    pub fn left_click(&self, share: f32) -> Option<&StillAction> {
+        match &self.edges {
+            Some([start, _]) if share < STRIP_END_SHARE => Some(start),
+            Some([_, end]) if share > 1.0 - STRIP_END_SHARE => Some(end),
+            _ => self.select.as_ref(),
+        }
+    }
 }
 
 /// Which end of its clip a picture reached.
@@ -402,6 +424,8 @@ pub fn story_zoom_clicks(stills: &mut [EditStill], view: &crate::SegmentsView) {
                 chosen: slot.selected,
                 select: Some(StillAction::new("zoom_take_slot", Some(slot.slot_id.clone()), None)),
                 take: StillAction::new("select_current_marker_slot", Some(slot.slot_id.clone()), None),
+                // The ends take the slot's edges, as Ctrl+I / Ctrl+O of this slot.
+                edges: Some([StillAction::new("select_mark_in", Some(format!("{SLOT_EDGE}{}", slot.slot_id)), None), StillAction::new("select_mark_out", Some(format!("{SLOT_EDGE}{}", slot.slot_id)), None)]),
             });
         }
         // The taken marker (its draft frame may differ from the stored one), else the nearest.
@@ -431,6 +455,11 @@ mod zoom_click_tests {
         assert_eq!((strip(1).frames, strip(1).take.target.as_deref(), strip(1).chosen), (50, Some("s2"), true), "the slot after it");
         assert_eq!(strip(0).take.action, "select_current_marker_slot", "a right click on a strip is the timeline's");
         assert_eq!(strip(0).select.as_ref().map(|action| action.action.as_str()), Some("zoom_take_slot"), "a left click on the strip is its slot");
+        // Its ends are the slot's edges, the middle the whole slot (docs/zoom-skeleton.md [C]).
+        let left = |share: f32| strip(1).left_click(share).map(|action| (action.action.clone(), action.target.clone()));
+        assert_eq!(left(0.1), Some(("select_mark_in".into(), Some("slot:s2".into()))), "left end: the slot's IN");
+        assert_eq!(left(0.9), Some(("select_mark_out".into(), Some("slot:s2".into()))), "right end: its OUT");
+        assert_eq!(left(0.5).map(|(action, _)| action), Some("zoom_take_slot".into()), "the middle moves it");
         let right = |index: usize| stills[index].right_click.clone().map(|action| (action.action, action.target, action.value));
         assert_eq!(right(0), Some(("select_marker".into(), Some("m1".into()), Some(99))), "a right click on the picture: the marker");
         assert_eq!(right(1), Some(("select_marker".into(), Some("m1".into()), Some(100))));
