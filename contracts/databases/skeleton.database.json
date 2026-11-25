@@ -15,7 +15,7 @@
   "public_read_policy": "public_read_views",
   "rules": {
     "versions": "Every send from the script of Media Assist Audio is a new version, numbered 1, 2, ...; a number is never given again. This table holds only the list of versions.",
-    "stories": "Each version is a story of its own, a copy of the Story with no lead-in and lead-out, in story-draft-<n>.db beside project.db, written through the same story module (qnc.module.program-db). Its segments are SubClips until they are sent to the Story.",
+    "stories": "Each version is a story of its own, a copy of the Story built as the Story, with its lead-in and lead-out (user 2026-11-25), in story-draft-<n>.db beside project.db, written through the same story module (qnc.module.program-db). Its segments are SubClips until they are sent to the Story.",
     "record": "Apart from the script (MA Audio sends to it) and the Story (it sends to the Story): the safe copy a broken Story is sent again from."
   },
   "migration_policy": "owner_application_only",

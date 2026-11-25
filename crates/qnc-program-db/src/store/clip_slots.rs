@@ -11,23 +11,36 @@
 
 use super::*;
 
-/// The S-Story: the story is a draft (no lead-in or lead-out, every clip a slot).
+/// The S-Story: the story is a draft (every clip a slot; its lead-in and lead-out are glued to
+/// its first and last clip as in the Story).
 pub(crate) fn clips_are_slots(conn: &Connection) -> bool {
     qnc_db_broker::is_draft(conn)
 }
 
-/// The borders of two active segments, the segment starting at each.
+/// The borders of two clips of the user, the segment starting at each: a lead-in or lead-out is
+/// glued to its clip, so its border is no marker (as in the Story).
 fn borders(conn: &Connection) -> Result<Vec<(i64, String)>> {
     let parts = active_part_spans(conn)?;
+    let leads = lead_parts(conn)?;
     let mut frame = 0;
     let mut borders = Vec::new();
-    for (index, part) in parts.iter().enumerate() {
-        if index > 0 {
+    let mut seen_clip = false;
+    for part in &parts {
+        let lead = leads.contains(&part.part_id);
+        if !lead && seen_clip {
             borders.push((frame, part.part_id.clone()));
         }
+        seen_clip |= !lead;
         frame += part.frames;
     }
     Ok(borders)
+}
+
+/// The ids of the lead-in and lead-out.
+fn lead_parts(conn: &Connection) -> Result<Vec<String>> {
+    let mut statement = conn.prepare("SELECT item_id FROM story_items WHERE role = 'segment' AND lead != ''").map_err(err)?;
+    let ids = statement.query_map([], |row| row.get(0)).map_err(err)?.collect::<rusqlite::Result<Vec<String>>>().map_err(err)?;
+    Ok(ids)
 }
 
 /// The markers of a draft story are its clips' borders: a missing one is made, one elsewhere

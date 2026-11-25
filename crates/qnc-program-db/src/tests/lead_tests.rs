@@ -121,7 +121,7 @@ fn a_shorter_lead_out_takes_the_markers_past_the_new_end_with_it() {
 }
 
 #[test]
-fn every_s_story_version_is_a_story_of_its_own_with_no_leads() {
+fn every_s_story_version_is_a_story_of_its_own_with_its_leads_as_the_story() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("project.db");
     drop(imported_store(&path));
@@ -146,15 +146,16 @@ fn every_s_story_version_is_a_story_of_its_own_with_no_leads() {
     };
     StoryWriter::start(draft.clone()).unwrap().call(&segment("offovi", (300, 400))).unwrap();
     let draft_rows = StoryReader::open(&draft).unwrap().list_segments().unwrap();
-    // The draft's first OFF is its first segment: no lead-in before it, none after.
+    // User 2026-11-25: the S-Story is built as the Story: a lead-in before its first clip and a
+    // lead-out after its last (an OFF: black and silence).
     let shown: Vec<_> = draft_rows.iter().map(|row| (row.lead.as_str(), row.kind.as_str(), row.in_frame)).collect();
-    assert_eq!(shown, vec![("", "offovi", 300)]);
+    assert_eq!(shown, vec![("in", "offovi", 300), ("", "offovi", 300), ("out", "offovi", 300)]);
     // The Story did not get it, and gets its own leads when it is written.
     assert!(StoryReader::open(&main).unwrap().list_segments().unwrap().is_empty());
     StoryWriter::start(main.clone()).unwrap().call(&segment("tonovi", (300, 400))).unwrap();
     let main_rows = StoryReader::open(&main).unwrap().list_segments().unwrap();
     assert_eq!(main_rows.iter().filter(|row| !row.lead.is_empty()).count(), 2);
-    assert_eq!(StoryReader::open(&draft).unwrap().list_segments().unwrap().len(), 1);
+    assert_eq!(StoryReader::open(&draft).unwrap().list_segments().unwrap().len(), 3, "the Story did not touch the version");
     assert!(path.with_file_name(qnc_db_broker::draft_file(1)).is_file());
     // Another version is another story: version 1 is not in it.
     assert!(StoryReader::open(&main.draft_story(2)).unwrap().list_segments().unwrap().is_empty());
@@ -214,4 +215,42 @@ fn in_an_s_story_every_clip_is_a_slot_and_the_slot_edits_write_the_clip() {
     writer.call(&Operation::MoveSlot { slot_id: slots()[1].0.clone(), start_frame: 125 }).unwrap();
     assert_eq!(ranges(), vec![(300, 425), (510, 600), (710, 800)]);
     assert_eq!(spans(), vec![(0, 125), (125, 215), (215, 305)]);
+}
+
+/// User 2026-11-25: in the S-Story with its leads the IN of the first clip and the OUT of the last
+/// stand inside their rows (after the lead-in, before the lead-out): the markers are the story's
+/// start and end, the borders of two clips and nothing at the borders of a lead.
+#[test]
+fn the_markers_of_an_s_story_with_leads_are_the_borders_of_its_clips() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("project.db");
+    drop(imported_store(&path));
+    set_leads(&path, 2.0, 2.0);
+    let main = qnc_db_broker::ProjectDbTarget::from_owner_binding(&path, "qnc://local/db/project_db/p1").unwrap();
+    let draft = main.draft_story(1);
+    let segment = |range: (u64, u64)| Operation::CreateSegment {
+        project_id: "p1".into(),
+        kind: "tonovi".into(),
+        clip_id: "c1".into(),
+        in_frame: range.0,
+        out_frame: range.1,
+        fps_num: 50,
+        fps_den: 1,
+        a1_source_channel: 0,
+        a1_level_db: 0,
+        a1_off: false,
+        a2_source_channel: 1,
+        a2_level_db: 0,
+        a2_off: false,
+        level_keys: Vec::new(),
+    };
+    let writer = StoryWriter::start(draft.clone()).unwrap();
+    writer.call(&segment((300, 400))).unwrap();
+    writer.call(&segment((500, 600))).unwrap();
+    let mut reader = StoryReader::open(&draft).unwrap();
+    let rows = reader.list_segments().unwrap();
+    assert_eq!(rows.iter().map(|row| row.lead.as_str()).collect::<Vec<_>>(), ["in", "", "", "out"]);
+    let markers: Vec<u64> = reader.list_markers().unwrap().iter().map(|marker| marker.program_frame).collect();
+    // Lead-in 100 frames (2 s at 50p), two clips of 100, lead-out 100.
+    assert_eq!(markers, vec![0, 200, 400], "the start, the border of the two clips, the end");
 }
