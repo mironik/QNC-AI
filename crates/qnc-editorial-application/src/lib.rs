@@ -197,7 +197,7 @@ impl EditorialApplication {
         for poster in others {
             changed |= qnc_virtual_short_cards::apply_poster(&mut self.view.shorts, &poster.clip_id, poster.image);
         }
-        if self.short_stills.take_published() { self.reload_shorts() } // a poster was written
+        if self.short_stills.take_published() || self.focus.take_statement_written() { self.reload_shorts() } // a poster or a statement's parts written
         changed |= self.pool_shots.take().map(|rows| self.apply_shorts(rows)).is_some();
         changed |= self.short_save.follow(qnc_virtual_short_cards::chosen_single(&self.view.shorts, self.view.chosen_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1), self.view.source_timeline.timecode.as_ref()).map(|saved| self.short_saved(saved)).is_some();
         qnc_dev_diagnostics::timed_block("poll-sync", || self.sync_preview_view());
@@ -429,8 +429,9 @@ impl EditorialApplication {
         self.view.chosen_shot_id = Some(shot.shot_id.clone());
         // A statement of several parts plays and shows part after part, never joined (user 2026-11-19).
         if !shot.parts.is_empty() {
-            let parts: Vec<(String, u64, u64)> = std::iter::once((shot.clip_id.clone(), shot.in_frame, shot.out_frame)).chain(shot.parts.iter().map(|part| (part.clip_id.clone(), part.in_frame, part.out_frame))).collect();
-            self.focus.open_statement(&parts, &self.view.clips, &mut self.view.preview.timeline);
+            let own = qnc_virtual_shots::ShotPart { clip_id: shot.clip_id.clone(), in_frame: shot.in_frame, out_frame: shot.out_frame, join: Default::default() };
+            let parts: Vec<_> = std::iter::once(own).chain(shot.parts.iter().cloned()).collect();
+            self.focus.open_statement(&shot.shot_id, &parts, &self.view.clips, &mut self.view.preview.timeline);
             return true;
         }
         self.open_marked(&shot.clip_id, (shot.in_frame, shot.out_frame), None)

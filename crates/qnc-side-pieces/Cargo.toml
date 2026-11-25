@@ -20,5 +20,7 @@ qnc-timeline-model = { workspace = true }
 qnc-transcript = { workspace = true }
 qnc-subsegment-edit = { workspace = true }
 qnc-script-db = { workspace = true }
+qnc-virtual-shots = { workspace = true }
+qnc-ui-text = { workspace = true }
 serde_json = { workspace = true }
 qnc-source-panel = { workspace = true }

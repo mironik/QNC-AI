@@ -25,6 +25,7 @@ qnc-transcript = { workspace = true }
 qnc-text-cursor = { workspace = true }
 qnc-panel-map = { workspace = true }
 qnc-side-pieces = { workspace = true }
+qnc-virtual-shots = { workspace = true }
 qnc-ai-broll = { workspace = true }
 qnc-ai-features = { workspace = true }
 qnc-clip-shots = { workspace = true }

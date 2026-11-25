@@ -240,3 +240,21 @@ fn a_statement_gets_parts_and_its_caption_kept_with_it() {
     forget_short_now(&target, &shot.shot_id).unwrap();
     assert!(list_shorts(&target).unwrap().is_empty());
 }
+
+#[test]
+fn all_the_parts_of_a_statement_are_written_at_once_or_none() {
+    let (_dir, target) = project();
+    let shot = save(&target, "clip-a", (10, 40)).unwrap();
+    add_part_now(&target, &shot.shot_id, "clip-a", 60, 80, JoinKind::Smooth).unwrap();
+    let part = |in_frame, out_frame, join| ShotPart { clip_id: "clip-a".into(), in_frame, out_frame, join };
+    set_parts_now(&target, &shot.shot_id, vec![part(12, 40, JoinKind::Cut), part(62, 80, JoinKind::Smooth), part(85, 95, JoinKind::Cut)]).unwrap();
+    let listed = list_shorts(&target).unwrap();
+    let [kept] = listed.as_slice() else { panic!("one statement: {listed:?}") };
+    assert_eq!((kept.in_frame, kept.out_frame), (12, 40), "its own IN/OUT is the first part");
+    let parts: Vec<(u64, u64, JoinKind)> = kept.parts.iter().map(|part| (part.in_frame, part.out_frame, part.join)).collect();
+    assert_eq!(parts, [(62, 80, JoinKind::Smooth), (85, 95, JoinKind::Cut)]);
+    assert!(set_parts_now(&target, &shot.shot_id, vec![part(12, 40, JoinKind::Cut), part(90, 90, JoinKind::Cut)]).is_err(), "OUT after IN");
+    let listed = list_shorts(&target).unwrap();
+    assert_eq!(listed[0].parts.len(), 2, "a refused write leaves the parts as they were");
+    assert!(set_parts_now(&target, "clip-a_shot_009", vec![part(1, 2, JoinKind::Cut)]).is_err(), "no such statement");
+}

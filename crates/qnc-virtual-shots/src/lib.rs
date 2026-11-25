@@ -120,6 +120,13 @@ pub enum Operation {
         #[serde(default)]
         join: JoinKind,
     },
+    /// All the parts of statement `shot_id` at once (audit 2026-11-25: the edits of a statement of
+    /// several parts were thrown away): the first is its own IN/OUT, the rest its parts in order;
+    /// written all or none.
+    SetParts {
+        shot_id: String,
+        parts: Vec<ShotPart>,
+    },
     /// The caption of a statement (user 2026-11-19): who speaks and their role, for the director.
     SetCaption {
         shot_id: String,
@@ -433,6 +440,14 @@ impl JoinKind {
     /// The kind of `code`; `None` for any other.
     pub fn of(code: &str) -> Option<Self> {
         [JoinKind::Cut, JoinKind::Smooth, JoinKind::Blic].into_iter().find(|kind| kind.code() == code)
+    }
+}
+
+/// All the parts of statement `shot_id` (its own IN/OUT first), written and waited for.
+pub fn set_parts_now(target: &ProjectDbTarget, shot_id: &str, parts: Vec<ShotPart>) -> Result<()> {
+    match VirtualShotsWriter::start(target.clone())?.call(&Operation::SetParts { shot_id: shot_id.into(), parts })? {
+        Data::Changed => Ok(()),
+        _ => Err(wrong()),
     }
 }
 

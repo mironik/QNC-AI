@@ -128,9 +128,14 @@ impl PanelFocus {
     /// Opens a statement of several parts (clip, IN, OUT) part after part (user 2026-11-19).
     /// The source timeline under it keeps no IN/OUT of the clip shown before (user 2026-11-24: it kept
     /// another statement's, which Add part and the transcript then took).
-    pub fn open_statement(&mut self, parts: &[(String, u64, u64)], clips: &[qnc_clip_row::ClipRow], timeline: &mut qnc_timeline_model::TimelineProjection) {
+    pub fn open_statement(&mut self, shot_id: &str, parts: &[qnc_virtual_shots::ShotPart], clips: &[qnc_clip_row::ClipRow], timeline: &mut qnc_timeline_model::TimelineProjection) {
         (timeline.source_in_frame, timeline.source_out_frame) = (None, None);
-        self.side.open_statement(parts, clips);
+        self.side.open_statement(shot_id, parts, clips);
+    }
+
+    /// Whether the open statement's parts were written since last asked (read the statements again).
+    pub fn take_statement_written(&mut self) -> bool {
+        self.side.take_statement_written()
     }
 
     /// A clip and IN/OUT a chosen statement of the transcript or a usable part of the shot

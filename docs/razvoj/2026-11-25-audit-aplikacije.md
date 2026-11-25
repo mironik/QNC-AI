@@ -111,7 +111,7 @@ B6. `qnc-prerender-launch` provjerava najam zadanog projekta, a pokreće prerend
 
 ## C. Pokvareno ili napola napravljeno
 
-C1. **Složena izjava u AI Media Assistu**: `StatementPlay` baca izmjene (`take_writes` se
+C1. **[POPRAVLJENO 2026-11-25]** **Složena izjava u AI Media Assistu**: `StatementPlay` baca izmjene (`take_writes` se
     odbacuje); Update radi samo za jednostavnu izjavu. Dijelovi složene izjave ne mijenjaju se
     nigdje. `StatementPlay` uzima tipke i kad nije nacrtan.
 C2. **[POPRAVLJENO 2026-11-25]** **Povijest projekta u Ingestu**: Ctrl+Shift+H otvara povijest, ali se prozor ne crta

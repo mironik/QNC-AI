@@ -102,6 +102,14 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
 - Lead-in i lead-out stoje uz prvi i zadnji segment, i u Storyju i u S-Storyju.
 - Undo, Redo i povijest projekta (Ctrl+Shift+H) idu iz dnevnika projekta.
 
+### Izjave
+
+- Izjava je zapis u bazi projekta (`virtual_shots`, slozena s dijelovima). Sto se na izjavi
+  uredi i potvrdi (Enter, Spremi, pustena oznaka) zapisuje se u taj zapis: klip, IN, OUT i spoj
+  svakog dijela, sve odjednom ili nista. Pauza, J/L i A1 dijela izjava ne cuva.
+- Uz otvorenu slozenu izjavu tipke idu njoj samo dok je ona ono sto stoji na mjestu source
+  timelinea.
+
 ### Ingest, tray, AI
 
 - Tray i projekt rade po postavkama projekta: kartica se kopira, link je samo za breaking news.

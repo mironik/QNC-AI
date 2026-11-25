@@ -2,8 +2,9 @@
 // u bazi drži više in/out"; "dodaj izjavu zapisuje 5 do 12 za prvi dio, 24 do 36 za drugi"). Its
 // parts are played one after another, never joined, and drawn on the timeline in place of the
 // source timeline by the SubSegment block (`qnc-subsegment-edit`), as a compound statement of the
-// script is: this piece only hands it the statement's IN/OUT as its parts. Nothing is written
-// here: the parts are the statement's record.
+// script is: this piece hands it the statement's IN/OUT as its parts. Nothing is written
+// here except what was kept: Enter or Save writes its parts back to the statement's record
+// (audit 2026-11-25: they were thrown away), what that record holds (clip, IN, OUT, join).
 
 // (a module of the right panel pieces: it hands the SubSegment block the statement's parts)
 use std::collections::HashMap;
@@ -12,6 +13,7 @@ use qnc_clip_row::ClipRow;
 use qnc_script_db::{Block, Piece};
 use qnc_source_preview::SourcePreview;
 use qnc_subsegment_edit::{SubsegmentEdit, SubsegmentView};
+use qnc_virtual_shots::{JoinKind, ShotPart};
 
 /// The block id the SubSegment block knows the statement by (it has one block).
 const BLOCK: i64 = 1;
@@ -31,6 +33,13 @@ pub struct StatementPlay {
     play: qnc_source_panel::RangePlay,
     /// The value of the action being handled (a word's first clip frame).
     value: Option<i64>,
+    /// The statement open and its parts as written (their joins are kept by the parts).
+    shot_id: String,
+    written: Vec<ShotPart>,
+    /// A write of its parts going on, and whether one was written since asked.
+    writing: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
+    pending: Vec<ShotPart>,
+    wrote: bool,
 }
 
 impl std::fmt::Debug for StatementPlay {
@@ -46,9 +55,11 @@ impl StatementPlay {
 
     /// Opens the statement of `parts` (clip, IN, OUT; its own first) in place of the source
     /// timeline; the player plays them one after another.
-    pub fn open(&mut self, parts: &[(String, u64, u64)], clips: &[ClipRow]) {
+    pub fn open(&mut self, shot_id: &str, parts: &[ShotPart], clips: &[ClipRow]) {
         self.names = clips.iter().map(|clip| (clip.clip_id.clone(), (clip.name.clone(), clip.duration_frames, clip.duration_seconds))).collect();
-        let mut pieces: Vec<Piece> = parts.iter().filter_map(|(clip, from, to)| piece(clip, *from, *to, &self.names)).collect();
+        self.shot_id = shot_id.to_string();
+        self.written = parts.to_vec();
+        let mut pieces: Vec<Piece> = parts.iter().filter_map(|part| piece(&part.clip_id, part.in_frame, part.out_frame, &self.names)).collect();
         if pieces.len() < 2 {
             return;
         }
@@ -77,13 +88,14 @@ impl StatementPlay {
         }
     }
 
-    /// Follows what the player plays; the parts go to the player when asked. Its edits are not
-    /// written (the statement's parts are its record).
+    /// Follows what the player plays; the parts go to the player when asked; what was kept is
+    /// written to the statement's record.
     pub fn poll(&mut self, preview: &mut SourcePreview) {
         let Some(block) = &self.block else { return };
         // The project its waves and filmstrips are read from (without it none is read).
         self.project = preview.project_id().map(str::to_string);
         self.edit.sync(std::slice::from_ref(block), &self.names, self.project.as_ref(), true);
+        let drafted = self.edit.drafted_block();
         self.edit.poll(preview);
         if let Some((pieces, frame)) = self.edit.take_pieces_request() {
             let frame = if std::mem::take(&mut self.cue_in) { self.margins.0 } else { frame };
@@ -93,7 +105,19 @@ impl StatementPlay {
         let frame = preview.in_program().then(|| preview.player_view().confirmed_source_frame()).flatten();
         let out = length.saturating_sub(self.margins.1);
         self.play.follow(preview, frame, Some(out), Some(self.margins.0));
-        let _ = self.edit.take_writes();
+        if !self.edit.take_writes().is_empty() {
+            self.keep(drafted, preview);
+        }
+        if let Some(result) = self.writing.as_ref().and_then(|writing| writing.try_recv().ok()) {
+            self.writing = None;
+            match result {
+                Ok(()) => {
+                    self.written = std::mem::take(&mut self.pending);
+                    self.wrote = true;
+                }
+                Err(error) => qnc_notice::raise(error),
+            }
+        }
         if !self.edit.is_open() {
             self.block = None;
         }
@@ -125,22 +149,53 @@ impl StatementPlay {
             preview.show_pieces(&pieces, frame);
         }
         if !self.edit.take_writes().is_empty() {
-            if let Some(mut drafted) = drafted {
-                // The margins stay against the first IN and the last OUT.
-                let count = drafted.pieces.len();
-                if self.margins.0 > 0 && count > 2 {
-                    let first_in = drafted.pieces[1].from_frame;
-                    (drafted.pieces[0].from_frame, drafted.pieces[0].to_frame) = (first_in.saturating_sub(self.margins.0), first_in);
-                }
-                if self.margins.1 > 0 && count > 2 {
-                    let last_out = drafted.pieces[count - 2].to_frame;
-                    let frames = self.names.get(&drafted.pieces[count - 1].clip_id).map_or(u64::MAX, |(_, frames, _)| *frames);
-                    (drafted.pieces[count - 1].from_frame, drafted.pieces[count - 1].to_frame) = (last_out, (last_out + self.margins.1).min(frames).max(last_out + 1));
-                }
-                self.block = Some(drafted);
-            }
+            self.keep(drafted, preview);
         }
         done
+    }
+
+    /// What was kept (Enter, Save, a mark let go): the draft becomes the statement shown, its
+    /// margins against its first IN and last OUT, and its parts are written to its record.
+    fn keep(&mut self, drafted: Option<Block>, preview: &SourcePreview) {
+        let Some(mut drafted) = drafted else { return };
+        // The margins stay against the first IN and the last OUT.
+        let count = drafted.pieces.len();
+        if self.margins.0 > 0 && count > 2 {
+            let first_in = drafted.pieces[1].from_frame;
+            (drafted.pieces[0].from_frame, drafted.pieces[0].to_frame) = (first_in.saturating_sub(self.margins.0), first_in);
+        }
+        if self.margins.1 > 0 && count > 2 {
+            let last_out = drafted.pieces[count - 2].to_frame;
+            let frames = self.names.get(&drafted.pieces[count - 1].clip_id).map_or(u64::MAX, |(_, frames, _)| *frames);
+            (drafted.pieces[count - 1].from_frame, drafted.pieces[count - 1].to_frame) = (last_out, (last_out + self.margins.1).min(frames).max(last_out + 1));
+        }
+        // The statement's own parts, the margins left out.
+        let own = usize::from(self.margins.0 > 0)..count.saturating_sub(usize::from(self.margins.1 > 0));
+        let parts: Vec<ShotPart> = drafted.pieces.get(own).unwrap_or_default().iter().map(|piece| ShotPart {
+            clip_id: piece.clip_id.clone(),
+            in_frame: piece.from_frame,
+            out_frame: piece.to_frame,
+            join: join_of(&self.written, piece),
+        }).collect();
+        self.block = Some(drafted);
+        if parts.is_empty() || parts == self.written {
+            return;
+        }
+        let Some(target) = preview.project_target().cloned() else {
+            return qnc_notice::raise(qnc_ui_text::text("stills.project_subclips_initialised"));
+        };
+        self.pending = parts.clone();
+        let (send, receive) = std::sync::mpsc::channel();
+        let shot_id = self.shot_id.clone();
+        std::thread::spawn(move || {
+            let _ = send.send(qnc_virtual_shots::set_parts_now(&target, &shot_id, parts));
+        });
+        self.writing = Some(receive);
+    }
+
+    /// Whether its parts were written since last asked (the statements are then read again).
+    pub fn take_written(&mut self) -> bool {
+        std::mem::take(&mut self.wrote)
     }
 
     /// What its timeline shows, while it is open.
@@ -154,6 +209,15 @@ impl StatementPlay {
         self.value = value;
         self.edit.set_value(value);
     }
+}
+
+/// The join a part had when it was written (the same clip, overlapping its frames); a part new
+/// to the statement joins with a cut.
+fn join_of(written: &[ShotPart], piece: &Piece) -> JoinKind {
+    written
+        .iter()
+        .find(|part| part.clip_id == piece.clip_id && part.in_frame < piece.to_frame && piece.from_frame < part.out_frame)
+        .map_or(JoinKind::Cut, |part| part.join)
 }
 
 /// Where frame `frame` of a clip is on the axis of `pieces` (one after another, each after its

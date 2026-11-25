@@ -74,6 +74,7 @@ impl Store {
             Operation::TrimShort { shot_id, in_frame, out_frame, tc_in, tc_out } => self.trim_short(shot_id, *in_frame, *out_frame, (tc_in, tc_out)),
             Operation::SetCaption { shot_id, caption_name, caption_role } => self.set_caption(shot_id, caption_name, caption_role),
             Operation::AddPart { shot_id, clip_id, in_frame, out_frame, join } => self.add_part(shot_id, clip_id, *in_frame, *out_frame, *join),
+            Operation::SetParts { shot_id, parts } => self.set_parts(shot_id, parts),
             Operation::ListShorts => self.list_shorts(),
             Operation::ListBroll => self.list_b_roll(),
             Operation::MarkShortStills {
@@ -323,6 +324,55 @@ impl Store {
         self.conn
             .execute("INSERT INTO virtual_shot_parts (shot_id, part_index, clip_id, in_frame, out_frame, join_kind) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![shot_id, next, clip_id, in_frame as i64, out_frame as i64, join.code()])
             .map_err(err)?;
+        Ok(Data::Changed)
+    }
+
+    /// All the parts of a statement in one step: each OUT after its IN and within its imported
+    /// clip; the first part is the statement's own clip and IN/OUT, its stills are made again.
+    fn set_parts(&mut self, shot_id: &str, parts: &[ShotPart]) -> Result<Data> {
+        let Some(first) = parts.first() else { return Err(qnc_ui_text::text("story.out_after_in").into()) };
+        let known: bool = self.conn.query_row("SELECT count(*) = 1 FROM virtual_shots WHERE shot_id = ?1 AND class = 'short'", [shot_id], |row| row.get(0)).map_err(err)?;
+        if !known {
+            return Err(qnc_ui_text::text("story.msg.subclip_not_found").into());
+        }
+        for part in parts {
+            if part.out_frame <= part.in_frame {
+                return Err(qnc_ui_text::text("story.out_after_in").into());
+            }
+            require_imported_clip(&self.conn, &part.clip_id)?;
+            if let Some((frames, _)) = qnc_content_read::clip_timing_on(&self.conn, &part.clip_id)? {
+                if frames > 0 && part.out_frame > frames {
+                    return Err(qnc_ui_text::text("story.out_after_in").into());
+                }
+            }
+        }
+        self.conn.execute_batch("SAVEPOINT set_parts").map_err(err)?;
+        let written = (|| -> Result<()> {
+            self.conn
+                .execute(
+                    "UPDATE virtual_shots SET clip_id = ?2, in_frame = ?3, out_frame = ?4, still_status = 'pending', still_error = NULL
+                     WHERE shot_id = ?1 AND class = 'short'",
+                    params![shot_id, first.clip_id, first.in_frame as i64, first.out_frame as i64],
+                )
+                .map_err(err)?;
+            self.conn.execute("DELETE FROM virtual_shot_parts WHERE shot_id = ?1", [shot_id]).map_err(err)?;
+            for (index, part) in parts.iter().enumerate().skip(1) {
+                self.conn
+                    .execute(
+                        "INSERT INTO virtual_shot_parts (shot_id, part_index, clip_id, in_frame, out_frame, join_kind) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        params![shot_id, index as i64, part.clip_id, part.in_frame as i64, part.out_frame as i64, part.join.code()],
+                    )
+                    .map_err(err)?;
+            }
+            Ok(())
+        })();
+        match written {
+            Ok(()) => self.conn.execute_batch("RELEASE set_parts").map_err(err)?,
+            Err(error) => {
+                let _ = self.conn.execute_batch("ROLLBACK TO set_parts; RELEASE set_parts");
+                return Err(error);
+            }
+        }
         Ok(Data::Changed)
     }
 

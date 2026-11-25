@@ -125,8 +125,13 @@ impl SidePieces {
 
     /// Opens the statement of `parts` (clip, IN, OUT; its own first) part after part in place of
     /// the source timeline.
-    pub fn open_statement(&mut self, parts: &[(String, u64, u64)], clips: &[ClipRow]) {
-        self.statement.open(parts, clips);
+    pub fn open_statement(&mut self, shot_id: &str, parts: &[qnc_virtual_shots::ShotPart], clips: &[ClipRow]) {
+        self.statement.open(shot_id, parts, clips);
+    }
+
+    /// Whether the open statement's parts were written since last asked.
+    pub fn take_statement_written(&mut self) -> bool {
+        self.statement.take_written()
     }
 
     /// The statement chosen in the pool (`None`: a clip): the script's + statement takes it whole.
@@ -151,7 +156,6 @@ impl SidePieces {
     pub fn poll(&mut self, preview: &mut SourcePreview, timeline: &TimelineProjection, clips: &mut [ClipRow]) {
         self.follow_ai(preview);
         self.statement.poll(preview);
-        self.show_statement();
         // The transcripts the pieces show, read once for all of them.
         if self.transcript.is_some() || self.script.is_some() {
             // No clip on the preview: the form was left or opened again; what a repass wrote is
@@ -192,6 +196,7 @@ impl SidePieces {
             }
             play_pieces(script, preview);
         }
+        self.show_statement();
         if let Some(versions) = &mut self.versions {
             if versions.poll(preview) {
                 self.views.versions = Arc::new(versions.view().clone());
@@ -264,7 +269,8 @@ impl SidePieces {
     pub fn act(&mut self, action_id: &str, value: Option<i64>, target: Option<&str>, preview: &mut SourcePreview, timeline: &TimelineProjection, timecode: Option<&SourceTimecode>) -> Option<bool> {
         // The statement of several parts open in place of the source timeline takes its own keys.
         self.statement.set_value(value);
-        if let Some(done) = self.statement.act(action_id, target, preview) {
+        let shown = self.statement_shown();
+        if let Some(done) = shown.then(|| self.statement.act(action_id, target, preview)).flatten() {
             self.show_statement();
             return Some(done);
         }
@@ -421,10 +427,16 @@ impl SidePieces {
 }
 
 impl SidePieces {
+    /// Whether the statement of several parts is what stands in place of the source timeline: it
+    /// is open and no SubSegment of the script is (audit 2026-11-25: unseen, it took every key).
+    fn statement_shown(&self) -> bool {
+        self.statement.view().is_some() && self.script.as_ref().is_none_or(|script| script.view().subsegment.is_none())
+    }
+
     /// The SubSegment view of the statement of several parts open, in the script's view the board
-    /// draws in place of the source timeline (a form with a script shows the script's own).
+    /// draws in place of the source timeline (a SubSegment of the script open is shown instead).
     fn show_statement(&mut self) {
-        if self.script.is_some() {
+        if self.script.as_ref().is_some_and(|script| script.view().subsegment.is_some()) {
             return;
         }
         let shown = self.statement.view();
