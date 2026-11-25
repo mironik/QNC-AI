@@ -46,6 +46,9 @@ const BUTTONS: [(&str, &str); 4] = [("zoom.play", PLAY), ("zoom.cancel", qnc_edi
 const PLAY: &str = "play_pause";
 /// The window's top bar (docs/zoom-skeleton.md [A]): held to move the window; its ✕ is Close.
 const HEADER_HEIGHT: f32 = 26.0;
+/// The width of the history drop-down button in the top bar.
+const HISTORY_WIDTH: f32 = 130.0;
+pub use qnc_edit_verbs::{HISTORY_OPEN, HISTORY_RESTORE};
 /// The status bar at the bottom ([H]): the message on the left, the search of a statement's text on
 /// the right (its place is kept; the search comes in a later step).
 const STATUS_HEIGHT: f32 = 24.0;
@@ -91,7 +94,7 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
             ui.painter().rect_stroke(rect, 6.0, visuals.window_stroke, StrokeKind::Inside);
             // [A] The top bar: the window is moved by it; its ✕ is Close (Esc).
             let header = Rect::from_min_size(rect.min, Vec2::new(rect.width(), HEADER_HEIGHT));
-            if let Some(closed) = paint_header(ui, header, moved_id, &visuals) {
+            if let Some(closed) = paint_header(ui, header, moved_id, &visuals, segments.zoom_history.as_ref(), panel) {
                 turned = Some(closed);
             }
             // [H] The status bar.
@@ -206,10 +209,13 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
 
 /// The top bar: the zoom's name on the left, ✕ on the right (Close, the action of Escape); a drag
 /// anywhere else on it moves the window.
-fn paint_header(ui: &mut egui::Ui, bar: Rect, moved_id: egui::Id, visuals: &egui::Visuals) -> Option<ActionEvent> {
+fn paint_header(ui: &mut egui::Ui, bar: Rect, moved_id: egui::Id, visuals: &egui::Visuals, history: Option<&qnc_program_view::ZoomHistory>, panel: &str) -> Option<ActionEvent> {
     ui.painter().rect_filled(bar, egui::CornerRadius { nw: 6, ne: 6, sw: 0, se: 0 }, visuals.faint_bg_color);
     let close = Rect::from_center_size(egui::pos2(bar.right() - HEADER_HEIGHT / 2.0 - 4.0, bar.center().y), Vec2::splat(HEADER_HEIGHT - 6.0));
-    let drag = ui.interact(Rect::from_min_max(bar.min, egui::pos2(close.left() - 4.0, bar.bottom())), ui.id().with("header"), Sense::drag());
+    // The history of the clip (user 2026-11-25): its drop-down left of the cross.
+    let listed = history.map(|_| Rect::from_min_size(egui::pos2(close.left() - 4.0 - HISTORY_WIDTH, close.top()), Vec2::new(HISTORY_WIDTH, close.height())));
+    let drag_end = listed.map_or(close.left(), |listed| listed.left());
+    let drag = ui.interact(Rect::from_min_max(bar.min, egui::pos2(drag_end - 4.0, bar.bottom())), ui.id().with("header"), Sense::drag());
     if drag.dragged() {
         let delta = drag.drag_delta();
         ui.ctx().data_mut(|data| *data.get_temp_mut_or_default::<Vec2>(moved_id) += delta);
@@ -218,8 +224,48 @@ fn paint_header(ui: &mut egui::Ui, bar: Rect, moved_id: egui::Id, visuals: &egui
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
     }
     ui.painter().text(egui::pos2(bar.left() + MARGIN, bar.center().y), Align2::LEFT_CENTER, qnc_ui_text::text("zoom.title"), FontId::proportional(14.0), visuals.text_color());
+    let chosen = history.zip(listed).and_then(|(history, listed)| paint_history(ui, listed, history, visuals, panel));
     let pressed = ui.put(close, qnc_ui_kit::sized_button("×", close.size())).clicked();
-    pressed.then(|| ActionEvent::key(qnc_edit_verbs::DROP))
+    chosen.or_else(|| pressed.then(|| ActionEvent::key(qnc_edit_verbs::DROP)))
+}
+
+/// The history drop-down of the header (user 2026-11-25: the clip's edits, any one can be gone back
+/// to): its button opens and closes the list (Ctrl+H), a row restores that entry; the list shows
+/// the newest first, the lit row is the one Enter restores.
+fn paint_history(ui: &mut egui::Ui, button: Rect, history: &qnc_program_view::ZoomHistory, visuals: &egui::Visuals, panel: &str) -> Option<ActionEvent> {
+    let label = qnc_ui_text::fill("zoom.history", &[("count", &history.rows.len().to_string())]);
+    let mut chosen = ui.put(button, qnc_ui_kit::sized_button(&label, button.size())).clicked().then(|| ActionEvent::key(HISTORY_OPEN).at(panel));
+    if !history.open {
+        return chosen;
+    }
+    let row_height = 22.0;
+    let width = HISTORY_WIDTH * 2.4;
+    egui::Area::new(ui.id().with("history"))
+        .order(egui::Order::Tooltip)
+        .fixed_pos(egui::pos2(button.right() - width, button.bottom() + 2.0))
+        .show(ui.ctx(), |ui| {
+            let height = (history.rows.len().max(1) as f32 * row_height).min(row_height * 14.0);
+            let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
+            ui.painter().rect_filled(rect, 4.0, visuals.window_fill);
+            ui.painter().rect_stroke(rect, 4.0, visuals.window_stroke, StrokeKind::Inside);
+            if history.rows.is_empty() {
+                ui.painter().text(rect.left_center() + Vec2::new(8.0, 0.0), Align2::LEFT_CENTER, qnc_ui_text::text("zoom.history_empty"), FontId::proportional(13.0), visuals.weak_text_color());
+                return;
+            }
+            let first = history.at.saturating_sub(13);
+            for (index, (id, text)) in history.rows.iter().enumerate().skip(first).take(14) {
+                let row = Rect::from_min_size(egui::pos2(rect.left(), rect.top() + (index - first) as f32 * row_height), Vec2::new(width, row_height));
+                let response = ui.interact(row, ui.id().with(("history_row", *id)), Sense::click());
+                if index == history.at || response.hovered() {
+                    ui.painter().rect_filled(row.shrink(1.0), 3.0, visuals.selection.bg_fill);
+                }
+                ui.painter().with_clip_rect(row).text(row.left_center() + Vec2::new(8.0, 0.0), Align2::LEFT_CENTER, text, FontId::proportional(13.0), visuals.text_color());
+                if response.clicked() {
+                    chosen = Some(ActionEvent::key(HISTORY_RESTORE).with_value(*id).at(panel));
+                }
+            }
+        });
+    chosen
 }
 
 /// The status bar: the message of the zoom's owner on the left; on the right the search of a

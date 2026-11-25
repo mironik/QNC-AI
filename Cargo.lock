@@ -4882,6 +4882,20 @@ name = "qnc-edit-edge"
 version = "0.1.0"
 
 [[package]]
+name = "qnc-edit-history"
+version = "0.1.0"
+dependencies = [
+ "qnc-clip-follow",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "qnc-edit-step"
 version = "0.1.0"
 dependencies = [
@@ -8148,7 +8162,9 @@ dependencies = [
  "qnc-clip-window",
  "qnc-dev-diagnostics",
  "qnc-edit-edge",
+ "qnc-edit-history",
  "qnc-edit-step",
+ "qnc-edit-verbs",
  "qnc-edit-words",
  "qnc-fine-wave",
  "qnc-image-assets",
@@ -8168,6 +8184,7 @@ dependencies = [
  "qnc-timeline-model",
  "qnc-trim-stills",
  "qnc-ui-text",
+ "serde_json",
 ]
 
 [[package]]

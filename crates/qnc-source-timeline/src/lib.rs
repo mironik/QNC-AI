@@ -187,6 +187,7 @@ impl SourceTimeline {
             origin: self.keys.origin(),
             statement: self.view.enlarged.is_some(),
             message: &self.view.message,
+            timecode: self.view.timecode,
         };
         let given = self.view.enlarged.as_ref().map_or(&[][..], |enlarged| &enlarged.pictures[..]);
         self.view.zoom = self.zoom.view(zoom, clip, timeline, preview, given);
@@ -200,6 +201,16 @@ impl SourceTimeline {
             self.view.zoom = None;
         }
         closed
+    }
+
+    /// The history of the clip in the zoom (user 2026-11-25): Ctrl+H, a row of its list and the keys
+    /// of the open list; `None`: not the history's. A restore takes the side the zoom shows.
+    pub fn history_key(&mut self, action_id: &str, value: Option<i64>, preview: &SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
+        let done = self.zoom.history_key(action_id, value, preview, timeline, self.view.timecode)?;
+        if qnc_source_mark_focus::is_taken(timeline) {
+            self.keys.set_mark_taken(true);
+        }
+        Some(done)
     }
 
     /// The zoom decodes its pictures or reads its sound (the form repaints soon).
@@ -301,6 +312,9 @@ impl SourceTimeline {
     /// keys of a lane (Ctrl+1/Ctrl+2, and those of a taken lane); `None` for any other.
     /// Enter (or a left click) while IN or OUT is taken keeps the edit and lets the mark go.
     pub fn route_input(&mut self, action_id: &str, value: Option<i64>, preview: &mut SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
+        if let Some(done) = self.history_key(action_id, value, preview, timeline) {
+            return Some(done);
+        }
         if action_id == CUT {
             return Some(self.cut(timeline, value.and_then(|frame| u64::try_from(frame).ok())));
         }

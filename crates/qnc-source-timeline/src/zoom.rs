@@ -30,6 +30,8 @@ pub(crate) struct Clip<'a> {
     /// A statement is enlarged on the timeline.
     pub statement: bool,
     pub message: &'a str,
+    /// The clip's timecode, for the labels of its history.
+    pub timecode: Option<qnc_source_timecode::SourceTimecode>,
 }
 
 #[derive(Default)]
@@ -38,11 +40,20 @@ pub(crate) struct SourceZoom {
     open: Option<(String, bool)>,
     follow: ZoomFollow,
     stills: qnc_trim_stills::TrimStills,
+    /// The history of the clip in the zoom (user 2026-11-25: kept per clip, any position can be gone
+    /// back to), its entries as last read, the list open with its lit row, the side taken last frame
+    /// and IN/OUT when it was taken (a Save that moved them writes an entry).
+    history: qnc_edit_history::ClipHistory,
+    entries: Vec<qnc_edit_history::Entry>,
+    list: Option<usize>,
+    last_taken: Option<bool>,
+    held_from: Option<(u64, u64)>,
 }
 
 impl SourceZoom {
     /// Esc or the zoom's Close: a zoom left open with no mark taken closes.
     pub fn close(&mut self) -> bool {
+        self.list = None;
         self.open.take().is_some()
     }
 
@@ -71,6 +82,7 @@ impl SourceZoom {
         }
         let clip_id = clip.clip_id?;
         let marks = timeline.visible_source_marks()?;
+        self.keep_history(preview, clip_id, taken, marks, clip.timecode);
         let side = side?;
         let timebase = preview.player_view().source_timebase()?;
         let playing = preview.playing_at().filter(|(program, _, _)| !program);
@@ -89,7 +101,9 @@ impl SourceZoom {
             curves: clip.curves,
             marks: Some(marks),
         };
-        let mut view = SegmentsView { source_edit_stills: stills, zoom_sound: Some(axis.sound()), message: clip.message.to_string(), ..Default::default() };
+        let rows = self.entries.iter().rev().map(|entry| (entry.id, history_row(entry))).collect::<Vec<_>>();
+        let zoom_history = qnc_program_view::ZoomHistory { open: self.list.is_some(), at: self.list.unwrap_or(0).min(rows.len().saturating_sub(1)), rows };
+        let mut view = SegmentsView { source_edit_stills: stills, zoom_sound: Some(axis.sound()), message: clip.message.to_string(), zoom_history: Some(zoom_history), ..Default::default() };
         self.stills.give(Some(clip_id), given);
         self.stills.fill(&mut view, preview.still_locator(), None, preview.shown_picture());
         Some(Box::new(view))
@@ -135,12 +149,99 @@ impl std::fmt::Debug for SourceZoom {
     }
 }
 
+/// The kind of the history entries the source timeline writes: its IN and OUT.
+const KIND: &str = "source_marks";
+
+impl SourceZoom {
+    /// The history of the clip read, and a Save that moved IN or OUT written as an entry (the
+    /// first entry of a clip is its IN and OUT before its first edit).
+    fn keep_history(&mut self, preview: &SourcePreview, clip_id: &str, taken: Option<bool>, marks: (u64, u64), timecode: Option<qnc_source_timecode::SourceTimecode>) {
+        let target = preview.project_target();
+        if let Some(entries) = self.history.for_clip(target, Some(clip_id)) {
+            self.entries = entries;
+        }
+        match (self.last_taken, taken) {
+            (None, Some(_)) => self.held_from = Some(marks),
+            (Some(_), None) => {
+                if let (Some(target), Some(from)) = (target, self.held_from.take()) {
+                    if from != marks {
+                        if self.entries.is_empty() {
+                            self.history.add(target, entry(clip_id, label(from, timecode), from));
+                        }
+                        self.history.add(target, entry(clip_id, label(marks, timecode), marks));
+                    }
+                }
+            }
+            _ => {}
+        }
+        self.last_taken = taken;
+    }
+
+    /// Ctrl+H, a row of the list and the keys of the open list (Up/Down the lit row, Enter
+    /// restores it, Esc closes it); `None`: not the history's. A restore puts IN and OUT back,
+    /// takes the side the zoom shows (Enter writes it as any edit) and is itself an entry.
+    pub fn history_key(&mut self, action_id: &str, value: Option<i64>, preview: &SourcePreview, timeline: &mut TimelineProjection, timecode: Option<qnc_source_timecode::SourceTimecode>) -> Option<bool> {
+        let shown = self.open.is_some();
+        let count = self.entries.len();
+        let restore = match (action_id, self.list) {
+            (qnc_edit_verbs::HISTORY_OPEN, _) if shown => {
+                self.list = if self.list.is_some() { None } else { Some(0) };
+                return Some(true);
+            }
+            (qnc_edit_verbs::HISTORY_RESTORE, _) => value,
+            ("step_prev_part", Some(at)) => {
+                self.list = Some(at.saturating_sub(1));
+                return Some(true);
+            }
+            ("step_next_part", Some(at)) => {
+                self.list = Some((at + 1).min(count.saturating_sub(1)));
+                return Some(true);
+            }
+            ("activate_focused_item", Some(at)) => self.entries.iter().rev().nth(at).map(|entry| entry.id),
+            ("clear_focus", Some(_)) => {
+                self.list = None;
+                return Some(true);
+            }
+            _ => return None,
+        };
+        self.list = None;
+        let found = self.entries.iter().find(|entry| Some(entry.id) == restore && entry.kind == KIND)?.clone();
+        let (Some(in_frame), Some(out_frame)) = (found.state["in"].as_u64(), found.state["out"].as_u64()) else { return Some(false) };
+        let side = self.open.as_ref().map_or(true, |(_, side)| *side);
+        timeline.source_in_frame = Some(in_frame);
+        timeline.source_out_frame = Some(out_frame);
+        qnc_source_mark_focus::take(timeline, side);
+        (self.last_taken, self.held_from) = (Some(side), Some((in_frame, out_frame)));
+        if let Some(target) = preview.project_target() {
+            let back = qnc_ui_text::fill("zoom.history_back", &[("label", &label((in_frame, out_frame), timecode))]);
+            self.history.add(target, qnc_edit_history::NewEntry { label: back, ..entry(&found.clip_id, String::new(), (in_frame, out_frame)) });
+        }
+        Some(true)
+    }
+}
+
+fn entry(clip_id: &str, label: String, (in_frame, out_frame): (u64, u64)) -> qnc_edit_history::NewEntry {
+    qnc_edit_history::NewEntry { clip_id: clip_id.to_string(), kind: KIND.to_string(), label, state: serde_json::json!({ "in": in_frame, "out": out_frame }) }
+}
+
+/// What an entry of IN and OUT says: their timecodes (frames without one).
+fn label((in_frame, out_frame): (u64, u64), timecode: Option<qnc_source_timecode::SourceTimecode>) -> String {
+    let tc = |frame: u64| timecode.map_or(frame.to_string(), |timecode| timecode.label(frame));
+    qnc_ui_text::fill("zoom.history_marks", &[("in", &tc(in_frame)), ("out", &tc(out_frame))])
+}
+
+/// A row of the list: the time it was written (hours and minutes) and what it says.
+fn history_row(entry: &qnc_edit_history::Entry) -> String {
+    let time = entry.made_at_utc.get(11..16).unwrap_or("");
+    if time.is_empty() { entry.label.clone() } else { format!("{time}  {}", entry.label) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn clip(statement: bool) -> Clip<'static> {
-        Clip { clip_id: Some("clip-x"), lanes: Default::default(), lane_choices: [None, None], curves: Default::default(), origin: (None, None), statement, message: "" }
+        Clip { clip_id: Some("clip-x"), lanes: Default::default(), lane_choices: [None, None], curves: Default::default(), origin: (None, None), statement, message: "", timecode: None }
     }
 
     /// User 2026-11-20: a statement's zoom is three windows, its IN picture, the player (the
@@ -182,5 +283,24 @@ mod tests {
         assert_eq!(zoom.side(None, Some("a")), None, "closed; nothing opens it again until a mark is taken");
         zoom.side(Some(true), Some("a"));
         assert_eq!(zoom.side(None, Some("b")), None, "another clip closes it");
+    }
+
+    /// User 2026-11-25: Ctrl+H opens the clip's history, Up/Down light a row, Enter puts IN and OUT
+    /// of that entry back and takes the side the zoom shows (Enter then writes it).
+    #[test]
+    fn a_history_entry_puts_in_and_out_back_and_takes_the_side() {
+        let mut zoom = SourceZoom::default();
+        zoom.side(Some(false), Some("clip-x"));
+        let entry = |id: i64, at: u64| qnc_edit_history::Entry { id, clip_id: "clip-x".into(), kind: KIND.into(), label: format!("{at}"), made_at_utc: String::new(), state: serde_json::json!({ "in": at, "out": at + 30 }) };
+        zoom.entries = vec![entry(1, 10), entry(2, 20)];
+        let preview = SourcePreview::new();
+        let mut timeline = TimelineProjection { duration_frames: 100, ..Default::default() };
+        assert_eq!(zoom.history_key("step_next_part", None, &preview, &mut timeline, None), None, "the list closed: Down is not the history's");
+        assert_eq!(zoom.history_key(qnc_edit_verbs::HISTORY_OPEN, None, &preview, &mut timeline, None), Some(true));
+        assert_eq!(zoom.history_key("step_next_part", None, &preview, &mut timeline, None), Some(true), "the older entry lit");
+        assert_eq!(zoom.history_key("activate_focused_item", None, &preview, &mut timeline, None), Some(true));
+        assert_eq!((timeline.source_in_frame, timeline.source_out_frame), (Some(10), Some(40)));
+        assert_eq!(timeline.taken_source_mark(), Some(false), "OUT, the side the zoom shows, taken");
+        assert!(zoom.list.is_none(), "the list closes");
     }
 }

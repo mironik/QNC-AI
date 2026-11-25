@@ -68,6 +68,11 @@ impl PanelFocus {
             }
             return Some(true);
         }
+        // The history of the clip in the source timeline's zoom (user 2026-11-25): Ctrl+H, a row of its
+        // list, and while the list is open its keys (Up/Down, Enter, Esc).
+        if let Some(done) = self.source.history_key(action_id, event.value, pieces.0, pieces.3) {
+            return Some(done);
+        }
         // Alt + arrows and a click in a panel choose the panel (user 2026-11-15), whatever has it.
         if let Some(done) = self.choose_panel(&event, pieces.0, pieces.1, pieces.2) {
             return Some(done);

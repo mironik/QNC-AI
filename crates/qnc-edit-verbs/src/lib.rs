@@ -81,6 +81,10 @@ pub const TAKE_PICTURE: &str = "select_mark_in";
 pub const TAKE_A1: &str = "select_audio_a1";
 pub const TAKE_A2: &str = "select_audio_a2";
 pub const PICK_SIDE: &str = "zoom_pick_side";
+/// Ctrl+H: the history list of the clip in a zoom opens or closes (user 2026-11-25).
+pub const HISTORY_OPEN: &str = "zoom_history_open";
+/// A row of the history list: the clip back to that entry (value: its number).
+pub const HISTORY_RESTORE: &str = "zoom_history_restore";
 pub const PICK_A1_CHANNEL: &str = "source_choose_a1_channel";
 pub const PICK_A2_CHANNEL: &str = "source_choose_a2_channel";
 pub const TAKE_SOUND_SIDE: &str = "timeline_take_cut_edge";

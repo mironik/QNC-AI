@@ -1,0 +1,17 @@
+[package]
+name = "qnc-edit-history"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: the history of the edits of each clip (user 2026-11-25: a zoom's history, kept per clip, any position can be gone back to). A table module of the project database intermediary; the state of an entry is what its owner wrote, this piece does not read it."
+
+[dependencies]
+qnc-clip-follow = { workspace = true }
+qnc-ui-text = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+rusqlite = { workspace = true, features = ["hooks"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

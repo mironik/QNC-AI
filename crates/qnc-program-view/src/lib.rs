@@ -262,6 +262,9 @@ pub struct SegmentsView {
     /// The sound around the cut the trim zoom shows (user 2026-10-25), its fine peaks filled
     /// in by whoever reads them.
     pub zoom_sound: Option<ZoomSound>,
+    /// The history of the clip in the zoom (user 2026-11-25: a drop-down in its header bar, any
+    /// position can be gone back to); `None`: the zoom keeps no history.
+    pub zoom_history: Option<ZoomHistory>,
     /// Program frames of the edits being moved (a taken slot's two markers, a taken
     /// marker): the trim playheads, drawn beside the player's own.
     pub trim_frames: Vec<u64>,
@@ -590,3 +593,12 @@ impl SegmentsView {
 
 #[cfg(test)]
 mod quick_cover_tests;
+
+/// The history of the clip in a zoom as its header bar shows it (user 2026-11-25): its entries the
+/// newest first (number and what it says), whether the list is open and which row is lit.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ZoomHistory {
+    pub rows: Vec<(i64, String)>,
+    pub open: bool,
+    pub at: usize,
+}

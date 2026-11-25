@@ -30,3 +30,6 @@ qnc-program-loudness = { workspace = true }
 qnc-sound-assist = { workspace = true }
 qnc-trim-stills = { workspace = true }
 qnc-image-assets = { workspace = true }
+qnc-edit-history = { workspace = true }
+qnc-edit-verbs = { workspace = true }
+serde_json = { workspace = true }
