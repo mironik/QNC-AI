@@ -209,6 +209,7 @@ impl ProjectDbClient {
             module: module.into(),
             payload,
             lease,
+            author: Some(crate::local_author()),
         };
         match &mut self.endpoint {
             Endpoint::Local(db) => db.execute(&request),

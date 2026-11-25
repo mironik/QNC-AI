@@ -187,3 +187,62 @@ fn a_write_under_a_lease_another_took_writes_nothing() {
         "a write without a lease still goes"
     );
 }
+
+/// A table module whose writes are edits: it writes only its own table (as every module) and the
+/// intermediary keeps its writes in the journal of the project.
+struct Notes(rusqlite::Connection);
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+enum NoteOp {
+    Put(String),
+    Count,
+}
+
+impl OwnedTables for Notes {
+    const ID: &'static str = "test.notes";
+    const JOURNALED: &'static [&'static str] = &["notes"];
+    type Operation = NoteOp;
+    type Data = i64;
+    fn is_write(operation: &NoteOp) -> bool {
+        matches!(operation, NoteOp::Put(_))
+    }
+    fn attach(conn: rusqlite::Connection, access: Access) -> Result<Self> {
+        if access == Access::ReadWrite {
+            conn.execute_batch("CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, text TEXT)").map_err(|e| e.to_string())?;
+        }
+        write_only_own_tables(&conn, access, &["notes"]);
+        Ok(Self(conn))
+    }
+    fn execute(&mut self, operation: &NoteOp) -> Result<i64> {
+        if let NoteOp::Put(text) = operation {
+            let tx = begin_write(&mut self.0).map_err(|e| e.to_string())?;
+            tx.execute("INSERT INTO notes (id, text) VALUES ('n', ?1) ON CONFLICT(id) DO UPDATE SET text = excluded.text", [text]).map_err(|e| e.to_string())?;
+            tx.commit().map_err(|e| e.to_string())?;
+        }
+        self.0.query_row("SELECT count(*) FROM notes", [], |r| r.get(0)).map_err(|e| e.to_string())
+    }
+    fn connection(&self) -> &rusqlite::Connection {
+        &self.0
+    }
+}
+
+/// User 2026-11-25 (a quasi git of every edit): each write of an edit is one commit of the journal
+/// of the project, with who wrote it, the piece and its action and the rows before and after; a
+/// read is no commit. The module still writes only its own table.
+#[test]
+fn every_write_of_an_edit_is_a_commit_of_the_journal() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = project(dir.path(), "p1");
+    let target = ProjectDbTarget::from_owner_binding(&file, URI).unwrap();
+    let mut client = target.open(Access::ReadWrite, vec![owned_tables::<Notes>()]).unwrap();
+    client.execute("test.notes", serde_json::json!({ "kind": "put", "value": "first" })).unwrap();
+    client.execute("test.notes", serde_json::json!({ "kind": "put", "value": "second" })).unwrap();
+    client.execute("test.notes", serde_json::json!({ "kind": "count" })).unwrap();
+    drop(client);
+    let commits = qnc_project_journal::read(&rusqlite::Connection::open(&file).unwrap(), 10).unwrap();
+    assert_eq!(commits.len(), 2, "two writes, the read is none");
+    assert_eq!((commits[0].module.as_str(), commits[0].action.as_str()), ("test.notes", "put"));
+    assert_eq!(commits[0].author, local_author());
+    assert_eq!((commits[0].changes[0].before["text"].as_str(), commits[0].changes[0].after["text"].as_str()), (Some("first"), Some("second")));
+}

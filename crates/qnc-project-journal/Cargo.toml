@@ -1,0 +1,11 @@
+[package]
+name = "qnc-project-journal"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: keeps the commits of a project (user 2026-11-25: a quasi git of every edit, from the start of the edit to its end): when, who, which piece and action, and the rows it changed before and after. It only appends and reads; nothing is deleted from it here."
+
+[dependencies]
+qnc-change-capture = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

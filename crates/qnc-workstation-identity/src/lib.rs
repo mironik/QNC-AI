@@ -82,6 +82,13 @@ pub struct ReadIssue {
 pub(crate) type Reading = Result<String, ReadFailure>;
 pub(crate) type SerialCandidate = (SerialKind, IdentitySource, Reading);
 
+/// The OS account and the computer name alone (no hardware serial, which can take long): who
+/// writes, for the journal of a project. Read-only.
+pub fn read_user_and_workstation() -> (Option<String>, Option<String>) {
+    let computer = hostname::get().ok().and_then(|name| name.into_string().ok());
+    (whoami::fallible::username().ok(), computer)
+}
+
 /// A read-only local call. Partial results retain explicit failure reasons.
 /// A remote DB endpoint must store this client result, not recollect its own identity.
 pub fn read_local_identity() -> IdentitySnapshot {

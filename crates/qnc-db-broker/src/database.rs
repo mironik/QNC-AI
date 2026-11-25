@@ -175,18 +175,55 @@ impl ProjectDb {
                 }
                 None => factory.attach(connect(&self.file, self.access)?, self.access)?,
             };
+            if self.access == Access::ReadWrite && !factory.journaled().is_empty() {
+                self.start_journal(module.as_ref(), factory.journaled())?;
+            }
             self.modules.insert(factory.id(), module);
         }
         let module = self
             .modules
             .get_mut(factory.id())
             .ok_or(qnc_ui_text::text("db.project_database_module_open"))?;
-        match &request.lease {
+        let answer = match &request.lease {
             Some(lease) if factory.is_write(&request.payload) => {
                 leased(module.as_mut(), lease, request.payload.clone())
             }
             _ => module.execute(request.payload.clone()),
+        }?;
+        if self.access == Access::ReadWrite && !factory.journaled().is_empty() && factory.is_write(&request.payload) {
+            let author = request.author.clone().unwrap_or_else(crate::local_author);
+            let action = request.payload.get("kind").and_then(|kind| kind.as_str()).unwrap_or("write").to_string();
+            commit(module.connection(), author, factory.id(), action);
         }
+        Ok(answer)
+    }
+
+    /// The journal of the project for a module whose writes are edits (user 2026-11-25): its tables
+    /// in the database the module writes (the project's, or a draft story's), made on a plain
+    /// connection, and the module's connection catching the rows of its edit tables.
+    fn start_journal(&self, module: &dyn TableModule, tables: &[&str]) -> Result<()> {
+        let file = self.draft.as_deref().unwrap_or(&self.file);
+        qnc_project_journal::ensure_schema(&connect(file, Access::ReadWrite)?)?;
+        qnc_change_capture::install(module.connection(), tables)
+    }
+}
+
+/// The rows the write just made changed, appended as one commit of the journal. The edit is
+/// already written: a journal that cannot be appended to is said in the log and the edit stays.
+fn commit(conn: &Connection, author: String, module: &str, action: String) {
+    let appended = (|| -> Result<()> {
+        let changes = qnc_change_capture::take(conn)?;
+        if changes.is_empty() {
+            return Ok(());
+        }
+        conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
+        let made = qnc_project_journal::append(conn, &qnc_project_journal::NewCommit { author, module: module.to_string(), action, changes });
+        let end = if made.is_ok() { "COMMIT" } else { "ROLLBACK" };
+        conn.execute_batch(end).map_err(|e| e.to_string())?;
+        made.map(|_| ())
+    })();
+    if let Err(error) = appended {
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("project-journal not kept: {error}"));
     }
 }
 

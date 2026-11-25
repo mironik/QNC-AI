@@ -4503,6 +4503,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-change-capture"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-channel-picker"
 version = "0.1.0"
 dependencies = [
@@ -4700,11 +4709,15 @@ dependencies = [
 name = "qnc-db-broker"
 version = "0.1.0"
 dependencies = [
+ "qnc-change-capture",
  "qnc-contracts",
+ "qnc-dev-diagnostics",
  "qnc-json-transport",
+ "qnc-project-journal",
  "qnc-transport-resolver",
  "qnc-ui-text",
  "qnc-work-settings",
+ "qnc-workstation-identity",
  "qnc-write-lease",
  "rusqlite",
  "serde",
@@ -7088,6 +7101,16 @@ dependencies = [
  "qnc-project-store",
  "qnc-store-jobs",
  "qnc-ui-text",
+ "serde_json",
+]
+
+[[package]]
+name = "qnc-project-journal"
+version = "0.1.0"
+dependencies = [
+ "qnc-change-capture",
+ "rusqlite",
+ "serde",
  "serde_json",
 ]
 

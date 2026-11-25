@@ -1,0 +1,10 @@
+[package]
+name = "qnc-change-capture"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: catches the rows one write changes on a connection (the journal of the project, user 2026-11-25: a quasi git of every edit). TEMP triggers of that connection only, the rows before and after as JSON; it writes no table of the project."
+
+[dependencies]
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

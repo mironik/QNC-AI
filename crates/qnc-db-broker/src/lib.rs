@@ -52,6 +52,11 @@ pub trait TableModuleFactory: Send + Sync {
         connection: rusqlite::Connection,
         access: Access,
     ) -> Result<Box<dyn TableModule>>;
+    /// The tables whose writes are the user's edits, kept in the journal of the project (user
+    /// 2026-11-25: a quasi git of every edit). None: nothing of the module is kept there.
+    fn journaled(&self) -> &'static [&'static str] {
+        &[]
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +69,21 @@ pub struct Request {
     /// The lease a write is made under: checked in the same transaction as the write.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lease: Option<WriteLease>,
+    /// Who asks (the user and the computer of the asking process), for the journal of the project;
+    /// the process that runs the database may be another computer's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+}
+
+/// The user and the computer of this process (`user@computer`), read once.
+pub fn local_author() -> String {
+    static AUTHOR: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    AUTHOR
+        .get_or_init(|| {
+            let (user, computer) = qnc_workstation_identity::read_user_and_workstation();
+            format!("{}@{}", user.unwrap_or_default(), computer.unwrap_or_default())
+        })
+        .clone()
 }
 
 #[derive(Debug, Serialize, Deserialize)]

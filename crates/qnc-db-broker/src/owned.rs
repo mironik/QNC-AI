@@ -16,6 +16,8 @@ use crate::{Access, Result, TableModule, TableModuleFactory};
 /// (creating its tables when it may write) and how it serves a request.
 pub trait OwnedTables: Send + Sized + 'static {
     const ID: &'static str;
+    /// The tables whose writes are the user's edits (the journal of the project keeps them).
+    const JOURNALED: &'static [&'static str] = &[];
     type Operation: DeserializeOwned;
     type Data: Serialize;
     fn is_write(operation: &Self::Operation) -> bool;
@@ -40,6 +42,9 @@ impl<M: OwnedTables> TableModuleFactory for Factory<M> {
     }
     fn attach(&self, connection: Connection, access: Access) -> Result<Box<dyn TableModule>> {
         Ok(Box::new(Attached(M::attach(connection, access)?)))
+    }
+    fn journaled(&self) -> &'static [&'static str] {
+        M::JOURNALED
     }
 }
 
@@ -67,6 +72,21 @@ pub fn write_only_own_tables(conn: &Connection, access: Access, owned: &'static 
             {
                 R::Allow
             }
+            // The journal of the project (user 2026-11-25): the rows an edit changed are caught on this
+            // connection by TEMP triggers and appended as a commit; the journal is only appended to.
+            A::Insert { table_name } | A::Delete { table_name } if access == Access::ReadWrite && table_name == qnc_change_capture::PENDING => R::Allow,
+            A::Insert { table_name } if access == Access::ReadWrite && qnc_project_journal::TABLES.contains(&table_name) => R::Allow,
+            A::CreateTempTable { .. } | A::CreateTempTrigger { .. } if access == Access::ReadWrite => R::Allow,
+            // A TEMP trigger on a table of the database is checked as a row of its schema table (SQLite
+            // `sqlite3BeginTrigger`), though it is kept in the TEMP schema. The schema itself stays
+            // shut: every statement that changes it (CREATE TABLE, INDEX, VIEW, ALTER, a trigger that is
+            // not TEMP) has its own action, denied below, and SQL cannot insert into it directly.
+            A::Insert { table_name: "sqlite_master" | "sqlite_temp_master" } | A::Update { table_name: "sqlite_master" | "sqlite_temp_master", .. }
+                if access == Access::ReadWrite =>
+            {
+                R::Allow
+            }
+            A::Pragma { pragma_name: "table_info", .. } => R::Allow,
             A::Read { .. }
             | A::Select
             | A::Transaction { .. }
@@ -96,6 +116,23 @@ mod tests {
         assert!(conn.execute("DELETE FROM theirs", []).is_err());
         let read: i64 = conn.query_row("SELECT v FROM theirs", [], |row| row.get(0)).unwrap();
         assert_eq!(read, 1);
+    }
+
+    /// The journal's allowance opens no schema change and no change of the journal: only TEMP
+    /// triggers, the pending rows and appending to the journal.
+    #[test]
+    fn the_journal_opens_no_schema_change_and_no_rewrite_of_the_journal() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE mine (v INTEGER);").unwrap();
+        qnc_project_journal::ensure_schema(&conn).unwrap();
+        write_only_own_tables(&conn, Access::ReadWrite, &["mine"]);
+        qnc_change_capture::install(&conn, &["mine"]).unwrap();
+        conn.execute("INSERT INTO mine VALUES (1)", []).unwrap();
+        assert!(conn.execute_batch("CREATE TABLE other (v INTEGER)").is_err());
+        assert!(conn.execute_batch("CREATE INDEX i ON mine (v)").is_err());
+        assert!(conn.execute_batch("CREATE TRIGGER t AFTER INSERT ON mine BEGIN SELECT 1; END").is_err(), "a trigger that is not TEMP");
+        assert!(conn.execute_batch("DELETE FROM project_journal").is_err());
+        assert!(conn.execute_batch("UPDATE project_journal SET author = 'x'").is_err());
     }
 
     #[test]

@@ -363,6 +363,8 @@ impl Store {
 
 impl qnc_db_broker::OwnedTables for Store {
     const ID: &'static str = MODULE_ID;
+    /// The user's edits, kept in the journal of the project (user 2026-11-25).
+    const JOURNALED: &'static [&'static str] = &["story_items", "story_markers", "story_marker_slots"];
     type Operation = Operation;
     type Data = Data;
     fn is_write(operation: &Operation) -> bool {

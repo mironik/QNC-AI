@@ -1,0 +1,44 @@
+{
+  "module_id": "qnc.module.change-capture",
+  "module_name": "Change Capture",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "db.change.capture"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "transport_protocol_version": "0.1.0",
+  "transport_scope": [
+    "local",
+    "lan",
+    "intranet"
+  ],
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "module_dependencies": [
+    "qnc.module.db-broker"
+  ],
+  "forbidden_calls": [
+    "media.decode",
+    "media.probe.full",
+    "file.write",
+    "playback.clock"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.scanner",
+    "qnc.module.broadcast-player-core"
+  ],
+  "adapter_policy": "Catches the rows one write changes on one connection (the journal of the project, user 2026-11-25): TEMP triggers of that connection only, the rows before and after as JSON in a TEMP table, in the same transaction as the write; taken by the database intermediary after the write. It writes no table of the project and knows no domain.",
+  "specification": "AGENTS.md"
+}
