@@ -8,6 +8,9 @@ description = "QNC public module: the Story tables of a project database (segmen
 qnc-gain = { workspace = true }
 qnc-ui-text = { workspace = true }
 qnc-db-broker = { workspace = true }
+qnc-project-journal = { workspace = true }
+qnc-journal-revert = { workspace = true }
+qnc-change-capture = { workspace = true }
 qnc-content-read = { workspace = true }
 qnc-media-records = { workspace = true }
 rusqlite = { workspace = true, features = ["hooks"] }

@@ -22,6 +22,8 @@ pub(crate) struct Store {
     no_broll: bool,
     /// A table made before blocks remembered their statement: its blocks are read without one.
     no_statement: bool,
+    /// The step of undo the last write was (for the journal of the project).
+    step: Option<qnc_project_journal::Step>,
 }
 
 impl Store {
@@ -44,10 +46,11 @@ impl Store {
         let no_marks = ready && !has_column(&conn, "marks_json")?;
         let no_broll = ready && !has_column(&conn, "covers_json")?;
         let no_statement = ready && !has_column(&conn, "statement_id")?;
-        Ok(Self { conn, ready, legacy, no_fields, no_pieces, no_marks, no_broll, no_statement })
+        Ok(Self { conn, ready, legacy, no_fields, no_pieces, no_marks, no_broll, no_statement, step: None })
     }
 
     pub(crate) fn execute(&mut self, operation: &Operation) -> Result<Data> {
+        self.step = None;
         // The script is a project's, never written into an Ingest base (user 2026-11-24).
         if operation.is_write() && qnc_db_broker::is_ingest_base(&self.conn) {
             return Err(qnc_db_broker::ingest_base_refusal());
@@ -55,18 +58,11 @@ impl Store {
         match operation {
             Operation::Undo | Operation::Redo if !self.ready => Ok(Data::Blocks(Vec::new())),
             Operation::Undo | Operation::Redo => self.in_one(|store| {
-                let done = crate::undo::step(&store.conn, matches!(operation, Operation::Undo))?;
-                Ok(if done { Data::Changed } else { Data::Blocks(Vec::new()) })
+                store.step = crate::undo::step(&store.conn, matches!(operation, Operation::Undo))?;
+                Ok(if store.step.is_some() { Data::Changed } else { Data::Blocks(Vec::new()) })
             }),
-            // A change of the blocks is one step of undo, kept in the same transaction.
-            operation if self.ready && undoable(operation) => self.in_one(|store| {
-                let before = crate::undo::snapshot(&store.conn)?;
-                let done = store.change(operation)?;
-                if crate::undo::snapshot(&store.conn)? != before {
-                    crate::undo::changed(&store.conn, &before)?;
-                }
-                Ok(done)
-            }),
+            // A change of the blocks is one step of undo: one transaction, so one commit.
+            operation if self.ready && undoable(operation) => self.in_one(|store| store.change(operation)),
             operation => self.change(operation),
         }
     }
@@ -715,7 +711,6 @@ fn ensure_schema(conn: &Connection) -> Result<()> {
             SELECT profile_id, profile_json, updated_at_utc FROM script_profile;"
     ))
     .map_err(err)?;
-    conn.execute_batch(crate::undo::SCHEMA).map_err(err)?;
     crate::voice::ensure_schema(conn)
 }
 
@@ -740,6 +735,13 @@ impl qnc_db_broker::OwnedTables for Store {
     }
     fn connection(&self) -> &Connection {
         Store::connection(self)
+    }
+    /// A change of the blocks is a step Undo may take back; a recording is not.
+    fn undoable(operation: &Operation) -> bool {
+        undoable(operation)
+    }
+    fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
+        self.step.take()
     }
 }
 

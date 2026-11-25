@@ -1,14 +1,16 @@
 //! Undo of the selected (user 2026-10-29: "two kinds of undo: undo in time, back along the order
 //! of the edits, and undo selected: what is selected is undone or redone, whenever it was").
 //! v5 undid a selected cover only, one level (`story/object_history.rs`); here every segment, M
-//! marker and cover. The steps of the story's undo (`undo.rs`) are the history: undo selected
-//! finds the newest step that changed the object and puts back only that object's row as it was
-//! before it; redo selected puts back what that undo took. An undo selected is a story edit
-//! itself, so the undo in time takes it back too. Per object, in `story_object_history`: the
-//! step it went back to and the rows it took (its redo), cleared when another edit changes it.
+//! marker and cover. The commits of the project's journal are the history (user 2026-11-25):
+//! undo selected finds the newest commit that changed the object and puts back only that
+//! object's row as it was before it; redo selected puts back what that undo took. An undo
+//! selected is a story edit itself, so the undo in time takes it back too. Per object, in
+//! `story_object_history`: the commit it went back to and the rows it took (its redo), cleared
+//! when another edit changes it.
 
-use rusqlite::{params, types::Value, Connection, OptionalExtension};
-use serde_json::{json, Map, Value as Json};
+use qnc_change_capture::RowChange;
+use rusqlite::{params, Connection, OptionalExtension};
+use serde_json::{json, Value};
 
 use crate::store::{err, story_now};
 use crate::Result;
@@ -25,55 +27,41 @@ fn table_of(object_type: &str) -> Result<(&'static str, &'static str)> {
 /// The columns that say nothing about the object itself.
 const STAMPS: [&str; 2] = ["created_at", "updated_at"];
 
-/// An object's row in a captured story (`undo::capture`): its columns and values, `None` when
-/// the object was not there.
-fn row_in(snapshot: &Json, table: &str, key: &str, id: &str) -> Option<(Vec<String>, Vec<Json>)> {
-    let stored = snapshot.get(table)?;
-    let columns: Vec<String> = serde_json::from_value(stored["columns"].clone()).ok()?;
-    let at = columns.iter().position(|column| column == key)?;
-    let rows: Vec<Vec<Json>> = serde_json::from_value(stored["rows"].clone()).ok()?;
-    let row = rows.into_iter().find(|row| row.get(at).and_then(|value| value.get("t")).and_then(Json::as_str) == Some(id))?;
-    Some((columns, row))
+/// The row without its stamps, to tell whether the object changed (`Null`: not there).
+fn content(row: &Value) -> Value {
+    match row {
+        Value::Object(map) => Value::Object(map.iter().filter(|(column, _)| !STAMPS.contains(&column.as_str())).map(|(column, value)| (column.clone(), value.clone())).collect()),
+        _ => Value::Null,
+    }
 }
 
-/// The row without its stamps, to tell whether the object changed.
-fn content(row: &Option<(Vec<String>, Vec<Json>)>) -> Option<Vec<Json>> {
-    row.as_ref().map(|(columns, values)| {
-        columns.iter().zip(values).filter(|(column, _)| !STAMPS.contains(&column.as_str())).map(|(_, value)| value.clone()).collect()
-    })
-}
-
-/// The object's history: the undo step it went back to (`None` none yet) and what each undo
-/// took, newest last.
+/// The object's history: the commit it went back to (`None` none yet) and what each undo took,
+/// newest last.
 #[derive(Default)]
 struct History {
-    from_seq: Option<i64>,
-    taken: Vec<(Option<i64>, Json)>,
+    from: Option<i64>,
+    taken: Vec<(Option<i64>, Value)>,
 }
 
 fn history(conn: &Connection, object_type: &str, id: &str) -> Result<History> {
     let raw: Option<String> = conn
-        .query_row(
-            "SELECT snapshot_json FROM story_object_history WHERE object_type = ?1 AND object_id = ?2",
-            params![object_type, id],
-            |row| row.get(0),
-        )
+        .query_row("SELECT snapshot_json FROM story_object_history WHERE object_type = ?1 AND object_id = ?2", params![object_type, id], |row| row.get(0))
         .optional()
         .map_err(err)?;
     let Some(raw) = raw else {
         return Ok(History::default());
     };
-    let json: Json = serde_json::from_str(&raw).map_err(err)?;
+    let json: Value = serde_json::from_str(&raw).map_err(err)?;
+    if json.get("from_seq").is_some() {
+        return Ok(History::default()); // kept by the undo before the journal: its steps are gone
+    }
     let taken = json["taken"].as_array().cloned().unwrap_or_default();
-    Ok(History {
-        from_seq: json["from_seq"].as_i64(),
-        taken: taken.into_iter().map(|entry| (entry["from_seq"].as_i64(), entry["row"].clone())).collect(),
-    })
+    Ok(History { from: json["from_commit"].as_i64(), taken: taken.into_iter().map(|entry| (entry["from_commit"].as_i64(), entry["row"].clone())).collect() })
 }
 
 fn keep_history(conn: &Connection, object_type: &str, id: &str, history: &History) -> Result<()> {
-    let taken: Vec<Json> = history.taken.iter().map(|(seq, row)| json!({ "from_seq": seq, "row": row })).collect();
-    let snapshot = json!({ "from_seq": history.from_seq, "taken": taken }).to_string();
+    let taken: Vec<Value> = history.taken.iter().map(|(from, row)| json!({ "from_commit": from, "row": row })).collect();
+    let snapshot = json!({ "from_commit": history.from, "taken": taken }).to_string();
     conn.execute(
         "INSERT INTO story_object_history (object_type, object_id, state, snapshot_json, updated_at)
          VALUES (?1, ?2, 'undone', ?3, ?4)
@@ -85,70 +73,25 @@ fn keep_history(conn: &Connection, object_type: &str, id: &str, history: &Histor
     Ok(())
 }
 
-/// A row as kept in the history: `null` for an object that was not there.
-fn row_json(row: &Option<(Vec<String>, Vec<Json>)>) -> Json {
-    match row {
-        Some((columns, values)) => json!({ "columns": columns, "values": values }),
-        None => Json::Null,
-    }
-}
-
-fn row_from_json(json: &Json) -> Option<(Vec<String>, Vec<Json>)> {
-    if json.is_null() {
-        return None;
-    }
-    Some((serde_json::from_value(json["columns"].clone()).ok()?, serde_json::from_value(json["values"].clone()).ok()?))
-}
-
-/// Puts the object's row back as `row` (`None`: the object goes).
-fn put_row(conn: &Connection, table: &str, key: &str, id: &str, row: &Option<(Vec<String>, Vec<Json>)>) -> Result<()> {
-    conn.execute(&format!("DELETE FROM {table} WHERE {key} = ?1"), [id]).map_err(err)?;
-    if let Some((columns, values)) = row {
-        let sql = format!("INSERT INTO {table} ({}) VALUES ({})", columns.join(", "), vec!["?"; columns.len()].join(", "));
-        let values: Vec<Value> = values.iter().cloned().map(crate::undo::value_from_json).collect();
-        conn.execute(&sql, rusqlite::params_from_iter(values)).map_err(err)?;
-    }
-    Ok(())
-}
-
-/// Undo selected: the newest change of the object before the step it last went back to is
+/// Undo selected: the newest change of the object before the commit it last went back to is
 /// undone, the object alone. Nothing to undo is a controlled error.
 pub(crate) fn undo(conn: &Connection, object_type: &str, id: &str) -> Result<()> {
     let (table, key) = table_of(object_type)?;
     let id = id.trim();
+    let keyed = json!({ key: id });
     let mut history = history(conn, object_type, id)?;
-    let current: Json = serde_json::from_str(&crate::undo::capture(conn)?).map_err(err)?;
-    let now = row_in(&current, table, key, id);
-    let mut steps = conn
-        .prepare("SELECT seq, snapshot_json FROM story_undo WHERE stack = 'undo' ORDER BY seq DESC")
-        .map_err(err)?;
-    let steps = steps
-        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
-        .map_err(err)?
-        .collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(err)?;
-    // Each step is the story before an edit; the story after it is the step after (or now).
-    let mut after = content(&now);
-    let mut found = None;
-    for (seq, snapshot) in steps {
-        let before_json: Json = serde_json::from_str(&snapshot).map_err(err)?;
-        let before = row_in(&before_json, table, key, id);
-        let changed = content(&before) != after;
-        after = content(&before);
-        if history.from_seq.is_some_and(|from| seq >= from) {
-            continue;
-        }
-        if changed {
-            found = Some((seq, before));
-            break;
-        }
-    }
-    let Some((seq, before)) = found else {
+    let now = qnc_journal_revert::current(conn, table, &keyed)?.unwrap_or(Value::Null);
+    let commits = qnc_project_journal::row_history(conn, table, key, id, usize::MAX >> 1)?;
+    let found = commits.iter().rev().filter(|commit| commit.module == crate::MODULE_ID && history.from.is_none_or(|from| commit.id < from)).find_map(|commit| {
+        let (first, last) = (commit.changes.first()?, commit.changes.last()?);
+        (content(&first.before) != content(&last.after)).then(|| (commit.id, first.before.clone()))
+    });
+    let Some((commit, before)) = found else {
         return Err(qnc_ui_text::text("story.nothing_undo_selected").into());
     };
-    put_row(conn, table, key, id, &before)?;
-    history.taken.push((history.from_seq, row_json(&now)));
-    history.from_seq = Some(seq);
+    qnc_journal_revert::put(conn, table, &keyed, Some(&before).filter(|row| !row.is_null()))?;
+    history.taken.push((history.from, now));
+    history.from = Some(commit);
     keep_history(conn, object_type, id, &history)
 }
 
@@ -157,31 +100,29 @@ pub(crate) fn redo(conn: &Connection, object_type: &str, id: &str) -> Result<()>
     let (table, key) = table_of(object_type)?;
     let id = id.trim();
     let mut history = history(conn, object_type, id)?;
-    let Some((from_seq, row)) = history.taken.pop() else {
+    let Some((from, row)) = history.taken.pop() else {
         return Err(qnc_ui_text::text("story.nothing_redo_selected").into());
     };
-    put_row(conn, table, key, id, &row_from_json(&row))?;
-    history.from_seq = from_seq;
+    qnc_journal_revert::put(conn, table, &json!({ key: id }), Some(&row).filter(|row| !row.is_null()))?;
+    history.from = from;
     keep_history(conn, object_type, id, &history)
 }
 
-/// After any other edit: the objects it changed lose their own history (a new change starts
-/// it again), the others keep theirs.
-pub(crate) fn forget_changed(conn: &Connection, before: &str) -> Result<()> {
-    let before: Map<String, Json> = serde_json::from_str(before).map_err(err)?;
-    let after: Map<String, Json> = serde_json::from_str(&crate::undo::capture(conn)?).map_err(err)?;
+/// After any other edit: the objects it changed (the rows caught so far) lose their own history
+/// (a new change starts it again), the others keep theirs.
+pub(crate) fn forget_changed(conn: &Connection, changes: &[RowChange]) -> Result<()> {
     let mut kept = conn.prepare("SELECT object_type, object_id FROM story_object_history").map_err(err)?;
     let kept = kept
         .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
         .map_err(err)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(err)?;
-    let (before, after) = (Json::Object(before), Json::Object(after));
     for (object_type, id) in kept {
         let Ok((table, key)) = table_of(&object_type) else { continue };
-        if content(&row_in(&before, table, key, &id)) != content(&row_in(&after, table, key, &id)) {
-            conn.execute("DELETE FROM story_object_history WHERE object_type = ?1 AND object_id = ?2", params![object_type, id])
-                .map_err(err)?;
+        let is_it = |row: &Value| row.get(key).and_then(Value::as_str) == Some(id.as_str());
+        let changed = changes.iter().any(|change| change.table == table && (is_it(&change.before) || is_it(&change.after)) && content(&change.before) != content(&change.after));
+        if changed {
+            conn.execute("DELETE FROM story_object_history WHERE object_type = ?1 AND object_id = ?2", params![object_type, id]).map_err(err)?;
         }
     }
     Ok(())

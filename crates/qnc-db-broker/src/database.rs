@@ -191,9 +191,16 @@ impl ProjectDb {
             _ => module.execute(request.payload.clone()),
         }?;
         if self.access == Access::ReadWrite && !factory.journaled().is_empty() && factory.is_write(&request.payload) {
-            let author = request.author.clone().unwrap_or_else(crate::local_author);
-            let action = request.payload.get("kind").and_then(|kind| kind.as_str()).unwrap_or("write").to_string();
-            commit(module.connection(), author, factory.id(), action);
+            let step = module.journal_step();
+            if factory.journals(&request.payload) || step.is_some() {
+                let author = request.author.clone().unwrap_or_else(crate::local_author);
+                let action = request.payload.get("kind").and_then(|kind| kind.as_str()).unwrap_or("write").to_string();
+                let kept = Kept { module: factory.id(), action, undoable: factory.undoable(&request.payload), step };
+                commit(module.connection(), author, kept);
+            } else {
+                // A write that is no edit (a selection): the rows it changed are not a commit.
+                let _ = qnc_change_capture::take(module.connection());
+            }
         }
         Ok(answer)
     }
@@ -210,14 +217,27 @@ impl ProjectDb {
 
 /// The rows the write just made changed, appended as one commit of the journal. The edit is
 /// already written: a journal that cannot be appended to is said in the log and the edit stays.
-fn commit(conn: &Connection, author: String, module: &str, action: String) {
+/// What a write is in the journal: its piece, its action, whether Undo may take it back, and the
+/// step of undo it was (then its action is `undo` or `redo`, with the commit it refers to).
+struct Kept {
+    module: &'static str,
+    action: String,
+    undoable: bool,
+    step: Option<qnc_project_journal::Step>,
+}
+
+fn commit(conn: &Connection, author: String, kept: Kept) {
     let appended = (|| -> Result<()> {
         let changes = qnc_change_capture::take(conn)?;
         if changes.is_empty() {
             return Ok(());
         }
+        let (action, undoable, refers) = match kept.step {
+            Some(step) => (step.action().to_string(), false, Some(step.refers())),
+            None => (kept.action, kept.undoable, None),
+        };
         conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
-        let made = qnc_project_journal::append(conn, &qnc_project_journal::NewCommit { author, module: module.to_string(), action, changes });
+        let made = qnc_project_journal::append(conn, &qnc_project_journal::NewCommit { author, module: kept.module.to_string(), action, undoable, refers, changes });
         let end = if made.is_ok() { "COMMIT" } else { "ROLLBACK" };
         conn.execute_batch(end).map_err(|e| e.to_string())?;
         made.map(|_| ())

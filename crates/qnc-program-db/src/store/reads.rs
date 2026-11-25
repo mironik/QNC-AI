@@ -195,11 +195,7 @@ impl Store {
             .optional()
             .map_err(err)?
             .unwrap_or_default();
-        let (undo_depth, redo_depth) = if object_exists(&self.conn, "table", "story_undo")? {
-            crate::undo::depth(&self.conn)?
-        } else {
-            (0, 0)
-        };
+        let (undo_depth, redo_depth) = crate::undo::depth(&self.conn)?;
         Ok(Data::StorySelection(StorySelection {
             undo_depth,
             redo_depth,

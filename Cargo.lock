@@ -5821,6 +5821,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qnc-journal-revert"
+version = "0.1.0"
+dependencies = [
+ "qnc-change-capture",
+ "qnc-ui-text",
+ "rusqlite",
+ "serde_json",
+]
+
+[[package]]
 name = "qnc-json-transport"
 version = "0.1.0"
 dependencies = [
@@ -6823,13 +6833,16 @@ dependencies = [
 name = "qnc-program-db"
 version = "0.1.0"
 dependencies = [
+ "qnc-change-capture",
  "qnc-content-read",
  "qnc-content-store",
  "qnc-db-broker",
  "qnc-gain",
  "qnc-import-fit",
+ "qnc-journal-revert",
  "qnc-media-metadata",
  "qnc-media-records",
+ "qnc-project-journal",
  "qnc-ui-text",
  "qnc-virtual-shots",
  "rusqlite",
@@ -7361,7 +7374,9 @@ dependencies = [
  "qnc-active-project-read",
  "qnc-db-broker",
  "qnc-field-spec",
+ "qnc-journal-revert",
  "qnc-newsroom-sheet-db",
+ "qnc-project-journal",
  "qnc-script-profile",
  "qnc-ui-text",
  "rusqlite",

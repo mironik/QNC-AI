@@ -1,0 +1,11 @@
+[package]
+name = "qnc-journal-revert"
+version = "0.1.0"
+edition = "2021"
+description = "QNC public piece: takes a commit of the project journal back (or makes it again) on a connection: each row it changed put back as it was before (or after), only when the row is still as the commit left it (user 2026-11-25: undo and redo from the journal)."
+
+[dependencies]
+qnc-change-capture = { workspace = true }
+qnc-ui-text = { workspace = true }
+rusqlite = { workspace = true }
+serde_json = { workspace = true }

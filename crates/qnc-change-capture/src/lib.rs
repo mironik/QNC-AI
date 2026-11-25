@@ -70,6 +70,22 @@ pub fn take(conn: &Connection) -> Result<Vec<RowChange>> {
     Ok(rows.into_iter().filter(|change| change.op != "update" || change.before != change.after).collect())
 }
 
+/// The rows caught since the last [`take`], left for it (what the write so far changed).
+pub fn peek(conn: &Connection) -> Result<Vec<RowChange>> {
+    let pending: bool = conn.query_row(&format!("SELECT EXISTS(SELECT 1 FROM sqlite_temp_master WHERE type = 'table' AND name = '{PENDING}')"), [], |row| row.get(0)).map_err(err)?;
+    if !pending {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare(&format!("SELECT tbl, op, before_row, after_row FROM temp.{PENDING} ORDER BY seq")).map_err(err)?;
+    let parse = |text: Option<String>| text.and_then(|text| serde_json::from_str(&text).ok()).unwrap_or(Value::Null);
+    let rows = statement
+        .query_map([], |row| Ok(RowChange { table: row.get(0)?, op: row.get(1)?, before: parse(row.get(2)?), after: parse(row.get(3)?) }))
+        .map_err(err)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(err)?;
+    Ok(rows)
+}
+
 /// The column names of `table` in the main database (none when it does not exist).
 fn columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
     if !table.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {

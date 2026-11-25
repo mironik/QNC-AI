@@ -125,18 +125,35 @@ fn open_story(path: &Path) -> Story {
     let conn = Connection::open(path).unwrap();
     conn.busy_timeout(std::time::Duration::from_secs(5)).unwrap();
     conn.pragma_update(None, "journal_mode", "PERSIST").unwrap();
-    Story {
-        store: store::Store::attach(conn, Access::ReadWrite).unwrap(),
-        path: path.to_path_buf(),
-    }
+    qnc_project_journal::ensure_schema(&Connection::open(path).unwrap()).unwrap();
+    let store = store::Store::attach(conn, Access::ReadWrite).unwrap();
+    use qnc_db_broker::OwnedTables;
+    qnc_change_capture::install(store.connection(), store::Store::JOURNALED).unwrap();
+    Story { store, path: path.to_path_buf() }
 }
 
 fn reopen(path: &Path) -> Story {
     open_story(path)
 }
 
+/// A request as the intermediary runs it: the write, then its commit in the journal of the
+/// project (a selection is none).
 fn run(story: &mut Story, operation: Operation) -> Result<Data> {
-    story.store.execute(&operation)
+    use qnc_db_broker::OwnedTables;
+    let data = story.store.execute(&operation)?;
+    if store::Store::is_write(&operation) {
+        let step = story.store.journal_step();
+        let changes = qnc_change_capture::take(story.store.connection()).unwrap();
+        if store::Store::journals(&operation) || step.is_some() {
+            let (action, undoable, refers) = match step {
+                Some(step) => (step.action().to_string(), false, Some(step.refers())),
+                None => ("edit".to_string(), store::Store::undoable(&operation), None),
+            };
+            let commit = qnc_project_journal::NewCommit { author: "test".into(), module: MODULE_ID.into(), action, undoable, refers, changes };
+            qnc_project_journal::append(story.store.connection(), &commit).unwrap();
+        }
+    }
+    Ok(data)
 }
 
 /// Clip c1 taken by the import queue (not yet imported).

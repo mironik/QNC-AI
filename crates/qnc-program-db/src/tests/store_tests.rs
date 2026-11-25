@@ -210,11 +210,11 @@ fn a_refused_edit_writes_nothing_not_even_an_undo_step() {
     Connection::open(&path).unwrap().execute("UPDATE clips SET duration_frames = 512 WHERE clip_id = 'c1'", []).unwrap();
     let mut store = reopen(&path);
     let undo_steps = |path: &Path| -> i64 {
-        Connection::open(path).unwrap().query_row("SELECT COUNT(*) FROM story_undo", [], |row| row.get(0)).unwrap()
+        Connection::open(path).unwrap().query_row("SELECT COUNT(*) FROM project_journal", [], |row| row.get(0)).unwrap()
     };
     let steps = undo_steps(&path);
     run(&mut store, Operation::MoveMarker { marker_id: m25, program_frame: 29 }).unwrap_err();
-    assert_eq!(undo_steps(&path), steps, "no undo step for a refused edit");
+    assert_eq!(undo_steps(&path), steps, "no commit (no undo step) for a refused edit");
     assert_eq!(markers(&mut store), vec![16, 25]);
     let open: bool = Connection::open(&path).unwrap().is_autocommit();
     assert!(open, "no transaction is left open");
@@ -255,4 +255,27 @@ fn the_story_reader_brings_an_older_story_up_through_its_owner_and_reads_it() {
     let target = qnc_db_broker::ProjectDbTarget::from_owner_binding(&path, "qnc://local/db/project_db/p1").unwrap();
     let snapshot = crate::StoryReader::open(&target).unwrap().program_snapshot().expect("read after the owner brought it up");
     assert_eq!(snapshot.segments.len(), 3);
+}
+
+/// User 2026-11-25 (undo from the journal): a selection is no step (Undo takes the edit before it
+/// back and leaves the selection), and a row changed since outside the journal is not overwritten.
+#[test]
+fn undo_takes_back_the_edit_not_the_selection_and_never_overwrites_a_change_since() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let mut store = imported_store(&path);
+    let ids = three_segments(&mut store);
+    run(&mut store, Operation::SelectPart { part_id: ids[0].clone() }).unwrap();
+    let journal = |path: &Path| -> i64 { Connection::open(path).unwrap().query_row("SELECT COUNT(*) FROM project_journal", [], |row| row.get(0)).unwrap() };
+    let commits = journal(&path);
+    run(&mut store, Operation::SelectPart { part_id: ids[1].clone() }).unwrap();
+    assert_eq!(journal(&path), commits, "a selection is no commit");
+    run(&mut store, Operation::UndoStory).unwrap();
+    assert_eq!(segments(&mut store).iter().filter(|row| row.lead.is_empty() && row.active).count(), 2, "the last segment taken back");
+    let selected: String = Connection::open(&path).unwrap().query_row("SELECT selected_part_id FROM story_state", [], |row| row.get(0)).unwrap();
+    assert_eq!(selected, ids[1], "the selection left as it is");
+    let other = Connection::open(&path).unwrap();
+    other.pragma_update(None, "journal_mode", "PERSIST").unwrap(); // as the story's open connection
+    other.execute("UPDATE story_items SET a1_level_db = 3 WHERE item_id = ?1", [&ids[1]]).unwrap();
+    assert!(run(&mut store, Operation::UndoStory).is_err(), "a row changed since is not overwritten");
 }

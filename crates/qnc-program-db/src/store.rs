@@ -45,6 +45,8 @@ const OWNED: [&str; 7] = [
 pub(crate) struct Store {
     conn: Connection,
     schema_ready: bool,
+    /// The step of undo the last write was (for the journal of the project).
+    step: Option<qnc_project_journal::Step>,
 }
 
 impl Store {
@@ -56,13 +58,11 @@ impl Store {
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
                 .map_err(err)?;
             ensure_story_schema(&tx)?;
-            crate::undo::ensure_schema(&tx)?;
             tx.commit().map_err(err)?;
         }
         let schema_ready: bool = conn
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='story_state')
-                    AND EXISTS(SELECT 1 FROM sqlite_master WHERE name='story_undo')",
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='story_state')",
                 [],
                 |r| r.get(0),
             )
@@ -76,10 +76,11 @@ impl Store {
             conn.pragma_update(None, "query_only", true).map_err(err)?;
         }
         qnc_db_broker::write_only_own_tables(&conn, access, &OWNED);
-        Ok(Self { conn, schema_ready })
+        Ok(Self { conn, schema_ready, step: None })
     }
 
     pub(crate) fn execute(&mut self, operation: &Operation) -> Result<Data> {
+        self.step = None;
         if !self.schema_ready {
             return match operation {
                 Operation::ListSegments => Ok(Data::Segments(Vec::new())),
@@ -128,7 +129,6 @@ impl Store {
             }
             return Ok(data);
         }
-        let before = crate::undo::capture(&self.conn)?;
         let short = cover_shortfalls(&self.conn)?;
         let data = self.dispatch(operation)?;
         // An M marker is the OUT of one cover and the IN of the next (user 2026-10-17): no
@@ -138,9 +138,8 @@ impl Store {
             return Err(refusal);
         }
         if !matches!(operation, Operation::UndoSelected { .. } | Operation::RedoSelected { .. }) {
-            crate::object_undo::forget_changed(&self.conn, &before)?;
+            crate::object_undo::forget_changed(&self.conn, &qnc_change_capture::peek(&self.conn)?)?;
         }
-        crate::undo::record(&self.conn, &before)?;
         bump_revision(&self.conn)?;
         Ok(data)
     }
@@ -194,13 +193,13 @@ impl Store {
         }
         match operation {
             Operation::UndoStory => {
-                crate::undo::step(&self.conn, true)?;
+                self.step = Some(crate::undo::step(&self.conn, true)?);
                 Ok(Data::Changed)
             }
             Operation::UndoSelected { object_type, object_id } => self.object_step(object_type, object_id, true),
             Operation::RedoSelected { object_type, object_id } => self.object_step(object_type, object_id, false),
             Operation::RedoStory => {
-                crate::undo::step(&self.conn, false)?;
+                self.step = Some(crate::undo::step(&self.conn, false)?);
                 Ok(Data::Changed)
             }
             Operation::CreateSegment {
@@ -364,7 +363,7 @@ impl Store {
 impl qnc_db_broker::OwnedTables for Store {
     const ID: &'static str = MODULE_ID;
     /// The user's edits, kept in the journal of the project (user 2026-11-25).
-    const JOURNALED: &'static [&'static str] = &["story_items", "story_markers", "story_marker_slots"];
+    const JOURNALED: &'static [&'static str] = &["story_items", "story_markers", "story_marker_slots", "story_state"];
     type Operation = Operation;
     type Data = Data;
     fn is_write(operation: &Operation) -> bool {
@@ -378,5 +377,15 @@ impl qnc_db_broker::OwnedTables for Store {
     }
     fn connection(&self) -> &Connection {
         Store::connection(self)
+    }
+    /// A selection is no edit: it is not kept in the journal; Undo and Redo are its steps.
+    fn journals(operation: &Operation) -> bool {
+        operation.edits_story() || matches!(operation, Operation::UndoStory | Operation::RedoStory)
+    }
+    fn undoable(operation: &Operation) -> bool {
+        operation.edits_story()
+    }
+    fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
+        self.step.take()
     }
 }

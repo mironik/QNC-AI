@@ -488,26 +488,6 @@ fn changes_of_parts_together_are_one_write_and_one_undo_step() {
     assert!(together(&target, vec![Operation::Remove { id }, Operation::Remove { id }]).is_err(), "only changes of parts");
 }
 
-/// A step of undo kept before the table had a column (audit 2026-11-08 #17): undo puts the
-/// blocks back with the column's default, it does not fail.
-#[test]
-fn an_undo_step_kept_before_a_column_was_added_puts_the_blocks_back() {
-    let (dir, target) = written();
-    let id = add(&target, None, off("staro")).unwrap();
-    set_text(&target, id, "novo".into()).unwrap();
-    // The step as an older table kept it: without the columns added since.
-    let conn = Connection::open(dir.path().join("project.db")).unwrap();
-    let rows: String = conn.query_row("SELECT rows_json FROM script_undo ORDER BY step DESC LIMIT 1", [], |r| r.get(0)).unwrap();
-    let mut old: Vec<serde_json::Map<String, serde_json::Value>> = serde_json::from_str(&rows).unwrap();
-    for row in &mut old {
-        row.remove("pieces_json");
-        row.remove("fields_json");
-    }
-    conn.execute("UPDATE script_undo SET rows_json = ?1 WHERE step = (SELECT MAX(step) FROM script_undo)", [serde_json::to_string(&old).unwrap()]).unwrap();
-    drop(conn);
-    assert!(undo(&target).unwrap());
-    assert_eq!(texts(&target), ["staro"]);
-}
 
 #[test]
 fn an_off_keeps_its_b_roll_note_and_its_accepted_covers_in_one_undo_step() {
@@ -533,4 +513,19 @@ fn a_clip_block_remembers_the_statement_it_was_made_from_and_an_older_table_gets
     add(&target, Some(old), Block { statement_id: "clip-1_shot_003".into(), ..sot("2002") }).unwrap();
     let blocks = read(&target).unwrap();
     assert_eq!(blocks.iter().map(|b| b.statement_id.as_str()).collect::<Vec<_>>(), ["", "clip-1_shot_003"]);
+}
+
+/// User 2026-11-25 (undo from the journal): a recording made after a change of the text does not
+/// stop its undo, and the recording stays as recorded; a second undo with nothing left is none.
+#[test]
+fn a_recording_made_after_a_change_stays_when_the_change_is_undone() {
+    let (_dir, target) = written();
+    let id = add(&target, None, off("staro")).unwrap();
+    set_text(&target, id, "novo".into()).unwrap();
+    set_voice(&target, id, "qnc://local/source/x/file/off.wav".into(), 2.5, "10:00:00:00".into()).unwrap();
+    assert!(undo(&target).unwrap());
+    let block = read(&target).unwrap().into_iter().find(|block| block.id == id).unwrap();
+    assert_eq!((block.text.as_str(), block.voice_uri.as_str()), ("staro", "qnc://local/source/x/file/off.wav"), "the text back, the recording kept");
+    assert!(redo(&target).unwrap());
+    assert_eq!(texts(&target), ["novo"]);
 }

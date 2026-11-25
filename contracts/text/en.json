@@ -1523,6 +1523,7 @@
     "db.clip_sound_invalid": "Not a valid A1/A2 sound of a clip.",
     "db.clip_marks_invalid": "Not a valid IN and OUT of a clip.",
     "db.clip_marks_reply": "The history of a clip gave an unexpected answer.",
+    "journal.changed_since": "Changed since by another edit ({table}): this step cannot be undone or redone.",
     "db.invalid_prerender_unit": "Invalid prerender unit.",
     "story.invalid_reply_story": "Invalid reply of the story.",
     "story.project_story_initialised": "The project story is not initialised.",

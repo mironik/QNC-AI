@@ -27,9 +27,44 @@ pub struct NewCommit {
     pub author: String,
     /// The piece that wrote it (its module id).
     pub module: String,
-    /// Its action (the kind of the piece's request).
+    /// Its action (the kind of the piece's request; `undo` or `redo` for a step of undo).
     pub action: String,
+    /// A step the piece's Undo may take back (a change of the user's work, not a recording).
+    #[serde(default)]
+    pub undoable: bool,
+    /// The commit an `undo` took back or a `redo` made again.
+    #[serde(default)]
+    pub refers: Option<i64>,
     pub changes: Vec<RowChange>,
+}
+
+/// A step of undo a piece made: the commit it took back or made again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Step {
+    Undo(i64),
+    Redo(i64),
+}
+
+impl Step {
+    pub fn action(self) -> &'static str {
+        match self {
+            Self::Undo(_) => "undo",
+            Self::Redo(_) => "redo",
+        }
+    }
+    pub fn refers(self) -> i64 {
+        match self {
+            Self::Undo(id) | Self::Redo(id) => id,
+        }
+    }
+}
+
+/// What a piece's Undo and Redo would take: the commits Undo may take back (the newest last) and
+/// the ones it took back that Redo may make again (the last taken last).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Stacks {
+    pub undo: Vec<i64>,
+    pub redo: Vec<i64>,
 }
 
 /// A commit of the journal.
@@ -41,10 +76,13 @@ pub struct Commit {
     pub author: String,
     pub module: String,
     pub action: String,
+    pub undoable: bool,
+    pub refers: Option<i64>,
     pub changes: Vec<RowChange>,
 }
 
-/// Creates the journal's tables when missing (on a connection that may create tables).
+/// Creates the journal's tables when missing (on a connection that may create tables); a journal
+/// of the first day gets the columns of undo.
 pub fn ensure_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS project_journal (
@@ -52,7 +90,9 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
             made_at_utc TEXT NOT NULL,
             author TEXT NOT NULL,
             module TEXT NOT NULL,
-            action TEXT NOT NULL
+            action TEXT NOT NULL,
+            undoable INTEGER NOT NULL DEFAULT 0,
+            refers INTEGER
         );
         CREATE TABLE IF NOT EXISTS project_journal_changes (
             commit_id INTEGER NOT NULL REFERENCES project_journal(id),
@@ -62,9 +102,22 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
             before_row TEXT,
             after_row TEXT,
             PRIMARY KEY (commit_id, seq)
-        );
-        CREATE VIEW IF NOT EXISTS public_project_journal AS
-            SELECT id, made_at_utc, author, module, action FROM project_journal;",
+        );",
+    )
+    .map_err(err)?;
+    let columns: Vec<String> = {
+        let mut statement = conn.prepare("SELECT name FROM pragma_table_info('project_journal')").map_err(err)?;
+        let names = statement.query_map([], |row| row.get(0)).map_err(err)?;
+        names.collect::<rusqlite::Result<Vec<_>>>().map_err(err)?
+    };
+    if !columns.iter().any(|column| column == "undoable") {
+        conn.execute_batch("ALTER TABLE project_journal ADD COLUMN undoable INTEGER NOT NULL DEFAULT 0; ALTER TABLE project_journal ADD COLUMN refers INTEGER;").map_err(err)?;
+    }
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS project_journal_module ON project_journal (module, id);
+        DROP VIEW IF EXISTS public_project_journal;
+        CREATE VIEW public_project_journal AS
+            SELECT id, made_at_utc, author, module, action, undoable, refers FROM project_journal;",
     )
     .map_err(err)
 }
@@ -80,8 +133,8 @@ pub fn append(conn: &Connection, commit: &NewCommit) -> Result<Option<i64>> {
         return Ok(None);
     }
     conn.execute(
-        "INSERT INTO project_journal (made_at_utc, author, module, action) VALUES (strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?1, ?2, ?3)",
-        params![commit.author, commit.module, commit.action],
+        "INSERT INTO project_journal (made_at_utc, author, module, action, undoable, refers) VALUES (strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?1, ?2, ?3, ?4, ?5)",
+        params![commit.author, commit.module, commit.action, commit.undoable, commit.refers],
     )
     .map_err(err)?;
     let id = conn.last_insert_rowid();
@@ -96,27 +149,79 @@ pub fn append(conn: &Connection, commit: &NewCommit) -> Result<Option<i64>> {
     Ok(Some(id))
 }
 
+const HEAD: &str = "SELECT id, made_at_utc, author, module, action, undoable, refers FROM project_journal";
+
+fn head(row: &rusqlite::Row<'_>) -> rusqlite::Result<Commit> {
+    Ok(Commit { id: row.get(0)?, made_at_utc: row.get(1)?, author: row.get(2)?, module: row.get(3)?, action: row.get(4)?, undoable: row.get(5)?, refers: row.get(6)?, changes: Vec::new() })
+}
+
+fn parse(text: Option<String>) -> serde_json::Value {
+    text.and_then(|text| serde_json::from_str(&text).ok()).unwrap_or(serde_json::Value::Null)
+}
+
+fn changes_of(conn: &Connection, id: i64) -> Result<Vec<RowChange>> {
+    let mut rows = conn.prepare_cached("SELECT tbl, op, before_row, after_row FROM project_journal_changes WHERE commit_id = ?1 ORDER BY seq").map_err(err)?;
+    let changes = rows
+        .query_map([id], |row| Ok(RowChange { table: row.get(0)?, op: row.get(1)?, before: parse(row.get(2)?), after: parse(row.get(3)?) }))
+        .map_err(err)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(err)?;
+    Ok(changes)
+}
+
 /// The newest `limit` commits, the newest first, with their changes.
 pub fn read(conn: &Connection, limit: usize) -> Result<Vec<Commit>> {
     if !ready(conn) {
         return Ok(Vec::new());
     }
-    let mut heads = conn.prepare("SELECT id, made_at_utc, author, module, action FROM project_journal ORDER BY id DESC LIMIT ?1").map_err(err)?;
-    let mut commits = heads
-        .query_map([limit as i64], |row| Ok(Commit { id: row.get(0)?, made_at_utc: row.get(1)?, author: row.get(2)?, module: row.get(3)?, action: row.get(4)?, changes: Vec::new() }))
-        .map_err(err)?
-        .collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(err)?;
-    let mut rows = conn.prepare("SELECT tbl, op, before_row, after_row FROM project_journal_changes WHERE commit_id = ?1 ORDER BY seq").map_err(err)?;
-    let parse = |text: Option<String>| text.and_then(|text| serde_json::from_str(&text).ok()).unwrap_or(serde_json::Value::Null);
+    let mut heads = conn.prepare(&format!("{HEAD} ORDER BY id DESC LIMIT ?1")).map_err(err)?;
+    let mut commits = heads.query_map([limit as i64], head).map_err(err)?.collect::<rusqlite::Result<Vec<_>>>().map_err(err)?;
     for commit in &mut commits {
-        commit.changes = rows
-            .query_map([commit.id], |row| Ok(RowChange { table: row.get(0)?, op: row.get(1)?, before: parse(row.get(2)?), after: parse(row.get(3)?) }))
-            .map_err(err)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(err)?;
+        commit.changes = changes_of(conn, commit.id)?;
     }
     Ok(commits)
+}
+
+/// One commit with its changes (`None`: there is none of that number).
+pub fn commit(conn: &Connection, id: i64) -> Result<Option<Commit>> {
+    if !ready(conn) {
+        return Ok(None);
+    }
+    let mut statement = conn.prepare(&format!("{HEAD} WHERE id = ?1")).map_err(err)?;
+    let Some(mut found) = statement.query_map([id], head).map_err(err)?.next().transpose().map_err(err)? else { return Ok(None) };
+    found.changes = changes_of(conn, id)?;
+    Ok(Some(found))
+}
+
+/// The Undo and Redo of `module`, from its commits in their order: an undoable commit goes onto
+/// Undo and empties Redo; an `undo` moves the commit it took back onto Redo; a `redo` moves it
+/// back onto Undo. A commit that is neither (a recording) changes neither.
+pub fn stacks(conn: &Connection, module: &str) -> Result<Stacks> {
+    let mut stacks = Stacks::default();
+    if !ready(conn) {
+        return Ok(stacks);
+    }
+    let mut statement = conn.prepare("SELECT id, action, undoable, refers FROM project_journal WHERE module = ?1 ORDER BY id").map_err(err)?;
+    let rows = statement.query_map([module], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?, row.get::<_, Option<i64>>(3)?))).map_err(err)?;
+    for row in rows {
+        let (id, action, undoable, refers) = row.map_err(err)?;
+        match (action.as_str(), refers) {
+            ("undo", Some(target)) => {
+                stacks.undo.retain(|kept| *kept != target);
+                stacks.redo.push(target);
+            }
+            ("redo", Some(target)) => {
+                stacks.redo.retain(|kept| *kept != target);
+                stacks.undo.push(target);
+            }
+            _ if undoable => {
+                stacks.undo.push(id);
+                stacks.redo.clear();
+            }
+            _ => {}
+        }
+    }
+    Ok(stacks)
 }
 
 /// The history of one row: the newest `limit` commits that changed a row of `table` whose column
@@ -131,7 +236,7 @@ pub fn row_history(conn: &Connection, table: &str, key: &str, value: &str, limit
     let path = format!("$.{key}");
     let mut statement = conn
         .prepare(
-            "SELECT j.id, j.made_at_utc, j.author, j.module, j.action, c.op, c.before_row, c.after_row
+            "SELECT j.id, j.made_at_utc, j.author, j.module, j.action, j.undoable, j.refers, c.op, c.before_row, c.after_row
              FROM project_journal_changes c JOIN project_journal j ON j.id = c.commit_id
              WHERE c.commit_id IN (
                  SELECT DISTINCT commit_id FROM project_journal_changes
@@ -141,11 +246,10 @@ pub fn row_history(conn: &Connection, table: &str, key: &str, value: &str, limit
              ORDER BY c.commit_id, c.seq",
         )
         .map_err(err)?;
-    let parse = |text: Option<String>| text.and_then(|text| serde_json::from_str(&text).ok()).unwrap_or(serde_json::Value::Null);
     let rows = statement
         .query_map(params![table, path, value, limit as i64], |row| {
-            let head = Commit { id: row.get(0)?, made_at_utc: row.get(1)?, author: row.get(2)?, module: row.get(3)?, action: row.get(4)?, changes: Vec::new() };
-            Ok((head, RowChange { table: table.to_string(), op: row.get(5)?, before: parse(row.get(6)?), after: parse(row.get(7)?) }))
+            let head = head(row)?;
+            Ok((head, RowChange { table: table.to_string(), op: row.get(7)?, before: parse(row.get(8)?), after: parse(row.get(9)?) }))
         })
         .map_err(err)?
         .collect::<rusqlite::Result<Vec<_>>>()
@@ -178,7 +282,7 @@ mod tests {
         qnc_change_capture::install(&conn, &["t"]).unwrap();
         conn.execute("INSERT INTO t VALUES ('a', 1)", []).unwrap();
         let changes = qnc_change_capture::take(&conn).unwrap();
-        let commit = NewCommit { author: "miron@laptop".into(), module: "qnc.module.x".into(), action: "create".into(), changes };
+        let commit = NewCommit { author: "miron@laptop".into(), module: "qnc.module.x".into(), action: "create".into(), undoable: true, refers: None, changes };
         assert!(append(&conn, &commit).unwrap().is_some());
         assert_eq!(append(&conn, &NewCommit { changes: Vec::new(), ..commit.clone() }).unwrap(), None);
         let read = read(&conn, 10).unwrap();
@@ -196,7 +300,7 @@ mod tests {
         let commit = |sql: &str| {
             conn.execute_batch(sql).unwrap();
             let changes = qnc_change_capture::take(&conn).unwrap();
-            append(&conn, &NewCommit { author: "u".into(), module: "m".into(), action: "set".into(), changes }).unwrap();
+            append(&conn, &NewCommit { author: "u".into(), module: "m".into(), action: "set".into(), undoable: true, refers: None, changes }).unwrap();
         };
         commit("INSERT INTO t VALUES ('a', 1); INSERT INTO t VALUES ('b', 9);");
         commit("UPDATE t SET v = 2 WHERE id = 'a';");
@@ -204,5 +308,29 @@ mod tests {
         let a = row_history(&conn, "t", "id", "a", 10).unwrap();
         assert_eq!(a.iter().map(|commit| commit.changes.iter().map(|change| change.after["v"].as_i64().unwrap()).collect::<Vec<_>>()).collect::<Vec<_>>(), [vec![1], vec![2]]);
         assert_eq!(row_history(&conn, "t", "id", "a", 1).unwrap()[0].changes[0].after["v"], 2, "the newest ones");
+    }
+
+    /// Undo takes the newest undoable commit back onto Redo, Redo makes it again, a new edit
+    /// empties Redo; a recording (not undoable) is on neither.
+    #[test]
+    fn undo_and_redo_follow_the_order_of_the_commits() {
+        let conn = Connection::open_in_memory().unwrap();
+        ensure_schema(&conn).unwrap();
+        let change = vec![RowChange { table: "t".into(), op: "insert".into(), before: serde_json::Value::Null, after: serde_json::json!({ "id": 1 }) }];
+        let add = |action: &str, undoable: bool, refers: Option<i64>| {
+            append(&conn, &NewCommit { author: "u".into(), module: "m".into(), action: action.into(), undoable, refers, changes: change.clone() }).unwrap().unwrap()
+        };
+        let (a, b) = (add("edit", true, None), add("edit", true, None));
+        add("record", false, None);
+        assert_eq!(stacks(&conn, "m").unwrap(), Stacks { undo: vec![a, b], redo: vec![] });
+        add("undo", false, Some(b));
+        assert_eq!(stacks(&conn, "m").unwrap(), Stacks { undo: vec![a], redo: vec![b] });
+        add("redo", false, Some(b));
+        assert_eq!(stacks(&conn, "m").unwrap(), Stacks { undo: vec![a, b], redo: vec![] });
+        add("undo", false, Some(b));
+        let c = add("edit", true, None);
+        assert_eq!(stacks(&conn, "m").unwrap(), Stacks { undo: vec![a, c], redo: vec![] }, "a new edit empties Redo");
+        assert!(stacks(&conn, "other").unwrap().undo.is_empty(), "per piece");
+        assert_eq!(commit(&conn, c).unwrap().unwrap().changes.len(), 1);
     }
 }

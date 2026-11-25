@@ -40,6 +40,6 @@
     "qnc.module.scanner",
     "qnc.module.broadcast-player-core"
   ],
-  "adapter_policy": "Keeps the commits of a project (user 2026-11-25: a quasi git of every edit): when, who (user and computer), which piece and action, and the rows it changed before and after. Two tables of its own (project_journal, project_journal_changes) in the database the edit is written to, appended by the database intermediary only; nothing is deleted or changed in it. Going back is a new commit made by the owner of the state. The project belongs to its user: only that user may go back or remove history.",
+  "adapter_policy": "Keeps the commits of a project (user 2026-11-25: a quasi git of every edit): when, who (user and computer), which piece and action, whether its Undo may take it back (undoable) and which commit an undo or redo refers to, and the rows it changed before and after; it gives a piece its Undo and Redo stacks. Two tables of its own (project_journal, project_journal_changes) in the database the edit is written to, appended by the database intermediary only; nothing is deleted or changed in it. Going back is a new commit made by the owner of the state. The project belongs to its user: only that user may go back or remove history.",
   "specification": "AGENTS.md"
 }

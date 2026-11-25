@@ -24,6 +24,18 @@ pub trait OwnedTables: Send + Sized + 'static {
     fn attach(connection: Connection, access: Access) -> Result<Self>;
     fn execute(&mut self, operation: &Self::Operation) -> Result<Self::Data>;
     fn connection(&self) -> &Connection;
+    /// Whether a write is kept in the journal of the project (a selection is not).
+    fn journals(_operation: &Self::Operation) -> bool {
+        true
+    }
+    /// Whether a write is a step the module's Undo may take back.
+    fn undoable(_operation: &Self::Operation) -> bool {
+        false
+    }
+    /// The step of undo the last write was, taken once.
+    fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
+        None
+    }
 }
 
 /// How the module `M` joins the intermediary.
@@ -46,6 +58,12 @@ impl<M: OwnedTables> TableModuleFactory for Factory<M> {
     fn journaled(&self) -> &'static [&'static str] {
         M::JOURNALED
     }
+    fn journals(&self, payload: &Value) -> bool {
+        serde_json::from_value::<M::Operation>(payload.clone()).is_ok_and(|operation| M::journals(&operation))
+    }
+    fn undoable(&self, payload: &Value) -> bool {
+        serde_json::from_value::<M::Operation>(payload.clone()).is_ok_and(|operation| M::undoable(&operation))
+    }
 }
 
 struct Attached<M>(M);
@@ -58,6 +76,9 @@ impl<M: OwnedTables> TableModule for Attached<M> {
     }
     fn connection(&self) -> &Connection {
         self.0.connection()
+    }
+    fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
+        self.0.journal_step()
     }
 }
 

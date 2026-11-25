@@ -37,6 +37,11 @@ pub trait TableModule: Send {
     /// intermediary opens on it, the lease checked first (the module's own writes are
     /// then savepoints, see [`qnc_write_lease::begin_write`]).
     fn connection(&self) -> &rusqlite::Connection;
+    /// The step of undo the last write was (it took a commit back or made it again), for the
+    /// journal of the project; taken once.
+    fn journal_step(&mut self) -> Option<qnc_project_journal::Step> {
+        None
+    }
 }
 
 /// How a table module joins a project database. The process composing the
@@ -56,6 +61,14 @@ pub trait TableModuleFactory: Send + Sync {
     /// 2026-11-25: a quasi git of every edit). None: nothing of the module is kept there.
     fn journaled(&self) -> &'static [&'static str] {
         &[]
+    }
+    /// Whether a write is kept in the journal (a selection is not: it is no edit).
+    fn journals(&self, _payload: &Value) -> bool {
+        true
+    }
+    /// Whether a write is a step the module's Undo may take back.
+    fn undoable(&self, _payload: &Value) -> bool {
+        false
     }
 }
 
