@@ -37,7 +37,7 @@ impl ProgramSegments {
     /// moves (a cover starts at its marker), else the one after it. `None` when nothing
     /// is taken or there is no picture (Off).
     pub fn keyframe_reference(&self) -> Option<(String, u64)> {
-        let stills = &self.view.edit_stills;
+        let stills = &self.view.edit_cuts;
         if let Some(trim) = &self.slot_trim {
             // The picture at the taken edge: the slot's first, or its last.
             let own = stills.iter().find(|still| still.after == trim.start);
@@ -67,7 +67,7 @@ impl ProgramSegments {
                 self.marker_edit.is_some()
             }
         };
-        let blocked = self.view.edit_stills.iter().filter(|still| moving(still)).any(|still| {
+        let blocked = self.view.edit_cuts.iter().filter(|still| moving(still)).any(|still| {
             matches!(
                 (still.clip_edge, frames.signum()),
                 (Some(qnc_program_view::ClipEdge::End), 1) | (Some(qnc_program_view::ClipEdge::Start), -1)
@@ -97,7 +97,7 @@ impl ProgramSegments {
                 self.marker_edit.is_some()
             }
         };
-        self.view.edit_stills.iter().filter(moving).any(|still| still.past_end)
+        self.view.edit_cuts.iter().filter(moving).any(|still| still.past_end)
     }
 
     pub fn jump_edit(&mut self, frames: i64) -> bool {

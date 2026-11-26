@@ -307,6 +307,9 @@ pub enum TimelineIntent {
     /// nothing taken, the player in the middle active, the playhead where it is; a click on the left
     /// or right picture then takes IN or OUT.
     OpenZoom,
+    /// A right click inside a slot of a Wrap row, away from its markers: the zoom of that slot
+    /// opens with nothing taken (user 2026-11-26).
+    OpenSlotZoom { id: String, frame: u64 },
     /// IN (`in_mark`) or OUT dragged with the left button to `frame` of the clip (user
     /// 2026-10-17: as in editing programs); letting the button go keeps it (`KeepMark`).
     DragMark { in_mark: bool, frame: u64 },

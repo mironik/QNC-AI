@@ -139,7 +139,7 @@ impl ProgramSegments {
         if let Some(zoom) = self.clip_edge_zoom(view) {
             return Some(zoom);
         }
-        let cut = cut_of(&view.edit_stills)?;
+        let cut = cut_of(&view.edit_cuts)?;
         let (num, den) = view.timebase?;
         let half = second((u64::from(num), u64::from(den)));
         // The taken cut's sound (user 2026-10-29: its J and L in the zoom): the window holds both

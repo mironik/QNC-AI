@@ -76,7 +76,9 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
     let picture = Vec2::new(width.max(16.0), width.max(16.0) * 9.0 / 16.0);
     let sound = segments.zoom_sound.as_ref().filter(|sound| sound.to > sound.from);
     let lanes = if sound.is_some() { LANES_GAP + 2.0 * LANE_HEIGHT + GAP / 2.0 + WORDS_HEIGHT } else { 0.0 };
-    let size = Vec2::new(count * picture.x + GAP * (count - 1.0), picture.y + LABEL_HEIGHT + BUTTONS_HEIGHT + lanes) + Vec2::splat(2.0 * MARGIN) + Vec2::new(0.0, HEADER_HEIGHT + STATUS_HEIGHT);
+    // The elements under the edge pictures of a Story zoom (AGENTS 3a): the strip, A1 and A2.
+    let below = picture.y + if stills.iter().any(|still| still.elements.is_some()) { ELEMENTS_HEIGHT } else { 0.0 };
+    let size = Vec2::new(count * picture.x + GAP * (count - 1.0), below + LABEL_HEIGHT + BUTTONS_HEIGHT + lanes) + Vec2::splat(2.0 * MARGIN) + Vec2::new(0.0, HEADER_HEIGHT + STATUS_HEIGHT);
     // Where the user moved the window by its top bar, kept while the application runs.
     let moved_id = egui::Id::new("qnc_trim_overlay_moved");
     let moved = ctx.data(|data| data.get_temp::<Vec2>(moved_id)).unwrap_or_default();
@@ -113,9 +115,17 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
             let focused = |still: &EditStill| if still.middle { still.cut } else { focus.map_or(still.cut, |side| still.after == side) };
             // What is not active is lightly greyed (AGENTS 3a, user 2026-11-26), once something is.
             let any_active = stills.iter().any(focused);
+            // A Story zoom (AGENTS 3a): the window with the player is never greyed, the others are.
+            let elements_zoom = stills.iter().any(|still| still.elements.is_some());
             for (index, still) in stills.iter().enumerate() {
                 let left = top.x + index as f32 * (picture.x + GAP);
                 let pane = Rect::from_min_size(egui::pos2(left, top.y), picture);
+                if elements_zoom {
+                    if let Some(clicked) = paint_window(ui, pane, still, index, panel, &visuals, theme) {
+                        turned = Some(clicked);
+                    }
+                    continue;
+                }
                 let in_focus = focused(still);
                 paint_still(ui, pane, still, in_focus, any_active && !in_focus, &visuals, theme);
                 // A left click on a picture or on its strip picks its side of the cut and never
@@ -178,7 +188,7 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
                 }
             }
             if let Some(sound) = sound {
-                let area = Rect::from_min_size(egui::pos2(top.x, top.y + picture.y + LABEL_HEIGHT + BUTTONS_HEIGHT + LANES_GAP), Vec2::new(row_width, 2.0 * LANE_HEIGHT + GAP / 2.0 + WORDS_HEIGHT));
+                let area = Rect::from_min_size(egui::pos2(top.x, top.y + below + LABEL_HEIGHT + BUTTONS_HEIGHT + LANES_GAP), Vec2::new(row_width, 2.0 * LANE_HEIGHT + GAP / 2.0 + WORDS_HEIGHT));
                 // The side the next action is on, plainly (user 2026-11-05: "the A1 of the clip
                 // before or of the next one, so the user sees what the action is on"): its half
                 // of the sound under a faint red, framed red as its pictures.
@@ -205,7 +215,7 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
             }
             // The buttons stand in the middle of the window (user 2026-11-04: "the buttons ran
             // away, not centred" when the cut lay at the edge of the window).
-            let row = Rect::from_min_size(egui::pos2(top.x, top.y + picture.y + LABEL_HEIGHT), Vec2::new(row_width, BUTTONS_HEIGHT));
+            let row = Rect::from_min_size(egui::pos2(top.x, top.y + below + LABEL_HEIGHT), Vec2::new(row_width, BUTTONS_HEIGHT));
             if let Some(pressed) = paint_buttons(ui, row, row.center().x) {
                 turned = Some(pressed);
             }
@@ -612,9 +622,77 @@ fn paint_words(ui: &mut egui::Ui, row: Rect, sound: &ZoomSound, x_of: &dyn Fn(u6
 
 /// The height of a slot's length strip at the bottom of a zoom picture.
 const STRIP_HEIGHT: f32 = 24.0;
+/// One sound row (A1, A2) under an edge picture and the gap between the rows.
+const SOUND_HEIGHT: f32 = 20.0;
+const ROW_GAP: f32 = 3.0;
+/// The strip and the two sound rows under an edge picture.
+const ELEMENTS_HEIGHT: f32 = ROW_GAP + STRIP_HEIGHT + 2.0 * (ROW_GAP + SOUND_HEIGHT);
+/// The width of the M marker bar on the outer edge of a picture.
+const MARKER_BAR: f32 = 10.0;
 
 /// A slot's length strip: the colour of its length, its length, brighter when chosen or under
 /// the mouse (as a cover's strip on the timeline).
+/// One window of a Story zoom (AGENTS 3a "Model reza i zoom", user 2026-11-26): the picture and,
+/// on an edge picture, the slot's strip, A1 and A2 under it and the M marker bar through them on
+/// the outer edge. Only the chosen element is red; the window without the player is greyed. A
+/// left click on an element is its one action; a click on the middle lets go.
+fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, panel: &str, visuals: &egui::Visuals, theme: &TimelineTheme) -> Option<ActionEvent> {
+    let greyed = !still.live;
+    let elements = still.elements.as_ref();
+    // The picture: red when it is chosen; the middle red while it plays with nothing chosen.
+    let framed = elements.map_or(still.cut, |elements| elements.picture);
+    paint_still(ui, pane, still, framed, greyed, visuals, theme);
+    let mut turned = None;
+    let picture = ui.interact(pane, ui.id().with(("window", index)), Sense::click());
+    if picture.clicked() {
+        turned = still.click.as_ref().map(|action| event_of(action, panel));
+    }
+    let Some(elements) = elements else { return turned };
+    let veil = |ui: &egui::Ui, rect: Rect| {
+        if greyed {
+            ui.painter().rect_filled(rect, 0.0, Color32::from_black_alpha(120));
+        }
+    };
+    // The slot's strip under the picture: the ripple of this edge.
+    let strip_rect = Rect::from_min_size(egui::pos2(pane.left(), pane.bottom() + ROW_GAP), Vec2::new(pane.width(), STRIP_HEIGHT));
+    if let Some(strip) = still.strip.as_ref() {
+        paint_strip(ui, strip_rect, strip, elements.strip, ui.rect_contains_pointer(strip_rect), theme);
+        veil(ui, strip_rect);
+        if ui.interact(strip_rect, ui.id().with(("window-strip", index)), Sense::click()).clicked() {
+            turned = strip.select.as_ref().map(|action| event_of(action, panel));
+        }
+    }
+    // A1 and A2: the roll of that sound.
+    for (lane, sound) in elements.sounds.iter().enumerate() {
+        let top = strip_rect.bottom() + ROW_GAP + lane as f32 * (SOUND_HEIGHT + ROW_GAP);
+        let rect = Rect::from_min_size(egui::pos2(pane.left(), top), Vec2::new(pane.width(), SOUND_HEIGHT));
+        ui.painter().rect_filled(rect, 1.0, theme.audio_wave.gamma_multiply(0.35));
+        ui.painter().text(egui::pos2(rect.left() + 6.0, rect.center().y), Align2::LEFT_CENTER, if lane == 0 { "A1" } else { "A2" }, FontId::proportional(12.0), visuals.text_color());
+        if let Some(sound) = sound {
+            if sound.chosen {
+                ui.painter().rect_stroke(rect, 1.0, Stroke::new(3.0, theme.cut), StrokeKind::Inside);
+            }
+            if ui.interact(rect, ui.id().with(("window-sound", index, lane)), Sense::click()).clicked() {
+                turned = Some(event_of(&sound.action, panel));
+            }
+        }
+        veil(ui, rect);
+    }
+    // The M marker: a bar through the picture, the strip and the sound on the outer edge (the
+    // left edge of IN, the right edge of OUT); red when it is chosen. Last, so it is on top.
+    if let Some(marker) = elements.marker.as_ref() {
+        let bottom = strip_rect.bottom() + 2.0 * (ROW_GAP + SOUND_HEIGHT);
+        let x = if still.after { pane.left() } else { pane.right() - MARKER_BAR };
+        let bar = Rect::from_min_max(egui::pos2(x, pane.top()), egui::pos2(x + MARKER_BAR, bottom));
+        let fill = if marker.chosen { theme.cut } else { visuals.widgets.inactive.fg_stroke.color };
+        ui.painter().rect_filled(bar, 1.0, fill);
+        if ui.interact(bar, ui.id().with(("window-marker", index)), Sense::click()).clicked() {
+            turned = Some(event_of(&marker.action, panel));
+        }
+    }
+    turned
+}
+
 fn paint_strip(ui: &egui::Ui, rect: Rect, strip: &qnc_program_view::StillStrip, focused: bool, hovered: bool, theme: &TimelineTheme) {
     let base = strip.fill.map_or(ui.visuals().selection.bg_fill, qnc_desktop_theme::rgb);
     let fill = if focused || strip.chosen || hovered { base.linear_multiply(0.95) } else { base.linear_multiply(0.6) };
@@ -654,7 +732,7 @@ fn paint_still(ui: &mut egui::Ui, pane: Rect, still: &EditStill, framed: bool, g
         ui.painter().rect_stroke(pane, 0.0, Stroke::new(4.0, theme.cut), StrokeKind::Inside);
     }
     ui.painter().text(
-        egui::pos2(pane.center().x, pane.bottom() + LABEL_HEIGHT / 2.0 + 2.0),
+        egui::pos2(pane.center().x, pane.bottom() + if still.elements.is_some() { ELEMENTS_HEIGHT } else { 0.0 } + LABEL_HEIGHT / 2.0 + 2.0),
         Align2::CENTER_CENTER,
         &still.label,
         FontId::proportional(14.0),

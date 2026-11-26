@@ -1419,12 +1419,22 @@ fn take_or_keep_intent(response: &egui::Response, track: Rect, input: &TimelineI
         if let Some(slot) = empty_slot_at(track, range_start, duration, pos, input) {
             return Some(TimelineIntent::TakeSlot { id: slot.to_string(), frame });
         }
-        // Near the taken M marker only its picture (user 2026-10-22: a second right click).
-        if let Some(id) = taken_marker_for_right_click(track, range_start, duration, pos, input.markers) {
-            return Some(TimelineIntent::TakeMarkerPicture { id: id.to_string() });
+        // A marker is taken only within its reach (the zone that turns it red, user 2026-11-26).
+        let nearest = marker_for_right_click(track, range_start, duration, pos, input.markers, false);
+        let in_reach = nearest.filter(|id| input.markers.iter().any(|marker| marker.id == *id && (pos.x - x_for_frame(track, range_start, duration, marker.frame)).abs() <= marker_reach::MARKER_REACH));
+        if in_reach.is_some() {
+            // Near the taken M marker only its picture (user 2026-10-22: a second right click).
+            if let Some(id) = taken_marker_for_right_click(track, range_start, duration, pos, input.markers) {
+                return Some(TimelineIntent::TakeMarkerPicture { id: id.to_string() });
+            }
+            // The M marker, whole (as Ctrl+M; M is OUT and IN in one mark).
+            return in_reach.map(|id| TimelineIntent::TakeMarker { id: id.to_string(), frame });
         }
-        // Elsewhere the nearest M marker, whole (as Ctrl+M; M is OUT and IN in one mark).
-        return marker_for_right_click(track, range_start, duration, pos, input.markers, false).map(|id| TimelineIntent::TakeMarker { id: id.to_string(), frame });
+        // Inside a slot, away from its markers: the zoom of that slot (user 2026-11-26).
+        if let Some(slot) = slot_of_frame(input.marker_slots, frame) {
+            return Some(TimelineIntent::OpenSlotZoom { id: slot.to_string(), frame });
+        }
+        return nearest.map(|id| TimelineIntent::TakeMarker { id: id.to_string(), frame });
     }
     let local = frame.saturating_sub(range_start);
     // Near IN or OUT (the zone that turns it red) a right click takes that mark (as Ctrl+I/O).

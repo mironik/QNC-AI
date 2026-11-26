@@ -20,6 +20,7 @@ mod edit;
 mod nav;
 mod slot_move;
 mod slot_trim;
+mod trim_zoom;
 mod cut_part;
 pub use cut_part::{CutPart, CutSound, SoundEdge};
 mod marker_edit;
@@ -262,6 +263,9 @@ pub struct ProgramSegments {
     alert: Option<qnc_notice::Alert>,
     /// The slot shown enlarged in the place of the source timeline (`zoom.rs`).
     zoom_slot: Option<zoom::ZoomOn>,
+    /// The slot the trim zoom shows (AGENTS 3a: IN, player, OUT of a slot), from a right click
+    /// inside it or from what is taken at its edges; `None` with nothing taken: no trim zoom.
+    trim_slot: Option<String>,
     /// What Talking Head, Voice over and covers take from the source view.
     source: SourcePick,
     /// The sound of a stored segment or cover taken on the Wrap row (`part_sound.rs`).
@@ -492,6 +496,7 @@ impl ProgramSegments {
             view.pictures = self.filmstrips.pictures(&view.picture_placements(), |id| durations.get(id).copied(), |id| posters.get(id).cloned());
         }
         // A zoom picture at its clip's first or last frame (user 2026-10-13).
+        qnc_program_view::mark_clip_edges(&mut view.edit_cuts, |id| durations.get(id).copied());
         qnc_program_view::mark_clip_edges(&mut view.edit_stills, |id| durations.get(id).copied());
         qnc_program_view::mark_clip_edges(&mut view.source_edit_stills, |id| durations.get(id).copied());
         view

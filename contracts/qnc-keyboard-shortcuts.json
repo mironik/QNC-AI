@@ -262,6 +262,12 @@
     "zoom_take_slot": {
       "label": "Zoom reza: slot slike (klik na traku trajanja)"
     },
+    "zoom_slot_edge": {
+      "label": "Zoom slota: traka slota uz IN ili OUT, ripple tog ruba"
+    },
+    "zoom_slot_open": {
+      "label": "Zoom slota: otvori bez uzetog (desni klik unutar slota na Wrap retku)"
+    },
     "subsegment_take": {
       "label": "Uzmi dio SubSegmenta cijeli kao slot (desni klik na traku s duljinom)"
     },

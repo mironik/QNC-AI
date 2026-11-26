@@ -72,7 +72,7 @@ impl ProgramSegments {
         if edge_zoom {
             self.let_go_if_unmoved();
         }
-        if self.zoom_slot.is_none() && !from_trim_zoom && !edge_zoom && (marker_id.is_some() || self.marker_edit.is_some()) {
+        if self.zoom_slot.is_none() && self.trim_slot.is_none() && !from_trim_zoom && !edge_zoom && (marker_id.is_some() || self.marker_edit.is_some()) {
             self.refresh_view(qnc_ui_text::text("story.msg.cut_part_zoom_only").into());
             return true;
         }

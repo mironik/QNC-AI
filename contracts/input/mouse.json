@@ -35,6 +35,7 @@
       "shift_click": "add_marker_continue",
       "double_click": "segment_edit",
       "double_click_slot": "wrap_zoom",
+      "right_click_slot": "zoom_slot_open",
       "click_v_label": "playlist_input_start",
       "ctrl_click_v_label": "toggle_wrap_video",
       "click_a1_label": "select_audio_a1",
@@ -67,6 +68,7 @@
       "select_audio_a2",
       "select_level_a2",
       "segment_edit",
+      "zoom_slot_open",
       "add_marker",
       "add_marker_continue"
     ]

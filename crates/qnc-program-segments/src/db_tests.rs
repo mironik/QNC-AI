@@ -291,8 +291,13 @@ fn ctrl_o_on_the_segment_panel_lengthens_the_slot_under_the_playhead_and_moves_t
         segments.apply_action("step_forward_frame");
     }
     assert_eq!(marker_frames(&segments), vec![0, 40, 83, 150], "the draft is drawn");
-    assert_eq!(segments.view().edit_stills.len(), 2, "its new last picture and the next slot's first");
-    let cut: Vec<&str> = segments.view().edit_stills.iter().filter(|still| still.cut).map(|still| still.label.as_str()).collect();
+    assert_eq!(segments.view().edit_cuts.len(), 2, "its new last picture and the next slot's first");
+    // The zoom of the slot (AGENTS 3a): IN, the player, OUT; the OUT window plays, its strip red.
+    let shown = &segments.view().edit_stills;
+    assert_eq!(shown.len(), 3);
+    assert!(shown[2].live && !shown[0].live && !shown[1].live, "the player in the OUT window");
+    assert!(shown[2].elements.as_ref().is_some_and(|elements| elements.strip && !elements.picture), "only the strip chosen");
+    let cut: Vec<&str> = segments.view().edit_cuts.iter().filter(|still| still.cut).map(|still| still.label.as_str()).collect();
     assert_eq!(cut, vec![qnc_ui_text::text("story.still.slot_new_last")], "the picture at the cut is marked");
     segments.apply_action("activate_focused_item");
     settle(&mut segments);

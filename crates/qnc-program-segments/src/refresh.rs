@@ -120,12 +120,17 @@ impl ProgramSegments {
         view.export_alert = self.export_alert.as_deref() == Some(view.message.as_str());
         view.editing = self.editing.clone();
         view.clips_are_slots = self.is_s_story();
-        view.edit_stills = match (&self.slot_trim, &self.level_line) {
+        // The pictures at the edit as the edit checks them (the end of a clip, the key pictures).
+        let mut cuts = match (&self.slot_trim, &self.level_line) {
             (Some(trim), _) => qnc_program_view::trim_stills(&view, &slots(&self.stored_slots, None), &trim.slot_id, trim.start, trim.frames),
             // A taken level curve: the zoom is around its point on the playhead line (docs/98 2.1).
             (None, Some(_)) => qnc_program_view::point_stills(&view, &slots(&self.stored_slots, None), self.playhead.unwrap_or(0)),
             (None, None) => qnc_program_view::edit_stills(&view, &slots(&self.stored_slots, None), &self.edit_moves()),
         };
+        qnc_program_view::mark_clip_edges(&mut cuts, |id| self.clip_frames.get(id).copied());
+        // What the zoom draws: the zoom of a slot (AGENTS 3a), else the pictures at the edit.
+        view.edit_stills = self.slot_zoom(&view, &cuts).unwrap_or_else(|| cuts.clone());
+        view.edit_cuts = cuts;
         view.source_edit_stills = self.source_stills();
         view.trim_frames = match &self.slot_trim {
             // The IN of an S-Story clip taken: its line is the IN only; the end moving with the

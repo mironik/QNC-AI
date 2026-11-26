@@ -12,7 +12,7 @@ mod markers;
 mod program;
 pub use program::*;
 
-pub use edit_stills::{edit_stills, hand_player, mark_clip_edges, point_stills, program_picture, trim_stills, ClipEdge, EditStill, StillAction, StillPicture, StillStrip, story_zoom_clicks};
+pub use edit_stills::{edit_stills, hand_player, mark_clip_edges, point_stills, program_picture, slot_zoom_stills, trim_stills, ClipEdge, EditStill, SlotZoomTaken, StillAction, StillElement, StillElements, StillPicture, StillStrip, story_zoom_clicks};
 
 pub use markers::{
     check_move, first_empty_slot, neighbour_marker, neighbour_segment, neighbour_slot,
@@ -258,6 +258,10 @@ pub struct SegmentsView {
     /// The pictures on both sides of an edit being moved (a slot, a marker), from the
     /// draft; their images are filled in by whoever decodes them (user 2026-10-10).
     pub edit_stills: Vec<EditStill>,
+    /// The pictures on both sides of the edit being moved, as the edit checks them (the end of a
+    /// clip, the key pictures, the sound of the zoom); `edit_stills` is what the zoom draws (the
+    /// zoom of a slot, AGENTS 3a), the same when no slot zoom is open.
+    pub edit_cuts: Vec<EditStill>,
     /// The same for a segment edge taken with Ctrl+I/O, on the source timeline: the
     /// marker frame is the source frame of the moved IN or OUT.
     pub source_edit_stills: Vec<EditStill>,

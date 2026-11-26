@@ -40,7 +40,7 @@ fn event(panel: &str, action: &str) -> ActionEvent {
         "timeline_select_slots" => Some("part-0"),
         "timeline_drag_marker" | "select_marker" | "select_mark_in" | "select_audio_a2" if panel == "segments" => Some("edge-1-out"),
         "timeline_take_cut_edge" | "timeline_drag_cut_edge" => Some("edge-1-out:lead"),
-        "timeline_select_slot" | "timeline_select_cover" | "timeline_take_cover" | "select_current_marker_slot" | "segment_edit" | "wrap_zoom" => Some("part-1"),
+        "timeline_select_slot" | "timeline_select_cover" | "timeline_take_cover" | "select_current_marker_slot" | "segment_edit" | "wrap_zoom" | "zoom_slot_open" => Some("part-1"),
         _ => None,
     };
     let event = ActionEvent::key(action).with_value(value).at(panel);
