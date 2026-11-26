@@ -83,12 +83,36 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
 - Tipke djeluju samo na panel u fokusu. Tab/Shift+Tab hoda panelima po redu iz rasporeda forme;
   klik u panel daje mu fokus.
 - Timeline i njegov zoom imaju iste radnje; zoom je samo uvecani isjecak.
-- Desni klik unutar slota, dalje od IN-a i OUT-a, otvara zoom bez uzete oznake (Ctrl+E isto):
-  playhead ostaje gdje jest, aktivan je player u sredini (uokviren). Tek klik na lijevu ili desnu
-  sliku uzima IN ili OUT i stavlja playhead na njega. Desni klik u zoni oznake (crveno) i dalje je
-  uzima. Izveden na source timelineu; Wrap redovi i slozena izjava slijede.
-- Traka trajanja slota u zoomu samo bira slot (klik bilo gdje na njoj); nema vise pravila lijevi
-  kraj IN, desni kraj OUT, sredina pomak. IN i OUT uzimaju se klikom na slike.
+
+### Model reza i zoom (korisnik 2026-11-26, cvrsto)
+
+- Osnovna montaza radi se misem: desni klik uzima (Ctrl+), lijevi klik sprema i stavlja playhead,
+  povlacenje i kotacic pomicu uzeto. Tipke nose iste akcije.
+- Svaki kadar nosi svoj IN i OUT. Spoj dva kadra je M marker (OUT prije = IN poslije), za sliku i
+  ton. Slot je prostor izmedu dva M markera. Source klip je slot bez susjeda (globalni IN/OUT).
+- Na rezu se uredjuju cetiri stvari; sto se uzima odredjuje mjesto desnog klika:
+  - traka trajanja slota: slot (ripple): rub slota se pomice, slot raste ili se skracuje,
+    prethodni slotovi stoje, slotovi iza se pomaknu (u Storyju razliku na kraju upije zadnji slot);
+  - linija M markera: rez (roll): jedan slot raste koliko se drugi skrati, ostali stoje;
+  - slika uz rez: J/L slike; val tona uz rez (A1/A2): J/L tona. J/L slike i tona rade jednako:
+    L je produzetak kraja klipa prije reza, J raniji pocetak klipa poslije reza.
+- Zoom ima uvijek tri prozora. Srednji je player i pokazuje rub izabranog klipa koji se pomice;
+  vanjski prozor na strani reza je pripadni rub susjeda, drugi vanjski je suprotni rub izabranog
+  slota. Prozori se mijenjaju sami prema onome sto je uzeto:
+  - rub OUT slota: IN slota | OUT slota (player) | IN sljedeceg slota;
+  - rub IN slota: OUT prethodnog slota | IN slota (player) | OUT slota;
+  - J/L na OUT-u klipa: IN slota | L klipa (player) | J sljedeceg klipa;
+  - J/L na IN-u klipa: L prethodnog klipa | J klipa (player) | OUT slota;
+  - rez (roll): IN slota prije | rez (player) | OUT slota poslije.
+  Nista uzeto: srednji je player na playheadu, vanjski su IN i OUT slota; klik na vanjsku sliku
+  uzima taj rub i on prelazi u sredinu. Kod tona slike stoje, a uzeto je crveno na valu.
+  Mora se vidjeti sto se radi: aktivno (sto se pomice) je uokvireno crveno, sve sto nije aktivno
+  (prozori, trake, valovi) lagano je zasivljeno.
+- Desni klik unutar slota, dalje od oznaka, otvara zoom bez uzetog (Ctrl+E): playhead ostaje,
+  player u sredini je aktivan (uokviren). Desni klik u zoni oznake (crveno) uzima oznaku.
+- Traka trajanja slota u zoomu samo bira slot; IN i OUT uzimaju se klikom na slike.
+- Zoom je uvecani dio timelinea: iste geste i iste akcije na source timelineu, Wrap redovima i
+  slozenoj izjavi.
 - Prozor preko forme ima svoje tipke, iste u svakoj formi: dok je otvoren, tipke forme ne rade.
   Povijest projekta (Ctrl+Shift+H): strelice biraju, Enter vraca, Esc zatvara.
 
