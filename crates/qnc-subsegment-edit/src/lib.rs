@@ -44,6 +44,9 @@ pub const ZOOM_WORD: &str = "subsegment_zoom_word";
 pub const ZOOM_OPEN: &str = "subsegment_zoom_open";
 /// An element of a part's zoom clicked (AGENTS 3a): "part:in|out:strip|marker|picture|a1".
 pub const ZOOM_ELEMENT: &str = "subsegment_zoom_element";
+/// The middle window of a part's zoom clicked (user 2026-11-26: "klik = player"): what was moved
+/// is kept, what was taken is let go and the player is in the middle again.
+pub const ZOOM_PLAYER: &str = "subsegment_zoom_player";
 /// Ctrl+Shift+S: a slip of the part in hand (docs/98 1.5; the same action as a story's slip).
 pub const SLIP: &str = "select_slip";
 /// The pause before a part one frame longer or shorter: `target` is `block:part:1` or `-1`.
@@ -1430,6 +1433,22 @@ impl SubsegmentEdit {
                 }
                 (self.join_sound, self.sound, self.slide) = (None, None, None);
                 (self.chosen, self.chosen_to, self.scope) = (Some(index), None, Some(Scope::Slot(index)));
+                return Some(true);
+            }
+            // The middle window: the player again (user 2026-11-26); what moved is written.
+            ZOOM_PLAYER => {
+                let block = self.block(self.open_subsegment)?.clone();
+                let pieces = view::block_pieces(&block);
+                if let Some(trim) = self.trim.take() {
+                    self.write_trim(preview, &block, &pieces, trim);
+                }
+                if let Some(join) = self.join_sound.take() {
+                    self.write_join(preview, &block, join);
+                }
+                let index = target.and_then(|index| index.parse::<usize>().ok()).filter(|index| *index < pieces.len());
+                if let Some(index) = index {
+                    (self.chosen, self.scope) = (Some(index), Some(Scope::Slot(index)));
+                }
                 return Some(true);
             }
             // An element of a part's zoom: one click, one action (AGENTS 3a). The strip is the

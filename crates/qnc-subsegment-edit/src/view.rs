@@ -314,6 +314,8 @@ pub fn with_part_elements(stills: &mut [qnc_program_view::EditStill], pieces: &[
             sounds: [element("a1", qnc_program_view::SlotZoomTaken::Sound(edge, 0)), None],
         });
     }
+    // The middle window clicked: the player again (user 2026-11-26: "klik = player").
+    stills[1].click = Some(StillAction::new(crate::ZOOM_PLAYER, Some(index.to_string()), None));
     let player = match taken.edge() {
         Some(true) => 0,
         Some(false) => 2,
