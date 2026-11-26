@@ -36,8 +36,11 @@ pub(crate) struct Clip<'a> {
 
 #[derive(Default)]
 pub(crate) struct SourceZoom {
-    /// The clip whose zoom stays open with no mark taken, and the side last taken (IN `true`).
-    open: Option<(String, bool)>,
+    /// The clip whose zoom stays open with no mark taken, and the side last taken (IN `true`;
+    /// `None`: opened by a right click in the slot, the player in the middle active).
+    open: Option<(String, Option<bool>)>,
+    /// Opened on the slot (user 2026-11-26): its IN, the player and its OUT while it stays open.
+    slot: bool,
     follow: ZoomFollow,
     stills: qnc_trim_stills::TrimStills,
     /// The history of the clip in the zoom (user 2026-11-25: kept per clip, any position can be gone
@@ -54,7 +57,15 @@ impl SourceZoom {
     /// Esc or the zoom's Close: a zoom left open with no mark taken closes.
     pub fn close(&mut self) -> bool {
         self.list = None;
+        self.slot = false;
         self.open.take().is_some()
+    }
+
+    /// A right click inside the slot (or Ctrl+E): the zoom of `clip_id` opens with nothing taken,
+    /// its IN, the player (active) and its OUT; the playhead stays where it is (user 2026-11-26).
+    pub fn open_slot(&mut self, clip_id: &str) {
+        self.open = Some((clip_id.to_string(), None));
+        self.slot = true;
     }
 
     /// Decoding its pictures or reading its sound.
@@ -63,14 +74,16 @@ impl SourceZoom {
     }
 
     /// The side the zoom shows (IN `true`): the taken mark's, else the side last taken while the
-    /// zoom stays open after Enter; `None`: closed. Another clip closes it.
-    fn side(&mut self, taken: Option<bool>, clip_id: Option<&str>) -> Option<bool> {
+    /// zoom stays open after Enter; `Some(None)`: the player in the middle active (opened on the
+    /// slot); `None`: closed. Another clip closes it.
+    fn side(&mut self, taken: Option<bool>, clip_id: Option<&str>) -> Option<Option<bool>> {
         if let Some(side) = taken {
-            self.open = clip_id.map(|id| (id.to_string(), side));
+            self.open = clip_id.map(|id| (id.to_string(), Some(side)));
         } else if self.open.as_ref().map(|(id, _)| id.as_str()) != clip_id {
             self.open = None;
+            self.slot = false;
         }
-        taken.or(self.open.as_ref().map(|(_, side)| *side))
+        taken.map(Some).or(self.open.as_ref().map(|(_, side)| *side))
     }
 
     /// The zoom this frame, its pictures from the monitor or decoded, its sound read.
@@ -86,7 +99,9 @@ impl SourceZoom {
         let side = side?;
         let timebase = preview.player_view().source_timebase()?;
         let playing = preview.playing_at().filter(|(program, _, _)| !program);
-        let stills = stills(clip_id, marks, side, taken.is_some(), &clip, timeline.duration_frames, playing.map(|(_, frame, _)| frame));
+        // The player shows the playhead: where it plays, else where it stands.
+        let playhead = playing.map(|(_, frame, _)| frame).or_else(|| timeline.confirmed_frame());
+        let stills = stills(clip_id, marks, side, taken.is_some(), self.slot, &clip, timeline.duration_frames, playhead);
         let cut = stills.iter().find(|still| still.cut).or(stills.first()).map(|still| still.marker_frame)?;
         let heard = clip.lanes.map(|lane| ZoomLane { channel: lane.channel, off: lane.off, level_db: lane.level_db, ..Default::default() });
         let axis = ClipAxis {
@@ -114,9 +129,13 @@ impl SourceZoom {
 /// one after it). A statement (user 2026-11-20) has three: its IN picture, the player and its OUT
 /// picture; a click on IN or OUT takes that mark, a click on the player lets the taken mark go and
 /// puts the playhead on IN; the taken side is the player and the middle holds where it was.
-fn stills(clip_id: &str, (in_frame, out_frame): (u64, u64), taken: bool, held: bool, clip: &Clip<'_>, duration: u64, playhead: Option<u64>) -> Vec<EditStill> {
+/// A zoom opened on the slot (user 2026-11-26) has the same three; with nothing taken (`side`
+/// `None`) the player is the active place, framed.
+#[allow(clippy::too_many_arguments)]
+fn stills(clip_id: &str, (in_frame, out_frame): (u64, u64), side: Option<bool>, held: bool, slot: bool, clip: &Clip<'_>, duration: u64, playhead: Option<u64>) -> Vec<EditStill> {
     let picture = |frame: u64| Some(StillPicture { clip_id: clip_id.to_string(), source_frame: frame });
-    if !clip.statement {
+    let taken = side.unwrap_or(true);
+    if !clip.statement && !slot {
         let cut = if taken {
             CutPictures { cut: in_frame, before: (in_frame > 0).then(|| (picture(in_frame - 1), qnc_ui_text::text("story.still.before_in"))), after: Some((picture(in_frame), qnc_ui_text::text("story.still.in_first"))), moving_after: true }
         } else {
@@ -133,6 +152,7 @@ fn stills(clip_id: &str, (in_frame, out_frame): (u64, u64), taken: bool, held: b
     let mut player = EditStill::new(playhead, true, picture(playhead)).labelled(&qnc_ui_text::text("zoom.player"));
     player.live = true; // the player itself, the monitor's picture as it plays
     player.middle = true;
+    player.cut = side.is_none(); // nothing taken: the player is the active place
     player.click = Some(StillAction::new("activate_focused_item", None, Some(in_frame)));
     let mut out_still = EditStill::new(out_frame, false, picture(last)).labelled(&qnc_ui_text::text("story.still.out_last"));
     out_still.click = action("select_mark_out");
@@ -201,7 +221,7 @@ impl SourceZoom {
         self.list = None;
         let found = self.entries.iter().find(|entry| Some(entry.id) == restore)?.clone();
         let (in_frame, out_frame) = (found.in_frame, found.out_frame);
-        let side = self.open.as_ref().map_or(true, |(_, side)| *side);
+        let side = self.open.as_ref().and_then(|(_, side)| *side).unwrap_or(true);
         timeline.source_in_frame = Some(in_frame);
         timeline.source_out_frame = Some(out_frame);
         qnc_source_mark_focus::take(timeline, side);
@@ -241,15 +261,15 @@ mod tests {
     #[test]
     fn a_statements_zoom_is_its_in_the_player_and_its_out_and_the_taken_edge_is_the_cut() {
         let frames = |stills: Vec<EditStill>| stills.iter().map(|still| (still.picture.as_ref().map(|p| p.source_frame), still.cut)).collect::<Vec<_>>();
-        assert_eq!(frames(stills("clip-x", (10, 60), true, true, &clip(true), 60, None)), [(Some(10), true), (Some(10), false), (Some(59), false)], "no player frame yet: the player shows the taken IN");
-        assert_eq!(frames(stills("clip-x", (10, 40), false, true, &clip(true), 60, None)), [(Some(10), false), (Some(39), false), (Some(39), true)]);
+        assert_eq!(frames(stills("clip-x", (10, 60), Some(true), true, false, &clip(true), 60, None)), [(Some(10), true), (Some(10), false), (Some(59), false)], "no player frame yet: the player shows the taken IN");
+        assert_eq!(frames(stills("clip-x", (10, 40), Some(false), true, false, &clip(true), 60, None)), [(Some(10), false), (Some(39), false), (Some(39), true)]);
     }
 
     /// User 2026-11-22: a click on the IN or OUT picture takes that mark (as Ctrl+I / Ctrl+O), a
     /// click on the player lets go of the taken mark and puts the playhead on IN.
     #[test]
     fn a_click_on_the_in_or_out_picture_takes_the_mark_the_player_lets_it_go() {
-        let clicks: Vec<_> = stills("clip-x", (10, 40), true, true, &clip(true), 60, None).iter().map(|still| still.click.as_ref().map(|click| (click.action.clone(), click.value))).collect();
+        let clicks: Vec<_> = stills("clip-x", (10, 40), Some(true), true, false, &clip(true), 60, None).iter().map(|still| still.click.as_ref().map(|click| (click.action.clone(), click.value))).collect();
         let take = |action: &str| Some((action.to_string(), None));
         assert_eq!(clicks, [take("select_mark_in"), Some(("activate_focused_item".to_string(), Some(10))), take("select_mark_out")]);
     }
@@ -258,8 +278,8 @@ mod tests {
     #[test]
     fn a_taken_in_or_out_shows_the_pictures_around_its_cut() {
         let frames = |stills: Vec<EditStill>| stills.iter().map(|still| (still.picture.as_ref().map(|p| p.source_frame), still.cut)).collect::<Vec<_>>();
-        assert_eq!(frames(stills("clip-c", (300, 450), true, true, &clip(false), 600, None)), [(Some(299), false), (Some(300), true)], "before IN, IN first");
-        assert_eq!(frames(stills("clip-c", (300, 450), false, true, &clip(false), 600, None)), [(Some(449), true), (Some(450), false)], "OUT last, after OUT");
+        assert_eq!(frames(stills("clip-c", (300, 450), Some(true), true, false, &clip(false), 600, None)), [(Some(299), false), (Some(300), true)], "before IN, IN first");
+        assert_eq!(frames(stills("clip-c", (300, 450), Some(false), true, false, &clip(false), 600, None)), [(Some(449), true), (Some(450), false)], "OUT last, after OUT");
     }
 
     /// User 2026-11-25: "Enter snima, ali ne zatvara prozor": the zoom stays open on the side last
@@ -268,13 +288,34 @@ mod tests {
     fn the_zoom_stays_open_on_its_side_after_enter_until_it_is_closed() {
         let mut zoom = SourceZoom::default();
         assert_eq!(zoom.side(None, Some("a")), None, "nothing taken: closed");
-        assert_eq!(zoom.side(Some(false), Some("a")), Some(false));
-        assert_eq!(zoom.side(None, Some("a")), Some(false), "let go: it stays on OUT");
-        assert!(stills("clip-x", (10, 40), false, false, &clip(true), 60, None).iter().all(|still| !still.cut), "no mark taken: no cut");
+        assert_eq!(zoom.side(Some(false), Some("a")), Some(Some(false)));
+        assert_eq!(zoom.side(None, Some("a")), Some(Some(false)), "let go: it stays on OUT");
+        assert!(stills("clip-x", (10, 40), Some(false), false, false, &clip(true), 60, None).iter().all(|still| !still.cut), "no mark taken: no cut");
         assert!(zoom.close());
         assert_eq!(zoom.side(None, Some("a")), None, "closed; nothing opens it again until a mark is taken");
         zoom.side(Some(true), Some("a"));
         assert_eq!(zoom.side(None, Some("b")), None, "another clip closes it");
+    }
+
+    /// User 2026-11-26: a right click inside the slot opens the zoom with nothing taken: IN, the
+    /// player (active, framed, at the playhead where it stands) and OUT; a click on the left or
+    /// right picture takes IN or OUT, and the zoom keeps its three windows while it is open.
+    #[test]
+    fn a_slots_zoom_opens_with_the_player_active_and_the_playhead_where_it_is() {
+        let mut zoom = SourceZoom::default();
+        zoom.open_slot("a");
+        assert_eq!(zoom.side(None, Some("a")), Some(None), "open, nothing taken");
+        let shown = stills("a", (300, 450), None, false, true, &clip(false), 600, Some(377));
+        let row = |stills: &[EditStill]| stills.iter().map(|still| (still.picture.as_ref().map(|p| p.source_frame), still.middle, still.cut)).collect::<Vec<_>>();
+        assert_eq!(row(&shown), [(Some(300), false, false), (Some(377), true, true), (Some(449), false, false)], "the player at the playhead, active");
+        let clicks: Vec<_> = shown.iter().map(|still| still.click.as_ref().map(|click| click.action.clone())).collect();
+        assert_eq!((clicks[0].as_deref(), clicks[2].as_deref()), (Some("select_mark_in"), Some("select_mark_out")));
+        // OUT taken by its picture: three windows still, OUT the cut, the player no longer framed.
+        assert_eq!(zoom.side(Some(false), Some("a")), Some(Some(false)));
+        let taken = stills("a", (300, 450), Some(false), true, true, &clip(false), 600, Some(449));
+        assert_eq!(row(&taken), [(Some(300), false, false), (Some(449), true, false), (Some(449), false, true)]);
+        assert!(zoom.close());
+        assert!(!zoom.slot, "closed: the next zoom is the timeline's own again");
     }
 
     /// User 2026-11-25: Ctrl+H opens the clip's history, Up/Down light a row, Enter puts IN and OUT

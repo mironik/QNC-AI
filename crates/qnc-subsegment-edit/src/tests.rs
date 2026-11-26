@@ -115,13 +115,10 @@ fn the_zoom_of_a_subsegment_edge_shows_the_pictures_either_side_of_its_cut() {
     let strip = |still: usize| at(still).strip.unwrap();
     assert_eq!((strip(0).frames, strip(1).frames), (50, 40), "each picture's slot length strip");
     let some = |action: &str, target: &str| Some((action.to_string(), Some(target.to_string())));
-    // A left click on a strip (docs/zoom-skeleton.md [C]): its middle takes the slot to move it, its
-    // ends that slot's IN and OUT.
-    let pick = |still: usize, share: f32| strip(still).left_click(share).map(|select| (select.action.clone(), select.target.clone()));
-    assert_eq!(pick(0, 0.5), Some(("select_current_marker_slot".to_string(), Some("0".to_string()))));
-    assert_eq!(pick(1, 0.5), Some(("select_current_marker_slot".to_string(), Some("1".to_string()))));
-    assert_eq!(pick(1, 0.1), Some((crate::TAKE_EDGE.to_string(), Some("1:in".to_string()))), "left end: IN");
-    assert_eq!(pick(0, 0.9), Some((crate::TAKE_EDGE.to_string(), Some("0:out".to_string()))), "right end: OUT");
+    // A left click anywhere on a strip only chooses that slot (user 2026-11-26).
+    let pick = |still: usize| strip(still).select.map(|select| (select.action, select.target));
+    assert_eq!(pick(0), Some((crate::SUBSEGMENT_SELECT.to_string(), Some("0".to_string()))));
+    assert_eq!(pick(1), Some((crate::SUBSEGMENT_SELECT.to_string(), Some("1".to_string()))));
     assert_eq!(own(&strip(0).take), some(crate::TAKE_EDGE, "0:out:slot"), "a right click on the strip: the slot, its edge at the cut");
     assert_eq!(own(&strip(1).take), some(crate::TAKE_EDGE, "1:in:slot"));
     assert_eq!(own(at(0).right_click.as_ref().unwrap()), some(crate::TAKE_EDGE, "0:out"), "a right click on the picture: its own marker there");

@@ -141,9 +141,6 @@ pub enum SegmentCommand {
     ZoomSide { marker_id: String, after: bool },
     /// The slot of a picture's strip in the zoom taken in place of what is taken and unmoved.
     ZoomTakeSlot(String),
-    /// An end of a slot's strip in the zoom (docs/zoom-skeleton.md [C]): that slot's IN (`start`) or OUT
-    /// edge taken, as Ctrl+I / Ctrl+O of the slot.
-    ZoomSlotEdge { slot_id: String, start: bool },
     /// Escape while a marker is edited.
     CancelMarkerEdit,
     /// Edit (user rule 2026-10-01): the segment opens in the source timeline with its
@@ -254,9 +251,6 @@ impl SegmentCommand {
             (lane @ ("select_audio_a1" | "select_audio_a2"), Some(marker_id), _) => {
                 Self::CutPart { marker_id, picture: false, lane: u8::from(lane == "select_audio_a2") }
             }
-            (side @ ("select_mark_in" | "select_mark_out"), Some(target), _) if target.starts_with("slot:") => {
-                Self::ZoomSlotEdge { slot_id: target["slot:".len()..].to_string(), start: side == "select_mark_in" }
-            }
             ("select_mark_in" | "select_mark_out", Some(marker_id), _) => Self::CutPart { marker_id, picture: true, lane: 0 },
             (lane @ ("source_choose_a1_channel" | "source_choose_a2_channel"), _, Some(channel)) => {
                 Self::PickChannel { lane: u8::from(lane == "source_choose_a2_channel"), channel: u16::try_from(channel).ok()? }
@@ -330,16 +324,5 @@ mod tests {
         assert_eq!(SegmentCommand::from_event(&at("segment_move_up").with_target("p1")), Some(SegmentCommand::Move { up: true }));
         assert_eq!(SegmentCommand::from_event(&at("program_next_marker")), Some(SegmentCommand::StepMarker { up: false }));
         assert_eq!(SegmentCommand::from_event(&at("add_marker")), None, "a button with a key goes as that key");
-    }
-}
-
-#[cfg(test)]
-mod zoom_strip_tests {
-    use super::*;
-
-    #[test]
-    fn an_end_of_a_zoom_strip_is_its_slots_edge() {
-        let event = qnc_action_event::ActionEvent::key("select_mark_out").with_target("slot:a|b").at("segments");
-        assert_eq!(SegmentCommand::from_event(&event), Some(SegmentCommand::ZoomSlotEdge { slot_id: "a|b".into(), start: false }));
     }
 }

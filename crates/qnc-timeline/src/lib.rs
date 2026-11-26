@@ -1426,10 +1426,21 @@ fn take_or_keep_intent(response: &egui::Response, track: Rect, input: &TimelineI
         // Elsewhere the nearest M marker, whole (as Ctrl+M; M is OUT and IN in one mark).
         return marker_for_right_click(track, range_start, duration, pos, input.markers, false).map(|id| TimelineIntent::TakeMarker { id: id.to_string(), frame });
     }
+    let local = frame.saturating_sub(range_start);
+    // Near IN or OUT (the zone that turns it red) a right click takes that mark (as Ctrl+I/O).
+    let near = source_mark_in_reach(track, range_start, duration, pos, (input.draft_in_frame, input.draft_in_active), (input.draft_out_frame, input.draft_out_active));
+    if let Some(in_mark) = near {
+        return Some(TimelineIntent::TakeMark(in_mark));
+    }
+    // Inside the slot, IN to OUT (the clip's start and end when the user set none, user
+    // 2026-10-17), the zoom opens with nothing taken (user 2026-11-26).
+    let (in_frame, out_frame) = (if input.draft_in_active { input.draft_in_frame } else { 0 }, if input.draft_out_active { input.draft_out_frame } else { duration });
+    if (in_frame..=out_frame).contains(&local) {
+        return Some(TimelineIntent::OpenZoom);
+    }
     if !(input.draft_in_active || input.draft_out_active) {
         return None;
     }
-    let local = frame.saturating_sub(range_start);
     Some(TimelineIntent::TakeMark(local.abs_diff(input.draft_in_frame) <= local.abs_diff(input.draft_out_frame)))
 }
 

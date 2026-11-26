@@ -314,15 +314,10 @@ impl ProgramSegments {
             }
             SegmentCommand::TakeCutEdge { marker_id, frame } => return self.take_sound_edge_at(&marker_id, frame),
             SegmentCommand::ZoomSide { marker_id, after } => return self.zoom_side(&marker_id, after),
-            SegmentCommand::ZoomSlotEdge { slot_id, start } => {
-                self.let_go_if_unmoved();
-                self.selected_slot = Some(slot_id);
-                return self.take_slot_edge(start);
-            }
+            // A click on a picture's strip in the zoom only chooses its slot (user 2026-11-26).
             SegmentCommand::ZoomTakeSlot(slot_id) => {
                 self.let_go_if_unmoved();
                 self.take_slot(&slot_id);
-                self.take_slot_move(&slot_id);
             }
             SegmentCommand::DragCutEdge { marker_id, frame } => return self.drag_sound_edge(&marker_id, frame),
             SegmentCommand::SelectSlotAtPlayhead => self.select_slot_at_playhead(),

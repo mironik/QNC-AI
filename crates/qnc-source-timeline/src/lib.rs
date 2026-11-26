@@ -205,7 +205,17 @@ impl SourceTimeline {
 
     /// The history of the clip in the zoom (user 2026-11-25): Ctrl+H, a row of its list and the keys
     /// of the open list; `None`: not the history's. A restore takes the side the zoom shows.
+    /// Also a right click inside the slot (or Ctrl+E): the zoom opens with nothing taken, a taken
+    /// mark let go where it is (as Enter), the playhead where it is (user 2026-11-26).
     pub fn history_key(&mut self, action_id: &str, value: Option<i64>, preview: &SourcePreview, timeline: &mut TimelineProjection) -> Option<bool> {
+        if action_id == qnc_edit_verbs::ZOOM_OPEN {
+            let Some(clip_id) = self.clip.clone() else { return Some(false) };
+            if self.keys.mark_taken(timeline) {
+                self.keys.keep_marks(timeline);
+            }
+            self.zoom.open_slot(&clip_id);
+            return Some(true);
+        }
         let done = self.zoom.history_key(action_id, value, preview, timeline)?;
         if qnc_source_mark_focus::is_taken(timeline) {
             self.keys.set_mark_taken(true);

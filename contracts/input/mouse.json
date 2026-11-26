@@ -12,6 +12,7 @@
       "click_a2_channel": "source_choose_a2_channel",
       "right_click_in": "select_mark_in",
       "right_click_out": "select_mark_out",
+      "right_click_slot": "source_zoom_open",
       "right_click_a1": "select_audio_a1",
       "right_click_a2": "select_audio_a2",
       "right_click_level_a1": "select_level_a1",

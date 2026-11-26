@@ -303,6 +303,10 @@ pub enum TimelineIntent {
     /// A right click is Ctrl+ (user 2026-10-17: the right mouse button takes what it points
     /// at): IN (`true`) or OUT, whichever is nearer.
     TakeMark(bool),
+    /// A right click inside a slot, away from its IN and OUT (user 2026-11-26): its zoom opens with
+    /// nothing taken, the player in the middle active, the playhead where it is; a click on the left
+    /// or right picture then takes IN or OUT.
+    OpenZoom,
     /// IN (`in_mark`) or OUT dragged with the left button to `frame` of the clip (user
     /// 2026-10-17: as in editing programs); letting the button go keeps it (`KeepMark`).
     DragMark { in_mark: bool, frame: u64 },

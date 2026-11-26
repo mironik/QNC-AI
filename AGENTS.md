@@ -83,6 +83,12 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
 - Tipke djeluju samo na panel u fokusu. Tab/Shift+Tab hoda panelima po redu iz rasporeda forme;
   klik u panel daje mu fokus.
 - Timeline i njegov zoom imaju iste radnje; zoom je samo uvecani isjecak.
+- Desni klik unutar slota, dalje od IN-a i OUT-a, otvara zoom bez uzete oznake (Ctrl+E isto):
+  playhead ostaje gdje jest, aktivan je player u sredini (uokviren). Tek klik na lijevu ili desnu
+  sliku uzima IN ili OUT i stavlja playhead na njega. Desni klik u zoni oznake (crveno) i dalje je
+  uzima. Izveden na source timelineu; Wrap redovi i slozena izjava slijede.
+- Traka trajanja slota u zoomu samo bira slot (klik bilo gdje na njoj); nema vise pravila lijevi
+  kraj IN, desni kraj OUT, sredina pomak. IN i OUT uzimaju se klikom na slike.
 - Prozor preko forme ima svoje tipke, iste u svakoj formi: dok je otvoren, tipke forme ne rade.
   Povijest projekta (Ctrl+Shift+H): strelice biraju, Enter vraca, Esc zatvara.
 

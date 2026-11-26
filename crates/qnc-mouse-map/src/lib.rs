@@ -49,6 +49,9 @@ pub enum Pointer {
     ClickA2Channel,
     RightClickIn,
     RightClickOut,
+    /// A right click inside a slot away from its IN and OUT: its zoom with the player active
+    /// (user 2026-11-26).
+    RightClickSlot,
     RightClickMarker,
     RightClickStrip,
     RightClickCover,
@@ -79,7 +82,7 @@ pub enum Pointer {
 }
 
 impl Pointer {
-    pub const ALL: [Pointer; 37] = [
+    pub const ALL: [Pointer; 38] = [
         Self::Click,
         Self::ClickHolding,
         Self::ClickStrip,
@@ -97,6 +100,7 @@ impl Pointer {
         Self::ClickA2Channel,
         Self::RightClickIn,
         Self::RightClickOut,
+        Self::RightClickSlot,
         Self::RightClickMarker,
         Self::RightClickStrip,
         Self::RightClickCover,
@@ -139,6 +143,7 @@ impl Pointer {
             Self::ClickA2Channel => "click_a2_channel",
             Self::RightClickIn => "right_click_in",
             Self::RightClickOut => "right_click_out",
+            Self::RightClickSlot => "right_click_slot",
             Self::RightClickMarker => "right_click_marker",
             Self::RightClickStrip => "right_click_strip",
             Self::RightClickCover => "right_click_cover",

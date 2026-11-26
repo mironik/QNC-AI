@@ -85,6 +85,9 @@ pub const PICK_SIDE: &str = "zoom_pick_side";
 pub const HISTORY_OPEN: &str = "zoom_history_open";
 /// A row of the history list: the clip back to that entry (value: its number).
 pub const HISTORY_RESTORE: &str = "zoom_history_restore";
+/// A right click inside a slot (or Ctrl+E): its zoom opens with nothing taken, the player in the
+/// middle active and the playhead where it is (user 2026-11-26).
+pub const ZOOM_OPEN: &str = "source_zoom_open";
 pub const PICK_A1_CHANNEL: &str = "source_choose_a1_channel";
 pub const PICK_A2_CHANNEL: &str = "source_choose_a2_channel";
 pub const TAKE_SOUND_SIDE: &str = "timeline_take_cut_edge";

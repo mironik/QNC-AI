@@ -29,6 +29,7 @@ pub fn event(intent: &TimelineIntent, panel: &str, frame: &dyn Fn(u64) -> u64) -
         TimelineIntent::ChooseA1Channel(channel) => (Pointer::ClickA1Channel, Some(u64::from(*channel)), None),
         TimelineIntent::ChooseA2Channel(channel) => (Pointer::ClickA2Channel, Some(u64::from(*channel)), None),
         TimelineIntent::TakeMark(in_mark) => (if *in_mark { Pointer::RightClickIn } else { Pointer::RightClickOut }, None, None),
+        TimelineIntent::OpenZoom => (Pointer::RightClickSlot, None, None),
         // The frame clicked: in the S-Story the side of the cut says IN or OUT (user 2026-11-01).
         TimelineIntent::TakeMarker { id, frame: at } => (Pointer::RightClickMarker, Some(frame(*at)), Some(id)),
         TimelineIntent::TakeSlot { id, .. } => (Pointer::RightClickStrip, None, Some(id)),
