@@ -247,7 +247,6 @@ impl ProgramSegments {
             }
             SegmentCommand::ProgramStart => self.cue_program(0),
             SegmentCommand::Cue(frame) => {
-                let frame = self.clip_half_frame(frame);
                 self.place_playhead(frame);
                 self.zoom_row_at(frame);
             }

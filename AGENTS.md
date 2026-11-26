@@ -106,10 +106,16 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   M marker nije zaseban objekt nego naziv za spoj OUT/IN dvaju klipova; u zoomu ga crtamo kao
   veliko polje koje se lako odabere. Promjena IN-a ili OUT-a klipa mijenja samo njegovu duljinu
   (susjedi zadrzavaju svoju i pomaknu se); promjena spoja OUT/IN (M) mijenja duljinu oba klipa.
-  Zoom pokazuje jedan klip: lijevo IN, u sredini slot (player, ispod njega jedna traka trajanja),
-  desno OUT; M (spoj sa susjedom) je siroki stupac na vanjskom rubu, samo gdje susjed postoji.
-  Klik na IN ili OUT uzima taj rub, klik na M taj spoj, klik na slot pusta uzeto (player).
-  Trake tona A1/A2 ispod IN-a i OUT-a su ton tog spoja (J/L tona). Player je u prozoru onoga sto
+  Zoom pokazuje jedan klip: `([OUT prije][IN]) [SLOT] ([OUT][IN poslije])`. Svaka slika je
+  vlastiti rub svog klipa: OUT klipa prije i IN klipa poslije mijenjaju duljinu tog susjeda, IN i
+  OUT ovog klipa njegovu. U sredini je slot (player, ispod njega jedna traka trajanja). M je par
+  OUT/IN, crtan kao jedna traka ispod obje slike para, samo gdje susjed postoji (bez pauze).
+  Klik na sliku uzima taj rub, klik na traku M taj spoj (roll), klik na slot pusta uzeto (player).
+  Trake tona A1/A2 ispod para su ton tog spoja (J/L tona).
+  Traka trajanja na timelineu oznacava vrijeme (korisnik 2026-11-26): klik ne vodi na IN po
+  lijevoj ni na OUT po desnoj strani. Lijevi klik bira slot i stavlja playhead gdje je kliknut,
+  desni klik (Ctrl+) uzima slot cijeli, povlacenje ga pomice; IN i OUT uzimaju se na njihovim
+  oznakama (desni klik u zoni oznake), Ctrl+I/O i u zoomu. Player je u prozoru onoga sto
   se mijenja; samo odabrano je crveno, ostalo sivo. Desni klik u slot otvara zoom tog klipa.
 - Desni klik unutar slota, dalje od oznaka, otvara zoom bez uzetog (Ctrl+E): playhead ostaje,
   player u sredini je aktivan (uokviren). Desni klik u zoni oznake (crveno) uzima oznaku.

@@ -303,13 +303,16 @@ pub fn clip_zoom(
     let picture = |piece: &Piece, frame: u64| Some(StillPicture { clip_id: piece.clip_id.clone(), source_frame: frame });
     // Parts `c - 1` and `c` meet without a pause.
     let joined = |c: usize| c >= 1 && c < pieces.len() && pieces[c].gap_before == 0;
-    let action = |kind: &str, right: bool| StillAction::new(crate::ZOOM_ELEMENT, Some(format!("{kind}:{}:{index}", u8::from(right))), None);
+    let action_of = |kind: &str, right: bool, of: usize| StillAction::new(crate::ZOOM_ELEMENT, Some(format!("{kind}:{}:{of}:{index}", u8::from(right))), None);
+    let action = |kind: &str, right: bool| action_of(kind, right, index);
     let edge = |right: bool| {
         let join = if right { joined(index + 1) } else { joined(index) };
         ClipZoomEdge {
             picture: if right { picture(piece, piece.to_frame.saturating_sub(1).max(piece.from_frame)) } else { picture(piece, piece.from_frame) },
             frame: if right { part.end } else { part.start },
             take: action("edge", right),
+            // The neighbour there: the OUT of the part before, the IN of the part after.
+            neighbour: if right { pieces.get(index + 1).map(|next| (picture(next, next.from_frame), action_of("edge", false, index + 1))) } else { index.checked_sub(1).and_then(|before| pieces.get(before)).map(|prev| (picture(prev, prev.to_frame.saturating_sub(1).max(prev.from_frame)), action_of("edge", true, index - 1))) },
             marker: join.then(|| action("marker", right)),
             sounds: [join.then(|| action("a1", right)), None],
         }
@@ -327,15 +330,17 @@ pub fn clip_zoom(
     }
     // The slot clicked (the player or its strip): the player again (user 2026-11-26).
     let player = StillAction::new(crate::ZOOM_PLAYER, Some(index.to_string()), None);
-    stills[1].click = Some(player.clone());
-    if let Some(strip) = stills[1].strip.as_mut() {
-        strip.select = Some(player);
+    if let Some(slot) = stills.iter_mut().find(|still| still.middle) {
+        slot.click = Some(player.clone());
+        if let Some(strip) = slot.strip.as_mut() {
+            strip.select = Some(player);
+        }
     }
     // The sound around the edge chosen, else around the playhead in the part.
-    let cut = match taken.window() {
-        0 => part.start,
-        2 => part.end,
-        _ => playhead,
+    use qnc_program_view::ClipZoomTaken as T;
+    let cut = match taken {
+        T::Edge { right } | T::Neighbour { right } | T::Marker { right } | T::Sound { right, .. } => if right { part.end } else { part.start },
+        T::Nothing => playhead,
     };
     let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half: rate.max(1), total: view.total_frames, position, follow, lanes: [subsegment_placements(view, pieces), Vec::new()] };
     Some(qnc_program_view::SegmentsView { source_edit_stills: stills, zoom_sound: Some(axis.sound()), ..Default::default() })

@@ -292,11 +292,11 @@ fn ctrl_o_on_the_segment_panel_lengthens_the_slot_under_the_playhead_and_moves_t
     }
     assert_eq!(marker_frames(&segments), vec![0, 40, 83, 150], "the draft is drawn");
     assert_eq!(segments.view().edit_cuts.len(), 2, "its new last picture and the next slot's first");
-    // The zoom of the clip (AGENTS 3a): IN, the slot, OUT; its OUT taken plays in the OUT window, red.
+    // The zoom of the clip (AGENTS 3a): ([OUT before][IN]) [SLOT] ([OUT][IN after]); its OUT plays, red.
     let shown = &segments.view().edit_stills;
-    assert_eq!(shown.len(), 3);
-    assert!(shown[2].live && !shown[0].live && !shown[1].live, "the player in the OUT window");
-    assert!(shown[2].elements.as_ref().is_some_and(|elements| elements.picture && !elements.strip), "only OUT chosen");
+    assert_eq!(shown.len(), 5);
+    assert!(shown[3].live && shown.iter().filter(|still| still.live).count() == 1, "the player in the OUT window");
+    assert!(shown[3].elements.as_ref().is_some_and(|elements| elements.picture && !elements.strip), "only OUT chosen");
     let cut: Vec<&str> = segments.view().edit_cuts.iter().filter(|still| still.cut).map(|still| still.label.as_str()).collect();
     assert_eq!(cut, vec![qnc_ui_text::text("story.still.slot_new_last")], "the picture at the cut is marked");
     segments.apply_action("activate_focused_item");
@@ -591,9 +591,9 @@ fn in_an_s_story_the_slot_tools_make_the_clip_and_the_story_longer_or_shorter() 
         }
         segments.apply_action("clear_focus");
     }
-    // A left click on the left half of a clip puts the playhead on its IN, on the right half
-    // on its OUT (its last picture) (user 2026-11-01).
-    for (clicked, playhead) in [(60, 50), (90, 102), (3, 0), (140, 151)] {
+    // A left click puts the playhead where it is (user 2026-11-26: no IN on the left half of a
+    // clip, no OUT on its right; the strip is the time).
+    for (clicked, playhead) in [(60, 60), (90, 90), (3, 3), (140, 140)] {
         segments.apply(SegmentCommand::Cue(clicked));
         assert_eq!(segments.playhead, Some(playhead), "clicked at {clicked}");
     }

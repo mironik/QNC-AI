@@ -316,6 +316,9 @@
     "subsegment_drag_edge": {
       "label": "Povuci uzeti rub dijela SubSegmenta misem (pustanje sprema)"
     },
+    "subsegment_slide_drag": {
+      "label": "Povuci uzeti dio SubSegmenta misem po izjavi"
+    },
     "subsegment_part_channel": {
       "label": "Kanal kamere na A1 za dio SubSegmenta"
     },

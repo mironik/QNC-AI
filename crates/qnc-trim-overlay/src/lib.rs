@@ -635,9 +635,6 @@ const STRIP_HEIGHT: f32 = 24.0;
 const ROW_GAP: f32 = 3.0;
 /// The strip under an edge picture (the sound is the zoom's own lanes, user 2026-11-26).
 const ELEMENTS_HEIGHT: f32 = ROW_GAP + STRIP_HEIGHT;
-/// The width of the M marker column on the outer edge of an edge picture (a large field, user
-/// 2026-11-26: "the user must not hunt for the place").
-const MARKER_BAR: f32 = 40.0;
 
 /// One window of a Story zoom (AGENTS 3a "Model reza i zoom", user 2026-11-26): the picture and,
 /// on an edge picture, the slot's strip under it and the M marker column on the outer edge,
@@ -648,15 +645,10 @@ fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, 
     let greyed = !still.live;
     let elements = still.elements.as_ref();
     let marker = elements.and_then(|elements| elements.marker.as_ref());
-    // The M column on the outer edge (left of IN, right of OUT); the picture beside it.
-    // By the place of the window, not by its side of a cut: the left window has M on its left.
-    // The middle (the player) holds the M of the cut between the two clips under its picture.
-    let (bar, picture_rect) = match (marker, index) {
-        (Some(_), 1) => (Some(Rect::from_min_size(egui::pos2(pane.left(), pane.bottom() + ROW_GAP), Vec2::new(pane.width(), STRIP_HEIGHT))), pane),
-        (Some(_), 0) => (Some(Rect::from_min_max(pane.min, egui::pos2(pane.left() + MARKER_BAR, pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(egui::pos2(pane.left() + MARKER_BAR + ROW_GAP, pane.top()), pane.max)),
-        (Some(_), _) => (Some(Rect::from_min_max(egui::pos2(pane.right() - MARKER_BAR, pane.top()), egui::pos2(pane.right(), pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(pane.min, egui::pos2(pane.right() - MARKER_BAR - ROW_GAP, pane.bottom()))),
-        _ => (None, pane),
-    };
+    // The M marker is the OUT/IN pair (user 2026-11-26): one wide bar under both pictures of the
+    // pair (each draws its half, so they join), in the row of the strip.
+    let picture_rect = pane;
+    let bar = marker.map(|_| Rect::from_min_size(egui::pos2(pane.left() - GAP / 2.0, pane.bottom() + ROW_GAP), Vec2::new(pane.width() + GAP, STRIP_HEIGHT)));
     // The picture: red when it is chosen; the middle red while it plays with nothing chosen.
     let framed = if still.middle { still.cut && !marker.is_some_and(|marker| marker.chosen) } else { elements.map_or(still.cut, |elements| elements.picture) };
     paint_still(ui, picture_rect, still, framed, greyed, visuals, theme);
@@ -684,7 +676,9 @@ fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, 
         let hovered = ui.rect_contains_pointer(bar);
         let fill = if marker.chosen { theme.cut } else if hovered { visuals.widgets.hovered.bg_fill } else { visuals.widgets.inactive.bg_fill };
         ui.painter().rect_filled(bar, 3.0, fill);
-        ui.painter().text(bar.center(), Align2::CENTER_CENTER, "M", FontId::proportional(18.0), if marker.chosen { Color32::WHITE } else { visuals.text_color() });
+        // The letter on the joint of the pair.
+        let joint = egui::pos2(if still.after { bar.left() + GAP / 2.0 } else { bar.right() - GAP / 2.0 }, bar.center().y);
+        ui.painter().text(joint, Align2::CENTER_CENTER, "M", FontId::proportional(18.0), if marker.chosen { Color32::WHITE } else { visuals.text_color() });
         veil(ui, bar);
         if ui.interact(bar, ui.id().with(("window-marker", index)), Sense::click()).clicked() {
             turned = Some(event_of(&marker.action, panel));

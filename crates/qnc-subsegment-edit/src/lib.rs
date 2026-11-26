@@ -67,6 +67,8 @@ pub const TAKE_EDGE: &str = "subsegment_take_edge";
 /// The taken edge dragged by the mouse to a frame of the SubSegment's axis: `target` is
 /// `part:in:frame` or `part:out:frame`.
 pub const DRAG_EDGE: &str = "subsegment_drag_edge";
+/// A drag of the part taken whole along the statement (target: the frame under the pointer).
+pub const SLIDE_DRAG: &str = "subsegment_slide_drag";
 /// The camera channel a part is heard on (A1): `target` is `block:part:channel` (zero based).
 pub const PART_CHANNEL: &str = "subsegment_part_channel";
 /// A part's A1 level one dB up or down: `target` is `block:part:1` or `-1`.
@@ -266,6 +268,8 @@ pub struct SubsegmentEdit {
     scope: Option<Scope>,
     /// The part the zoom shows (AGENTS 3a: IN - SLOT - OUT with its M markers).
     zoom_part: Option<usize>,
+    /// Where the drag of a part taken whole grabbed it (the pointer's frame less the slide then).
+    slide_grab: Option<i64>,
     /// The 1/13 margins before and after a statement are parts, not slots.
     margins: (bool, bool),
 }
@@ -280,7 +284,7 @@ enum Scope {
 
 impl Default for SubsegmentEdit {
     fn default() -> Self {
-        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None, scope: None, zoom_part: None, margins: (false, false) }
+        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None, scope: None, zoom_part: None, slide_grab: None, margins: (false, false) }
     }
 }
 
@@ -412,6 +416,8 @@ impl SubsegmentEdit {
                 (None, Some(trim)) if trim.roll.is_some() && trim.index + 1 == index => Some(ClipZoomTaken::Marker { right: false }),
                 (None, Some(trim)) if trim.roll.is_some() && trim.index == index => Some(ClipZoomTaken::Marker { right: true }),
                 (None, Some(trim)) if trim.roll.is_none() && trim.index == index => Some(ClipZoomTaken::Edge { right: trim.out }),
+                (None, Some(trim)) if trim.roll.is_none() && trim.out && trim.index + 1 == index => Some(ClipZoomTaken::Neighbour { right: false }),
+                (None, Some(trim)) if trim.roll.is_none() && !trim.out && trim.index == index + 1 => Some(ClipZoomTaken::Neighbour { right: true }),
                 _ => None,
             },
             _ => None,
@@ -914,12 +920,19 @@ impl SubsegmentEdit {
             }
             (self.trim, self.sound, self.join_sound, self.chosen) = (None, None, None, Some(index));
             self.slide = Some((index, 0));
+            self.slide_grab = None;
             return Some(true);
         }
         let (index, by) = self.slide?;
         let step = match action_id {
             // The arrows and the wheel: one step (`qnc-edit-step`, the same on every timeline).
             step if qnc_edit_step::frames(step).is_some() => qnc_edit_step::frames(step)?,
+            // The drag: the part follows the pointer from where it was grabbed.
+            SLIDE_DRAG => {
+                let frame = target?.parse::<i64>().ok()?;
+                let grab = *self.slide_grab.get_or_insert(frame - by);
+                frame - grab - by
+            }
             "activate_focused_item" => {
                 self.slide = None;
                 let mut moved = pieces.to_vec();
@@ -1396,6 +1409,11 @@ impl SubsegmentEdit {
         if self.level_taken() && matches!(action_id, "timeline_cue_frame" | "segments_keep_edit") {
             return Some((LEVEL_KEEP_AT.to_string(), self.value.map(|frame| frame.to_string())));
         }
+        // A drag on the strips while a part is taken whole moves it (user 2026-11-26: the
+        // strip's middle is the drag).
+        if self.slide.is_some() && action_id == "timeline_select_slots" {
+            return Some((SLIDE_DRAG.to_string(), self.value.map(|frame| frame.to_string())));
+        }
         let holding = self.trim.is_some() || self.sound.is_some() || self.join_sound.is_some() || self.slide.is_some() || self.level_taken();
         own_action(view, action_id, self.value, target, holding)
     }
@@ -1447,6 +1465,8 @@ impl SubsegmentEdit {
             ZOOM_ELEMENT => {
                 let mut parts = target?.split(':');
                 let (kind, right, index) = (parts.next()?, parts.next()? == "1", parts.next()?.parse::<usize>().ok()?);
+                // The part shown (a neighbour's edge clicked stays in this part's zoom).
+                let shown = parts.next().and_then(|shown| shown.parse::<usize>().ok()).unwrap_or(index);
                 let block = self.block(self.open_subsegment)?.clone();
                 if let Some(join) = self.join_sound.take() {
                     self.write_join(preview, &block, join);
@@ -1458,7 +1478,7 @@ impl SubsegmentEdit {
                     _ => self.trim_key(TAKE_EDGE, Some(&format!("{}:cut", cut?)), preview),
                 };
                 // The zoom shows this part whatever is taken in it.
-                (self.chosen, self.scope, self.zoom_part) = (None, None, Some(index));
+                (self.chosen, self.scope, self.zoom_part) = (None, None, Some(shown));
                 return match kind {
                     "a1" => self.trim_key("select_audio_a1", None, preview),
                     _ => done,
