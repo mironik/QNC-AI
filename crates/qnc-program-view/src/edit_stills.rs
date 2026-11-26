@@ -86,74 +86,88 @@ pub struct StillElements {
     pub sounds: [Option<StillElement>; 2],
 }
 
-/// What is chosen in the zoom of a slot, and on which edge (`true` IN, else OUT).
+/// What is chosen in the zoom of a cut between two clips (AGENTS 3a, user 2026-11-26): `right`
+/// is the right clip's side.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SlotZoomTaken {
+pub enum CutZoomTaken {
     Nothing,
-    Strip(bool),
-    Marker(bool),
-    Picture(bool),
-    Sound(bool, u8),
+    /// The slot's strip of a clip: the ripple of that slot alone.
+    Strip { right: bool },
+    /// The outer M marker of a clip: the roll of the cut with the clip before the left one, or after the right one.
+    OuterMarker { right: bool },
+    /// The M marker of the cut between the two clips: its roll.
+    Cut,
+    /// The picture or the A1/A2 of the cut between them, clicked on that side.
+    Picture { right: bool },
+    Sound { right: bool, lane: u8 },
 }
 
-impl SlotZoomTaken {
-    /// The edge of what is chosen; `None`: nothing.
-    pub fn edge(self) -> Option<bool> {
+impl CutZoomTaken {
+    /// The window the player is in: left, middle, right.
+    pub fn window(self) -> usize {
         match self {
-            Self::Nothing => None,
-            Self::Strip(edge) | Self::Marker(edge) | Self::Picture(edge) | Self::Sound(edge, _) => Some(edge),
+            Self::Nothing | Self::Cut => 1,
+            Self::Strip { right } | Self::OuterMarker { right } | Self::Picture { right } | Self::Sound { right, .. } => if right { 2 } else { 0 },
         }
     }
 }
 
-/// The zoom of a slot (AGENTS 3a, user 2026-11-26): three windows that stay, its IN picture,
-/// the player and its OUT picture. The player is in the window of the edge chosen (in the middle
-/// with nothing chosen); the middle then holds where that edge was. Each edge picture
-/// has its elements: the strip (ripple of that edge, "zoom_slot_edge"), the M bar (roll of the
-/// whole cut, "select_marker"), the picture and A1/A2 (roll of that track, "select_mark_in",
-/// "select_audio_a1/2"). `markers`: the M marker at IN and at OUT (`None` where it is locked).
-pub fn slot_zoom_stills(view: &SegmentsView, slots: &[Slot], slot_id: &str, markers: [Option<&str>; 2], taken: SlotZoomTaken) -> Vec<EditStill> {
-    let Some(slot) = slots.iter().find(|slot| slot.slot_id == slot_id) else {
-        return Vec::new();
-    };
-    let last = slot.end_frame.saturating_sub(1).max(slot.start_frame);
-    let edge_still = |edge: bool| {
-        let (frame, at, label) = if edge { (slot.start_frame, slot.start_frame, "story.still.slot_first") } else { (slot.end_frame, last, "story.still.slot_last") };
-        let mut still = EditStill::new(frame, edge, picture_at(view, &[], &|frame| frame, at)).labelled(&qnc_ui_text::text(label));
-        let marker = markers[usize::from(!edge)];
-        let chosen = |which: SlotZoomTaken| taken == which;
-        let element = |action: &str, chosen: bool| marker.map(|marker| StillElement { action: StillAction::new(action, Some(marker.to_string()), None), chosen });
-        still.click = marker.map(|marker| StillAction::new("select_mark_in", Some(marker.to_string()), None));
-        let frames = slot.end_frame.saturating_sub(slot.start_frame);
-        let label = view.timebase.map_or_else(String::new, |(num, den)| crate::duration_label(frames, num, den));
-        let ripple = StillAction::new("zoom_slot_edge", Some(slot.slot_id.clone()), Some(u64::from(edge)));
-        still.strip = Some(StillStrip { label, frames, fill: None, chosen: false, select: Some(ripple.clone()), take: ripple });
+/// One clip of a cut's zoom: its picture at the cut, the frame of the axis it stands on, its slot's
+/// strip (its `select` is the ripple of the slot) and its outer M marker (`None`: none there).
+#[derive(Debug, Clone)]
+pub struct CutZoomClip {
+    pub picture: Option<StillPicture>,
+    pub frame: u64,
+    pub strip: StillStrip,
+    pub outer_marker: Option<StillAction>,
+}
+
+/// The cut between the two clips: its roll (M marker), its picture and its A1/A2 (`None` where it
+/// has none, e.g. after a pause).
+#[derive(Debug, Clone)]
+pub struct CutZoomCut {
+    pub marker: StillAction,
+    /// Its picture, clicked on the left and on the right clip.
+    pub picture: [StillAction; 2],
+    /// Its A1 and A2 (`[side][lane]`).
+    pub sounds: [[Option<StillAction>; 2]; 2],
+}
+
+/// The zoom of a cut (AGENTS 3a "Model reza i zoom", user 2026-11-26): the left clip with its slot,
+/// the player, the right clip with its slot. Each clip's strip is the ripple of its slot alone, its
+/// outer M the roll of its cut with the clip beyond it; the M of the cut between them is under the
+/// player; its picture and A1/A2 the roll of that track. The player is in the window of what is
+/// chosen; only the chosen is red. A missing clip (the start or end) is an empty window.
+pub fn cut_zoom_stills(left: Option<CutZoomClip>, right: Option<CutZoomClip>, cut: Option<CutZoomCut>, (playhead, at_playhead): (u64, Option<StillPicture>), taken: CutZoomTaken) -> Vec<EditStill> {
+    let chosen = |which: CutZoomTaken| taken == which;
+    let clip_still = |clip: Option<CutZoomClip>, right: bool| {
+        let label = if right { "story.still.after_marker_first" } else { "story.still.before_marker_last" };
+        let Some(clip) = clip else {
+            return EditStill::new(playhead, right, None).labelled(&qnc_ui_text::text(label));
+        };
+        let mut still = EditStill::new(clip.frame, right, clip.picture).labelled(&qnc_ui_text::text(label));
+        still.click = cut.as_ref().map(|cut| cut.picture[usize::from(right)].clone());
+        still.strip = Some(clip.strip);
         still.elements = Some(StillElements {
-            picture: chosen(SlotZoomTaken::Picture(edge)),
-            strip: chosen(SlotZoomTaken::Strip(edge)),
-            marker: element("select_marker", chosen(SlotZoomTaken::Marker(edge))),
-            sounds: [element("select_audio_a1", chosen(SlotZoomTaken::Sound(edge, 0))), element("select_audio_a2", chosen(SlotZoomTaken::Sound(edge, 1)))],
+            picture: chosen(CutZoomTaken::Picture { right }),
+            strip: chosen(CutZoomTaken::Strip { right }),
+            marker: clip.outer_marker.map(|action| StillElement { action, chosen: chosen(CutZoomTaken::OuterMarker { right }) }),
+            sounds: [0u8, 1].map(|lane| cut.as_ref().and_then(|cut| cut.sounds[usize::from(right)][usize::from(lane)].clone()).map(|action| StillElement { action, chosen: chosen(CutZoomTaken::Sound { right, lane }) })),
         });
         still
     };
-    let (in_still, out_still) = (edge_still(true), edge_still(false));
-    // Where the chosen edge was: its picture as stored, held in the middle for comparison.
-    let held = taken.edge().map(|edge| if edge { in_still.picture.clone() } else { out_still.picture.clone() }).flatten();
-    let playhead = view.playhead.unwrap_or(slot.start_frame).clamp(slot.start_frame, last);
-    let at_playhead = picture_at(view, &[], &|frame| frame, playhead);
-    let label = if held.is_some() { "zoom.before" } else { "zoom.player" };
-    let mut middle = EditStill::new(playhead, true, held.or(at_playhead)).labelled(&qnc_ui_text::text(label));
+    let (left, right_still) = (clip_still(left, false), clip_still(right, true));
+    let mut middle = EditStill::new(playhead, true, at_playhead).labelled(&qnc_ui_text::text("zoom.player"));
     middle.middle = true;
-    // A click on the middle lets go of what is chosen (as Enter).
+    // A click on the player lets go of what is chosen (the player again).
     middle.click = Some(StillAction::new("activate_focused_item", None, None));
-    let mut stills = vec![in_still, middle, out_still];
-    let player = match taken.edge() {
-        Some(true) => 0,
-        Some(false) => 2,
-        None => 1,
-    };
-    stills[player].live = true;
-    stills[player].cut = true;
+    middle.elements = Some(StillElements { marker: cut.as_ref().map(|cut| StillElement { action: cut.marker.clone(), chosen: chosen(CutZoomTaken::Cut) }), ..Default::default() });
+    let mut stills = vec![left, middle, right_still];
+    let player = taken.window();
+    for (window, still) in stills.iter_mut().enumerate() {
+        still.live = window == player;
+        still.cut = window == player;
+    }
     stills
 }
 
@@ -605,29 +619,27 @@ mod player_tests {
     }
 }
 
-#[cfg(test)]
-mod slot_zoom_tests {
-    use super::*;
-    use crate::{SegmentsView, Slot};
 
-    /// AGENTS 3a (user 2026-11-26): the zoom of a slot is IN, the player, OUT; each edge picture
-    /// has its strip (ripple), M bar (roll), picture and A1/A2 (roll of that track); only the
-    /// chosen is red and the player is in the window of its edge.
+#[cfg(test)]
+mod cut_zoom_tests {
+    use super::*;
+
+    /// AGENTS 3a (user 2026-11-26): the zoom of a cut is the left clip with its slot, the player,
+    /// the right clip with its slot; each strip is its own slot's ripple, the M of the cut is under
+    /// the player, the outer M on the outer edges; the player is in the window of what is chosen.
     #[test]
-    fn a_slots_zoom_has_the_elements_on_its_edges_and_the_player_moves_to_the_chosen_edge() {
-        let slot = |id: &str, start, end| Slot { slot_id: id.into(), start_frame: start, end_frame: end, has_cover: false, selected: false };
-        let view = SegmentsView { slots: vec![slot("s1", 0, 100), slot("s2", 100, 150)], total_frames: 150, timebase: Some((25, 1)), playhead: Some(120), ..Default::default() };
-        let stills = slot_zoom_stills(&view, &view.slots, "s2", [Some("m1"), None], SlotZoomTaken::Nothing);
-        assert_eq!(stills.iter().map(|still| (still.marker_frame, still.live)).collect::<Vec<_>>(), [(100, false), (120, true), (150, false)], "nothing chosen: the player in the middle at the playhead");
-        let elements = stills[0].elements.as_ref().unwrap();
-        let action = |element: &Option<StillElement>| element.as_ref().map(|element| (element.action.action.clone(), element.action.target.clone()));
-        assert_eq!(action(&elements.marker), Some(("select_marker".into(), Some("m1".into()))), "the M bar rolls the cut");
-        assert_eq!(action(&elements.sounds[1]), Some(("select_audio_a2".into(), Some("m1".into()))));
-        assert_eq!(stills[0].strip.as_ref().and_then(|strip| strip.select.as_ref()).map(|a| (a.action.clone(), a.value)), Some(("zoom_slot_edge".into(), Some(1))), "the strip ripples IN");
-        assert!(stills[2].elements.as_ref().unwrap().marker.is_none(), "the locked end: no M");
-        let chosen = slot_zoom_stills(&view, &view.slots, "s2", [Some("m1"), None], SlotZoomTaken::Sound(true, 0));
-        assert!(chosen[0].live && !chosen[1].live, "the player in the IN window");
-        let elements = chosen[0].elements.as_ref().unwrap();
-        assert!(elements.sounds[0].as_ref().unwrap().chosen && !elements.picture && !elements.strip, "only A1 red");
+    fn a_cuts_zoom_is_two_clips_with_their_own_slots_and_the_player_between() {
+        let action = |name: &str, target: &str| StillAction::new(name, Some(target.into()), None);
+        let strip = |id: &str| StillStrip { label: String::new(), frames: 10, fill: None, chosen: false, select: Some(action("ripple", id)), take: action("ripple", id) };
+        let clip = |id: &str, outer: Option<&str>| CutZoomClip { picture: None, frame: 0, strip: strip(id), outer_marker: outer.map(|m| action("select_marker", m)) };
+        let cut = CutZoomCut { marker: action("select_marker", "m"), picture: [action("select_mark_in", "m"), action("select_mark_in", "m")], sounds: [[Some(action("select_audio_a1", "m")), None], [None, None]] };
+        let stills = cut_zoom_stills(Some(clip("a", Some("m0"))), Some(clip("b", None)), Some(cut.clone()), (5, None), CutZoomTaken::Nothing);
+        assert_eq!(stills.iter().map(|still| still.live).collect::<Vec<_>>(), [false, true, false], "nothing chosen: the player in the middle");
+        let select = |index: usize| stills[index].strip.as_ref().and_then(|strip| strip.select.as_ref()).and_then(|action| action.target.clone());
+        assert_eq!((select(0).as_deref(), select(2).as_deref()), (Some("a"), Some("b")), "each clip's strip is its own slot");
+        assert_eq!(stills[1].elements.as_ref().and_then(|elements| elements.marker.as_ref()).and_then(|marker| marker.action.target.as_deref()), Some("m"), "the cut's M under the player");
+        assert!(stills[2].elements.as_ref().unwrap().marker.is_none(), "no clip after the right one's cut there");
+        let chosen = cut_zoom_stills(Some(clip("a", Some("m0"))), Some(clip("b", None)), Some(cut), (5, None), CutZoomTaken::Strip { right: true });
+        assert!(chosen[2].live && chosen[2].elements.as_ref().unwrap().strip && !chosen[0].elements.as_ref().unwrap().strip, "only the right slot's strip red, the player there");
     }
 }

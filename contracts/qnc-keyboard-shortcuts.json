@@ -262,8 +262,8 @@
     "zoom_take_slot": {
       "label": "Zoom reza: slot slike (klik na traku trajanja)"
     },
-    "zoom_slot_edge": {
-      "label": "Zoom slota: traka slota uz IN ili OUT, ripple tog ruba"
+    "zoom_cut_element": {
+      "label": "Zoom reza: element (traka slota ripple, M marker roll, slika ili ton reza)"
     },
     "zoom_slot_open": {
       "label": "Zoom slota: otvori bez uzetog (desni klik unutar slota na Wrap retku)"

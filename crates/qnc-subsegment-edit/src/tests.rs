@@ -157,25 +157,22 @@ fn the_zoom_of_a_scope_shows_its_in_the_player_and_its_out_and_a_picture_takes_t
     assert_eq!(slot.source_edit_stills[0].strip.as_ref().and_then(|s| s.select.as_ref()).and_then(|s| s.target.clone()), Some("1".to_string()));
 }
 
-/// AGENTS 3a (user 2026-11-26): a part's zoom is its IN, the player, its OUT; the strip is the
-/// ripple of that edge; where the part meets the next one without a pause the M bar, the picture
-/// and A1 roll that cut; after a pause there is no M. The player is in the window of the edge
-/// chosen.
+/// AGENTS 3a (user 2026-11-26): the zoom of a cut is the part before it with its slot, the player,
+/// the part after it with its slot; each strip is its own part's ripple; where the parts meet
+/// without a pause the M of the cut is under the player; after a pause there is no M.
 #[test]
-fn a_parts_zoom_has_the_elements_of_its_edges_and_the_player_in_the_chosen_window() {
-    use qnc_program_view::{EditStill, SlotZoomTaken, StillStrip, StillAction};
-    let pieces = [part("a", 0, 50, 0), part("b", 10, 60, 0), part("c", 0, 40, 5)];
-    let strip = || StillStrip { label: String::new(), frames: 50, fill: None, chosen: false, select: None, take: StillAction::new("x", None, None) };
-    let mut stills = vec![EditStill::new(50, false, None), EditStill::new(60, true, None), EditStill::new(100, true, None)];
-    stills[0].strip = Some(strip());
-    stills[2].strip = Some(strip());
-    crate::view::with_part_elements(&mut stills, &pieces, 1, SlotZoomTaken::Nothing);
-    assert!(stills[1].live && !stills[0].live && !stills[2].live, "nothing chosen: the player in the middle");
-    let target = |still: &EditStill, which: &dyn Fn(&qnc_program_view::StillElements) -> Option<String>| which(still.elements.as_ref().unwrap());
-    let marker = |elements: &qnc_program_view::StillElements| elements.marker.as_ref().and_then(|marker| marker.action.target.clone());
-    assert_eq!(target(&stills[0], &marker).as_deref(), Some("1:in:marker"), "IN meets the part before: its M");
-    assert_eq!(target(&stills[2], &marker), None, "OUT before a pause: no M");
-    assert_eq!(stills[0].strip.as_ref().and_then(|strip| strip.select.as_ref()).and_then(|action| action.target.as_deref()), Some("1:in:strip"), "the strip ripples IN");
-    crate::view::with_part_elements(&mut stills, &pieces, 1, SlotZoomTaken::Sound(true, 0));
-    assert!(stills[0].live && stills[0].elements.as_ref().unwrap().sounds[0].as_ref().unwrap().chosen, "A1 of IN chosen, the player there");
+fn a_cuts_zoom_shows_the_two_parts_with_their_own_slots() {
+    use qnc_program_view::CutZoomTaken;
+    let pieces = [part("a", 0, 50, 0), part("b", 10, 50, 0), part("c", 0, 50, 5)];
+    let span = |start: u64, end: u64| crate::SubsegmentPart { start, end, clip_name: String::new(), length: String::new(), gap_before: 0, cut: false, a1_channel: None, a1_level_db: 0, a1_off: false, channels: None, a1_lead: 0, a1_tail: 0, smooth_frames: 0, smooth_ready: None };
+    let view = crate::SubsegmentView { parts: vec![span(0, 50), span(50, 90), span(95, 145)], total_frames: 145, ..Default::default() };
+    let zoom = crate::view::cut_zoom(&view, &pieces, 1, CutZoomTaken::Nothing, (25, None), |_| None).unwrap();
+    let stills = &zoom.source_edit_stills;
+    let select = |index: usize| stills[index].strip.as_ref().and_then(|strip| strip.select.as_ref()).and_then(|action| action.target.clone());
+    assert_eq!((select(0).as_deref(), select(2).as_deref()), (Some("strip:0:1"), Some("strip:1:1")), "each part's own slot");
+    assert_eq!(stills[1].elements.as_ref().and_then(|elements| elements.marker.as_ref()).and_then(|marker| marker.action.target.as_deref()), Some("cut:0:1"), "the cut's M under the player");
+    assert!(stills[1].live, "nothing chosen: the player in the middle");
+    let after_pause = crate::view::cut_zoom(&view, &pieces, 2, CutZoomTaken::Strip { right: true }, (25, None), |_| None).unwrap();
+    assert!(after_pause.source_edit_stills[1].elements.as_ref().unwrap().marker.is_none(), "after a pause: no M of the cut");
+    assert!(after_pause.source_edit_stills[2].live, "the right part's strip chosen: the player there");
 }

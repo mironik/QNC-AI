@@ -263,9 +263,12 @@ pub struct ProgramSegments {
     alert: Option<qnc_notice::Alert>,
     /// The slot shown enlarged in the place of the source timeline (`zoom.rs`).
     zoom_slot: Option<zoom::ZoomOn>,
-    /// The slot the trim zoom shows (AGENTS 3a: IN, player, OUT of a slot), from a right click
-    /// inside it or from what is taken at its edges; `None` with nothing taken: no trim zoom.
-    trim_slot: Option<String>,
+    /// The M marker of the cut the trim zoom shows (AGENTS 3a: the left clip and its slot, the
+    /// player, the right clip and its slot), from a right click inside a slot or what is taken
+    /// there; `None` with nothing taken: no trim zoom.
+    zoom_cut: Option<String>,
+    /// The side of the zoom an element was clicked on (`true` the right clip), for its red.
+    zoom_pick: bool,
     /// What Talking Head, Voice over and covers take from the source view.
     source: SourcePick,
     /// The sound of a stored segment or cover taken on the Wrap row (`part_sound.rs`).

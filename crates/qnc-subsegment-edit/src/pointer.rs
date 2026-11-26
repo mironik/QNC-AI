@@ -25,7 +25,10 @@ pub fn own_action(view: &SubsegmentView, action_id: &str, value: Option<i64>, ta
         "toggle_wrap_video" => own(action_id, None),
         "wrap_zoom" => own(action_id, target?.strip_prefix("part-").map(str::to_string)),
         // A right click inside a part, away from its edges: its zoom (AGENTS 3a, user 2026-11-26).
-        "zoom_slot_open" => own(crate::ZOOM_OPEN, Some(target.and_then(|id| id.strip_prefix("part-")).map(str::to_string).or_else(|| frame.and_then(part_at).map(|index| index.to_string()))?)),
+        "zoom_slot_open" => {
+            let index = target.and_then(|id| id.strip_prefix("part-")).and_then(|index| index.parse::<usize>().ok()).or_else(|| frame.and_then(part_at))?;
+            own(crate::ZOOM_OPEN, Some(format!("{index}:{}", frame.unwrap_or(0))))
+        }
         // A click on a part's length strip chooses the part, as a cover's strip chooses its slot.
         "timeline_select_slot" | "timeline_select_cover" => own(SUBSEGMENT_SELECT, Some(part_at(frame?)?.to_string())),
         // A drag over the strips (user 2026-11-07): the slots from the strip it started on to the

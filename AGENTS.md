@@ -101,19 +101,20 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   player u lijevi prozor (IN se pomice, srednji drzi gdje je IN bio), klik na desnu u desni; klik
   na srednji pusta uzeto. Prozor s playerom nikad nije zasivljen, druga dva jesu; ono sto se
   pomice je crveno. Source timeline ima samo sliku (IN i OUT izjave).
-  Story i slozena izjava (korisnik 2026-11-26): isti prozori (IN, player, OUT) i isto selenje
-  playera. Svaki element je veliko polje (korisnik ne pogadja mjesto): slika IN i OUT, ispod nje
-  traka slota (u boji trajanja), a M marker je siroki stupac na vanjskom rubu kroz sliku i traku
-  (lijevo od IN-a, desno od OUT-a). Ton su postojece trake A1 i A2 zooma: dio trake ispod prozora
-  IN je ton IN-a, ispod prozora OUT ton OUT-a; nema posebnih gumba za A1 i A2. Jedan klik je jedna
-  radnja, bez kombinacija; ono sto je odabrano je crveno (slika okvir, traka obrub, ton okvir, M
-  stupac cijeli):
-  - traka slota: ripple, rub slota na svim trakama; slot raste ili se skracuje i gura ili
-    privlaci klipove iza sebe;
-  - M marker: roll cijelog reza (slika, A1, A2); slot raste na racun susjeda, lijevi M mijenja
-    klip ispred, desni M klip iza;
-  - slika: roll samo slike (J/L slike);
-  - A1 ili A2: roll samo tog tona (J/L tona).
+  Story i slozena izjava (korisnik 2026-11-26): zoom je rez izmedju dva susjedna klipa. Lijevi
+  prozor je lijevi klip sa svojim slotom, desni prozor desni klip sa svojim slotom, player u
+  sredini (isto selenje playera u prozor onoga sto se mijenja). Svaki element je veliko polje
+  (korisnik ne pogadja mjesto): slika svakog klipa, ispod nje traka njegova slota (u boji
+  trajanja); M marker reza izmedju njih je polje ispod playera, a vanjski M markeri su siroki
+  stupci na vanjskim rubovima (lijevo rez s klipom prije lijevog, desno rez s klipom poslije
+  desnog). Ton su postojece trake A1 i A2 zooma ispod prozora; nema posebnih gumba za A1 i A2.
+  Jedan klik je jedna radnja, bez kombinacija; ono sto je odabrano je crveno:
+  - traka slota: ripple samo tog slota (lijevi: njegov kraj, desni: njegov pocetak); drugi slot
+    zadrzava duljinu, samo se pomakne;
+  - M marker: roll tog reza (slika, A1, A2), jedan slot raste koliko se drugi skrati;
+  - slika: roll samo slike reza izmedju njih (J/L slike);
+  - A1 ili A2: roll samo tog tona reza izmedju njih (J/L tona).
+  Desni klik u slot otvara rez blizi kliku (lijeva polovica: rez na pocetku slota, desna: na kraju).
   Ctrl+klik dodaje traku u odabir (npr. slika i A1, A2 ostaje); odabrane trake pomicu se zajedno.
 - Desni klik unutar slota, dalje od oznaka, otvara zoom bez uzetog (Ctrl+E): playhead ostaje,
   player u sredini je aktivan (uokviren). Desni klik u zoni oznake (crveno) uzima oznaku.

@@ -650,13 +650,15 @@ fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, 
     let marker = elements.and_then(|elements| elements.marker.as_ref());
     // The M column on the outer edge (left of IN, right of OUT); the picture beside it.
     // By the place of the window, not by its side of a cut: the left window has M on its left.
-    let (bar, picture_rect) = match (marker, index == 0) {
-        (Some(_), true) => (Some(Rect::from_min_max(pane.min, egui::pos2(pane.left() + MARKER_BAR, pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(egui::pos2(pane.left() + MARKER_BAR + ROW_GAP, pane.top()), pane.max)),
-        (Some(_), false) => (Some(Rect::from_min_max(egui::pos2(pane.right() - MARKER_BAR, pane.top()), egui::pos2(pane.right(), pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(pane.min, egui::pos2(pane.right() - MARKER_BAR - ROW_GAP, pane.bottom()))),
+    // The middle (the player) holds the M of the cut between the two clips under its picture.
+    let (bar, picture_rect) = match (marker, index) {
+        (Some(_), 1) => (Some(Rect::from_min_size(egui::pos2(pane.left(), pane.bottom() + ROW_GAP), Vec2::new(pane.width(), STRIP_HEIGHT))), pane),
+        (Some(_), 0) => (Some(Rect::from_min_max(pane.min, egui::pos2(pane.left() + MARKER_BAR, pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(egui::pos2(pane.left() + MARKER_BAR + ROW_GAP, pane.top()), pane.max)),
+        (Some(_), _) => (Some(Rect::from_min_max(egui::pos2(pane.right() - MARKER_BAR, pane.top()), egui::pos2(pane.right(), pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(pane.min, egui::pos2(pane.right() - MARKER_BAR - ROW_GAP, pane.bottom()))),
         _ => (None, pane),
     };
     // The picture: red when it is chosen; the middle red while it plays with nothing chosen.
-    let framed = elements.map_or(still.cut, |elements| elements.picture);
+    let framed = if still.middle { still.cut && !marker.is_some_and(|marker| marker.chosen) } else { elements.map_or(still.cut, |elements| elements.picture) };
     paint_still(ui, picture_rect, still, framed, greyed, visuals, theme);
     let mut turned = None;
     if ui.interact(picture_rect, ui.id().with(("window", index)), Sense::click()).clicked() {

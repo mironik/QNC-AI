@@ -141,11 +141,13 @@ pub enum SegmentCommand {
     ZoomSide { marker_id: String, after: bool },
     /// The slot of a picture's strip in the zoom taken in place of what is taken and unmoved.
     ZoomTakeSlot(String),
-    /// The strip of an edge picture in the zoom of a slot (AGENTS 3a): the ripple of that edge
-    /// (`start`: its IN), as Ctrl+I/O on that slot.
-    ZoomSlotEdge { slot_id: String, start: bool },
-    /// The zoom of a slot opened with nothing taken (a right click inside it, user 2026-11-26).
-    OpenSlotZoom { slot_id: String },
+    /// An element of the zoom of a cut (AGENTS 3a): `kind` strip (the ripple of that clip's slot,
+    /// `id` the slot), outer or cut (the roll of that M marker, `id` the marker), picture, a1 or a2
+    /// (the roll of that track of the cut `id`); `right`: clicked on the right clip.
+    ZoomCutElement { kind: String, right: bool, id: String },
+    /// The zoom of a cut opened with nothing taken (a right click inside a slot, user 2026-11-26):
+    /// the cut at its start or at its end, the nearer to `frame`.
+    OpenSlotZoom { slot_id: String, frame: Option<u64> },
     /// Escape while a marker is edited.
     CancelMarkerEdit,
     /// Edit (user rule 2026-10-01): the segment opens in the source timeline with its
@@ -234,8 +236,12 @@ impl SegmentCommand {
             ("timeline_drag_cut_edge", Some(marker_id), Some(frame)) => Self::DragCutEdge { marker_id, frame },
             ("zoom_pick_side", Some(marker_id), Some(side)) => Self::ZoomSide { marker_id, after: side != 0 },
             ("zoom_take_slot", Some(slot_id), _) => Self::ZoomTakeSlot(slot_id),
-            ("zoom_slot_edge", Some(slot_id), Some(start)) => Self::ZoomSlotEdge { slot_id, start: start != 0 },
-            ("zoom_slot_open", Some(slot_id), _) => Self::OpenSlotZoom { slot_id },
+            ("zoom_cut_element", Some(target), _) => {
+                let mut parts = target.splitn(3, ':');
+                let (kind, right, id) = (parts.next()?.to_string(), parts.next()? == "1", parts.next()?.to_string());
+                Self::ZoomCutElement { kind, right, id }
+            }
+            ("zoom_slot_open", Some(slot_id), frame) => Self::OpenSlotZoom { slot_id, frame },
             // The buttons of the segment panel (user 2026-10-18: buttons are system actions too).
             ("segment_select", Some(id), _) => Self::Select(id),
             ("segment_exclude", Some(id), _) => Self::Exclude(id),

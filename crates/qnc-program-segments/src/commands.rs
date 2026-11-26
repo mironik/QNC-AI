@@ -42,7 +42,7 @@ impl ProgramSegments {
         // Escape with nothing taken closes an enlarged slot.
         // Only `clear_focus`: Escape also gives `close_player` (two catalog actions on one key, live
         // 2026-10-21: one Escape let a marker go and closed the zoom too).
-        if (self.zoom_slot.is_some() || self.trim_slot.is_some()) && action_id == "clear_focus" && self.held_nothing() {
+        if (self.zoom_slot.is_some() || self.zoom_cut.is_some()) && action_id == "clear_focus" && self.held_nothing() {
             return Some(SegmentCommand::CloseZoom);
         }
         SegmentCommand::from_action(action_id)
@@ -159,7 +159,7 @@ impl ProgramSegments {
             SegmentCommand::ProgramZoom => self.zoom_program(),
             SegmentCommand::CloseZoom => {
                 self.zoom_slot = None;
-                self.trim_slot = None;
+                self.zoom_cut = None;
                 self.refresh_view(String::new());
             }
             SegmentCommand::UndoSelected { redo } => self.undo_selected(redo),
@@ -320,16 +320,11 @@ impl ProgramSegments {
                 self.let_go_if_unmoved();
                 self.take_slot(&slot_id);
             }
-            // The strip of an edge picture in the zoom of a slot: the ripple of that edge (AGENTS 3a).
-            SegmentCommand::ZoomSlotEdge { slot_id, start } => {
+            // An element of the zoom of a cut (AGENTS 3a): one click, one action.
+            SegmentCommand::ZoomCutElement { kind, right, id } => return self.zoom_cut_element(&kind, right, &id),
+            SegmentCommand::OpenSlotZoom { slot_id, frame } => {
                 self.let_go_if_unmoved();
-                self.trim_slot = Some(slot_id.clone());
-                self.selected_slot = Some(slot_id);
-                self.take_slot_edge(start);
-            }
-            SegmentCommand::OpenSlotZoom { slot_id } => {
-                self.let_go_if_unmoved();
-                self.trim_slot = Some(slot_id);
+                self.zoom_cut = self.cut_of_slot(&slot_id, frame);
                 self.refresh_view(String::new());
             }
             SegmentCommand::DragCutEdge { marker_id, frame } => return self.drag_sound_edge(&marker_id, frame),
