@@ -106,10 +106,14 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   - rez (roll): IN slota prije | rez (player) | OUT slota poslije.
   Nista uzeto: srednji je player na playheadu, vanjski su IN i OUT slota; klik na vanjsku sliku
   uzima taj rub i on prelazi u sredinu. Kod tona slike stoje, a uzeto je crveno na valu.
-  Kad susjeda nema (prvi ili zadnji slot, source klip), vanjski prozor pokazuje sliku klipa izvan
+  Kad susjeda nema (prvi ili zadnji slot), vanjski prozor pokazuje sliku klipa izvan
   reza (prije IN-a ili iza OUT-a) s natpisom, zasivljeno; bez takve slike je prazan i siv.
   Mora se vidjeti sto se radi: aktivno (sto se pomice) je uokvireno crveno, sve sto nije aktivno
   (prozori, trake, valovi) lagano je zasivljeno.
+  Source timeline (korisnik 2026-11-26): prozori stoje, lijevi je IN, srednji player za pregled,
+  desni OUT. Player je tamo gdje je playhead: klik na lijevu sliku seli player u lijevi prozor (IN
+  se pomice, srednji drzi gdje je IN bio), klik na desnu u desni. Prozor s playerom nikad nije
+  zasivljen, druga dva jesu.
 - Desni klik unutar slota, dalje od oznaka, otvara zoom bez uzetog (Ctrl+E): playhead ostaje,
   player u sredini je aktivan (uokviren). Desni klik u zoni oznake (crveno) uzima oznaku.
 - Traka trajanja slota u zoomu samo bira slot; IN i OUT uzimaju se klikom na slike.
