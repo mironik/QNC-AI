@@ -5,6 +5,8 @@
 
 mod edit_stills;
 mod zoom_axis;
+mod zoom_layout;
+pub use zoom_layout::{ZoomLayout, ZoomPlace, ZoomTaken, ZoomWindow};
 pub use zoom_axis::{ClipAxis, CutPictures, ZoomAxis};
 mod markers;
 mod program;

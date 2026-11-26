@@ -184,8 +184,6 @@ impl SourceTimeline {
             lanes: self.kept_lanes(),
             lane_choices: self.lanes_shown().map(|lane| lane.map(|(now, count, open)| qnc_program_view::ZoomLane { channel: now.channel, count, open, off: now.off, level_db: now.level_db })),
             curves: self.kept_curves(),
-            origin: self.keys.origin(),
-            statement: self.view.enlarged.is_some(),
             message: &self.view.message,
             timecode: self.view.timecode,
         };

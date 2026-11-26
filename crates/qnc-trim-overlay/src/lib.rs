@@ -108,13 +108,16 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
             // The side in focus (user 2026-11-04): its pictures framed red, the same in every zoom.
             let focus = sound.and_then(|sound| sound.focus_side);
             let taken_cut = sound.and_then(|sound| sound.taken_cut.clone());
+            // The player in the middle of a zoom is no side of the cut; it is framed when it is
+            // what is active (`cut` on the middle: a zoom opened with nothing taken, user 2026-11-26).
+            let focused = |still: &EditStill| if still.middle { still.cut } else { focus.map_or(still.cut, |side| still.after == side) };
+            // What is not active is lightly greyed (AGENTS 3a, user 2026-11-26), once something is.
+            let any_active = stills.iter().any(focused);
             for (index, still) in stills.iter().enumerate() {
                 let left = top.x + index as f32 * (picture.x + GAP);
                 let pane = Rect::from_min_size(egui::pos2(left, top.y), picture);
-                // The player in the middle of a zoom is no side of the cut; it is framed when it is
-                // what is active (`cut` on the middle: a zoom opened with nothing taken, user 2026-11-26).
-                let in_focus = if still.middle { still.cut } else { focus.map_or(still.cut, |side| still.after == side) };
-                paint_still(ui, pane, still, in_focus, &visuals, theme);
+                let in_focus = focused(still);
+                paint_still(ui, pane, still, in_focus, any_active && !in_focus, &visuals, theme);
                 // A left click on a picture or on its strip picks its side of the cut and never
                 // closes the zoom (user 2026-11-05: "a left click on the picture closed the zoom, it
                 // must mark what is chosen"): the owner's own pick when it gives one (a
@@ -135,6 +138,9 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
                     // Only the picture taken: the slot's strip is not chosen (user 2026-11-09).
                     let only_picture = sound.is_some_and(|sound| sound.picture_taken);
                     paint_strip(ui, rect, strip, in_focus && !only_picture, ui.rect_contains_pointer(rect), theme);
+                    if any_active && !in_focus {
+                        ui.painter().rect_filled(rect, 0.0, Color32::from_black_alpha(120));
+                    }
                 }
                 if response.clicked() || response.secondary_clicked() {
                     // Which picture was clicked and what it gives (live 2026-11-20: a click on OUT did nothing).
@@ -622,10 +628,14 @@ fn paint_strip(ui: &egui::Ui, rect: Rect, strip: &qnc_program_view::StillStrip, 
     ui.painter().text(rect.center(), Align2::CENTER_CENTER, &strip.label, FontId::proportional(12.0), Color32::BLACK);
 }
 
-fn paint_still(ui: &mut egui::Ui, pane: Rect, still: &EditStill, framed: bool, visuals: &egui::Visuals, theme: &TimelineTheme) {
+fn paint_still(ui: &mut egui::Ui, pane: Rect, still: &EditStill, framed: bool, greyed: bool, visuals: &egui::Visuals, theme: &TimelineTheme) {
     ui.painter().rect_filled(pane, 0.0, Color32::BLACK);
     if let Some(image) = still.image.as_deref().filter(|_| still.picture.is_some()) {
         let _ = qnc_ui_kit::paint_rgba_image(ui, pane, &still.id, image.content_key, image.size, &image.pixels);
+    }
+    if greyed {
+        // Not active: lightly greyed (AGENTS 3a, user 2026-11-26), the picture still seen.
+        ui.painter().rect_filled(pane, 0.0, Color32::from_black_alpha(120));
     }
     ui.painter().rect_stroke(pane, 0.0, Stroke::new(1.0, visuals.widgets.noninteractive.bg_stroke.color), StrokeKind::Inside);
     if let Some(edge) = still.clip_edge {

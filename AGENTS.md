@@ -106,6 +106,8 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   - rez (roll): IN slota prije | rez (player) | OUT slota poslije.
   Nista uzeto: srednji je player na playheadu, vanjski su IN i OUT slota; klik na vanjsku sliku
   uzima taj rub i on prelazi u sredinu. Kod tona slike stoje, a uzeto je crveno na valu.
+  Kad susjeda nema (prvi ili zadnji slot, source klip), vanjski prozor pokazuje sliku klipa izvan
+  reza (prije IN-a ili iza OUT-a) s natpisom, zasivljeno; bez takve slike je prazan i siv.
   Mora se vidjeti sto se radi: aktivno (sto se pomice) je uokvireno crveno, sve sto nije aktivno
   (prozori, trake, valovi) lagano je zasivljeno.
 - Desni klik unutar slota, dalje od oznaka, otvara zoom bez uzetog (Ctrl+E): playhead ostaje,
