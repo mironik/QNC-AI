@@ -141,7 +141,10 @@ impl ProgramSegments {
         }
         // The zoom of a slot opened with nothing taken (AGENTS 3a): its sound around the playhead in
         // the slot, so its lanes are there to choose.
-        let opened = || self.stored_markers.iter().find(|marker| self.zoom_cut.as_deref() == Some(marker.marker_id.as_str())).map(|marker| marker.program_frame);
+        let opened = || {
+            let slot = view.slots.iter().find(|slot| self.zoom_clip.as_deref() == Some(slot.slot_id.as_str()))?;
+            Some(view.playhead.unwrap_or(slot.start_frame).clamp(slot.start_frame, slot.end_frame.saturating_sub(1).max(slot.start_frame)))
+        };
         let cut = cut_of(&view.edit_cuts).or_else(opened)?;
         let (num, den) = view.timebase?;
         let half = second((u64::from(num), u64::from(den)));

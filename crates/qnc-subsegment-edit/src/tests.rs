@@ -157,22 +157,23 @@ fn the_zoom_of_a_scope_shows_its_in_the_player_and_its_out_and_a_picture_takes_t
     assert_eq!(slot.source_edit_stills[0].strip.as_ref().and_then(|s| s.select.as_ref()).and_then(|s| s.target.clone()), Some("1".to_string()));
 }
 
-/// AGENTS 3a (user 2026-11-26): the zoom of a cut is the part before it with its slot, the player,
-/// the part after it with its slot; each strip is its own part's ripple; where the parts meet
-/// without a pause the M of the cut is under the player; after a pause there is no M.
+/// AGENTS 3a (user 2026-11-26): a part's zoom is IN, the slot (the player with its one strip),
+/// OUT; an M marker (that OUT/IN) on the outer edge where it meets a neighbour without a pause;
+/// IN or OUT changes its length alone, an M both parts'.
 #[test]
-fn a_cuts_zoom_shows_the_two_parts_with_their_own_slots() {
-    use qnc_program_view::CutZoomTaken;
+fn a_parts_zoom_is_in_slot_out_with_its_m_markers_where_it_meets_a_neighbour() {
+    use qnc_program_view::ClipZoomTaken;
     let pieces = [part("a", 0, 50, 0), part("b", 10, 50, 0), part("c", 0, 50, 5)];
     let span = |start: u64, end: u64| crate::SubsegmentPart { start, end, clip_name: String::new(), length: String::new(), gap_before: 0, cut: false, a1_channel: None, a1_level_db: 0, a1_off: false, channels: None, a1_lead: 0, a1_tail: 0, smooth_frames: 0, smooth_ready: None };
     let view = crate::SubsegmentView { parts: vec![span(0, 50), span(50, 90), span(95, 145)], total_frames: 145, ..Default::default() };
-    let zoom = crate::view::cut_zoom(&view, &pieces, 1, CutZoomTaken::Nothing, (25, None), |_| None).unwrap();
+    let zoom = crate::view::clip_zoom(&view, &pieces, 1, ClipZoomTaken::Nothing, (25, None), |_| None).unwrap();
     let stills = &zoom.source_edit_stills;
-    let select = |index: usize| stills[index].strip.as_ref().and_then(|strip| strip.select.as_ref()).and_then(|action| action.target.clone());
-    assert_eq!((select(0).as_deref(), select(2).as_deref()), (Some("strip:0:1"), Some("strip:1:1")), "each part's own slot");
-    assert_eq!(stills[1].elements.as_ref().and_then(|elements| elements.marker.as_ref()).and_then(|marker| marker.action.target.as_deref()), Some("cut:0:1"), "the cut's M under the player");
-    assert!(stills[1].live, "nothing chosen: the player in the middle");
-    let after_pause = crate::view::cut_zoom(&view, &pieces, 2, CutZoomTaken::Strip { right: true }, (25, None), |_| None).unwrap();
-    assert!(after_pause.source_edit_stills[1].elements.as_ref().unwrap().marker.is_none(), "after a pause: no M of the cut");
-    assert!(after_pause.source_edit_stills[2].live, "the right part's strip chosen: the player there");
+    let target = |index: usize| stills[index].click.as_ref().and_then(|action| action.target.clone());
+    assert_eq!((target(0).as_deref(), target(2).as_deref()), (Some("edge:0:1"), Some("edge:1:1")), "IN and OUT of this part");
+    let marker = |index: usize| stills[index].elements.as_ref().and_then(|elements| elements.marker.as_ref()).and_then(|marker| marker.action.target.clone());
+    assert_eq!(marker(0).as_deref(), Some("marker:0:1"), "an M where it meets the part before");
+    assert_eq!(marker(2), None, "a pause after it: no M");
+    assert!(stills[1].live && stills[1].strip.is_some(), "the slot is the player with its strip");
+    let chosen = crate::view::clip_zoom(&view, &pieces, 1, ClipZoomTaken::Marker { right: false }, (25, None), |_| None).unwrap();
+    assert!(chosen.source_edit_stills[0].live, "the M with the part before chosen: the player in the IN window");
 }

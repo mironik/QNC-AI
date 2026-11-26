@@ -42,7 +42,7 @@ impl ProgramSegments {
         // Escape with nothing taken closes an enlarged slot.
         // Only `clear_focus`: Escape also gives `close_player` (two catalog actions on one key, live
         // 2026-10-21: one Escape let a marker go and closed the zoom too).
-        if (self.zoom_slot.is_some() || self.zoom_cut.is_some()) && action_id == "clear_focus" && self.held_nothing() {
+        if (self.zoom_slot.is_some() || self.zoom_clip.is_some()) && action_id == "clear_focus" && self.held_nothing() {
             return Some(SegmentCommand::CloseZoom);
         }
         SegmentCommand::from_action(action_id)
@@ -159,7 +159,7 @@ impl ProgramSegments {
             SegmentCommand::ProgramZoom => self.zoom_program(),
             SegmentCommand::CloseZoom => {
                 self.zoom_slot = None;
-                self.zoom_cut = None;
+                self.zoom_clip = None;
                 self.refresh_view(String::new());
             }
             SegmentCommand::UndoSelected { redo } => self.undo_selected(redo),
@@ -324,7 +324,8 @@ impl ProgramSegments {
             SegmentCommand::ZoomCutElement { kind, right, id } => return self.zoom_cut_element(&kind, right, &id),
             SegmentCommand::OpenSlotZoom { slot_id, frame } => {
                 self.let_go_if_unmoved();
-                self.zoom_cut = self.cut_of_slot(&slot_id, frame);
+                let _ = frame;
+                self.zoom_clip = Some(slot_id);
                 self.refresh_view(String::new());
             }
             SegmentCommand::DragCutEdge { marker_id, frame } => return self.drag_sound_edge(&marker_id, frame),

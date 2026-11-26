@@ -264,10 +264,8 @@ pub struct SubsegmentEdit {
     /// player clicked), its first IN and last OUT, or one slot (its strip clicked), its IN and OUT.
     /// `None`: no such zoom.
     scope: Option<Scope>,
-    /// The cut the zoom shows (AGENTS 3a): between part `cut - 1` and part `cut`.
-    cut_at: Option<usize>,
-    /// The side an element of the zoom was clicked on (`true` the right part), for its red.
-    zoom_pick: bool,
+    /// The part the zoom shows (AGENTS 3a: IN - SLOT - OUT with its M markers).
+    zoom_part: Option<usize>,
     /// The 1/13 margins before and after a statement are parts, not slots.
     margins: (bool, bool),
 }
@@ -282,7 +280,7 @@ enum Scope {
 
 impl Default for SubsegmentEdit {
     fn default() -> Self {
-        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None, scope: None, cut_at: None, zoom_pick: false, margins: (false, false) }
+        Self { view: EditView::default(), blocks: Vec::new(), names: HashMap::new(), project: None, settled: true, writes: Vec::new(), open_subsegment: None, video_compact: false, enlarged: None, pieces_request: None, trim: None, chosen: None, chosen_to: None, sound_also: Vec::new(), join_sound: None, value: None, slide: None, slip_part: None, waves: qnc_program_waveform::ProgramWaves::new(), filmstrips: qnc_program_filmstrip::ProgramFilmstrips::new(), waves_project: None, trim_stills: qnc_trim_stills::TrimStills::new(), zoom_follow: Default::default(), sound: None, level: None, assist: false, assist_curves: Vec::new(), assisted: None, word: None, scope: None, zoom_part: None, margins: (false, false) }
     }
 }
 
@@ -402,25 +400,24 @@ impl SubsegmentEdit {
             }
         }
         let frames_of = |clip: &str| names.get(clip).map(|(_, frames, _)| *frames);
-        // The zoom of a cut (AGENTS 3a): with a cut shown, what is chosen at it (a part's own edge,
-        // the roll of that cut or of an outer one, the join's picture or sound) or nothing.
-        use qnc_program_view::CutZoomTaken;
-        let cut_taken = match self.cut_at {
-            Some(cut) if self.sound.is_none() && self.slide.is_none() && !self.level_taken() => match (self.join_sound, self.trim) {
-                (Some(join), _) if join.index == cut => Some(if join.picture { CutZoomTaken::Picture { right: self.zoom_pick } } else { CutZoomTaken::Sound { right: self.zoom_pick, lane: 0 } }),
+        // The zoom of a part (AGENTS 3a: IN - SLOT - OUT): with a part shown, what is chosen at it
+        // (its own IN or OUT, an M marker of it, that M marker's sound) or nothing.
+        use qnc_program_view::ClipZoomTaken;
+        let part_taken = match self.zoom_part {
+            Some(index) if self.sound.is_none() && self.slide.is_none() && !self.level_taken() => match (self.join_sound, self.trim) {
+                (Some(join), _) if join.index == index && !join.picture => Some(ClipZoomTaken::Sound { right: false, lane: 0 }),
+                (Some(join), _) if join.index == index + 1 && !join.picture => Some(ClipZoomTaken::Sound { right: true, lane: 0 }),
                 (Some(_), _) => None,
-                (None, None) => Some(CutZoomTaken::Nothing),
-                (None, Some(trim)) if trim.roll.is_some() && trim.index + 1 == cut => Some(CutZoomTaken::Cut),
-                (None, Some(trim)) if trim.roll.is_some() && trim.index + 2 == cut => Some(CutZoomTaken::OuterMarker { right: false }),
-                (None, Some(trim)) if trim.roll.is_some() && trim.index == cut => Some(CutZoomTaken::OuterMarker { right: true }),
-                (None, Some(trim)) if trim.roll.is_none() && trim.out && trim.index + 1 == cut => Some(CutZoomTaken::Strip { right: false }),
-                (None, Some(trim)) if trim.roll.is_none() && !trim.out && trim.index == cut => Some(CutZoomTaken::Strip { right: true }),
+                (None, None) => Some(ClipZoomTaken::Nothing),
+                (None, Some(trim)) if trim.roll.is_some() && trim.index + 1 == index => Some(ClipZoomTaken::Marker { right: false }),
+                (None, Some(trim)) if trim.roll.is_some() && trim.index == index => Some(ClipZoomTaken::Marker { right: true }),
+                (None, Some(trim)) if trim.roll.is_none() && trim.index == index => Some(ClipZoomTaken::Edge { right: trim.out }),
                 _ => None,
             },
             _ => None,
         };
         let zoom = match (own, self.scope, slots) {
-            _ if cut_taken.is_some() => cut_taken.and_then(|taken| view::cut_zoom(&shown, &pieces, self.cut_at?, taken, (rate, Some((&self.zoom_follow, position))), frames_of)),
+            _ if part_taken.is_some() => part_taken.and_then(|taken| view::clip_zoom(&shown, &pieces, self.zoom_part?, taken, (rate, Some((&self.zoom_follow, position))), frames_of)),
             (true, Some(scope), Some((first, last))) => {
                 let (from, to) = match scope {
                     Scope::Whole => (first, last),
@@ -746,8 +743,8 @@ impl SubsegmentEdit {
                 (self.chosen, self.chosen_to) = (Some(from), (to != from).then_some(to));
                 return Some(true);
             }
-            "clear_focus" if (self.chosen.is_some() || self.scope.is_some() || self.cut_at.is_some()) && self.trim.is_none() && self.sound.is_none() => {
-                (self.chosen, self.scope, self.cut_at) = (None, None, None);
+            "clear_focus" if (self.chosen.is_some() || self.scope.is_some() || self.zoom_part.is_some()) && self.trim.is_none() && self.sound.is_none() => {
+                (self.chosen, self.scope, self.zoom_part) = (None, None, None);
                 return Some(true);
             }
             "delete_marker" if self.trim.is_none() && self.sound.is_none() => {
@@ -1418,24 +1415,19 @@ impl SubsegmentEdit {
                 self.enlarged = (self.enlarged != Some(index)).then_some(index);
                 return Some(true);
             }
-            // A right click inside a part (target "part:frame"): the zoom of its cut nearer the
-            // click, its start in its left half, its end in its right half (AGENTS 3a, user 2026-11-26).
+            // A right click inside a part (target "part:frame"): its zoom (AGENTS 3a, user 2026-11-26).
             ZOOM_OPEN => {
                 let block = self.block(self.open_subsegment)?.clone();
                 let pieces = view::block_pieces(&block);
-                let mut parts = target?.split(':');
-                let index = parts.next()?.trim_start_matches("part-").parse::<usize>().ok().filter(|index| *index < pieces.len())?;
-                let frame = parts.next().and_then(|frame| frame.parse::<u64>().ok());
-                let part = view::subsegment_view(&block, None).parts.get(index).cloned()?;
-                let right_half = frame.is_some_and(|frame| frame >= (part.start + part.end) / 2);
+                let index = target?.split(':').next()?.trim_start_matches("part-").parse::<usize>().ok().filter(|index| *index < pieces.len())?;
                 if let Some(trim) = self.trim.take() {
                     self.write_trim(preview, &block, &pieces, trim);
                 }
                 (self.join_sound, self.sound, self.slide, self.scope, self.chosen, self.chosen_to) = (None, None, None, None, None, None);
-                self.cut_at = Some(if right_half { index + 1 } else { index });
+                self.zoom_part = Some(index);
                 return Some(true);
             }
-            // The middle window: the player again (user 2026-11-26); what moved is written.
+            // The slot clicked: the player again (user 2026-11-26); what moved is written.
             ZOOM_PLAYER => {
                 let block = self.block(self.open_subsegment)?.clone();
                 let pieces = view::block_pieces(&block);
@@ -1446,33 +1438,28 @@ impl SubsegmentEdit {
                     self.write_join(preview, &block, join);
                 }
                 (self.chosen, self.scope) = (None, None);
-                self.cut_at = target.and_then(|cut| cut.parse::<usize>().ok()).or(self.cut_at);
+                self.zoom_part = target.and_then(|index| index.parse::<usize>().ok()).or(self.zoom_part);
                 return Some(true);
             }
-            // An element of the zoom of cut `c` (target "kind:side:c"): one click, one action
-            // (AGENTS 3a). A strip is the ripple of that part's slot alone (the part before the cut
-            // its OUT, the part after it its IN), an M the roll of that cut (the outer ones of the
-            // cuts beyond the two parts), the picture and A1 the roll of that track (the join's J/L).
+            // An element of part `i`'s zoom (target "kind:side:i"): one click, one action (AGENTS
+            // 3a). Its IN or OUT changes its length alone; its M marker (that OUT/IN) both parts'
+            // (roll); that M marker's A1 the roll of the sound (the join's J/L).
             ZOOM_ELEMENT => {
                 let mut parts = target?.split(':');
-                let (kind, right, cut) = (parts.next()?, parts.next()? == "1", parts.next()?.parse::<usize>().ok()?);
+                let (kind, right, index) = (parts.next()?, parts.next()? == "1", parts.next()?.parse::<usize>().ok()?);
                 let block = self.block(self.open_subsegment)?.clone();
                 if let Some(join) = self.join_sound.take() {
                     self.write_join(preview, &block, join);
                 }
-                self.zoom_pick = right;
                 self.chosen = None;
-                let done = match (kind, right) {
-                    ("strip", false) => self.trim_key(TAKE_EDGE, Some(&format!("{}:out:slot", cut.checked_sub(1)?)), preview),
-                    ("strip", true) => self.trim_key(TAKE_EDGE, Some(&format!("{cut}:in:slot")), preview),
-                    ("outer", false) => self.trim_key(TAKE_EDGE, Some(&format!("{}:cut", cut.checked_sub(2)?)), preview),
-                    ("outer", true) => self.trim_key(TAKE_EDGE, Some(&format!("{cut}:cut")), preview),
-                    _ => self.trim_key(TAKE_EDGE, Some(&format!("{}:cut", cut.checked_sub(1)?)), preview),
+                let cut = if right { Some(index) } else { index.checked_sub(1) };
+                let done = match kind {
+                    "edge" => self.trim_key(TAKE_EDGE, Some(&format!("{index}:{}:slot", if right { "out" } else { "in" })), preview),
+                    _ => self.trim_key(TAKE_EDGE, Some(&format!("{}:cut", cut?)), preview),
                 };
-                // The strip takes its own slot; the zoom shows this cut whatever is taken in it.
-                (self.chosen, self.scope, self.cut_at) = (None, None, Some(cut));
+                // The zoom shows this part whatever is taken in it.
+                (self.chosen, self.scope, self.zoom_part) = (None, None, Some(index));
                 return match kind {
-                    "picture" => self.trim_key("select_mark_in", Some(&format!("join:{cut}")), preview),
                     "a1" => self.trim_key("select_audio_a1", None, preview),
                     _ => done,
                 };
