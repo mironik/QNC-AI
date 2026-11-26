@@ -212,6 +212,16 @@ pub fn show(ctx: &egui::Context, segments: &SegmentsView, theme: &TimelineTheme,
                 if side.is_some() {
                     turned = side;
                 }
+                // A Story zoom: the lanes under the IN and OUT windows are those edges' sound.
+                if elements_zoom {
+                    let columns: Vec<(f32, f32)> = (0..stills.len()).map(|index| {
+                        let left = top.x + index as f32 * (picture.x + GAP);
+                        (left, left + picture.x)
+                    }).collect();
+                    if let Some(picked) = paint_lane_fields(ui, area, stills, &columns, panel, theme) {
+                        turned = Some(picked);
+                    }
+                }
             }
             // The buttons stand in the middle of the window (user 2026-11-04: "the buttons ran
             // away, not centred" when the cut lay at the edge of the window).
@@ -622,29 +632,33 @@ fn paint_words(ui: &mut egui::Ui, row: Rect, sound: &ZoomSound, x_of: &dyn Fn(u6
 
 /// The height of a slot's length strip at the bottom of a zoom picture.
 const STRIP_HEIGHT: f32 = 24.0;
-/// One sound row (A1, A2) under an edge picture and the gap between the rows.
-const SOUND_HEIGHT: f32 = 20.0;
 const ROW_GAP: f32 = 3.0;
-/// The strip and the two sound rows under an edge picture.
-const ELEMENTS_HEIGHT: f32 = ROW_GAP + STRIP_HEIGHT + 2.0 * (ROW_GAP + SOUND_HEIGHT);
-/// The width of the M marker bar on the outer edge of a picture.
-const MARKER_BAR: f32 = 10.0;
+/// The strip under an edge picture (the sound is the zoom's own lanes, user 2026-11-26).
+const ELEMENTS_HEIGHT: f32 = ROW_GAP + STRIP_HEIGHT;
+/// The width of the M marker column on the outer edge of an edge picture (a large field, user
+/// 2026-11-26: "the user must not hunt for the place").
+const MARKER_BAR: f32 = 40.0;
 
-/// A slot's length strip: the colour of its length, its length, brighter when chosen or under
-/// the mouse (as a cover's strip on the timeline).
 /// One window of a Story zoom (AGENTS 3a "Model reza i zoom", user 2026-11-26): the picture and,
-/// on an edge picture, the slot's strip, A1 and A2 under it and the M marker bar through them on
-/// the outer edge. Only the chosen element is red; the window without the player is greyed. A
-/// left click on an element is its one action; a click on the middle lets go.
+/// on an edge picture, the slot's strip under it and the M marker column on the outer edge,
+/// through the picture and the strip. Only the chosen element is red; the window without the
+/// player is greyed. A left click on an element is its one action; a click on the middle lets go.
+/// The sound of an edge is the zoom's lanes under its window (`paint_lane_fields`).
 fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, panel: &str, visuals: &egui::Visuals, theme: &TimelineTheme) -> Option<ActionEvent> {
     let greyed = !still.live;
     let elements = still.elements.as_ref();
+    let marker = elements.and_then(|elements| elements.marker.as_ref());
+    // The M column on the outer edge (left of IN, right of OUT); the picture beside it.
+    let (bar, picture_rect) = match (marker, still.after) {
+        (Some(_), true) => (Some(Rect::from_min_max(pane.min, egui::pos2(pane.left() + MARKER_BAR, pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(egui::pos2(pane.left() + MARKER_BAR + ROW_GAP, pane.top()), pane.max)),
+        (Some(_), false) => (Some(Rect::from_min_max(egui::pos2(pane.right() - MARKER_BAR, pane.top()), egui::pos2(pane.right(), pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(pane.min, egui::pos2(pane.right() - MARKER_BAR - ROW_GAP, pane.bottom()))),
+        _ => (None, pane),
+    };
     // The picture: red when it is chosen; the middle red while it plays with nothing chosen.
     let framed = elements.map_or(still.cut, |elements| elements.picture);
-    paint_still(ui, pane, still, framed, greyed, visuals, theme);
+    paint_still(ui, picture_rect, still, framed, greyed, visuals, theme);
     let mut turned = None;
-    let picture = ui.interact(pane, ui.id().with(("window", index)), Sense::click());
-    if picture.clicked() {
+    if ui.interact(picture_rect, ui.id().with(("window", index)), Sense::click()).clicked() {
         turned = still.click.as_ref().map(|action| event_of(action, panel));
     }
     let Some(elements) = elements else { return turned };
@@ -654,7 +668,7 @@ fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, 
         }
     };
     // The slot's strip under the picture: the ripple of this edge.
-    let strip_rect = Rect::from_min_size(egui::pos2(pane.left(), pane.bottom() + ROW_GAP), Vec2::new(pane.width(), STRIP_HEIGHT));
+    let strip_rect = Rect::from_min_size(egui::pos2(picture_rect.left(), picture_rect.bottom() + ROW_GAP), Vec2::new(picture_rect.width(), STRIP_HEIGHT));
     if let Some(strip) = still.strip.as_ref() {
         paint_strip(ui, strip_rect, strip, elements.strip, ui.rect_contains_pointer(strip_rect), theme);
         veil(ui, strip_rect);
@@ -662,32 +676,40 @@ fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, 
             turned = strip.select.as_ref().map(|action| event_of(action, panel));
         }
     }
-    // A1 and A2: the roll of that sound.
-    for (lane, sound) in elements.sounds.iter().enumerate() {
-        let top = strip_rect.bottom() + ROW_GAP + lane as f32 * (SOUND_HEIGHT + ROW_GAP);
-        let rect = Rect::from_min_size(egui::pos2(pane.left(), top), Vec2::new(pane.width(), SOUND_HEIGHT));
-        ui.painter().rect_filled(rect, 1.0, theme.audio_wave.gamma_multiply(0.35));
-        ui.painter().text(egui::pos2(rect.left() + 6.0, rect.center().y), Align2::LEFT_CENTER, if lane == 0 { "A1" } else { "A2" }, FontId::proportional(12.0), visuals.text_color());
-        if let Some(sound) = sound {
-            if sound.chosen {
-                ui.painter().rect_stroke(rect, 1.0, Stroke::new(3.0, theme.cut), StrokeKind::Inside);
-            }
-            if ui.interact(rect, ui.id().with(("window-sound", index, lane)), Sense::click()).clicked() {
-                turned = Some(event_of(&sound.action, panel));
-            }
-        }
-        veil(ui, rect);
-    }
-    // The M marker: a bar through the picture, the strip and the sound on the outer edge (the
-    // left edge of IN, the right edge of OUT); red when it is chosen. Last, so it is on top.
-    if let Some(marker) = elements.marker.as_ref() {
-        let bottom = strip_rect.bottom() + 2.0 * (ROW_GAP + SOUND_HEIGHT);
-        let x = if still.after { pane.left() } else { pane.right() - MARKER_BAR };
-        let bar = Rect::from_min_max(egui::pos2(x, pane.top()), egui::pos2(x + MARKER_BAR, bottom));
-        let fill = if marker.chosen { theme.cut } else { visuals.widgets.inactive.fg_stroke.color };
-        ui.painter().rect_filled(bar, 1.0, fill);
+    // The M marker: the roll of the whole cut; red when it is chosen.
+    if let (Some(marker), Some(bar)) = (marker, bar) {
+        let hovered = ui.rect_contains_pointer(bar);
+        let fill = if marker.chosen { theme.cut } else if hovered { visuals.widgets.hovered.bg_fill } else { visuals.widgets.inactive.bg_fill };
+        ui.painter().rect_filled(bar, 3.0, fill);
+        ui.painter().text(bar.center(), Align2::CENTER_CENTER, "M", FontId::proportional(18.0), if marker.chosen { Color32::WHITE } else { visuals.text_color() });
+        veil(ui, bar);
         if ui.interact(bar, ui.id().with(("window-marker", index)), Sense::click()).clicked() {
             turned = Some(event_of(&marker.action, panel));
+        }
+    }
+    turned
+}
+
+/// The zoom's A1 and A2 lanes as fields of the edges (user 2026-11-26: "the sound lanes become
+/// selectable, no new buttons"): the part of a lane under the IN window is the IN edge's sound,
+/// under the OUT window the OUT edge's; a click chooses it (the roll of that sound, the J/L) and
+/// it is framed red. `columns`: the x-range of each window.
+fn paint_lane_fields(ui: &mut egui::Ui, area: Rect, stills: &[EditStill], columns: &[(f32, f32)], panel: &str, theme: &TimelineTheme) -> Option<ActionEvent> {
+    let mut turned = None;
+    for (window, still) in stills.iter().enumerate() {
+        let (Some(elements), Some(&(left, right))) = (still.elements.as_ref(), columns.get(window)) else { continue };
+        for (lane, sound) in elements.sounds.iter().enumerate() {
+            let Some(sound) = sound else { continue };
+            let top = area.top() + lane as f32 * (LANE_HEIGHT + GAP / 2.0 + WORDS_HEIGHT);
+            let field = Rect::from_min_max(egui::pos2(left, top), egui::pos2(right, top + LANE_HEIGHT));
+            if sound.chosen {
+                ui.painter().rect_stroke(field, 2.0, Stroke::new(3.0, theme.cut), StrokeKind::Inside);
+            } else if ui.rect_contains_pointer(field) {
+                ui.painter().rect_stroke(field, 2.0, Stroke::new(1.5, theme.cut.gamma_multiply(0.6)), StrokeKind::Inside);
+            }
+            if ui.interact(field, ui.id().with(("lane-field", window, lane)), Sense::click()).clicked() {
+                turned = Some(event_of(&sound.action, panel));
+            }
         }
     }
     turned

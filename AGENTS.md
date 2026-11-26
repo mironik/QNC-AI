@@ -102,10 +102,12 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   na srednji pusta uzeto. Prozor s playerom nikad nije zasivljen, druga dva jesu; ono sto se
   pomice je crveno. Source timeline ima samo sliku (IN i OUT izjave).
   Story i slozena izjava (korisnik 2026-11-26): isti prozori (IN, player, OUT) i isto selenje
-  playera. Slike IN i OUT imaju odozgo slika, traka slota (u boji trajanja), ton A1 i ton A2
-  (odvojeno), a M marker je okomita traka kroz sliku, traku i ton na vanjskom rubu (lijevi rub
-  IN-a, desni rub OUT-a). Jedan klik je jedna radnja, bez kombinacija; ono sto je odabrano je
-  crveno (slika okvir, traka slota obrub, ton oznaka, M traka cijela):
+  playera. Svaki element je veliko polje (korisnik ne pogadja mjesto): slika IN i OUT, ispod nje
+  traka slota (u boji trajanja), a M marker je siroki stupac na vanjskom rubu kroz sliku i traku
+  (lijevo od IN-a, desno od OUT-a). Ton su postojece trake A1 i A2 zooma: dio trake ispod prozora
+  IN je ton IN-a, ispod prozora OUT ton OUT-a; nema posebnih gumba za A1 i A2. Jedan klik je jedna
+  radnja, bez kombinacija; ono sto je odabrano je crveno (slika okvir, traka obrub, ton okvir, M
+  stupac cijeli):
   - traka slota: ripple, rub slota na svim trakama; slot raste ili se skracuje i gura ili
     privlaci klipove iza sebe;
   - M marker: roll cijelog reza (slika, A1, A2); slot raste na racun susjeda, lijevi M mijenja
