@@ -40,6 +40,10 @@ pub const SUBSEGMENT_TAKE: &str = "subsegment_take";
 /// A word clicked in the trim zoom of a SubSegment (value: its first frame, target: the frame
 /// after its last, on the SubSegment's axis): the taken edge goes to it (user 2026-11-04).
 pub const ZOOM_WORD: &str = "subsegment_zoom_word";
+/// The zoom of a part opened with nothing taken (a right click inside it, user 2026-11-26).
+pub const ZOOM_OPEN: &str = "subsegment_zoom_open";
+/// An element of a part's zoom clicked (AGENTS 3a): "part:in|out:strip|marker|picture|a1".
+pub const ZOOM_ELEMENT: &str = "subsegment_zoom_element";
 /// Ctrl+Shift+S: a slip of the part in hand (docs/98 1.5; the same action as a story's slip).
 pub const SLIP: &str = "select_slip";
 /// The pause before a part one frame longer or shorter: `target` is `block:part:1` or `-1`.
@@ -391,7 +395,34 @@ impl SubsegmentEdit {
             }
         }
         let frames_of = |clip: &str| names.get(clip).map(|(_, frames, _)| *frames);
+        // The zoom of a part (AGENTS 3a): with the part shown as the scope, what is chosen at its
+        // edges (its own edge, the roll of a cut there, a join's picture or sound) or nothing.
+        use qnc_program_view::SlotZoomTaken;
+        let part_taken = match self.scope {
+            Some(Scope::Slot(index)) if self.sound.is_none() && self.slide.is_none() && !self.level_taken() => match (self.join_sound, self.trim) {
+                (Some(join), _) if join.index == index || join.index == index + 1 => {
+                    let edge = join.index == index;
+                    Some((index, if join.picture { SlotZoomTaken::Picture(edge) } else { SlotZoomTaken::Sound(edge, 0) }))
+                }
+                (Some(_), _) => None,
+                (None, None) => Some((index, SlotZoomTaken::Nothing)),
+                (None, Some(trim)) if trim.roll.is_some() && trim.index + 1 == index => Some((index, SlotZoomTaken::Marker(true))),
+                (None, Some(trim)) if trim.roll.is_some() && trim.index == index => Some((index, SlotZoomTaken::Marker(false))),
+                (None, Some(trim)) if trim.roll.is_none() && trim.index == index => Some((index, SlotZoomTaken::Strip(!trim.out))),
+                _ => None,
+            },
+            _ => None,
+        };
         let zoom = match (own, self.scope, slots) {
+            _ if part_taken.is_some() => part_taken.and_then(|(index, taken)| {
+                let held = match taken {
+                    SlotZoomTaken::Strip(edge) => Some(!edge),
+                    _ => None,
+                };
+                let mut zoom = view::scope_zoom(&shown, &pieces, (index, index), held, (rate, Some((&self.zoom_follow, position))), frames_of)?;
+                view::with_part_elements(&mut zoom.source_edit_stills, &pieces, index, taken);
+                Some(zoom)
+            }),
             (true, Some(scope), Some((first, last))) => {
                 let (from, to) = match scope {
                     Scope::Whole => (first, last),
@@ -1388,6 +1419,43 @@ impl SubsegmentEdit {
                 let index: usize = target?.parse().ok()?;
                 self.enlarged = (self.enlarged != Some(index)).then_some(index);
                 return Some(true);
+            }
+            // A right click inside a part: its zoom with nothing taken (AGENTS 3a, user 2026-11-26).
+            ZOOM_OPEN => {
+                let block = self.block(self.open_subsegment)?.clone();
+                let pieces = view::block_pieces(&block);
+                let index = target?.trim_start_matches("part-").parse::<usize>().ok().filter(|index| *index < pieces.len())?;
+                if let Some(trim) = self.trim.take() {
+                    self.write_trim(preview, &block, &pieces, trim);
+                }
+                (self.join_sound, self.sound, self.slide) = (None, None, None);
+                (self.chosen, self.chosen_to, self.scope) = (Some(index), None, Some(Scope::Slot(index)));
+                return Some(true);
+            }
+            // An element of a part's zoom: one click, one action (AGENTS 3a). The strip is the
+            // ripple of that edge, the M bar the roll of the cut there, the picture and A1 the roll
+            // of that track (the join's J/L).
+            ZOOM_ELEMENT => {
+                let mut parts = target?.split(':');
+                let (index, side, element) = (parts.next()?.parse::<usize>().ok()?, parts.next()?, parts.next()?);
+                let cut = if side == "in" { index.checked_sub(1) } else { Some(index) };
+                if element == "strip" {
+                    return self.key(TAKE_EDGE, Some(&format!("{index}:{side}:slot")), preview);
+                }
+                let cut = cut?;
+                // The roll of the cut, not a chosen slot's own edge; the scope stays this part.
+                let block = self.block(self.open_subsegment)?.clone();
+                if let Some(join) = self.join_sound.take() {
+                    self.write_join(preview, &block, join);
+                }
+                self.chosen = None;
+                let done = self.trim_key(TAKE_EDGE, Some(&format!("{cut}:cut")), preview);
+                self.scope = Some(Scope::Slot(index));
+                return match element {
+                    "picture" => self.trim_key("select_mark_in", Some(&format!("join:{}", cut + 1)), preview),
+                    "a1" => self.trim_key("select_audio_a1", None, preview),
+                    _ => done,
+                };
             }
             "clear_focus" if self.enlarged.is_some() && self.trim.is_none() && self.sound.is_none() && self.join_sound.is_none() && self.slide.is_none() && !self.level_taken() => {
                 self.enlarged = None;

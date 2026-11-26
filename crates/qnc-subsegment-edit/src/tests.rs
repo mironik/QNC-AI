@@ -156,3 +156,26 @@ fn the_zoom_of_a_scope_shows_its_in_the_player_and_its_out_and_a_picture_takes_t
     assert!(slot.source_edit_stills[2].cut && !slot.source_edit_stills[0].cut);
     assert_eq!(slot.source_edit_stills[0].strip.as_ref().and_then(|s| s.select.as_ref()).and_then(|s| s.target.clone()), Some("1".to_string()));
 }
+
+/// AGENTS 3a (user 2026-11-26): a part's zoom is its IN, the player, its OUT; the strip is the
+/// ripple of that edge; where the part meets the next one without a pause the M bar, the picture
+/// and A1 roll that cut; after a pause there is no M. The player is in the window of the edge
+/// chosen.
+#[test]
+fn a_parts_zoom_has_the_elements_of_its_edges_and_the_player_in_the_chosen_window() {
+    use qnc_program_view::{EditStill, SlotZoomTaken, StillStrip, StillAction};
+    let pieces = [part("a", 0, 50, 0), part("b", 10, 60, 0), part("c", 0, 40, 5)];
+    let strip = || StillStrip { label: String::new(), frames: 50, fill: None, chosen: false, select: None, take: StillAction::new("x", None, None) };
+    let mut stills = vec![EditStill::new(50, false, None), EditStill::new(60, true, None), EditStill::new(100, true, None)];
+    stills[0].strip = Some(strip());
+    stills[2].strip = Some(strip());
+    crate::view::with_part_elements(&mut stills, &pieces, 1, SlotZoomTaken::Nothing);
+    assert!(stills[1].live && !stills[0].live && !stills[2].live, "nothing chosen: the player in the middle");
+    let target = |still: &EditStill, which: &dyn Fn(&qnc_program_view::StillElements) -> Option<String>| which(still.elements.as_ref().unwrap());
+    let marker = |elements: &qnc_program_view::StillElements| elements.marker.as_ref().and_then(|marker| marker.action.target.clone());
+    assert_eq!(target(&stills[0], &marker).as_deref(), Some("1:in:marker"), "IN meets the part before: its M");
+    assert_eq!(target(&stills[2], &marker), None, "OUT before a pause: no M");
+    assert_eq!(stills[0].strip.as_ref().and_then(|strip| strip.select.as_ref()).and_then(|action| action.target.as_deref()), Some("1:in:strip"), "the strip ripples IN");
+    crate::view::with_part_elements(&mut stills, &pieces, 1, SlotZoomTaken::Sound(true, 0));
+    assert!(stills[0].live && stills[0].elements.as_ref().unwrap().sounds[0].as_ref().unwrap().chosen, "A1 of IN chosen, the player there");
+}

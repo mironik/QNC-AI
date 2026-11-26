@@ -1434,6 +1434,12 @@ fn take_or_keep_intent(response: &egui::Response, track: Rect, input: &TimelineI
         if let Some(slot) = slot_of_frame(input.marker_slots, frame) {
             return Some(TimelineIntent::OpenSlotZoom { id: slot.to_string(), frame });
         }
+        // A row whose covers are its slots (a composite statement's parts): the part there.
+        if input.marker_slots.is_empty() {
+            if let Some(cover) = input.covers.iter().find(|cover| (cover.start_frame..cover.end_frame).contains(&frame)) {
+                return Some(TimelineIntent::OpenSlotZoom { id: cover.id.to_string(), frame });
+            }
+        }
         return nearest.map(|id| TimelineIntent::TakeMarker { id: id.to_string(), frame });
     }
     let local = frame.saturating_sub(range_start);

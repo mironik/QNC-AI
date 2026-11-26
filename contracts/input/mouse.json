@@ -68,7 +68,6 @@
       "select_audio_a2",
       "select_level_a2",
       "segment_edit",
-      "zoom_slot_open",
       "add_marker",
       "add_marker_continue"
     ]

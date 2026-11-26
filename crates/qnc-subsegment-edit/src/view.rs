@@ -283,3 +283,44 @@ pub fn scope_zoom(
     let axis = qnc_program_view::ZoomAxis { cut, holds: (cut, cut), half: rate.max(1), total: view.total_frames, position, follow, lanes: [subsegment_placements(view, pieces), Vec::new()] };
     Some(qnc_program_view::SegmentsView { source_edit_stills: vec![left, player, right], zoom_sound: Some(axis.sound()), ..Default::default() })
 }
+
+/// The elements of a part's zoom (AGENTS 3a "Model reza i zoom", user 2026-11-26): the part is a
+/// slot, its IN on the left, its OUT on the right. On each edge picture the strip (ripple of that
+/// edge), and where the part meets the next one without a pause the M bar (roll of that cut), the
+/// picture and A1 (roll of that track, the join's J/L). The player is in the window of the edge
+/// chosen; with nothing chosen in the middle. Every click is `ZOOM_ELEMENT` with
+/// "part:in|out:element".
+pub fn with_part_elements(stills: &mut [qnc_program_view::EditStill], pieces: &[Piece], index: usize, taken: qnc_program_view::SlotZoomTaken) {
+    use qnc_program_view::{StillAction, StillElement, StillElements};
+    if stills.len() != 3 {
+        return;
+    }
+    // The join at the edge: the part before and after it meet without a pause.
+    let joined = |edge: bool| if edge { index > 0 && pieces.get(index).is_some_and(|piece| piece.gap_before == 0) } else { pieces.get(index + 1).is_some_and(|next| next.gap_before == 0) };
+    for (window, edge) in [(0usize, true), (2usize, false)] {
+        let side = if edge { "in" } else { "out" };
+        let action = |element: &str| StillAction::new(crate::ZOOM_ELEMENT, Some(format!("{index}:{side}:{element}")), None);
+        let chosen = |which: qnc_program_view::SlotZoomTaken| taken == which;
+        let element = |name: &str, which| joined(edge).then(|| StillElement { action: action(name), chosen: chosen(which) });
+        let still = &mut stills[window];
+        if let Some(strip) = still.strip.as_mut() {
+            strip.select = Some(action("strip"));
+        }
+        still.click = joined(edge).then(|| action("picture"));
+        still.elements = Some(StillElements {
+            picture: chosen(qnc_program_view::SlotZoomTaken::Picture(edge)),
+            strip: chosen(qnc_program_view::SlotZoomTaken::Strip(edge)),
+            marker: element("marker", qnc_program_view::SlotZoomTaken::Marker(edge)),
+            sounds: [element("a1", qnc_program_view::SlotZoomTaken::Sound(edge, 0)), None],
+        });
+    }
+    let player = match taken.edge() {
+        Some(true) => 0,
+        Some(false) => 2,
+        None => 1,
+    };
+    for (window, still) in stills.iter_mut().enumerate() {
+        still.live = window == player;
+        still.cut = window == player;
+    }
+}
