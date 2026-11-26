@@ -649,7 +649,8 @@ fn paint_window(ui: &mut egui::Ui, pane: Rect, still: &EditStill, index: usize, 
     let elements = still.elements.as_ref();
     let marker = elements.and_then(|elements| elements.marker.as_ref());
     // The M column on the outer edge (left of IN, right of OUT); the picture beside it.
-    let (bar, picture_rect) = match (marker, still.after) {
+    // By the place of the window, not by its side of a cut: the left window has M on its left.
+    let (bar, picture_rect) = match (marker, index == 0) {
         (Some(_), true) => (Some(Rect::from_min_max(pane.min, egui::pos2(pane.left() + MARKER_BAR, pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(egui::pos2(pane.left() + MARKER_BAR + ROW_GAP, pane.top()), pane.max)),
         (Some(_), false) => (Some(Rect::from_min_max(egui::pos2(pane.right() - MARKER_BAR, pane.top()), egui::pos2(pane.right(), pane.bottom() + ELEMENTS_HEIGHT))), Rect::from_min_max(pane.min, egui::pos2(pane.right() - MARKER_BAR - ROW_GAP, pane.bottom()))),
         _ => (None, pane),
