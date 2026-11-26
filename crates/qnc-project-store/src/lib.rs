@@ -684,6 +684,53 @@ impl ProjectStore {
         Ok((workspace_db, project_workspace_db_uri(project_id)))
     }
 
+    /// The folder of a listed project on this computer.
+    pub fn project_folder(&self, project_id: &str) -> Result<PathBuf, String> {
+        let conn = self.open_registry()?;
+        init_registry_schema(&conn)?;
+        project_dir_from_conn(&conn, &self.projects_root, project_id.trim())
+    }
+
+    /// The registry forgets a project and its folder stays as it is (user 2026-11-27: its
+    /// databases deleted by hand, the project off the list, its media kept). The active project,
+    /// when it was this one, becomes the first other. Gives the folder the project was in.
+    pub fn forget_project(&self, project_id: &str) -> Result<PathBuf, String> {
+        let project_id = project_id.trim();
+        if project_id.is_empty() {
+            return Err(qnc_ui_text::text("project.store.project_id_empty").to_string());
+        }
+        let mut conn = self.open_registry()?;
+        init_registry_schema(&conn)?;
+        let known: Option<String> = conn
+            .query_row("SELECT project_id FROM projects WHERE project_id = ?1", params![project_id], |row| row.get(0))
+            .optional()
+            .map_err(|error| error.to_string())?;
+        if known.is_none() {
+            return Err(qnc_ui_text::fill("project.store.project_missing", &[("id", project_id)]));
+        }
+        let project_dir = project_dir_from_conn(&conn, &self.projects_root, project_id)?;
+        let active_project_id = get_setting(&conn, "active_project_id", "")?;
+        let tx = conn.transaction().map_err(|error| error.to_string())?;
+        for table in ["project_origin", "project_storage_locations", "project_search", "projects"] {
+            tx.execute(&format!("DELETE FROM {table} WHERE project_id = ?1"), params![project_id]).map_err(|error| error.to_string())?;
+        }
+        if active_project_id == project_id {
+            let next: String = tx
+                .query_row("SELECT project_id FROM projects ORDER BY project_id LIMIT 1", [], |row| row.get(0))
+                .optional()
+                .map_err(|error| error.to_string())?
+                .unwrap_or_default();
+            tx.execute(
+                "INSERT INTO app_settings (key, value) VALUES ('active_project_id', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![&next],
+            )
+            .map_err(|error| error.to_string())?;
+        }
+        tx.commit().map_err(|error| error.to_string())?;
+        Ok(project_dir)
+    }
+
     pub fn delete_project(&self, project_id: &str) -> Result<ProjectRow, String> {
         let project_id = project_id.trim();
         if project_id.is_empty() {
