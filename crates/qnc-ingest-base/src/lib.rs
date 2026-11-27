@@ -1239,6 +1239,12 @@ pub fn owner(root: &Path, id: &str) -> Result<Option<(String, String)>, String> 
 /// administrator"): the user and computer that made it, or a program running with the
 /// administrator's rights. A base without an origin only the administrator deletes.
 pub fn may_delete(root: &Path, id: &str) -> Result<(), Refusal> {
+    // A base a project uses is never deleted, not even by the administrator (user 2026-11-27:
+    // "dodaj zabranu brisanja baze koju koristi projekt"): the project reads its media from it.
+    let users = projects_using(root, id).map_err(Refusal::Unread)?;
+    if !users.is_empty() {
+        return Err(Refusal::UsedBy { projects: users.join(", ") });
+    }
     if qnc_workstation_identity::is_administrator() {
         return Ok(());
     }
@@ -1324,4 +1330,18 @@ pub enum Refusal {
     NoOwner,
     /// Its origin could not be read.
     Unread(String),
+    /// Projects use it (their names): their media are in it.
+    UsedBy { projects: String },
+}
+
+/// The names of the projects (not bases) that took the base `base_id`.
+pub fn projects_using(root: &Path, base_id: &str) -> Result<Vec<String>, String> {
+    let store = ProjectStore::open(root)?;
+    let mut users = Vec::new();
+    for row in store.list_projects()?.into_iter().filter(|row| !row.name.starts_with(NAME_PREFIX)) {
+        if story_bases(&store, &row.project_id).unwrap_or_default().iter().any(|(base, _)| base == base_id) {
+            users.push(row.name);
+        }
+    }
+    Ok(users)
 }

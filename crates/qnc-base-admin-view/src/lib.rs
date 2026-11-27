@@ -138,5 +138,6 @@ fn why(refusal: &Refusal, base: &IngestBase) -> String {
         Refusal::NotOwner { user, computer } => fill("tray.delete_base_not_owner", &[("base", base.label()), ("user", user), ("computer", computer)]),
         Refusal::NoOwner => fill("tray.delete_base_no_owner", &[("base", base.label())]),
         Refusal::Unread(error) => fill("tray.base_delete_failed", &[("base", base.label()), ("error", error)]),
+        Refusal::UsedBy { projects } => fill("tray.delete_base_used", &[("base", base.label()), ("projects", projects)]),
     }
 }
