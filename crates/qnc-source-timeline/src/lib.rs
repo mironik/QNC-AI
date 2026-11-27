@@ -91,10 +91,18 @@ pub struct SourceTimelineView {
     /// The zoom of the timeline (its taken IN or OUT enlarged, user 2026-11-25), drawn over
     /// everything by the timeline itself; `None`: closed or unused by the form.
     pub zoom: Option<Box<qnc_program_view::SegmentsView>>,
+    /// Parts of the shown clip already in a statement, its frames: lightly grey (user 2026-11-27).
+    pub used: Vec<(u64, u64)>,
 }
 
 impl SourceTimelineView {
     /// This view with `question` shown over everything.
+    /// The parts of the shown clip already used for statements (lightly grey on the timeline).
+    pub fn with_used(mut self, used: Vec<(u64, u64)>) -> Self {
+        self.used = used;
+        self
+    }
+
     pub fn with_question(mut self, question: Option<qnc_notice::Choice>) -> Self {
         self.question = question;
         self
@@ -668,6 +676,7 @@ impl SourceTimeline {
             normalize: self.view.normalize,
             sound_assist: self.view.sound_assist,
             question: None,
+            used: Vec::new(),
             level_curves: std::mem::take(&mut self.view.level_curves),
             zoom: self.view.zoom.take(),
         };
