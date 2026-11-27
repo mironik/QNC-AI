@@ -106,10 +106,12 @@ ovdje, pa kod. Sto kod danas radi drukcije stoji na popisu za odluku u
   M marker nije zaseban objekt nego naziv za spoj OUT/IN dvaju klipova; u zoomu ga crtamo kao
   veliko polje koje se lako odabere. Promjena IN-a ili OUT-a klipa mijenja samo njegovu duljinu
   (susjedi zadrzavaju svoju i pomaknu se); promjena spoja OUT/IN (M) mijenja duljinu oba klipa.
-  Zoom pokazuje jedan klip: `([OUT prije][IN]) [SLOT] ([OUT][IN poslije])`. Svaka slika je
-  vlastiti rub svog klipa: OUT klipa prije i IN klipa poslije mijenjaju duljinu tog susjeda, IN i
-  OUT ovog klipa njegovu. U sredini je slot (player, ispod njega jedna traka trajanja). M je par
-  OUT/IN, crtan kao jedna traka ispod obje slike para, samo gdje susjed postoji (bez pauze).
+  Zoom pokazuje jedan klip u najvise tri slike (korisnik 2026-11-27: "maximalno 3 slike"):
+  `[IN] [SLOT] [OUT]`. U sredini je slot (player, ispod njega jedna traka trajanja). Kad je uzet
+  rub susjeda (OUT klipa prije, IN klipa poslije), njegova slika stoji u lijevom, odnosno desnom
+  prozoru umjesto IN-a ili OUT-a. Isti zoom otvara desni klik u klip i uzimanje ruba (Ctrl+I/O,
+  desni klik na oznaku). M je par OUT/IN, crtan kao traka na vanjskom rubu, samo gdje susjed
+  postoji (bez pauze).
   Klik na sliku uzima taj rub, klik na traku M taj spoj (roll), klik na slot pusta uzeto (player).
   Trake tona A1/A2 ispod para su ton tog spoja (J/L tona).
   Traka trajanja na timelineu oznacava vrijeme (korisnik 2026-11-26): klik ne vodi na IN po

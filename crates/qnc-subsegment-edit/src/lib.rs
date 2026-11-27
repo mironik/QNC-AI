@@ -432,7 +432,8 @@ impl SubsegmentEdit {
                 let taken = self.trim.filter(|trim| (trim.index == from && !trim.out) || (trim.index == to && trim.out)).map(|trim| trim.out);
                 view::scope_zoom(&shown, &pieces, (from, to), taken, (rate, Some((&self.zoom_follow, position))), frames_of)
             }
-            _ => self.trim.and_then(|trim| view::subsegment_zoom(&shown, &pieces, (trim.index, trim.out), (rate, Some((&self.zoom_follow, position))), frames_of)),
+            // An edge taken without its part's zoom open: the same zoom of that part, at most three windows (user 2026-11-27).
+            _ => self.trim.and_then(|trim| view::clip_zoom(&shown, &pieces, trim.index, if trim.roll.is_some() { ClipZoomTaken::Marker { right: true } } else { ClipZoomTaken::Edge { right: trim.out } }, (rate, Some((&self.zoom_follow, position))), frames_of)),
         };
         let own_focus = (own && self.scope.is_some()).then(|| self.trim.map(|trim| trim.out));
         // A whole cut taken: the zoom's A1 takes its sound (its label, a right click), and the
