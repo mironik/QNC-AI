@@ -364,6 +364,25 @@ pub fn project_of_base(root: &Path, base_id: &str, name: &str) -> Result<(String
     Ok((story, card))
 }
 
+/// The base `base_id` named and described when the story `name` is made from it (user 2026-11-27:
+/// "naziv baze i naziv projekta mogu biti isti ako naziv baze nije kreiran prilikom uvoza"; "Opis:
+/// nalazi SigLIP-a, filtrirani da nema ponavljanja"): a base without a name the user wrote (empty,
+/// or only its camera and time given when the ingest window closed) takes the story's name; an
+/// empty description takes what the shot analysis found in it. What the user wrote stays.
+pub fn name_base_by_story(root: &Path, base_id: &str, name: &str) -> Result<(), String> {
+    let store = ProjectStore::open(root)?;
+    require_base(&store, base_id)?;
+    let row = store.list_projects()?.into_iter().find(|row| row.project_id == base_id).ok_or_else(|| format!("no Ingest base {base_id}"))?;
+    let base = base_of(row, &Takers::new(), &store);
+    let named = !base.title.trim().is_empty() && !base.name.contains(base.title.trim());
+    let title = if named { base.title.clone() } else { name.trim().to_string() };
+    let description = if base.description.trim().is_empty() { base.analysis.trim().to_string() } else { base.description.clone() };
+    if title == base.title && description == base.description {
+        return Ok(());
+    }
+    set_info(root, base_id, &title, &base.location, &description)
+}
+
 /// The tables of a base's own database a story's project takes when it is made (user 2026-11-27:
 /// "u Ingestu je source materijal i rezultati AI analiza... bazu možeš kopirati, a kadrovi ostaju na
 /// lokaciji uvoza"): the clips and their media records, the filmstrips and waves, the transcripts

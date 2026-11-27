@@ -93,14 +93,13 @@ impl AdminView {
             let mut heads: Vec<egui::Rect> = Vec::new();
             let mut first_button = None;
             egui::Grid::new("qnc-base-admin").striped(true).spacing(egui::vec2(column_gap, row_gap)).show(ui, |ui| {
-                for head in ["admin.base", "admin.story", "admin.clips", "admin.state"] {
+                for head in ["admin.base", "admin.clips", "admin.state"] {
                     heads.push(ui.label(RichText::new(text(head)).strong()).rect);
                 }
                 ui.label("");
                 ui.end_row();
                 for row in rows {
                     ui.label(row.base.shown());
-                    ui.label(row.base.project_name.clone().unwrap_or_else(|| text("admin.none")));
                     ui.label(row.progress.as_ref().map_or_else(|| "?".into(), |progress| format!("{} / {}", progress.imported, progress.clips)));
                     ui.label(if row.base.active { text("admin.active") } else { String::new() });
                     let delete = ui.add_enabled(!busy && row.may_delete.is_ok(), qnc_ui_kit::sized_button(text("admin.delete"), button));

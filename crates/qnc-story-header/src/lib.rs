@@ -318,6 +318,9 @@ fn keep_story(target: &ProjectDbTarget, story: StorySheet, name: &str) -> Result
     if name.is_empty() {
         return Err(qnc_ui_text::text("header.slug_needed").to_string());
     }
+    // A base without a name of its own takes the story's, an empty description what the shot
+    // analysis found (user 2026-11-27), before the project copies it.
+    qnc_ingest_base::name_base_by_story(&root, &base.id, name)?;
     let project = qnc_ingest_base::take_for_story(&root, &base.id, name, "")?;
     // What the base holds of its source and AI work goes into the project's own database; the
     // media stay where the import put them (user 2026-11-27: "bazu možeš kopirati").
