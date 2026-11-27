@@ -457,33 +457,3 @@ fn check(chosen: Option<&str>, clips: &[ClipRow], marks: Option<(u64, u64)>, tar
     let project_id = project_id.ok_or_else(|| text("story.msg.no_active_project"))?.to_string();
     Ok(Writing { clip_id: clip.clip_id.clone(), name: clip.name.clone(), marks, target, project_id, caption: Default::default() })
 }
-
-/// The action of Add compound statement (user 2026-11-27, as QNC-pro's Složena izjava): a part
-/// of the statement chosen, or, with none chosen, the IN/OUT saved as a new statement.
-pub fn compound_action(open: Option<OpenShort<'_>>) -> &'static str {
-    if open.is_some() { ADD_PART } else { "save_virtual_shot" }
-}
-
-/// Whether Add compound statement can do its action (`compound_action`).
-pub fn can_compound(open: Option<OpenShort<'_>>, shown_clip: Option<&str>, marks: Option<(u64, u64)>) -> bool {
-    match open {
-        Some(_) => can_add_part(open, shown_clip, marks),
-        None => shown_clip.is_some() && marks.is_some_and(|cut| cut.1 > cut.0),
-    }
-}
-
-#[cfg(test)]
-mod compound_tests {
-    use super::*;
-
-    #[test]
-    fn with_no_statement_chosen_compound_saves_the_marks_as_a_new_one() {
-        assert_eq!(compound_action(None), "save_virtual_shot");
-        assert!(can_compound(None, Some("clip-b"), Some((10, 40))));
-        assert!(!can_compound(None, Some("clip-b"), None));
-        let open = Some(("shot_001", "clip-a", (100, 200)));
-        assert_eq!(compound_action(open), ADD_PART);
-        assert!(can_compound(open, Some("clip-b"), Some((10, 40))), "a part of another clip");
-        assert!(!can_compound(open, Some("clip-a"), Some((100, 200))), "the statement's own IN/OUT");
-    }
-}
