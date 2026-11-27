@@ -286,8 +286,9 @@ const SLUG: &str = "slug";
 /// Keeps the header. In the project it is filled in, or, when the active project is an Ingest base
 /// (user 2026-11-24: "projekt nastaje kada se otvara forma Script; naziv priloga postaje naziv
 /// projekta"; the base keeps only what the wizard made), in a project made now with the story's
-/// name: it takes the base, becomes the active one, and the base is Selected into it as a card
-/// (the tray's ingest window, working in the new project). Returns the uri of a project made.
+/// name: it takes the base (linked, its clips stay in the base) and becomes the active one. No import
+/// is started (user 2026-11-27: "iz funkcije Kreiraj projekt izbaciti da pokreće uvoz"). Returns the
+/// uri of a project made.
 fn keep_story(target: &ProjectDbTarget, story: StorySheet, name: &str) -> Result<Option<String>, String> {
     let root = qnc_dev_diagnostics::resolve_qnc_root().ok_or_else(|| qnc_ui_text::text("header.no_sheet").to_string())?;
     let base = match qnc_ingest_base::active_is_base(&root) {
@@ -300,16 +301,12 @@ fn keep_story(target: &ProjectDbTarget, story: StorySheet, name: &str) -> Result
     if name.is_empty() {
         return Err(qnc_ui_text::text("header.slug_needed").to_string());
     }
-    let (project, card) = qnc_ingest_base::project_of_base(&root, &base.id, name)?;
+    let project = qnc_ingest_base::take_for_story(&root, &base.id, name, "")?;
     let reader = qnc_work_settings::SettingsReader::from_root(&root).map_err(|error| error.to_string())?.with_project(&project);
     let settings = qnc_active_project_read::ActiveProjectReader::from_settings_reader(reader.clone()).read().map_err(|error| error.to_string())?.settings;
     let made = ProjectDbTarget::for_project(&reader, &settings)?;
     qnc_newsroom_sheet_db::save(&made, story)?;
-    let line = match qnc_ai_open::open_card_ingest(&root, &project, &card) {
-        Ok(_) => format!("story-header project {project} made from base {} ({card} Selected into it)", base.id),
-        Err(error) => format!("story-header project {project} made from base {}, its Select not started: {error}", base.id),
-    };
-    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("story-header project {project} made from base {} (no import started)", base.id));
     Ok(Some(made.uri().to_string()))
 }
 
