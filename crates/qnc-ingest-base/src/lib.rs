@@ -1149,6 +1149,26 @@ pub fn my_stories(root: &Path) -> Result<std::collections::BTreeSet<String>, Str
     Ok(mine)
 }
 
+/// The story this user goes on with on the base `base_id` (user 2026-11-27: "ista baza može biti
+/// izvor za više projekata... moraš gledati i aktivnog korisnika i status projekta"): of the
+/// projects that took the base, the one taken last that this user on this computer made and that
+/// is not being deleted. `None`: the user has no story on this base yet (the header's form is
+/// asked). A project that cannot be read is left out.
+pub fn my_story_of_base(root: &Path, base_id: &str) -> Result<Option<(String, String)>, String> {
+    let store = ProjectStore::open(root)?;
+    let mut found: Option<(String, String, String)> = None;
+    for row in store.list_projects()?.into_iter().filter(|row| !row.name.starts_with(NAME_PREFIX)) {
+        let Some(at) = story_bases(&store, &row.project_id).unwrap_or_default().into_iter().find(|(base, _)| base == base_id).map(|(_, at)| at) else { continue };
+        if !owner(root, &row.project_id)?.is_some_and(|owner| is_mine(&owner)) || closing(root, &row.project_id) {
+            continue;
+        }
+        if found.as_ref().is_none_or(|(known, _, _)| *known < at) {
+            found = Some((at, row.project_id, row.name));
+        }
+    }
+    Ok(found.map(|(_, id, name)| (id, name)))
+}
+
 /// The story `story_id` is worked on again: it becomes the active project (its own database, as
 /// in QNC); the card bases it links stay as they are. Gives the story's name.
 pub fn open_story(root: &Path, story_id: &str) -> Result<String, String> {

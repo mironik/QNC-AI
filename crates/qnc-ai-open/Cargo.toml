@@ -7,3 +7,4 @@ description = "QNC-AI block: opens the next program of the wizard (beside the on
 [dependencies]
 qnc-work-settings = { workspace = true }
 qnc-dev-diagnostics = { workspace = true }
+qnc-ingest-base = { workspace = true }

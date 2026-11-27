@@ -91,6 +91,11 @@ pub struct StoryHeader {
     view: HeaderView,
     /// The next read keeps the overlay closed (the project the header made).
     quiet: bool,
+    /// The overlay opens by itself once the header is read: only the form of the header does it
+    /// (user 2026-11-27: the form is not tied to the Script, which only shows the header kept).
+    asks: bool,
+    /// A confirm was kept in the project.
+    done: bool,
 }
 
 impl std::fmt::Debug for StoryHeader {
@@ -100,8 +105,19 @@ impl std::fmt::Debug for StoryHeader {
 }
 
 impl StoryHeader {
+    /// The header shown (MA Script): read and kept, never asked by itself.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The header asked (the form of the header): the overlay opens once it is read.
+    pub fn asking() -> Self {
+        Self { asks: true, ..Self::default() }
+    }
+
+    /// Whether a confirm was kept in the project (the form then goes on to the Script).
+    pub fn done(&self) -> bool {
+        self.done
     }
 
     pub fn view(&self) -> &HeaderView {
@@ -119,7 +135,7 @@ impl StoryHeader {
             // it made opens without the overlay (it was just filled).
             let (made, saving) = (self.made.take(), self.saving.take());
             let just_made = saving.is_some() || (made.is_some() && made == key);
-            *self = Self { project: key, target: target.cloned(), made: made.filter(|_| !just_made), saving, ..Self::default() };
+            *self = Self { project: key, target: target.cloned(), made: made.filter(|_| !just_made), saving, asks: self.asks, done: self.done, ..Self::default() };
             self.quiet = just_made;
             if let Some(target) = target.cloned() {
                 let (send, receive) = mpsc::channel();
@@ -134,7 +150,7 @@ impl StoryHeader {
                 Ok((sheet, values)) => {
                     self.sheet = Some(sheet);
                     self.kept = values;
-                    if !std::mem::take(&mut self.quiet) {
+                    if !std::mem::take(&mut self.quiet) && self.asks {
                         self.begin();
                     }
                 }
@@ -147,6 +163,7 @@ impl StoryHeader {
                 Ok(made) => {
                     self.message.clear();
                     self.made = made;
+                    self.done = true;
                 }
                 Err(error) => {
                     // Not kept: the overlay opens again with what was typed.

@@ -14,7 +14,7 @@ use qnc_action_event::ActionEvent;
 use qnc_script::{seconds_label, KindSpec, Role, ScriptView, ADD_CLIP, CLEAR_EDITOR, DRAFT, EDITOR_NOTE, EDITOR_TEXT, EXPORT, OPEN_EXPORT, PANEL, SAVE_TEXT, SEND_STORY};
 use qnc_text_source_editor::{Answer, Editor, EditorButton};
 
-mod header;
+use qnc_story_header_view as header;
 
 pub const MODULE_ID: &str = "qnc.module.script-writer-panel";
 
@@ -154,10 +154,6 @@ pub fn show(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme) ->
     }
     qnc_script_panel::recording_press(ui, rect, view, &mut asked);
     ui.allocate_rect(rect, Sense::hover());
-    // The header of the story over everything while it is open (user 2026-11-24).
-    if let Some(event) = header::overlay(ui.ctx(), &view.header, theme) {
-        return Some(event);
-    }
     asked
 }
 
@@ -194,10 +190,8 @@ fn paint_header(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme
                 asked = Some(ActionEvent::key(EXPORT).at(PANEL));
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                // The title opens the header again (user 2026-11-24).
-                if ui.add(egui::Label::new(RichText::new(title).color(theme.text).strong().size(theme.font_ui + 5.0)).truncate().sense(Sense::click())).on_hover_text(qnc_ui_text::text("header.edit")).clicked() {
-                    asked = Some(ActionEvent::key(qnc_story_header::OPEN).at(PANEL));
-                }
+                // The header is filled in its own form before the Script (user 2026-11-27), not here.
+                ui.add(egui::Label::new(RichText::new(title).color(theme.text).strong().size(theme.font_ui + 5.0)).truncate());
             });
         });
     });

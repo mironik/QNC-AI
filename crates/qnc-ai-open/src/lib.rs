@@ -27,10 +27,42 @@ pub fn open(root: &Path, name: &str) -> Result<PathBuf, String> {
 /// MA Script reads them from there.
 pub const GO_TO_SCRIPT: &str = "go_to_script";
 
-/// Opens MA Script in the QNC-AI root the running program works in; the form asking stays open.
-pub fn go_to_script() -> Result<PathBuf, String> {
+/// The form of the story header, opened before MA Script when the user has no story yet.
+pub const HEADER_FORM: &str = "qnc-story-header-form";
+
+/// Where "Idi na Script (OFF)" goes (user 2026-11-27: the header's form is not tied to the Script,
+/// its confirm would make a project and break the links of the one there): a story's project
+/// active, MA Script; an Ingest base active, the story this user goes on with on that base (made
+/// the active one) and MA Script, or the header's form when there is none (one base may give
+/// several projects, so the user and the project's state decide, not the base). Decided off the
+/// caller's thread; what it opened goes to the player log. The form asking stays open.
+pub fn go_to_script() -> Result<(), String> {
     let root = qnc_dev_diagnostics::resolve_qnc_root().ok_or("no QNC root for MA Script")?;
-    open(&root, "qnc-ma-script")
+    std::thread::Builder::new()
+        .name("qnc-go-to-script".into())
+        .spawn(move || {
+            let line = match script_or_header(&root) {
+                Ok(said) => said,
+                Err(error) => format!("go-to-script failed: {error}"),
+            };
+            qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, line);
+        })
+        .map(drop)
+        .map_err(|error| error.to_string())
+}
+
+fn script_or_header(root: &Path) -> Result<String, String> {
+    if !qnc_ingest_base::active_is_base(root) {
+        return open(root, "qnc-ma-script").map(|program| format!("go-to-script a story's project is active: {}", program.display()));
+    }
+    let base = qnc_ingest_base::active(root)?.ok_or("no active Ingest base")?;
+    match qnc_ingest_base::my_story_of_base(root, &base.id)? {
+        Some((story, name)) => {
+            qnc_ingest_base::open_story(root, &story)?;
+            open(root, "qnc-ma-script").map(|program| format!("go-to-script the user's story {name} on base {} opened: {}", base.id, program.display()))
+        }
+        None => open(root, HEADER_FORM).map(|program| format!("go-to-script no story of this user on base {}: the header's form {}", base.id, program.display())),
+    }
 }
 
 /// The environment variable a program opened for a new story carries (user 2026-11-15: "Novi

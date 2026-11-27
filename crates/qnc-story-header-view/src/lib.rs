@@ -1,5 +1,6 @@
-//! The header of the story over the writing form (user 2026-11-24: before writing, "overlay
-//! obrazac za naziv, novinar, snimatelj... u jednom stupcu"): the fields of the story sheet one
+//! The header of the story (user 2026-11-24: "obrazac za naziv, novinar, snimatelj... u jednom
+//! stupcu"; 2026-11-27: the form of its own, not the Script's, opened before the Script when the
+//! active branch has no project of this user): the fields of the story sheet one
 //! under the other, a field of names with a row per name and an empty row to add one; Enter
 //! goes to the next field, at the last one it opens the writing; Esc closes it, nothing kept.
 //! Over the writing form the header kept is shown in several columns. It paints only and gives
@@ -8,9 +9,10 @@
 use eframe::egui::{self, Id, RichText, Ui};
 use qnc_action_event::ActionEvent;
 use qnc_field_spec::FieldKind;
-use qnc_script::PANEL;
 use qnc_story_header::{HeaderView, CANCEL, CONFIRM, NAME, REMOVE_NAME, TEXT};
 
+/// The panel the actions of the overlay are at.
+pub const PANEL_NAME: &str = "story_header";
 const WIDTH: f32 = 560.0;
 const LABEL: f32 = 170.0;
 /// The header kept, over the writing form: this many fields side by side.
@@ -22,6 +24,7 @@ fn field_id(path: &str, index: usize) -> Id {
 
 /// The overlay while it is open; its answer.
 pub fn overlay(ctx: &egui::Context, view: &HeaderView, theme: &qnc_desktop_theme::Theme) -> Option<ActionEvent> {
+    const PANEL: &str = PANEL_NAME;
     if !view.open {
         return None;
     }

@@ -1,0 +1,35 @@
+{
+  "module_id": "qnc.module.story-header-view",
+  "module_name": "Story header view",
+  "module_version": "0.1.0",
+  "module_kind": "library",
+  "capabilities": [
+    "story.header.view"
+  ],
+  "input_contract_version": "0.1.0",
+  "output_contract_version": "0.1.0",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_cpu": [
+    "x86_64",
+    "aarch64"
+  ],
+  "transport_protocol_version": "0.1.0",
+  "forbidden_calls": [
+    "ffprobe",
+    "business.workflow"
+  ],
+  "forbidden_dependencies": [
+    "qnc.module.media-probe",
+    "qnc.module.content-store"
+  ],
+  "state_policy": "session_local",
+  "database_write_policy": "public_db_owner_write_adapter_only",
+  "runtime_crate": "qnc-story-header",
+  "input": "The project the script form works on, and the actions of the header overlay.",
+  "output": "The header of the story (its sheet and values) kept in the project database through qnc-newsroom-sheet-db.",
+  "specification": "AGENTS.md 2026-11-24 (user: before writing a story the header form opens: show, date, slug, length, journalists, editors, camera operators, source, notes for the gallery; names typed, several per field)."
+}

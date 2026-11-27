@@ -1,0 +1,16 @@
+[package]
+name = "qnc-story-header-form"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI form of the story header: opened by Idi na Script when the active Ingest base has no story of this user; Create project makes the story's project (it links the base), then MA Script opens; nothing of the Script"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-active-project-read = { workspace = true }
+qnc-ai-open = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-dev-diagnostics = { workspace = true }
+qnc-ingest-layout = { workspace = true }
+qnc-story-header = { workspace = true }
+qnc-story-header-view = { workspace = true }
+qnc-work-settings = { workspace = true }

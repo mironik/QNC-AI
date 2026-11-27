@@ -3863,6 +3863,7 @@ name = "qnc-ai-open"
 version = "0.1.0"
 dependencies = [
  "qnc-dev-diagnostics",
+ "qnc-ingest-base",
  "qnc-work-settings",
 ]
 
@@ -7519,7 +7520,7 @@ dependencies = [
  "qnc-media-overlay",
  "qnc-script",
  "qnc-script-panel",
- "qnc-story-header",
+ "qnc-story-header-view",
  "qnc-text-source-editor",
  "qnc-transcript-panel",
  "qnc-ui-kit",
@@ -8376,6 +8377,34 @@ dependencies = [
  "qnc-ui-text",
  "qnc-work-settings",
  "serde_json",
+]
+
+[[package]]
+name = "qnc-story-header-form"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-active-project-read",
+ "qnc-ai-open",
+ "qnc-db-broker",
+ "qnc-dev-diagnostics",
+ "qnc-ingest-layout",
+ "qnc-story-header",
+ "qnc-story-header-view",
+ "qnc-work-settings",
+]
+
+[[package]]
+name = "qnc-story-header-view"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "qnc-action-event",
+ "qnc-desktop-theme",
+ "qnc-field-spec",
+ "qnc-story-header",
+ "qnc-ui-kit",
+ "qnc-ui-text",
 ]
 
 [[package]]

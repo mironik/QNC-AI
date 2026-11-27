@@ -1,0 +1,14 @@
+[package]
+name = "qnc-story-header-view"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI passive block: the story header painted - the overlay of its fields (the form of the header) and the header kept in columns (MA Script); it paints only and gives the actions of qnc-story-header"
+
+[dependencies]
+eframe = { workspace = true }
+qnc-action-event = { workspace = true }
+qnc-desktop-theme = { workspace = true }
+qnc-field-spec = { workspace = true }
+qnc-story-header = { workspace = true }
+qnc-ui-kit = { workspace = true }
+qnc-ui-text = { workspace = true }
