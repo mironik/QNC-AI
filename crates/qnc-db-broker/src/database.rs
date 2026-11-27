@@ -140,25 +140,19 @@ impl ProjectDb {
         Ok(self)
     }
 
-    pub fn uri(&self) -> &str {
-        &self.uri
+    /// Every module of this database joined: each makes its own tables (its schema) as it does
+    /// before its first request, and nothing else is written (user 2026-11-27: the databases kept
+    /// by the same schema; a copy of records fills only the tables their owners made).
+    pub fn prepare(&mut self) -> Result<()> {
+        for factory in self.factories.clone() {
+            self.join(&factory)?;
+        }
+        Ok(())
     }
 
-    pub fn execute(&mut self, request: &Request) -> Result<Value> {
-        if request.version != VERSION || request.db_uri != self.uri {
-            return Err(qnc_ui_text::text("db.invalid_request_project_database").into());
-        }
-        let factory = self
-            .factories
-            .iter()
-            .find(|factory| factory.id() == request.module)
-            .cloned()
-            .ok_or_else(|| {
-                qnc_ui_text::fill("db.unknown_module", &[("module", &request.module)])
-            })?;
-        if factory.is_write(&request.payload) && self.access == Access::ReadOnly {
-            return Err(qnc_ui_text::text("db.access_read_only").into());
-        }
+    /// The module of `factory` joined when it is not yet: it makes its tables on the file (or the
+    /// draft) and is kept for its requests.
+    fn join(&mut self, factory: &Arc<dyn TableModuleFactory>) -> Result<()> {
         if !self.modules.contains_key(factory.id()) {
             let module = match &self.draft {
                 Some(draft) => {
@@ -180,6 +174,29 @@ impl ProjectDb {
             }
             self.modules.insert(factory.id(), module);
         }
+        Ok(())
+    }
+
+    pub fn uri(&self) -> &str {
+        &self.uri
+    }
+
+    pub fn execute(&mut self, request: &Request) -> Result<Value> {
+        if request.version != VERSION || request.db_uri != self.uri {
+            return Err(qnc_ui_text::text("db.invalid_request_project_database").into());
+        }
+        let factory = self
+            .factories
+            .iter()
+            .find(|factory| factory.id() == request.module)
+            .cloned()
+            .ok_or_else(|| {
+                qnc_ui_text::fill("db.unknown_module", &[("module", &request.module)])
+            })?;
+        if factory.is_write(&request.payload) && self.access == Access::ReadOnly {
+            return Err(qnc_ui_text::text("db.access_read_only").into());
+        }
+        self.join(&factory)?;
         let module = self
             .modules
             .get_mut(factory.id())

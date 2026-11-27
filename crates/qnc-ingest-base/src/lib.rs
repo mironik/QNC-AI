@@ -423,8 +423,37 @@ pub fn copy_base_into_story(root: &Path, base_id: &str, story_id: &str) -> Resul
         return Err(format!("{story_id} is an Ingest base, not a story"));
     }
     let (base_file, _) = store.project_db_binding(base_id)?;
-    let (story_file, _) = store.project_db_binding(story_id)?;
+    let (story_file, story_uri) = store.project_db_binding(story_id)?;
+    prepare_story(&story_file, &story_uri)?;
     copy_base_records(&base_file, &story_file)
+}
+
+/// The story's databases made by the same schema as the base's (user 2026-11-27: "uskladi baze po
+/// istoj shemi"): every owner of a table the copy fills makes its own tables, views and marks in
+/// the story, as it did in the base; the copy then only puts rows into them. The project content
+/// store owns the catalog of clips, the table modules of the intermediary the rest (the media
+/// records, the source index, the artifacts, the transcripts, the virtual shots; the analysis and
+/// the content of shots in `ai.db`).
+pub fn prepare_story(story_file: &Path, story_uri: &str) -> Result<(), String> {
+    let content_uri = qnc_content_store::content_uri(story_uri)?;
+    qnc_content_store::ContentTarget::from_owner_binding(story_file, &content_uri)?.open(qnc_content_store::Access::ReadWrite)?;
+    let db_uri = qnc_db_broker::project_db_uri(story_uri)?;
+    qnc_db_broker::ProjectDb::open(
+        story_file,
+        &db_uri,
+        qnc_db_broker::Access::ReadWrite,
+        vec![
+            qnc_media_record_db::project::MediaRecordsModule::factory(),
+            qnc_source_index_db::project::SourceIndexModule::factory(),
+            qnc_artifact_db::ArtifactsModule::factory(),
+            qnc_transcript_db::TranscriptModule::factory(),
+            qnc_virtual_shots::VirtualShotsModule::factory(),
+        ],
+    )?
+    .prepare()?;
+    qnc_db_broker::ProjectDb::open(story_file, &db_uri, qnc_db_broker::Access::ReadWrite, vec![qnc_shot_db::ShotModule::factory(), qnc_shot_content_db::ShotContentModule::factory()])?
+        .with_companion(qnc_db_broker::AI_FILE)?
+        .prepare()
 }
 
 /// The records of the base database `base_file` (and its `ai.db` beside it) copied into the story
@@ -457,26 +486,16 @@ fn copy_tables(from: &Path, into: &Path, tables: &[&str]) -> Result<usize, Strin
     let result = (|| {
         let tx = conn.transaction().map_err(|error| error.to_string())?;
         let mut copied = 0;
-        // First every table the story lacks, with its indexes, then the rows.
+        // Only rows: the tables are their owners' (`prepare_story`), never made here.
         for table in tables {
-            let made: Option<String> = tx
-                .query_row("SELECT sql FROM base.sqlite_master WHERE type = 'table' AND name = ?1", [table], |row| row.get(0))
-                .ok();
-            let Some(made) = made else { continue };
-            let here: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0)).map_err(|error| error.to_string())?;
-            if !here {
-                tx.execute_batch(&made).map_err(|error| format!("{table}: {error}"))?;
-                let mut indexes = tx.prepare("SELECT sql FROM base.sqlite_master WHERE type = 'index' AND tbl_name = ?1 AND sql IS NOT NULL").map_err(|error| error.to_string())?;
-                let made_indexes: Vec<String> = indexes.query_map([table], |row| row.get(0)).map_err(|error| error.to_string())?.collect::<Result<_, _>>().map_err(|error| error.to_string())?;
-                drop(indexes);
-                for index in made_indexes {
-                    tx.execute_batch(&index.replacen("CREATE INDEX", "CREATE INDEX IF NOT EXISTS", 1).replacen("CREATE UNIQUE INDEX", "CREATE UNIQUE INDEX IF NOT EXISTS", 1)).map_err(|error| format!("{table} index: {error}"))?;
-                }
-            }
-        }
-        for table in tables {
-            let in_base: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM base.sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0)).map_err(|error| error.to_string())?;
-            if !in_base {
+            let in_both: bool = tx
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM base.sqlite_master WHERE type = 'table' AND name = ?1) AND EXISTS(SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?1)",
+                    [table],
+                    |row| row.get(0),
+                )
+                .map_err(|error| error.to_string())?;
+            if !in_both {
                 continue;
             }
             let columns = |schema: &str| -> Result<Vec<String>, String> {
@@ -1094,6 +1113,20 @@ mod tests {
         assert_eq!(active_id().as_deref(), Some(story.as_str()), "the new project is the active one, with its own database (user 2026-11-15)");
         assert_eq!(all(&root).unwrap()[0].project_name.as_deref(), Some("2026/11/11 Luka"), "the base read as linked by it");
         assert_eq!(all(&root).unwrap().len(), 1, "the story's project is no base");
+        // The copy of the base makes the story by the owners' schema first (user 2026-11-27: AI Media
+        // Assist read no clips, the copy had made the tables without the content store's views).
+        copy_base_into_story(&root, &base.id, &story).unwrap();
+        {
+            let store = ProjectStore::open(&root).unwrap();
+            let (story_db, _) = store.project_db_binding(&story).unwrap();
+            let conn = rusqlite::Connection::open(&story_db).unwrap();
+            let has = |name: &str| conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = ?1)", [name], |row| row.get::<_, bool>(0)).unwrap();
+            for name in ["ingest_content_schema", "public_clips", "public_clip_transcripts", "virtual_shots"] {
+                assert!(has(name), "{name} made by its owner in the story");
+            }
+            let ai = rusqlite::Connection::open(story_db.with_file_name(qnc_db_broker::AI_FILE)).unwrap();
+            assert!(ai.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'clip_shots')", [], |row| row.get::<_, bool>(0)).unwrap(), "the analysis of shots made in ai.db by its owner");
+        }
         // The camera operator the journalist names in the story sheet goes to the base; one written
         // before stays (user 2026-11-18).
         {

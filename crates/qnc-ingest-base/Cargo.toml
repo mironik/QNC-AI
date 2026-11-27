@@ -14,6 +14,15 @@ qnc-media-checksum = { workspace = true }
 qnc-source-contract = { workspace = true }
 qnc-project-store = { workspace = true }
 qnc-work-settings = { workspace = true }
+qnc-content-store = { workspace = true }
+qnc-db-broker = { workspace = true }
+qnc-media-record-db = { workspace = true }
+qnc-source-index-db = { workspace = true }
+qnc-artifact-db = { workspace = true }
+qnc-transcript-db = { workspace = true }
+qnc-virtual-shots = { workspace = true }
+qnc-shot-db = { workspace = true }
+qnc-shot-content-db = { workspace = true }
 rusqlite = { workspace = true }
 serde = { workspace = true }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
