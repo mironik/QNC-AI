@@ -104,17 +104,21 @@ impl Store {
         // Every write is one transaction (external audit 2026-10-17): an edit, its check and
         // its undo step are written together or not at all, so no other process ever reads
         // a half done or refused edit, and a crash between them leaves nothing behind.
-        self.conn.execute_batch("BEGIN IMMEDIATE").map_err(err)?;
+        // Inside the intermediary's transaction (the edit and its commit of the project's journal
+        // together, audit S-1) the write is a savepoint of it.
+        let own = self.conn.is_autocommit();
+        self.conn.execute_batch(if own { "BEGIN IMMEDIATE" } else { "SAVEPOINT story_write" }).map_err(err)?;
+        let undo = if own { "ROLLBACK" } else { "ROLLBACK TO story_write; RELEASE story_write" };
         match self.write_in_transaction(operation) {
-            Ok(data) => match self.conn.execute_batch("COMMIT") {
+            Ok(data) => match self.conn.execute_batch(if own { "COMMIT" } else { "RELEASE story_write" }) {
                 Ok(()) => Ok(data),
                 Err(error) => {
-                    let _ = self.conn.execute_batch("ROLLBACK");
+                    let _ = self.conn.execute_batch(undo);
                     Err(err(error))
                 }
             },
             Err(error) => {
-                let _ = self.conn.execute_batch("ROLLBACK");
+                let _ = self.conn.execute_batch(undo);
                 Err(error)
             }
         }

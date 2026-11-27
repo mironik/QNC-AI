@@ -201,25 +201,15 @@ impl ProjectDb {
             .modules
             .get_mut(factory.id())
             .ok_or(qnc_ui_text::text("db.project_database_module_open"))?;
-        let answer = match &request.lease {
+        if self.access == Access::ReadWrite && !factory.journaled().is_empty() && factory.is_write(&request.payload) {
+            return journaled(module.as_mut(), factory.as_ref(), request);
+        }
+        match &request.lease {
             Some(lease) if factory.is_write(&request.payload) => {
                 leased(module.as_mut(), lease, request.payload.clone())
             }
             _ => module.execute(request.payload.clone()),
-        }?;
-        if self.access == Access::ReadWrite && !factory.journaled().is_empty() && factory.is_write(&request.payload) {
-            let step = module.journal_step();
-            if factory.journals(&request.payload) || step.is_some() {
-                let author = request.author.clone().unwrap_or_else(crate::local_author);
-                let action = request.payload.get("kind").and_then(|kind| kind.as_str()).unwrap_or("write").to_string();
-                let kept = Kept { module: factory.id(), action, undoable: factory.undoable(&request.payload), step };
-                commit(module.connection(), author, kept);
-            } else {
-                // A write that is no edit (a selection): the rows it changed are not a commit.
-                let _ = qnc_change_capture::take(module.connection());
-            }
         }
-        Ok(answer)
     }
 
     /// The journal of the project for a module whose writes are edits (user 2026-11-25): its tables
@@ -232,8 +222,51 @@ impl ProjectDb {
     }
 }
 
-/// The rows the write just made changed, appended as one commit of the journal. The edit is
-/// already written: a journal that cannot be appended to is said in the log and the edit stays.
+/// A write of a module whose writes are edits (audit S-1): the write (under its lease, when it has
+/// one) and its commit of the project's journal in one transaction, so Undo, the history and going
+/// back never miss an edit that was written. The module's own transaction is a savepoint of it
+/// ([`qnc_write_lease::begin_write`]). A journal that cannot be appended to takes the write back with
+/// it. A write that is no edit (a selection) changes rows that are no commit: they are dropped.
+fn journaled(module: &mut dyn TableModule, factory: &dyn TableModuleFactory, request: &Request) -> Result<Value> {
+    let conn_begin = module.connection().execute_batch("BEGIN IMMEDIATE");
+    if let Err(error) = conn_begin {
+        let _ = qnc_change_capture::take(module.connection());
+        return Err(error.to_string());
+    }
+    let done = (|| -> Result<Value> {
+        if let Some(lease) = &request.lease {
+            lease.check(module.connection())?;
+        }
+        let answer = module.execute(request.payload.clone())?;
+        let step = module.journal_step();
+        if factory.journals(&request.payload) || step.is_some() {
+            let author = request.author.clone().unwrap_or_else(crate::local_author);
+            let action = request.payload.get("kind").and_then(|kind| kind.as_str()).unwrap_or("write").to_string();
+            commit(module.connection(), author, Kept { module: factory.id(), action, undoable: factory.undoable(&request.payload), step })?;
+        } else {
+            qnc_change_capture::take(module.connection())?;
+        }
+        Ok(answer)
+    })();
+    let conn = module.connection();
+    let ended = match &done {
+        Ok(_) => conn.execute_batch("COMMIT").map_err(|e| e.to_string()),
+        Err(_) => Ok(()),
+    };
+    if done.is_err() || ended.is_err() {
+        let _ = conn.execute_batch("ROLLBACK");
+        // The rows caught before the write failed (a TEMP table, rolled back with it; any left
+        // outside the transaction) never join the next edit's commit (audit S-9).
+        let _ = qnc_change_capture::take(conn);
+    }
+    if let Err(error) = &done {
+        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("journaled write not kept ({}): {error}", factory.id()));
+    }
+    let answer = done?;
+    ended?;
+    Ok(answer)
+}
+
 /// What a write is in the journal: its piece, its action, whether Undo may take it back, and the
 /// step of undo it was (then its action is `undo` or `redo`, with the commit it refers to).
 struct Kept {
@@ -243,25 +276,18 @@ struct Kept {
     step: Option<qnc_project_journal::Step>,
 }
 
-fn commit(conn: &Connection, author: String, kept: Kept) {
-    let appended = (|| -> Result<()> {
-        let changes = qnc_change_capture::take(conn)?;
-        if changes.is_empty() {
-            return Ok(());
-        }
-        let (action, undoable, refers) = match kept.step {
-            Some(step) => (step.action().to_string(), step.undoable(), Some(step.refers())),
-            None => (kept.action, kept.undoable, None),
-        };
-        conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
-        let made = qnc_project_journal::append(conn, &qnc_project_journal::NewCommit { author, module: kept.module.to_string(), action, undoable, refers, changes });
-        let end = if made.is_ok() { "COMMIT" } else { "ROLLBACK" };
-        conn.execute_batch(end).map_err(|e| e.to_string())?;
-        made.map(|_| ())
-    })();
-    if let Err(error) = appended {
-        qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("project-journal not kept: {error}"));
+/// The rows the write just made changed, appended as one commit of the journal, inside the write's
+/// transaction.
+fn commit(conn: &Connection, author: String, kept: Kept) -> Result<()> {
+    let changes = qnc_change_capture::take(conn)?;
+    if changes.is_empty() {
+        return Ok(());
     }
+    let (action, undoable, refers) = match kept.step {
+        Some(step) => (step.action().to_string(), step.undoable(), Some(step.refers())),
+        None => (kept.action, kept.undoable, None),
+    };
+    qnc_project_journal::append(conn, &qnc_project_journal::NewCommit { author, module: kept.module.to_string(), action, undoable, refers, changes }).map(|_| ())
 }
 
 /// A write made under a lease (external audit 2026-10-17): the lease is checked and the

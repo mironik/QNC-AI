@@ -121,10 +121,7 @@ impl Store {
             return Err(qnc_ui_text::text("db.project_database_belongs_another_project").into());
         }
         require_imported_clip(&self.conn, clip_id)?;
-        let tx = self
-            .conn
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .map_err(err)?;
+        let tx = qnc_db_broker::begin_write(&mut self.conn).map_err(err)?;
         let source_shot_id = source_row(&tx, clip_id)?;
         let index = next_index(&tx, clip_id, "short", "_shot_")?;
         let shot_id = format!("{clip_id}_shot_{index:03}");
@@ -403,10 +400,7 @@ impl Store {
             .unwrap_or(0);
         let before = now.saturating_sub(older_than) as i64;
         let covers = object_exists(&self.conn, "view", "public_story_covers")?;
-        let tx = self
-            .conn
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .map_err(err)?;
+        let tx = qnc_db_broker::begin_write(&mut self.conn).map_err(err)?;
         if covers {
             tx.execute(
                 "UPDATE virtual_shots SET cover_pending = 0
@@ -465,10 +459,7 @@ impl Store {
             return Err(qnc_ui_text::text("db.project_database_belongs_another_project").into());
         }
         require_imported_clip(&self.conn, clip_id)?;
-        let tx = self
-            .conn
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .map_err(err)?;
+        let tx = qnc_db_broker::begin_write(&mut self.conn).map_err(err)?;
         let source_shot_id = source_row(&tx, clip_id)?;
         let index = next_index(&tx, clip_id, "b_roll", "_broll_")?;
         let shot_id = format!("{clip_id}_broll_{index:03}");

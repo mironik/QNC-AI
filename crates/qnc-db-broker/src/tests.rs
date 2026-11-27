@@ -246,3 +246,30 @@ fn every_write_of_an_edit_is_a_commit_of_the_journal() {
     assert_eq!(commits[0].author, local_author());
     assert_eq!((commits[0].changes[0].before["text"].as_str(), commits[0].changes[0].after["text"].as_str()), (Some("first"), Some("second")));
 }
+
+/// Audit S-1: the write of an edit and its commit of the journal are one transaction. A journal that
+/// cannot be appended to takes the write back with it (Undo, the history and going back never miss
+/// an edit that is written), and the rows the refused write changed never join the next commit (S-9).
+#[test]
+fn an_edit_whose_commit_cannot_be_kept_is_not_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = project(dir.path(), "p1");
+    let target = ProjectDbTarget::from_owner_binding(&file, URI).unwrap();
+    let mut client = target.open(Access::ReadWrite, vec![owned_tables::<Notes>()]).unwrap();
+    let put = |text: &str| serde_json::json!({ "kind": "put", "value": text });
+    client.execute("test.notes", put("first")).unwrap();
+    let plain = rusqlite::Connection::open(&file).unwrap();
+    plain.pragma_update(None, "journal_mode", "PERSIST").unwrap(); // as the broker keeps it
+    plain.execute_batch("CREATE TRIGGER refuse AFTER INSERT ON project_journal BEGIN SELECT RAISE(ABORT, 'journal refused'); END").unwrap();
+    assert!(client.execute("test.notes", put("lost")).is_err(), "the edit is refused with its commit");
+    let text: String = plain.query_row("SELECT text FROM notes WHERE id = 'n'", [], |row| row.get(0)).unwrap();
+    assert_eq!(text, "first", "the refused edit is not written");
+    plain.execute_batch("DROP TRIGGER refuse").unwrap();
+    client.execute("test.notes", put("third")).unwrap();
+    drop(client);
+    let commits = qnc_project_journal::read(&plain, 10).unwrap();
+    assert_eq!(commits.len(), 2, "the first edit and the third, the refused one left nothing");
+    let newest = &commits[0];
+    assert_eq!(newest.changes.len(), 1, "only the third edit's row");
+    assert_eq!((newest.changes[0].before["text"].as_str(), newest.changes[0].after["text"].as_str()), (Some("first"), Some("third")));
+}
