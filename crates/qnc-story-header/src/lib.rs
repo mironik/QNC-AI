@@ -35,7 +35,8 @@ pub const CONFIRM: &str = "story_header_confirm";
 /// Closes it, nothing kept.
 pub const CANCEL: &str = "story_header_cancel";
 
-/// The sheet a project without one gets (user 2026-11-24: the TV package of the newsroom).
+/// The sheet a project without one gets when this computer has none chosen (user 2026-11-24: the TV
+/// package of the newsroom; 2026-11-27: the one chosen on the computer first).
 pub const PREPARED: &str = "tv_prilog";
 
 /// How the names of a field of names are kept in its text.
@@ -312,8 +313,9 @@ fn keep_story(target: &ProjectDbTarget, story: StorySheet, name: &str) -> Result
     Ok(Some(made.uri().to_string()))
 }
 
-/// The sheet of the project and its values; a project without a sheet gets the prepared TV
-/// package sheet (else the one chosen on this computer).
+/// The sheet of the project and its values; a project without a sheet gets the one chosen on this
+/// computer, as the story sheet before 24. 11. (user 2026-11-27: "vrati stari obrazac"; every field
+/// one row), else the prepared TV package sheet.
 fn read(target: &ProjectDbTarget) -> Result<(SheetSpec, BTreeMap<String, Value>), String> {
     let story = qnc_newsroom_sheet_db::read(target)?;
     if let Ok(sheet) = serde_json::from_value::<SheetSpec>(story.sheet.clone()) {
@@ -325,11 +327,8 @@ fn read(target: &ProjectDbTarget) -> Result<(SheetSpec, BTreeMap<String, Value>)
         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("story-header sheet refused {error}"));
     }
     let sheet = sheets
-        .list
-        .iter()
-        .map(|(sheet, _)| sheet)
-        .find(|sheet| sheet.sheet_id == PREPARED)
-        .or_else(|| sheets.current())
+        .current()
+        .or_else(|| sheets.list.iter().map(|(sheet, _)| sheet).find(|sheet| sheet.sheet_id == PREPARED))
         .cloned()
         .ok_or_else(|| qnc_ui_text::text("header.no_sheet").to_string())?;
     Ok((sheet, story.values))
