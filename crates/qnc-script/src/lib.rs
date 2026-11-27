@@ -124,6 +124,9 @@ pub const ACCEPT_BROLL: &str = "script_accept_broll";
 pub const DROP_BROLL: &str = "script_drop_broll";
 /// The exported A/V script is shown in the file browser of this OS.
 pub const OPEN_EXPORT: &str = "script_open_export";
+/// A statement made in AI Media Assist that waits in the script goes into it (user 2026-11-27);
+/// its target is the statement's id.
+pub const ADD_STATEMENT: &str = "script_add_statement";
 
 /// How often the script is read again (another process may change it).
 const READ_EVERY: Duration = Duration::from_secs(2);
@@ -186,6 +189,10 @@ pub struct Script {
     /// The statements of the pool as last read (user 2026-11-24): a clip block remembers the one
     /// it was made from and shows its caption.
     statements: Vec<qnc_virtual_shots::ShortClip>,
+    /// The source timecode of the clips of those statements, as read with them.
+    timecodes: HashMap<String, qnc_source_timecode::SourceTimecode>,
+    /// The statements no block uses yet, as blocks the script takes in (shown as `view.waiting`).
+    waiting: Vec<(String, Block)>,
     /// The header of the story (show, date, journalists...), filled before writing.
     header: qnc_story_header::StoryHeader,
     /// The statement chosen in the pool (AI Media Assist, MA Script's overlay): + statement takes
@@ -222,7 +229,7 @@ pub struct Script {
 
 impl Default for Script {
     fn default() -> Self {
-        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), chosen_statement: None, header: qnc_story_header::StoryHeader::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
+        Self { broll_asked: false, view: ScriptView::default(), blocks: Vec::new(), project: None, reading: None, read_at: None, writing: None, queued: std::collections::VecDeque::new(), source_request: None, names: HashMap::new(), words_per_second: Ok(0.0), take: None, taking: None, session: None, session_busy: None, exporting: None, draft: Default::default(), edit: Default::default(), letters: HashMap::new(), statements: Vec::new(), timecodes: HashMap::new(), waiting: Vec::new(), chosen_statement: None, header: qnc_story_header::StoryHeader::new(), letter_times: qnc_letter_times::LetterTimes::new(), smooth_joins: qnc_smooth_joins::SmoothJoins::new(), take_heard: qnc_take_heard::TakeHeard::new(), read_checks: HashMap::new(), word_cut: qnc_edit_words::WordPair::new(), word_pick: None, voices: Vec::new(), voice_request: None, voice_after_write: None, marks_after_write: None, heard_takes: HashMap::new(), message_after_write: None, clear_after_write: false }
     }
 }
 
@@ -438,6 +445,11 @@ impl Script {
             }
             SUBSEGMENT => self.add_subsegment(preview, timeline, timecode, transcript),
             session::OFF_RECORDING => self.sort_off_recording(preview, timeline),
+            ADD_STATEMENT => {
+                let Some(block) = target.and_then(|shot| self.waiting.iter().find(|(id, _)| id == shot)).map(|(_, block)| block.clone()) else { return Some(false) };
+                let after = self.view.selected;
+                self.write(preview, move |target| qnc_script_db::add(target, after, block).map(Some))
+            }
             ADD_QUOTE => {
                 let Some(quote) = id().and_then(|id| transcript.quotes.iter().find(|q| q.id == id)).cloned() else { return Some(false) };
                 // A statement of the transcript is a block of the profile's first clip kind.
@@ -718,6 +730,54 @@ impl Script {
         Some(Block { statement_id: statement.shot_id.clone(), ..block })
     }
 
+    /// The statements of the pool no block uses yet, each as the block of the profile's first
+    /// clip kind the script takes it in as (user 2026-11-27: the statements made in AI Media
+    /// Assist wait for the journalist in the script): its parts and joins, the timecodes of its
+    /// clip and the words said there from its transcript.
+    fn waiting_statements(&mut self, transcripts: &qnc_clip_transcripts::ClipTranscripts) {
+        let Some(kind) = self.view.clip_kinds().first().map(|kind| kind.id.clone()) else {
+            self.waiting.clear();
+            self.view.waiting.clear();
+            return;
+        };
+        let used: std::collections::HashSet<String> = self.blocks.iter().map(|block| block.statement_id.clone()).filter(|id| !id.is_empty()).collect();
+        let none = TranscriptView::default();
+        let piece = |clip: &str, from: u64, to: u64| {
+            let mut piece = self.piece_of(clip.to_string(), from, to, self.timecodes.get(clip), &none);
+            piece.text = transcripts.of(clip).map_or_else(String::new, |found| {
+                let words = view::timed_words(found, &piece, self.letters.get(clip).map_or(&[][..], Vec::as_slice), |_| String::new());
+                words.iter().map(|word| word.text.as_str()).collect::<Vec<_>>().join(" ")
+            });
+            piece
+        };
+        let mut waiting = Vec::new();
+        let mut shown = Vec::new();
+        for statement in self.statements.iter().filter(|statement| !statement.b_roll && !used.contains(&statement.shot_id)) {
+            let mut pieces = vec![piece(&statement.clip_id, statement.in_frame, statement.out_frame)];
+            for part in &statement.parts {
+                let mut next = piece(&part.clip_id, part.in_frame, part.out_frame);
+                next.cut = part.join != qnc_virtual_shots::JoinKind::Smooth;
+                next.smooth_frames = if part.join == qnc_virtual_shots::JoinKind::Smooth { qnc_subsegment_edit::SMOOTH_DEFAULT } else { 0 };
+                pieces.push(next);
+            }
+            let block = Block::of_pieces(kind.clone(), pieces);
+            // A statement of one range keeps no parts (its range is its own).
+            let block = if statement.parts.is_empty() { Block { pieces: Vec::new(), ..block } } else { block };
+            let caption: Vec<&str> = [statement.caption_name.trim(), statement.caption_role.trim()].into_iter().filter(|part| !part.is_empty()).collect();
+            shown.push(WaitingStatement {
+                shot_id: statement.shot_id.clone(),
+                clip_name: block.clip_name.clone(),
+                caption: caption.join(", "),
+                time: format!("{} - {}  {}", block.start_tc, block.end_tc, block.length),
+                parts: statement.parts.len() + 1,
+                text: block.text.clone(),
+            });
+            waiting.push((statement.shot_id.clone(), Block { statement_id: statement.shot_id.clone(), ..block }));
+        }
+        self.waiting = waiting;
+        self.view.waiting = shown;
+    }
+
     /// The statement chosen in the pool (`None`: a clip was chosen).
     pub fn chose_statement(&mut self, shot_id: Option<&str>) {
         self.chosen_statement = shot_id.map(str::to_string);
@@ -968,6 +1028,8 @@ impl Script {
     /// reader of transcripts (`qnc-clip-transcripts`) reads them for it.
     pub fn transcript_clips(&self) -> Vec<String> {
         let mut clips: Vec<String> = self.blocks.iter().flat_map(|block| view::block_pieces(block).into_iter().map(|piece| piece.clip_id)).filter(|clip| !clip.is_empty()).collect();
+        // The statements waiting show what is said in them.
+        clips.extend(self.statements.iter().filter(|s| !s.b_roll).flat_map(|s| std::iter::once(s.clip_id.clone()).chain(s.parts.iter().map(|part| part.clip_id.clone()))));
         clips.sort();
         clips.dedup();
         clips
@@ -1069,6 +1131,7 @@ impl Script {
                     .collect();
             }
         }
+        self.waiting_statements(transcripts);
         // The letters of the words the script shows are laid in the background while the
         // player is idle (user 2026-11-05: "only on the text shown in the script").
         if let Some(locator) = preview.still_locator() {
@@ -1206,9 +1269,10 @@ impl Script {
         if let Some(reading) = &self.reading {
             if let Ok(result) = reading.try_recv() {
                 match result {
-                    Ok(read::Script { blocks, profile, target, title, voices, letters, statements }) => {
+                    Ok(read::Script { blocks, profile, target, title, voices, letters, statements, timecodes }) => {
                         self.letters = letters;
                         self.statements = statements;
+                        self.timecodes = timecodes;
                         self.blocks = blocks;
                         self.view.profile = profile;
                         self.view.target_seconds = target;

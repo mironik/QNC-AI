@@ -248,7 +248,26 @@ pub struct ScriptView {
     pub subsegment: Option<SubsegmentView>,
     /// Words picked in the text of a statement (Delete cuts them out of its video).
     pub picked: Option<crate::WordPick>,
+    /// The statements made in AI Media Assist that no block uses yet (user 2026-11-27: they wait
+    /// for the journalist in the script), in the order they were made.
+    pub waiting: Vec<WaitingStatement>,
     pub message: String,
+}
+
+/// A statement of the pool not in the script yet, as the script would take it in.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct WaitingStatement {
+    pub shot_id: String,
+    /// The clip it is of (the first part's of a composite statement).
+    pub clip_name: String,
+    /// Who speaks and their role, as written when it was made.
+    pub caption: String,
+    /// Its timecodes and length (`start - end  length`).
+    pub time: String,
+    /// Its parts (1 for a statement of one range).
+    pub parts: usize,
+    /// What is said in it, from its clip's transcript (empty without one).
+    pub text: String,
 }
 
 impl ScriptView {

@@ -172,6 +172,9 @@
     "script_add_quote": {
       "label": "Dodaj izjavu s popisa u scenarij"
     },
+    "script_add_statement": {
+      "label": "Izjava iz Media Assista koja čeka ide u priču"
+    },
     "script_select": {
       "label": "Izaberi blok scenarija"
     },

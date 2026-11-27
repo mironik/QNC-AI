@@ -22,6 +22,8 @@ pub(crate) struct Script {
     /// The statements of the pool (user 2026-11-24): the clip blocks made from them read their
     /// caption there.
     pub statements: Vec<qnc_virtual_shots::ShortClip>,
+    /// The source timecode of the clips of those statements (none without the project's content).
+    pub timecodes: std::collections::HashMap<String, qnc_source_timecode::SourceTimecode>,
 }
 
 pub(crate) type Read = Result<Script, String>;
@@ -78,5 +80,15 @@ pub(crate) fn read_script(target: &ProjectDbTarget, locator: Option<&StillLocato
         qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("script statements not read: {error}"));
         Vec::new()
     });
-    Ok(Script { blocks, profile, target: length, title, voices, letters, statements })
+    let mut timecodes = std::collections::HashMap::new();
+    if let Some(content) = locator.and_then(|locator| qnc_content_store::ContentTarget::for_project(locator.reader(), locator.settings()).ok()) {
+        for clip in statements.iter().filter(|s| !s.b_roll).flat_map(|s| std::iter::once(s.clip_id.as_str()).chain(s.parts.iter().map(|part| part.clip_id.as_str()))) {
+            if !timecodes.contains_key(clip) {
+                if let Ok(Some(tc)) = qnc_source_timecode::read_clip(&content, clip) {
+                    timecodes.insert(clip.to_string(), tc);
+                }
+            }
+        }
+    }
+    Ok(Script { blocks, profile, target: length, title, voices, letters, statements, timecodes })
 }

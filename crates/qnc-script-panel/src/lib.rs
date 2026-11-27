@@ -12,6 +12,7 @@ use qnc_action_event::ActionEvent;
 use qnc_script::{seconds_label, FieldEdit, DRAFT, EXPORT, SEND_STORY, OPEN_EXPORT, Role, FIELD_COMMIT, FIELD_SET, FIELD_TEXT, ScriptView, ADD_CLIP, ADD_QUOTE, ADD_TEXT, CLEAR_EDITOR, EDITOR_TEXT, MOVE_DOWN, MOVE_UP, OPEN, PANEL, RECORD, REMOVE, REPLACE_TEXT, SELECT, VOICE_TAKE};
 
 mod part_controls;
+pub mod table;
 mod read_marks;
 mod text_editor;
 use qnc_text_source_editor::{Answer, Editor, EditorButton};
@@ -200,147 +201,24 @@ pub fn paint_block_in(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::
     egui::Frame::new().fill(fill).stroke(stroke).inner_margin(egui::Margin::symmetric(6, 4)).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
-            let color = match row.role {
-                Some(Role::Spoken) => theme.focus,
-                Some(Role::Clip) => theme.text,
-                Some(Role::Anchor | Role::Note) => theme.text_muted,
-                None => theme.danger,
-            };
-            if ui.add(egui::Label::new(RichText::new(&row.mark).color(color).strong().size(theme.font_ui)).sense(Sense::click())).clicked() {
+            if ui.add(egui::Label::new(RichText::new(&row.mark).color(mark_colour(row, theme)).strong().size(theme.font_ui)).sense(Sense::click())).clicked() {
                 picked = true;
             }
             // A SubSegment of several parts: how many and how long all of them are.
-            let detail = if row.is_clip() && block.pieces.len() > 1 { format!("{}  {}", block.length, seconds_label(row.seconds)) } else { String::new() };
-            ui.label(RichText::new(detail).color(theme.text_muted).size(theme.font_ui));
+            ui.label(RichText::new(parts_detail(row)).color(theme.text_muted).size(theme.font_ui));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                for (label, action, hint) in [("X", REMOVE, "script.remove"), ("v", MOVE_DOWN, "script.move_down"), ("^", MOVE_UP, "script.move_up")] {
-                    if qnc_ui_kit::chrome_button(ui, label, true, false, style).on_hover_text(qnc_ui_text::text(hint)).clicked() {
-                        asked = Some(ActionEvent::key(action).with_target(id.clone()).at(PANEL));
-                    }
-                }
-                let open = if row.block.pieces.len() > 1 { "script.open_subsegment" } else { "script.open" };
-                if row.is_clip() && qnc_ui_kit::chrome_button(ui, qnc_ui_text::text(open), true, false, style).clicked() {
-                    asked = Some(ActionEvent::key(OPEN).with_target(id.clone()).at(PANEL));
-                }
-                // Rec on a block of a recorded kind; while it records, Stop (user 2026-10-28).
-                if row.recorded {
-                    let this = view.recording.is_some_and(|(recording, _, _)| recording == block.id);
-                    let other = view.recording.is_some() && !this;
-                    let label = if this { qnc_ui_text::text("script.stop") } else { qnc_ui_text::text("script.record") };
-                    let red = qnc_ui_kit::ChromeButtonStyle { text: theme.danger, border: theme.danger, focus: theme.danger, ..style };
-                    if qnc_ui_kit::chrome_button(ui, label, !other && !view.record_busy, this, red).on_hover_text(qnc_ui_text::text("script.record_hint")).clicked() {
-                        asked = Some(ActionEvent::key(RECORD).with_target(id.clone()).at(PANEL));
-                    }
+                if let Some(event) = block_buttons(ui, row, view, theme, style, false) {
+                    asked = Some(event);
                 }
             });
         });
-        // The voice record of a recorded block: its status and its takes, one of them used
-        // (user 2026-10-30: chosen as A1 of a camera clip).
-        if row.recorded && view.recording.is_none_or(|(recording, _, _)| recording != block.id) {
-            ui.horizontal_wrapped(|ui| {
-                let (status, color) = match row.voice.as_ref().map(|voice| voice.status) {
-                    None => (qnc_ui_text::text("script.voice_none"), theme.text_muted),
-                    Some(qnc_script::VoiceStatus::Recorded) => (qnc_ui_text::text("script.voice_recorded"), theme.focus),
-                    Some(qnc_script::VoiceStatus::TextChanged) => (qnc_ui_text::text("script.voice_text_changed"), theme.danger),
-                    Some(qnc_script::VoiceStatus::Missing) => (qnc_ui_text::text("script.voice_missing"), theme.danger),
-                };
-                ui.label(RichText::new(status).color(color).size(theme.font_ui));
-                for take in row.voice.iter().flat_map(|voice| voice.takes.iter().map(move |take| (voice.chosen, take))) {
-                    let (chosen, take) = take;
-                    let hint = qnc_ui_text::fill("script.voice_take_hint", &[("take", &take.take.to_string()), ("length", &seconds_label(take.seconds)), ("tc", &take.tc), ("text", &take.text)]);
-                    // How much of the text the take read; ".." while it is being heard.
-                    let label = match row.voice.as_ref().and_then(|voice| voice.check_of(take.take)) {
-                        Some(check) => format!("{}{} {}%", row.mark, qnc_script_db::take_letter(take.take), check.percent),
-                        None if view.read_note.is_none() => format!("{}{} ..", row.mark, qnc_script_db::take_letter(take.take)),
-                        None => format!("{}{}", row.mark, qnc_script_db::take_letter(take.take)),
-                    };
-                    if qnc_ui_kit::chrome_button(ui, &label, view.recording.is_none(), take.take == chosen, style).on_hover_text(hint).clicked() {
-                        asked = Some(ActionEvent::key(VOICE_TAKE).with_target(format!("{}:{}", block.id, take.take)).at(PANEL));
-                    }
-                }
-                if let Some(note) = view.read_note.as_ref().filter(|_| row.voice.is_some()) {
-                    ui.label(RichText::new(note).color(theme.text_muted).size(theme.font_ui));
-                }
-            });
+        if let Some(event) = voice_row(ui, row, view, theme, style) {
+            asked = Some(event);
         }
-        // The take being recorded: its time and the microphone's level.
-        if let Some((_, seconds, peak)) = view.recording.filter(|(recording, _, _)| *recording == block.id) {
-            ui.horizontal(|ui| {
-                ui.label(RichText::new(format!("● {}  ·  {}", seconds_label(seconds), view.recording_marks + 1)).color(theme.danger).strong().size(theme.font_ui));
-                let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width().min(240.0), 8.0), Sense::hover());
-                ui.painter().rect_filled(bar, 2.0, theme.surface_alt);
-                let level = if peak > 0.0 { ((20.0 * peak.log10() + 48.0) / 48.0).clamp(0.0, 1.0) } else { 0.0 };
-                let mut lit = bar;
-                lit.set_width(bar.width() * level);
-                ui.painter().rect_filled(lit, 2.0, if peak > 0.7 { theme.danger } else { theme.focus });
-            });
-        }
-        // A SubSegment of several parts: each part's clip and timecodes, its words under it, one
-        // part under another (user 2026-10-29).
+        recording_bar(ui, row, view, theme);
         // Every block is this table (user 2026-11-09: as the composite statement): the time on
         // the left, the text in the middle.
-        let parts: Vec<(String, &str)> = if block.pieces.len() > 1 {
-            block.pieces.iter().map(|piece| (format!("{} - {}  {}", piece.start_tc, piece.end_tc, piece.length), piece.text.as_str())).collect()
-        } else {
-            let time = if row.is_clip() {
-                format!("{} - {}  {}", block.start_tc, block.end_tc, block.length)
-            } else if !block.voice_uri.is_empty() {
-                format!("{}  {}", block.voice_tc, seconds_label(row.seconds))
-            } else if row.role == Some(Role::Note) {
-                String::new()
-            } else {
-                seconds_label(row.seconds)
-            };
-            vec![(time, block.text.as_str())]
-        };
-        for (index, (detail, text)) in parts.into_iter().enumerate() {
-            // The text of the part (the middle column of a SubSegment's table).
-            let paint_text = |ui: &mut egui::Ui| -> (Option<ActionEvent>, bool) {
-            let mut asked = None;
-            // The words of the part with their times (user 2026-11-04: the transcript in the
-            // script has its timecodes, to edit by its text): the timecode in front of every line
-            // of speech, a click on a word puts the playhead there, a double click on two words
-            // of the part is its IN and OUT.
-            if let Some(words) = row.words.get(index).filter(|words| !words.is_empty()) {
-                // The slot chosen on the open SubSegment's timeline is this part (user
-                // 2026-11-04: the slot and its text go together): its words are marked, the
-                // word under the playhead lit, and the text is brought into sight once.
-                let open = view.subsegment.as_ref().filter(|open| open.block_id == block.id);
-                let part_chosen = open.is_some_and(|open| open.chosen == Some(index));
-                let heard = open.and_then(|open| {
-                    let part = open.parts.get(index)?;
-                    let from = block.pieces.get(index).map_or(block.from_frame, |piece| piece.from_frame);
-                    let at = open.playhead.filter(|at| (part.start..part.end).contains(at))?;
-                    Some(from + (at - part.start))
-                });
-                let seen = egui::Id::new(("qnc_script_chosen_part", block.id));
-                let bring = part_chosen && ui.ctx().data(|data| data.get_temp::<usize>(seen)) != Some(index);
-                ui.ctx().data_mut(|data| if part_chosen { data.insert_temp(seen, index) } else if open.is_some_and(|open| open.chosen.is_none()) { data.remove::<usize>(seen) });
-                // The words are a text edited as in any editor (user 2026-11-06: "a plain classic
-                // text edit: what is deleted in the text is deleted in the sound"): Enter cuts out
-                // what the text no longer says, Esc gives the text back; a click puts the playhead
-                // on the word clicked.
-                if let Some(event) = text_editor::show(ui, theme, place, (block.id, index), words, view.text_draft(block.id, index, &qnc_script::text_of(words)), heard, (part_chosen, bring)) {
-                    asked = Some(event);
-                }
-                return (asked, false);
-            }
-            // A recorded text shows how the take used was read (user 2026-11-08).
-            let recording_here = view.recording.is_some_and(|(recording, _, _)| recording == block.id);
-            if row.recorded && !text.is_empty() && !recording_here {
-                let check = row.voice.as_ref().and_then(|voice| voice.check_of(voice.chosen));
-                let taken = view.taken_mark.filter(|(taken, _)| *taken == block.id).map(|(_, word)| word);
-                let (clicked, right) = read_marks::show(ui, text, &read_marks::Shown { check, marks: &block.marks, taken, lengths: &row.mark_lengths }, theme);
-                if let Some(word) = right {
-                    asked = Some(ActionEvent::key(qnc_script::MARK_AT).with_target(format!("{}:{word}", block.id)).at(PANEL));
-                }
-                return (asked, clicked);
-            }
-            let shown = if text.is_empty() { qnc_ui_text::text("script.no_words").to_string() } else { text.to_string() };
-            let color = if text.is_empty() { theme.text_muted } else { theme.text };
-            let clicked = ui.add(egui::Label::new(RichText::new(shown).color(color).size(theme.font_ui + 1.0)).wrap().sense(Sense::click())).clicked();
-            (asked, clicked)
-            };
+        for (index, (detail, text)) in block_parts(row).into_iter().enumerate() {
             // Timecode, the text, and on the right the smooth cut and pause of the join before the
             // part (user 2026-11-08).
             let open_part = view.subsegment.as_ref().filter(|open| open.block_id == block.id && index > 0).and_then(|open| Some((open, open.parts.get(index)?)));
@@ -354,7 +232,7 @@ pub fn paint_block_in(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::
                     });
                     let text = ui.allocate_ui(egui::vec2(middle, height), |ui| {
                         ui.set_width(middle);
-                        paint_text(ui)
+                        part_text(ui, place, row, view, theme, index, text)
                     });
                     let join = ui.allocate_ui(egui::vec2(JOIN_COLUMN, height), |ui| {
                         ui.set_width(JOIN_COLUMN);
@@ -380,6 +258,178 @@ pub fn paint_block_in(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::
         asked = Some(ActionEvent::key(SELECT).with_target(id).at(PANEL));
     }
     asked
+}
+
+/// The colour of a block's mark by the role of its kind.
+pub(crate) fn mark_colour(row: &qnc_script::BlockRow, theme: &qnc_desktop_theme::Theme) -> egui::Color32 {
+    match row.role {
+        Some(Role::Spoken) => theme.focus,
+        Some(Role::Clip) => theme.text,
+        Some(Role::Anchor | Role::Note) => theme.text_muted,
+        None => theme.danger,
+    }
+}
+
+/// A SubSegment of several parts: how many and how long all of them are (empty otherwise).
+pub(crate) fn parts_detail(row: &qnc_script::BlockRow) -> String {
+    if row.is_clip() && row.block.pieces.len() > 1 { format!("{}  {}", row.block.length, seconds_label(row.seconds)) } else { String::new() }
+}
+
+/// A block's buttons: Rec (a recorded kind; Stop while it records), Open (a clip kind), up,
+/// down and remove. Drawn in the order of the layout they are put in: `left_to_right` gives Rec
+/// first, otherwise remove first (a layout from the right).
+pub(crate) fn block_buttons(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme, style: qnc_ui_kit::ChromeButtonStyle, left_to_right: bool) -> Option<ActionEvent> {
+    let block = &row.block;
+    let id = block.id.to_string();
+    let red = qnc_ui_kit::ChromeButtonStyle { text: theme.danger, border: theme.danger, focus: theme.danger, ..style };
+    // (label, enabled, on, style, hint, action), from the right.
+    let mut buttons: Vec<(&str, bool, bool, qnc_ui_kit::ChromeButtonStyle, Option<&str>, &str)> = vec![
+        ("X", true, false, style, Some(qnc_ui_text::text("script.remove")), REMOVE),
+        ("v", true, false, style, Some(qnc_ui_text::text("script.move_down")), MOVE_DOWN),
+        ("^", true, false, style, Some(qnc_ui_text::text("script.move_up")), MOVE_UP),
+    ];
+    if row.is_clip() {
+        let open = if block.pieces.len() > 1 { "script.open_subsegment" } else { "script.open" };
+        buttons.push((qnc_ui_text::text(open), true, false, style, None, OPEN));
+    }
+    // Rec on a block of a recorded kind; while it records, Stop (user 2026-10-28).
+    if row.recorded {
+        let this = view.recording.is_some_and(|(recording, _, _)| recording == block.id);
+        let other = view.recording.is_some() && !this;
+        let label = if this { qnc_ui_text::text("script.stop") } else { qnc_ui_text::text("script.record") };
+        buttons.push((label, !other && !view.record_busy, this, red, Some(qnc_ui_text::text("script.record_hint")), RECORD));
+    }
+    if left_to_right {
+        buttons.reverse();
+    }
+    let mut asked = None;
+    for (label, enabled, on, style, hint, action) in buttons {
+        let response = qnc_ui_kit::chrome_button(ui, label, enabled, on, style);
+        let response = match hint {
+            Some(hint) => response.on_hover_text(hint),
+            None => response,
+        };
+        if response.clicked() {
+            asked = Some(ActionEvent::key(action).with_target(id.clone()).at(PANEL));
+        }
+    }
+    asked
+}
+
+/// The voice record of a recorded block: its status and its takes, one of them used (user
+/// 2026-10-30: chosen as A1 of a camera clip). Nothing while it records or for another kind.
+pub(crate) fn voice_row(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme, style: qnc_ui_kit::ChromeButtonStyle) -> Option<ActionEvent> {
+    let block = &row.block;
+    if !row.recorded || view.recording.is_some_and(|(recording, _, _)| recording == block.id) {
+        return None;
+    }
+    let mut asked = None;
+    ui.horizontal_wrapped(|ui| {
+        let (status, color) = match row.voice.as_ref().map(|voice| voice.status) {
+            None => (qnc_ui_text::text("script.voice_none"), theme.text_muted),
+            Some(qnc_script::VoiceStatus::Recorded) => (qnc_ui_text::text("script.voice_recorded"), theme.focus),
+            Some(qnc_script::VoiceStatus::TextChanged) => (qnc_ui_text::text("script.voice_text_changed"), theme.danger),
+            Some(qnc_script::VoiceStatus::Missing) => (qnc_ui_text::text("script.voice_missing"), theme.danger),
+        };
+        ui.label(RichText::new(status).color(color).size(theme.font_ui));
+        for (chosen, take) in row.voice.iter().flat_map(|voice| voice.takes.iter().map(move |take| (voice.chosen, take))) {
+            let hint = qnc_ui_text::fill("script.voice_take_hint", &[("take", &take.take.to_string()), ("length", &seconds_label(take.seconds)), ("tc", &take.tc), ("text", &take.text)]);
+            // How much of the text the take read; ".." while it is being heard.
+            let label = match row.voice.as_ref().and_then(|voice| voice.check_of(take.take)) {
+                Some(check) => format!("{}{} {}%", row.mark, qnc_script_db::take_letter(take.take), check.percent),
+                None if view.read_note.is_none() => format!("{}{} ..", row.mark, qnc_script_db::take_letter(take.take)),
+                None => format!("{}{}", row.mark, qnc_script_db::take_letter(take.take)),
+            };
+            if qnc_ui_kit::chrome_button(ui, &label, view.recording.is_none(), take.take == chosen, style).on_hover_text(hint).clicked() {
+                asked = Some(ActionEvent::key(VOICE_TAKE).with_target(format!("{}:{}", block.id, take.take)).at(PANEL));
+            }
+        }
+        if let Some(note) = view.read_note.as_ref().filter(|_| row.voice.is_some()) {
+            ui.label(RichText::new(note).color(theme.text_muted).size(theme.font_ui));
+        }
+    });
+    asked
+}
+
+/// The take being recorded of this block: its time and the microphone's level.
+pub(crate) fn recording_bar(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme) {
+    let Some((_, seconds, peak)) = view.recording.filter(|(recording, _, _)| *recording == row.block.id) else { return };
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(format!("● {}  ·  {}", seconds_label(seconds), view.recording_marks + 1)).color(theme.danger).strong().size(theme.font_ui));
+        let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width().min(240.0), 8.0), Sense::hover());
+        ui.painter().rect_filled(bar, 2.0, theme.surface_alt);
+        let level = if peak > 0.0 { ((20.0 * peak.log10() + 48.0) / 48.0).clamp(0.0, 1.0) } else { 0.0 };
+        let mut lit = bar;
+        lit.set_width(bar.width() * level);
+        ui.painter().rect_filled(lit, 2.0, if peak > 0.7 { theme.danger } else { theme.focus });
+    });
+}
+
+/// The parts of a block as (time, text): each part of a SubSegment with its timecodes (user
+/// 2026-10-29), otherwise the block's own time (a clip's timecodes, a recorded text's take, the
+/// reading time) and text.
+pub(crate) fn block_parts(row: &qnc_script::BlockRow) -> Vec<(String, &str)> {
+    let block = &row.block;
+    if block.pieces.len() > 1 {
+        return block.pieces.iter().map(|piece| (format!("{} - {}  {}", piece.start_tc, piece.end_tc, piece.length), piece.text.as_str())).collect();
+    }
+    let time = if row.is_clip() {
+        format!("{} - {}  {}", block.start_tc, block.end_tc, block.length)
+    } else if !block.voice_uri.is_empty() {
+        format!("{}  {}", block.voice_tc, seconds_label(row.seconds))
+    } else if row.role == Some(Role::Note) {
+        String::new()
+    } else {
+        seconds_label(row.seconds)
+    };
+    vec![(time, block.text.as_str())]
+}
+
+/// The text of part `index` of a block: the words with their times edited as a text, a recorded
+/// text marked by how it was read, or the plain text. Gives the action asked and whether the text
+/// was clicked (which chooses the block).
+pub(crate) fn part_text(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::BlockRow, view: &ScriptView, theme: &qnc_desktop_theme::Theme, index: usize, text: &str) -> (Option<ActionEvent>, bool) {
+    let block = &row.block;
+    let mut asked = None;
+    // The words of the part with their times (user 2026-11-04: the transcript in the script has
+    // its timecodes, to edit by its text): a click on a word puts the playhead there.
+    if let Some(words) = row.words.get(index).filter(|words| !words.is_empty()) {
+        // The slot chosen on the open SubSegment's timeline is this part (user 2026-11-04: the
+        // slot and its text go together): its words are marked, the word under the playhead lit,
+        // and the text is brought into sight once.
+        let open = view.subsegment.as_ref().filter(|open| open.block_id == block.id);
+        let part_chosen = open.is_some_and(|open| open.chosen == Some(index));
+        let heard = open.and_then(|open| {
+            let part = open.parts.get(index)?;
+            let from = block.pieces.get(index).map_or(block.from_frame, |piece| piece.from_frame);
+            let at = open.playhead.filter(|at| (part.start..part.end).contains(at))?;
+            Some(from + (at - part.start))
+        });
+        let seen = egui::Id::new(("qnc_script_chosen_part", block.id));
+        let bring = part_chosen && ui.ctx().data(|data| data.get_temp::<usize>(seen)) != Some(index);
+        ui.ctx().data_mut(|data| if part_chosen { data.insert_temp(seen, index) } else if open.is_some_and(|open| open.chosen.is_none()) { data.remove::<usize>(seen) });
+        // The words are a text edited as in any editor (user 2026-11-06): Enter cuts out what the
+        // text no longer says, Esc gives the text back; a click puts the playhead on the word.
+        if let Some(event) = text_editor::show(ui, theme, place, (block.id, index), words, view.text_draft(block.id, index, &qnc_script::text_of(words)), heard, (part_chosen, bring)) {
+            asked = Some(event);
+        }
+        return (asked, false);
+    }
+    // A recorded text shows how the take used was read (user 2026-11-08).
+    let recording_here = view.recording.is_some_and(|(recording, _, _)| recording == block.id);
+    if row.recorded && !text.is_empty() && !recording_here {
+        let check = row.voice.as_ref().and_then(|voice| voice.check_of(voice.chosen));
+        let taken = view.taken_mark.filter(|(taken, _)| *taken == block.id).map(|(_, word)| word);
+        let (clicked, right) = read_marks::show(ui, text, &read_marks::Shown { check, marks: &block.marks, taken, lengths: &row.mark_lengths }, theme);
+        if let Some(word) = right {
+            asked = Some(ActionEvent::key(qnc_script::MARK_AT).with_target(format!("{}:{word}", block.id)).at(PANEL));
+        }
+        return (asked, clicked);
+    }
+    let shown = if text.is_empty() { qnc_ui_text::text("script.no_words").to_string() } else { text.to_string() };
+    let color = if text.is_empty() { theme.text_muted } else { theme.text };
+    let clicked = ui.add(egui::Label::new(RichText::new(shown).color(color).size(theme.font_ui + 1.0)).wrap().sense(Sense::click())).clicked();
+    (asked, clicked)
 }
 
 /// Where the fields of a block's kind are drawn: all under its text (one column), or, on a form
@@ -497,7 +547,17 @@ pub fn block_shots(row: &qnc_script::BlockRow, view: &ScriptView) -> usize {
 /// The caption of the statement a clip block was made from, as the statement has it (not edited
 /// here).
 fn paint_caption(ui: &mut egui::Ui, row: &qnc_script::BlockRow, theme: &qnc_desktop_theme::Theme) {
-    let (shown, colour) = match &row.caption {
+    let (shown, colour) = caption_text(row, theme);
+    ui.horizontal(|ui| {
+        ui.add_sized([LABEL_WIDTH, theme.chrome_control_height], egui::Label::new(RichText::new(qnc_ui_text::text("script.caption")).color(theme.text_muted).size(theme.font_ui)));
+        ui.label(RichText::new(shown).color(colour).size(theme.font_ui));
+    });
+}
+
+/// The caption of a clip block's statement as shown, and its colour (muted when it says why
+/// there is none).
+pub(crate) fn caption_text(row: &qnc_script::BlockRow, theme: &qnc_desktop_theme::Theme) -> (String, egui::Color32) {
+    match &row.caption {
         Some(caption) if !caption.name.is_empty() || !caption.role.is_empty() => {
             let parts: Vec<&str> = [caption.name.as_str(), caption.role.as_str()].into_iter().filter(|part| !part.is_empty()).collect();
             (parts.join(", "), theme.text)
@@ -506,11 +566,7 @@ fn paint_caption(ui: &mut egui::Ui, row: &qnc_script::BlockRow, theme: &qnc_desk
         // A block remembers its statement; a statement deleted since leaves no caption.
         None if !row.block.statement_id.is_empty() => (qnc_ui_text::text("script.caption_statement_gone").to_string(), theme.text_muted),
         None => (qnc_ui_text::text("script.caption_no_statement").to_string(), theme.text_muted),
-    };
-    ui.horizontal(|ui| {
-        ui.add_sized([LABEL_WIDTH, theme.chrome_control_height], egui::Label::new(RichText::new(qnc_ui_text::text("script.caption")).color(theme.text_muted).size(theme.font_ui)));
-        ui.label(RichText::new(shown).color(colour).size(theme.font_ui));
-    });
+    }
 }
 
 /// The width of a field's name in front of it.

@@ -20,7 +20,8 @@ qnc-script-profile = { workspace = true }
 qnc-script-export = { workspace = true }
 qnc-status-line = { workspace = true }
 qnc-source-preview = { workspace = true }
-qnc-source-timecode = { workspace = true }
+qnc-source-timecode = { workspace = true, features = ["read"] }
+qnc-content-store = { workspace = true }
 qnc-timeline-model = { workspace = true }
 qnc-transcript = { workspace = true }
 qnc-transcript-db = { workspace = true }

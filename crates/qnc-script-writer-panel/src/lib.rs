@@ -121,14 +121,31 @@ pub fn show(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme) ->
     let mut blocks = ui.new_child(UiBuilder::new().max_rect(list).layout(Layout::top_down(Align::Min)));
     blocks.set_clip_rect(list.intersect(ui.clip_rect()));
     egui::ScrollArea::vertical().id_salt("qnc_script_writer_blocks").auto_shrink([false, false]).show(&mut blocks, |ui| {
-        if view.blocks.is_empty() {
+        if view.blocks.is_empty() && view.waiting.is_empty() {
             ui.label(RichText::new(qnc_ui_text::text("writer.story_empty")).color(theme.text_muted).size(theme.font_ui));
         }
-        // Only what the journalist writes (user 2026-11-27: "makni gluposti koje ne piše novinar"): the
-        // text of every block across the width, a statement's caption read from its statement; no
-        // CG, shots or notes for the gallery.
+        // The written form of an OFF (user 2026-11-27: "kolone slične pisanom obrascu"): the
+        // anchor's text boxed, the rest a table of the mark and time, the text to read, and the
+        // notes and B-roll wanted; only what the journalist writes, a statement's caption read
+        // from its statement.
+        let table = qnc_script_panel::table::Columns::of(ui.available_width());
+        ui.spacing_mut().item_spacing.y = 0.0;
+        let mut headed = false;
         for row in &view.blocks {
-            if let Some(event) = qnc_script_panel::paint_block_in(ui, "script", row, view, theme, style, qnc_script_panel::Place::TextOnly) {
+            let answer = if row.role == Some(Role::Anchor) {
+                ui.add_space(6.0);
+                let answer = qnc_script_panel::table::anchor(ui, "script", row, view, theme, style);
+                ui.add_space(6.0);
+                headed = false;
+                answer
+            } else {
+                if !headed {
+                    qnc_script_panel::table::head(ui, theme, table);
+                    headed = true;
+                }
+                qnc_script_panel::table::block(ui, "script", row, view, theme, style, table)
+            };
+            if let Some(event) = answer {
                 // Open shows the clip, or the composed SubSegment, where it is worked on: in
                 // place of the source timeline in the media window (user 2026-11-03).
                 if event.action_id == qnc_script::OPEN || event.action_id == qnc_script::WORD_CUE {
@@ -136,7 +153,10 @@ pub fn show(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme) ->
                 }
                 asked = Some(event);
             }
-            ui.separator();
+        }
+        // The statements made in AI Media Assist that wait for the journalist (user 2026-11-27).
+        if let Some(event) = qnc_script_panel::table::waiting(ui, &view.waiting, theme, style, table) {
+            asked = Some(event);
         }
     });
     // While the whole story records (user 2026-11-09): only the Stop button and the press count.

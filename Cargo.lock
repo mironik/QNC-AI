@@ -7388,6 +7388,7 @@ dependencies = [
  "qnc-clip-row",
  "qnc-clip-sound",
  "qnc-clip-transcripts",
+ "qnc-content-store",
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-edit-words",
