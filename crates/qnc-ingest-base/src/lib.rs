@@ -444,8 +444,14 @@ pub fn copy_base_records(base_file: &Path, story_file: &Path) -> Result<usize, S
 fn copy_tables(from: &Path, into: &Path, tables: &[&str]) -> Result<usize, String> {
     let mut conn = rusqlite::Connection::open(into).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(10)).map_err(|error| error.to_string())?;
-    let source = format!("file:{}?mode=ro", from.to_string_lossy().replace('\\', "/"));
+    // A path of the registry carries Windows' long-path prefix, which a file URI may not.
+    let path = from.to_string_lossy();
+    let path = path.strip_prefix(r"\\?\").unwrap_or(&path).replace('\\', "/");
+    let source = format!("file:/{}?mode=ro", path.trim_start_matches('/'));
     conn.execute("ATTACH DATABASE ?1 AS base", [&source]).map_err(|error| error.to_string())?;
+    // A project's folder may not delete a journal (its protection): it is kept, as the owners keep it.
+    // Set before anything is read: a journal left behind is rolled back and kept, not deleted.
+    let _ = conn.query_row("PRAGMA main.journal_mode = PERSIST", [], |row| row.get::<_, String>(0));
     // The tables reference each other (the media records): the rows go in as they are, unchecked.
     let _ = conn.execute_batch("PRAGMA foreign_keys = OFF");
     let result = (|| {
