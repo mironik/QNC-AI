@@ -41,7 +41,8 @@ pub fn overlay(ctx: &egui::Context, view: &HeaderView, theme: &qnc_desktop_theme
             ui.add_space(10.0);
             // The fields in order; Enter goes from one typed row to the next.
             let mut order: Vec<Id> = Vec::new();
-            let mut entered: Option<usize> = None;
+            // The row Enter goes to: its place in `order` (past the end: the end of the form).
+            let mut next: Option<usize> = None;
             for field in &view.fields {
                 ui.horizontal_top(|ui| {
                     ui.add_sized([LABEL, theme.chrome_control_height], egui::Label::new(RichText::new(&field.label).color(theme.text_muted).size(theme.font_ui)));
@@ -64,12 +65,17 @@ pub fn overlay(ctx: &egui::Context, view: &HeaderView, theme: &qnc_desktop_theme
                                     let id = field_id(&field.path, index);
                                     let hint = if index == field.names.len() { qnc_ui_text::text("header.add_name") } else { "" };
                                     let edit = ui.add(qnc_ui_kit::text_field(&mut text).id(id).hint_text(hint).desired_width(ui.available_width() - 34.0));
-                                    order.push(id);
+                                    // Enter goes over the empty row to add a name when the field has names (user 2026-11-27:
+                                    // "dodaje redove umjesto da ide na drugi postojeći red"); a click reaches it.
+                                    let in_order = index < field.names.len() || field.names.is_empty();
+                                    if in_order {
+                                        order.push(id);
+                                    }
                                     if edit.changed() {
                                         asked = Some(ActionEvent::key(NAME).with_target(format!("{}\u{1f}{index}\u{1f}{text}", field.path)).at(PANEL));
                                     }
                                     if edit.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                                        entered = Some(order.len() - 1);
+                                        next = Some(order.len());
                                     }
                                     if index < field.names.len() && qnc_ui_kit::chrome_button(ui, "×", true, false, style).clicked() {
                                         asked = Some(ActionEvent::key(REMOVE_NAME).with_target(format!("{}\u{1f}{index}", field.path)).at(PANEL));
@@ -86,7 +92,7 @@ pub fn overlay(ctx: &egui::Context, view: &HeaderView, theme: &qnc_desktop_theme
                                 asked = Some(ActionEvent::key(TEXT).with_target(format!("{}\u{1f}{text}", field.path)).at(PANEL));
                             }
                             if edit.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                                entered = Some(order.len() - 1);
+                                next = Some(order.len());
                             }
                         }
                     });
@@ -101,8 +107,8 @@ pub fn overlay(ctx: &egui::Context, view: &HeaderView, theme: &qnc_desktop_theme
                 }
                 ui.ctx().data_mut(|data| data.insert_temp(opened, true));
             }
-            match entered {
-                Some(at) if at + 1 < order.len() => ui.ctx().memory_mut(|memory| memory.request_focus(order[at + 1])),
+            match next {
+                Some(at) if at < order.len() => ui.ctx().memory_mut(|memory| memory.request_focus(order[at])),
                 Some(_) => asked = Some(ActionEvent::key(CONFIRM).at(PANEL)),
                 None => {}
             }
