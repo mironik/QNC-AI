@@ -66,6 +66,9 @@ const CLOSING_TABLE: &str = "CREATE TABLE IF NOT EXISTS ingest_base_closing (
 /// Says in the base `id` that it is being deleted.
 pub fn mark_closing(root: &Path, id: &str) -> Result<(), String> {
     let store = ProjectStore::open(root)?;
+    // Only a base: a story's project is never marked (user 2026-11-27: the delete of a card's
+    // partial import marked the story the header made and closed it).
+    require_base(&store, id)?;
     let (file, _) = store.project_db_binding(id)?;
     let conn = rusqlite::Connection::open(&file).map_err(|error| error.to_string())?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|error| error.to_string())?;
@@ -467,9 +470,19 @@ pub fn continue_story(root: &Path, base_id: &str, story_id: &str) -> Result<Stri
     Ok(story.name.clone())
 }
 
+/// Refuses `id` when it is a listed project that is not an Ingest base (a story's project): nothing
+/// meant for a base (closing, deleting) may touch it. An id not listed passes ('no Ingest base' then).
+fn require_base(store: &ProjectStore, id: &str) -> Result<(), String> {
+    match store.list_projects()?.into_iter().find(|row| row.project_id == id) {
+        Some(row) if !row.name.starts_with(NAME_PREFIX) => Err(format!("{} is not an Ingest base", row.name)),
+        _ => Ok(()),
+    }
+}
+
 /// The base `id`, as it is (nothing is made active).
 pub fn by_id(root: &Path, id: &str) -> Result<IngestBase, String> {
     let store = ProjectStore::open(root)?;
+    require_base(&store, id)?;
     store.list_projects()?.into_iter().find(|row| row.project_id == id).map(|row| base_of(row, &takers(&store), &store)).ok_or_else(|| format!("no Ingest base {id}"))
 }
 

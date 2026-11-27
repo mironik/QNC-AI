@@ -99,6 +99,9 @@ fn delete(root: &Path, base: &IngestBase) -> Result<(), String> {
         log(format!("base {} was deleted already", base.label()));
         return Ok(());
     }
+    // Only a base, before anything is marked or closed (user 2026-11-27: a story's project was
+    // closed as the active one, then refused by the name).
+    qnc_ingest_base::by_id(root, &base.id)?;
     qnc_ingest_base::may_delete(root, &base.id).map_err(|refusal| format!("{refusal:?}"))?;
     // Its window ends and its worker stops once the base says it closes.
     if let Err(error) = qnc_ingest_base::mark_closing(root, &base.id) {

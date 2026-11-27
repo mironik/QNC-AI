@@ -199,7 +199,9 @@ impl eframe::App for Window {
             ctx.request_repaint_after(std::time::Duration::from_secs(1));
         }
         if ctx.input(|input| input.viewport().close_requested()) {
-            if !self.cancelled && self.info.title.trim().is_empty() && !self.base.is_empty() {
+            if !is_base(&self.root, &self.base) {
+                // A story's project (the header's, user 2026-11-27) keeps nothing of a base.
+            } else if !self.cancelled && self.info.title.trim().is_empty() && !self.base.is_empty() {
                 if self.info.asked_at.is_none() {
                     ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                     self.info.needed = true;
@@ -221,7 +223,7 @@ impl eframe::App for Window {
         // copied, the work goes on in the background (user 2026-11-18). Once a card.
         let copied = status.progress.clips > 0 && status.progress.imported > 0 && status.progress.imported + status.progress.failed >= status.progress.clips;
         let breaking = qnc_tray_mode::read(&self.root).ok().flatten().filter(|mode| matches!(mode, qnc_tray_mode::Mode::Local { work: qnc_tray_mode::Work::BreakingNews }));
-        if let Some((form, args)) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened && (self.card_out.settled() || status.progress.failed > 0)).and_then(qnc_tray_mode::Mode::opens) {
+        if let Some((form, args)) = breaking.filter(|_| !self.cancelled && copied && !self.desktop_opened && (self.card_out.settled() || status.progress.failed > 0) && is_base(&self.root, &self.base)).and_then(qnc_tray_mode::Mode::opens) {
             self.desktop_opened = true;
             // The card's base is what is worked on: it becomes the active project, then the form opens.
             let opened = qnc_ingest_base::open(&self.root, &self.base).and_then(|_| qnc_wizard_open::open(&self.root, form, args));
@@ -415,7 +417,13 @@ impl eframe::App for Window {
                     self.card_out.start("cancel");
                     self.cancel_asked = false;
                     self.cancelled = true;
-                    self.delete_asked = true;
+                    // Only a base's partial import may be deleted; a story's project is never offered (user
+                    // 2026-11-27: "ne smije brisati projekt").
+                    self.delete_asked = is_base(&self.root, &self.base);
+                    if !self.delete_asked {
+                        log(format!("ai-card-ingest {} is a story's project: kept, nothing to delete", self.base));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
                 }
                 Some(false) => self.cancel_asked = false,
                 None => {}
@@ -446,6 +454,11 @@ impl eframe::App for Window {
         }
         ctx.request_repaint_after(std::time::Duration::from_millis(200));
     }
+}
+
+/// Whether the project `id` this window works in is an Ingest base (not a story's project).
+fn is_base(root: &std::path::Path, id: &str) -> bool {
+    !id.is_empty() && qnc_ingest_base::by_id(root, id).is_ok()
 }
 
 /// Starts this program again as `--delete-base <id>` (no window), detached from this one.

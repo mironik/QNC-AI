@@ -993,7 +993,11 @@ impl Script {
             if let Some(session) = self.session.take() {
                 let _ = session.cancel();
             }
-            *self = Self { project: key, ..Self::default() };
+            // The story header goes on with its own save: the project its confirm made becomes the
+            // active one, and the header must know it just made it (user 2026-11-27: the form opened
+            // again, empty, after its confirm).
+            let header = std::mem::take(&mut self.header);
+            *self = Self { project: key, header, ..Self::default() };
         }
         self.header.poll(project.as_ref());
         self.view.header = self.header.view().clone();
