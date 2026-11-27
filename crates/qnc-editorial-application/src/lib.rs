@@ -344,7 +344,6 @@ impl EditorialApplication {
         let changed = match intent {
             EditorialIntent::PreviewClip(clip_id) => {
                 let _ = self.focus.chose_clip(&mut self.wrap); // the keyboard stays on the pool after a click
-                self.view.chosen_shot_id = None;
                 self.pending_marks.clear();
                 self.short_stills.clear_if_clip_changed(Some(&clip_id));
                 if self.view.clips.iter().any(|clip| clip.clip_id == clip_id) {
@@ -373,7 +372,7 @@ impl EditorialApplication {
     /// The actions of the application itself: library tabs and saving a short.
     fn application_action(&mut self, action_id: &str, target: Option<&str>) -> bool {
         let picked = self.focus.take_pick(); // an arrow on the pool tabs, Enter on a dock button
-        let action_id = picked.as_deref().unwrap_or(action_id);
+        let action_id = match picked.as_deref().unwrap_or(action_id) { qnc_short_save::ADD_PART => qnc_short_save::compound_action(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref())), other => other }; // Add compound statement with no statement chosen saves a new one (user 2026-11-27)
         match action_id {
             tab if LibraryTab::from_action(tab).is_some() && self.view.action_enabled(tab) => {
                 self.view.library_tab = LibraryTab::from_action(tab).unwrap_or_default();
