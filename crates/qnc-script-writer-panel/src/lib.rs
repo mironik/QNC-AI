@@ -26,11 +26,6 @@ const EDITOR_WIDTH: f32 = 860.0;
 const EDITOR_HEIGHT: f32 = 230.0;
 /// The id the editor keeps its cursor under.
 const EDITOR_ID: &str = "qnc_script_writer_editor";
-/// The columns of the story: the share of the width of the left (data, CG) and right (shots,
-/// notes) ones, and the gap between columns.
-const LEFT_SHARE: f32 = 0.24;
-const RIGHT_SHARE: f32 = 0.26;
-const COLUMN_GAP: f32 = 12.0;
 
 fn open_id() -> Id {
     Id::new("qnc-script-writer-open")
@@ -129,52 +124,18 @@ pub fn show(ui: &mut Ui, view: &ScriptView, theme: &qnc_desktop_theme::Theme) ->
         if view.blocks.is_empty() {
             ui.label(RichText::new(qnc_ui_text::text("writer.story_empty")).color(theme.text_muted).size(theme.font_ui));
         }
-        // Three columns (user 2026-11-24): data and captions (CG) left, the text and the
-        // statements in the middle, the shots and notes right; the shots are numbered through
-        // the whole story.
-        let width = ui.available_width();
-        let (left_width, right_width) = (width * LEFT_SHARE, width * RIGHT_SHARE);
-        let center_width = (width - left_width - right_width - 2.0 * COLUMN_GAP).max(120.0);
-        ui.horizontal(|ui| {
-            for (title, column) in [("writer.col_left", left_width), ("writer.col_center", center_width), ("writer.col_right", right_width)] {
-                ui.allocate_ui(Vec2::new(column, theme.chrome_row_height), |ui| {
-                    ui.set_width(column);
-                    ui.label(RichText::new(qnc_ui_text::text(title)).color(theme.text_muted).strong().size(theme.font_ui - 1.0));
-                });
-                ui.add_space(COLUMN_GAP - ui.spacing().item_spacing.x);
-            }
-        });
-        let mut shots = 0;
+        // Only what the journalist writes (user 2026-11-27: "makni gluposti koje ne piše novinar"): the
+        // text of every block across the width, a statement's caption read from its statement; no
+        // CG, shots or notes for the gallery.
         for row in &view.blocks {
-            let shot_from = shots;
-            shots += qnc_script_panel::block_shots(row, view);
-            ui.horizontal_top(|ui| {
-                ui.allocate_ui(Vec2::new(left_width, 0.0), |ui| {
-                    ui.set_width(left_width);
-                    if let Some(event) = qnc_script_panel::paint_fields(ui, row, view, theme, qnc_script_panel::Place::Left, shot_from) {
-                        asked = Some(event);
-                    }
-                });
-                ui.add_space(COLUMN_GAP - ui.spacing().item_spacing.x);
-                ui.allocate_ui(Vec2::new(center_width, 0.0), |ui| {
-                    ui.set_width(center_width);
-                    if let Some(event) = qnc_script_panel::paint_block_in(ui, "script", row, view, theme, style, qnc_script_panel::Place::UnderOfColumns) {
-                        // Open shows the clip, or the composed SubSegment, where it is worked on: in
-                        // place of the source timeline in the media window (user 2026-11-03).
-                        if event.action_id == qnc_script::OPEN || event.action_id == qnc_script::WORD_CUE {
-                            qnc_media_overlay::set_open(ui.ctx(), true);
-                        }
-                        asked = Some(event);
-                    }
-                });
-                ui.add_space(COLUMN_GAP - ui.spacing().item_spacing.x);
-                ui.allocate_ui(Vec2::new(right_width, 0.0), |ui| {
-                    ui.set_width(right_width);
-                    if let Some(event) = qnc_script_panel::paint_fields(ui, row, view, theme, qnc_script_panel::Place::Right, shot_from) {
-                        asked = Some(event);
-                    }
-                });
-            });
+            if let Some(event) = qnc_script_panel::paint_block_in(ui, "script", row, view, theme, style, qnc_script_panel::Place::TextOnly) {
+                // Open shows the clip, or the composed SubSegment, where it is worked on: in
+                // place of the source timeline in the media window (user 2026-11-03).
+                if event.action_id == qnc_script::OPEN || event.action_id == qnc_script::WORD_CUE {
+                    qnc_media_overlay::set_open(ui.ctx(), true);
+                }
+                asked = Some(event);
+            }
             ui.separator();
         }
     });

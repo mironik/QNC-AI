@@ -388,6 +388,9 @@ pub fn paint_block_in(ui: &mut egui::Ui, place: &'static str, row: &qnc_script::
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Place {
     Under,
+    /// The text alone (user 2026-11-27, MA Script: only what the journalist writes): no field of
+    /// the kind, the caption of a statement read from its statement.
+    TextOnly,
     UnderOfColumns,
     Left,
     Right,
@@ -405,6 +408,7 @@ pub fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &Script
     let placed = |path: &str| kind.left.iter().chain(&kind.right).any(|placed| placed == path);
     let here = |path: &str| match place {
         Place::Under => true,
+        Place::TextOnly => false,
         Place::UnderOfColumns => !placed(path),
         Place::Left => kind.left.iter().any(|placed| placed == path),
         Place::Right => kind.right.iter().any(|placed| placed == path),
@@ -412,7 +416,7 @@ pub fn paint_fields(ui: &mut egui::Ui, row: &qnc_script::BlockRow, view: &Script
     // A statement's caption is written when the statement is made (AI Media Assist), the script
     // reads it (user 2026-11-24): where its caption fields are.
     let caption_here = kind.role == qnc_script::Role::Clip && match place {
-        Place::Under => true,
+        Place::Under | Place::TextOnly => true,
         _ => qnc_script::CAPTION_FIELDS.iter().any(|path| here(path)) || (place == Place::UnderOfColumns && !qnc_script::CAPTION_FIELDS.iter().any(|path| placed(path))),
     };
     if caption_here {
