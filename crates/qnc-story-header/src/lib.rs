@@ -319,11 +319,14 @@ fn keep_story(target: &ProjectDbTarget, story: StorySheet, name: &str) -> Result
         return Err(qnc_ui_text::text("header.slug_needed").to_string());
     }
     let project = qnc_ingest_base::take_for_story(&root, &base.id, name, "")?;
+    // What the base holds of its source and AI work goes into the project's own database; the
+    // media stay where the import put them (user 2026-11-27: "bazu možeš kopirati").
+    let copied = qnc_ingest_base::copy_base_into_story(&root, &base.id, &project)?;
     let reader = qnc_work_settings::SettingsReader::from_root(&root).map_err(|error| error.to_string())?.with_project(&project);
     let settings = qnc_active_project_read::ActiveProjectReader::from_settings_reader(reader.clone()).read().map_err(|error| error.to_string())?.settings;
     let made = ProjectDbTarget::for_project(&reader, &settings)?;
     qnc_newsroom_sheet_db::save(&made, story)?;
-    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("story-header project {project} made from base {} (no import started)", base.id));
+    qnc_dev_diagnostics::log_line(qnc_dev_diagnostics::DiagnosticsStream::Player, format!("story-header project {project} made from base {} ({copied} records copied, no import started)", base.id));
     Ok(Some(made.uri().to_string()))
 }
 

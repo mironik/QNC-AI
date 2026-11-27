@@ -364,6 +364,116 @@ pub fn project_of_base(root: &Path, base_id: &str, name: &str) -> Result<(String
     Ok((story, card))
 }
 
+/// The tables of a base's own database a story's project takes when it is made (user 2026-11-27:
+/// "u Ingestu je source materijal i rezultati AI analiza... bazu možeš kopirati, a kadrovi ostaju na
+/// lokaciji uvoza"): the clips and their media records, the filmstrips and waves, the transcripts
+/// and the statements. Not the base's settings, journal, runtime or work queues.
+const BASE_TABLES: &[&str] = &[
+    "clips",
+    "clip_proxy",
+    "clip_sources",
+    "probe_records",
+    "source_records",
+    "media_acquisitions",
+    "media_heads",
+    "media_references",
+    "media_snapshots",
+    "evidence_documents",
+    "snapshot_documents",
+    "support_references",
+    "filmstrip_artifacts",
+    "filmstrip_frames",
+    "wave_artifacts",
+    "clip_transcripts",
+    "virtual_shots",
+    "virtual_shot_parts",
+    "virtual_shot_numbers",
+];
+/// The tables of a base's AI file (`ai.db`) the story takes: the analysis of its shots and what
+/// they show.
+const BASE_AI_TABLES: &[&str] = &["clip_shots", "clip_content", "shot_label_vectors"];
+
+/// The base `base_id`'s records copied into the story `story_id`'s own databases (its `project.db`
+/// and `ai.db`): what the base holds of its source and its AI work; the media stay where the
+/// import put them, the story links them. The base is only read. A row the story has already is
+/// kept. Gives how many rows were copied.
+pub fn copy_base_into_story(root: &Path, base_id: &str, story_id: &str) -> Result<usize, String> {
+    let store = ProjectStore::open(root)?;
+    require_base(&store, base_id)?;
+    if store.list_projects()?.iter().any(|row| row.project_id == story_id && row.name.starts_with(NAME_PREFIX)) {
+        return Err(format!("{story_id} is an Ingest base, not a story"));
+    }
+    let (base_file, _) = store.project_db_binding(base_id)?;
+    let (story_file, _) = store.project_db_binding(story_id)?;
+    copy_base_records(&base_file, &story_file)
+}
+
+/// The records of the base database `base_file` (and its `ai.db` beside it) copied into the story
+/// database `story_file` (and its `ai.db`), as [`copy_base_into_story`] does.
+pub fn copy_base_records(base_file: &Path, story_file: &Path) -> Result<usize, String> {
+    let mut copied = copy_tables(base_file, story_file, BASE_TABLES)?;
+    let base_ai = base_file.with_file_name("ai.db");
+    if base_ai.is_file() {
+        copied += copy_tables(&base_ai, &story_file.with_file_name("ai.db"), BASE_AI_TABLES)?;
+    }
+    Ok(copied)
+}
+
+/// The tables `tables` of `from` (opened read only) copied into `into`, in one transaction: a table
+/// `into` lacks is made as `from` makes it (with its indexes), the rows go by the columns both have,
+/// a row with a key `into` has already is left as it is.
+fn copy_tables(from: &Path, into: &Path, tables: &[&str]) -> Result<usize, String> {
+    let mut conn = rusqlite::Connection::open(into).map_err(|error| error.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(10)).map_err(|error| error.to_string())?;
+    let source = format!("file:{}?mode=ro", from.to_string_lossy().replace('\\', "/"));
+    conn.execute("ATTACH DATABASE ?1 AS base", [&source]).map_err(|error| error.to_string())?;
+    // The tables reference each other (the media records): the rows go in as they are, unchecked.
+    let _ = conn.execute_batch("PRAGMA foreign_keys = OFF");
+    let result = (|| {
+        let tx = conn.transaction().map_err(|error| error.to_string())?;
+        let mut copied = 0;
+        // First every table the story lacks, with its indexes, then the rows.
+        for table in tables {
+            let made: Option<String> = tx
+                .query_row("SELECT sql FROM base.sqlite_master WHERE type = 'table' AND name = ?1", [table], |row| row.get(0))
+                .ok();
+            let Some(made) = made else { continue };
+            let here: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0)).map_err(|error| error.to_string())?;
+            if !here {
+                tx.execute_batch(&made).map_err(|error| format!("{table}: {error}"))?;
+                let mut indexes = tx.prepare("SELECT sql FROM base.sqlite_master WHERE type = 'index' AND tbl_name = ?1 AND sql IS NOT NULL").map_err(|error| error.to_string())?;
+                let made_indexes: Vec<String> = indexes.query_map([table], |row| row.get(0)).map_err(|error| error.to_string())?.collect::<Result<_, _>>().map_err(|error| error.to_string())?;
+                drop(indexes);
+                for index in made_indexes {
+                    tx.execute_batch(&index.replacen("CREATE INDEX", "CREATE INDEX IF NOT EXISTS", 1).replacen("CREATE UNIQUE INDEX", "CREATE UNIQUE INDEX IF NOT EXISTS", 1)).map_err(|error| format!("{table} index: {error}"))?;
+                }
+            }
+        }
+        for table in tables {
+            let in_base: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM base.sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0)).map_err(|error| error.to_string())?;
+            if !in_base {
+                continue;
+            }
+            let columns = |schema: &str| -> Result<Vec<String>, String> {
+                let mut statement = tx.prepare(&format!("SELECT name FROM {schema}.pragma_table_info('{table}')")).map_err(|error| error.to_string())?;
+                let names = statement.query_map([], |row| row.get::<_, String>(0)).map_err(|error| error.to_string())?;
+                names.collect::<Result<Vec<_>, _>>().map_err(|error| error.to_string())
+            };
+            let theirs = columns("base")?;
+            let shared: Vec<String> = columns("main")?.into_iter().filter(|column| theirs.contains(column)).map(|column| format!("\"{column}\"")).collect();
+            if shared.is_empty() {
+                continue;
+            }
+            let list = shared.join(", ");
+            copied += tx.execute(&format!("INSERT OR IGNORE INTO main.\"{table}\" ({list}) SELECT {list} FROM base.\"{table}\""), []).map_err(|error| format!("{table}: {error}"))?;
+        }
+        tx.commit().map_err(|error| error.to_string())?;
+        Ok(copied)
+    })();
+    let _ = conn.execute("DETACH DATABASE base", []);
+    result
+}
+
 /// The clips of the base `base_id` the user chose for the story `story_id` (Uvezi of the Ingest
 /// form), in `story_clips` of the story's own database; the clips' source data stay in the base
 /// (user 2026-11-12: the global base is a kind of media server, the project's own database keeps
