@@ -69,6 +69,16 @@ pub fn shown_marks(cards: &[VirtualShortCard], shot_id: Option<&str>, shown_clip
     chosen_single(cards, shot_id).filter(|(_, clip, _)| Some(*clip) == shown_clip).map(|(_, _, marks)| marks)
 }
 
+/// The parts of `clip` already in a statement (its own range and each part of a compound one on
+/// that clip; B-roll not), lightly grey on the source timeline (user 2026-11-27).
+pub fn used_ranges(cards: &[VirtualShortCard], clip: Option<&str>) -> Vec<(u64, u64)> {
+    let Some(clip) = clip else { return Vec::new() };
+    let statements = cards.iter().filter(|card| !card.b_roll);
+    let own = statements.clone().filter(|card| card.clip_id == clip).map(|card| (card.in_frame, card.out_frame));
+    let parts = statements.flat_map(|card| card.parts.iter()).filter(|part| part.clip_id == clip).map(|part| (part.in_frame, part.out_frame));
+    own.chain(parts).collect()
+}
+
 /// The card of `shot_id` to open, or the text code of why it cannot be: it is gone or its clip
 /// is not in the pool.
 pub fn to_open<'a>(cards: &'a [VirtualShortCard], clips: &[qnc_clip_row::ClipRow], shot_id: &str) -> Result<&'a VirtualShortCard, &'static str> {
@@ -250,6 +260,17 @@ mod tests {
             caption_role: String::new(),
             parts: Vec::new(),
         }
+    }
+
+    #[test]
+    fn the_parts_of_the_shown_clip_in_statements_are_used_b_roll_not() {
+        let clip = qnc_clip_row::ClipRow { clip_id: "clip-a".into(), name: "Mironik 001".into(), duration_seconds: 10.0, duration_frames: 250, ..Default::default() };
+        let part = qnc_virtual_shots::ShotPart { clip_id: "clip-a".into(), in_frame: 100, out_frame: 140, join: Default::default() };
+        let other = qnc_virtual_shots::ShortClip { shot_id: "shot-2".into(), clip_id: "clip-b".into(), parts: vec![part], ..row() };
+        let broll = qnc_virtual_shots::ShortClip { shot_id: "shot-3".into(), b_roll: true, in_frame: 200, out_frame: 220, ..row() };
+        let shown = cards(vec![row(), other, broll], std::slice::from_ref(&clip), &[]);
+        assert_eq!(used_ranges(&shown, Some("clip-a")), vec![(25, 75), (100, 140)]);
+        assert!(used_ranges(&shown, None).is_empty());
     }
 
     #[test]

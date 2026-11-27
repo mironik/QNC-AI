@@ -227,7 +227,7 @@ impl EditorialApplication {
         let timebase = self.preview.player_view().source_timebase();
         let timeline = self.view.preview.timeline;
         let source = self.focus.source_timeline_mut(); // the one source timeline: lanes, channels, timecode
-        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.shown_shot_id.as_deref(), self.view.preview.clip_id.as_deref()), if self.segments.trimming_edge() { qnc_source_timeline::ZoomUse::Yield } else { qnc_source_timeline::ZoomUse::On }).clone()).with_question(self.short_save.question());
+        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.shown_shot_id.as_deref(), self.view.preview.clip_id.as_deref()), if self.segments.trimming_edge() { qnc_source_timeline::ZoomUse::Yield } else { qnc_source_timeline::ZoomUse::On }).clone()).with_question(self.short_save.question()).with_used(qnc_virtual_short_cards::used_ranges(&self.view.shorts, self.view.preview.clip_id.as_deref()));
         self.segments.set_source(SourcePick::new(
             self.view.chosen_clip_id(),
             self.view.current_clip_label(),

@@ -232,6 +232,8 @@ pub struct TimelineTheme {
     pub focus: Color32,
     pub shot_range: Color32,
     pub in_out_dim: Color32,
+    /// Parts of the clip already in a statement, lightly grey (user 2026-11-27).
+    pub used: Color32,
     pub wave_a1: Color32,
     pub wave_a2: Color32,
     pub wave_a3: Color32,
@@ -557,6 +559,8 @@ pub struct TimelineInput<'a> {
     /// On a row with markers: the host holds something taken there (a slot, a slot edge, a
     /// marker, a sound), so a left click keeps it first (a source timeline knows its own).
     pub holding: bool,
+    /// Local frames of the parts of the clip already in a statement: lightly grey, no marks (user 2026-11-27).
+    pub used: &'a [(u64, u64)],
 }
 
 
@@ -609,7 +613,7 @@ pub fn show_source_player_timeline_with_artifacts(
     a4_peaks: &[f32],
 ) -> TimelineIntent {
     let peaks = [a1_peaks, a2_peaks, a3_peaks, a4_peaks];
-    show_source_player_timeline_with_channel(ui, rect, state, theme, filmstrip_background, peaks, None, None, None, &[])
+    show_source_player_timeline_with_channel(ui, rect, state, theme, filmstrip_background, peaks, None, None, None, &[], &[])
 }
 
 /// The source timeline with the A1 and A2 channel pickers, when the caller has a
@@ -625,6 +629,7 @@ pub fn show_source_player_timeline_with_channel(
     a2_channel: Option<ChannelChoice>,
     wave_over_video: Option<(AudioLane, u8)>,
     level_curves: &[TimelineLevelCurve],
+    used: &[(u64, u64)],
 ) -> TimelineIntent {
     let duration = state.duration_frames();
     let (draft_in, draft_out, in_active, out_active) = match state.visible_source_marks() {
@@ -669,6 +674,7 @@ pub fn show_source_player_timeline_with_channel(
                 level_curves,
                 pictures: &[],
                 holding: false,
+                used,
             },
         );
     });
@@ -1659,6 +1665,7 @@ fn paint_ranges_and_playhead(ui: &mut egui::Ui, track: Rect, input: &TimelineInp
             input.theme.shot_range,
         );
     }
+    paint_used(ui, track, input);
     if input.layers.in_out {
         if input.draft_in_active || input.draft_out_active {
             paint_in_out_dim(
@@ -1758,6 +1765,7 @@ fn paint_video_layers(ui: &mut egui::Ui, track: Rect, input: &TimelineInput<'_>)
             paint_a1_splits(ui, track, range_start, duration, input);
         }
     }
+    paint_used(ui, track, input);
     if input.layers.in_out {
         if input.draft_in_active || input.draft_out_active {
             paint_in_out_dim(
@@ -3006,4 +3014,18 @@ fn paint_wave_over_video(ui: &mut egui::Ui, row: Rect, peaks: &[f32], level: u8,
     qnc_wave_view::paint_wave_shape(&painter, track, peaks, zoom * lane_gain, wave, input.theme.wave_shape, [input.theme.meter[1], input.theme.meter[2]]);
     qnc_wave_view::paint_level_marks_shape(&painter, track, zoom, input.theme.level_marks, input.theme.wave_shape);
     paint_ranges_and_playhead(ui, track, input);
+}
+
+/// The parts of the clip already used for statements, lightly grey over the rows (user
+/// 2026-11-27: the user sees which part of the clip has been used; no IN/OUT marks).
+fn paint_used(ui: &mut egui::Ui, track: Rect, input: &TimelineInput<'_>) {
+    let duration = input.state.duration_frames();
+    for &(from, to) in input.used {
+        let (start, end) = (from.min(duration), to.min(duration));
+        if end <= start {
+            continue;
+        }
+        let (left, right) = (x_for_local_frame(track, duration, start), x_for_local_frame(track, duration, end));
+        ui.painter().rect_filled(Rect::from_min_max(egui::pos2(left, track.top()), egui::pos2(right, track.bottom())), 0.0, input.theme.used);
+    }
 }
