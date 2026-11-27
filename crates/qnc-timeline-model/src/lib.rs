@@ -122,13 +122,6 @@ impl TimelineProjection {
         self.cue_enabled
     }
 
-    /// No IN/OUT: a statement saved leaves the timeline and the transcript free for the next one (user 2026-11-27).
-    pub fn clear_source_marks(&mut self) {
-        self.source_in_frame = None;
-        self.source_out_frame = None;
-        self.source_mark_focus = TimelineSourceMarkFocus::Playhead;
-    }
-
     pub fn preserving_source_marks_from(mut self, previous: &Self) -> Self {
         self.source_in_frame = previous.source_in_frame;
         self.source_out_frame = previous.source_out_frame;

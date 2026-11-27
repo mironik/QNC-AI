@@ -222,7 +222,6 @@ pub(crate) fn paint_program(
             level_curves: &level_curves,
             pictures: &pictures,
             // Something taken on the row: a left click keeps it first (the mouse map).
-            used: &[],
             holding: !segments.trim_frames.is_empty() || segments.part_sound.is_some(),
         },
     );

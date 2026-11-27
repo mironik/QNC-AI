@@ -40,8 +40,6 @@ pub struct SourceTimeline<'a> {
     /// The frames of the whole clip, when the timeline shows a window of it (a statement
     /// enlarged): the bar's end timecode is the clip's end, not the window's.
     pub clip_frames: Option<u64>,
-    /// Parts of the clip already in a statement, its own frames: lightly grey (user 2026-11-27).
-    pub used: Vec<(u64, u64)>,
 }
 
 impl<'a> SourceTimeline<'a> {
@@ -66,19 +64,12 @@ impl<'a> SourceTimeline<'a> {
             wave_over_video: None,
             level_curves: Vec::new(),
             clip_frames: None,
-            used: Vec::new(),
         }
     }
 
     /// The frames of the whole clip (the timeline shows a window of it).
     pub fn with_clip_frames(mut self, frames: u64) -> Self {
         self.clip_frames = Some(frames);
-        self
-    }
-
-    /// The parts of the clip already in a statement (its frames), lightly grey.
-    pub fn with_used(mut self, used: Vec<(u64, u64)>) -> Self {
-        self.used = used;
         self
     }
 
@@ -280,14 +271,7 @@ pub fn show_timeline_dock_with(
         timeline.a2_channel,
         timeline.wave_over_video,
         &timeline.level_curves,
-        &used_local(&timeline),
     )
-}
-
-/// The used parts in the frames of the window the timeline shows (a statement enlarged starts later).
-fn used_local(timeline: &SourceTimeline<'_>) -> Vec<(u64, u64)> {
-    let start = timeline.projection.range_start();
-    timeline.used.iter().map(|&(from, to)| (from.saturating_sub(start), to.saturating_sub(start))).filter(|(from, to)| to > from).collect()
 }
 
 #[cfg(test)]

@@ -199,7 +199,7 @@ impl EditorialApplication {
         }
         if self.short_stills.take_published() || self.focus.take_statement_written() { self.reload_shorts() } // a poster or a statement's parts written
         changed |= self.pool_shots.take().map(|rows| self.apply_shorts(rows)).is_some();
-        changed |= self.short_save.follow(qnc_virtual_short_cards::chosen_single(&self.view.shorts, self.view.shown_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1), self.view.source_timeline.timecode.as_ref()).map(|saved| self.short_saved(saved)).is_some();
+        changed |= self.short_save.follow(qnc_virtual_short_cards::chosen_single(&self.view.shorts, self.view.chosen_shot_id.as_deref()),self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.view.preview.timeline.taken_source_mark().is_some(), self.content_target.as_ref().map(|targets| &targets.1), self.view.source_timeline.timecode.as_ref()).map(|saved| self.short_saved(saved)).is_some();
         qnc_dev_diagnostics::timed_block("poll-sync", || self.sync_preview_view());
         changed
     }
@@ -227,7 +227,7 @@ impl EditorialApplication {
         let timebase = self.preview.player_view().source_timebase();
         let timeline = self.view.preview.timeline;
         let source = self.focus.source_timeline_mut(); // the one source timeline: lanes, channels, timecode
-        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.shown_shot_id.as_deref(), self.view.preview.clip_id.as_deref()), if self.segments.trimming_edge() { qnc_source_timeline::ZoomUse::Yield } else { qnc_source_timeline::ZoomUse::On }).clone()).with_question(self.short_save.question()).with_used(qnc_virtual_short_cards::used_ranges(&self.view.shorts, self.view.preview.clip_id.as_deref()));
+        self.view.source_timeline = qnc_dev_diagnostics::timed_block("poll-source-sync", || source.sync(self.view.preview.clip_id.as_deref(), self.content_target.as_ref().map(|targets| &targets.0), &mut self.preview, &timeline, qnc_virtual_short_cards::shown_marks(&self.view.shorts, self.view.chosen_shot_id.as_deref(), self.view.preview.clip_id.as_deref()), if self.segments.trimming_edge() { qnc_source_timeline::ZoomUse::Yield } else { qnc_source_timeline::ZoomUse::On }).clone()).with_question(self.short_save.question());
         self.segments.set_source(SourcePick::new(
             self.view.chosen_clip_id(),
             self.view.current_clip_label(),
@@ -344,7 +344,8 @@ impl EditorialApplication {
         let changed = match intent {
             EditorialIntent::PreviewClip(clip_id) => {
                 let _ = self.focus.chose_clip(&mut self.wrap); // the keyboard stays on the pool after a click
-                self.view.shown_shot_id = None; self.pending_marks.clear(); // the clip, not a statement (user 2026-11-27)
+                self.view.chosen_shot_id = None;
+                self.pending_marks.clear();
                 self.short_stills.clear_if_clip_changed(Some(&clip_id));
                 if self.view.clips.iter().any(|clip| clip.clip_id == clip_id) {
                     self.posters.prioritize(&clip_id);
@@ -387,9 +388,9 @@ impl EditorialApplication {
                 } else if self.short_save.question().is_none() { let clip = self.view.chosen_clip_id().map(str::to_owned); let picture = clip.as_deref().zip(marks).and_then(|(clip, (in_frame, _))| self.short_stills.poster_now(clip, in_frame)); qnc_virtual_short_cards::saving(&mut self.view.shorts, &self.view.clips, clip.as_deref(), marks, picture) } // the card at once (user 2026-11-15)
                 true
             }
-            qnc_pool_tabs::REMOVE_SHORT => { self.pool_shots.remove(self.content_target.as_ref().map(|targets| &targets.1), target); self.view.chosen_shot_id = None; self.view.shown_shot_id = None; true }
+            qnc_pool_tabs::REMOVE_SHORT => { self.pool_shots.remove(self.content_target.as_ref().map(|targets| &targets.1), target); self.view.chosen_shot_id = None; true }
             qnc_short_save::ADD_PART => self.short_save.add_part(qnc_virtual_short_cards::chosen(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
-            qnc_short_save::UPDATE => self.short_save.update(qnc_virtual_short_cards::chosen_single(&self.view.shorts, self.view.shown_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
+            qnc_short_save::UPDATE => self.short_save.update(qnc_virtual_short_cards::chosen_single(&self.view.shorts, self.view.chosen_shot_id.as_deref()), self.view.preview.clip_id.as_deref(), self.view.preview.timeline.visible_source_marks(), self.content_target.as_ref().map(|targets| &targets.1)),
             other => self.short_save.answer(other, target), // Overwrite or Cancel of the same statement (user 2026-11-01), the caption of a new one
         }
     }
@@ -401,10 +402,10 @@ impl EditorialApplication {
             Err(error) => { qnc_virtual_short_cards::drop_saving(&mut self.view.shorts); return self.view.message = qnc_notice::raised(error) }
         };
         if !saved.part { self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks))) } // a part keeps the statement's own stills
-        self.reload_shorts(); self.view.preview.timeline.clear_source_marks(); self.pending_marks.clear(); // IN/OUT and the transcript's text let go for the next one (user 2026-11-27)
+        self.reload_shorts();
         if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // the keyboard stays on the panel last clicked (user 2026-11-15); from the transcript more follow (2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);
-        if !saved.part { self.view.shown_shot_id = None } self.view.chosen_shot_id = Some(saved.shot_id); // a new statement is chosen, not shown (user 2026-11-27)
+        self.view.chosen_shot_id = Some(saved.shot_id);
     }
 
     /// The stills of a saved short (`Some`) or the posters of the covers just saved.
@@ -425,7 +426,7 @@ impl EditorialApplication {
                 return true;
             }
         };
-        self.view.chosen_shot_id = Some(shot.shot_id.clone()); self.view.shown_shot_id = Some(shot.shot_id.clone());
+        self.view.chosen_shot_id = Some(shot.shot_id.clone());
         // A statement of several parts plays and shows part after part, never joined (user 2026-11-19).
         if !shot.parts.is_empty() {
             let own = qnc_virtual_shots::ShotPart { clip_id: shot.clip_id.clone(), in_frame: shot.in_frame, out_frame: shot.out_frame, join: Default::default() };

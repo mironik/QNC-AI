@@ -174,7 +174,6 @@ pub fn show(ui: &mut egui::Ui, view: &SubsegmentView, theme: TimelineTheme, leng
                     a1_splits: &[],
                     level_curves: &level_curves,
                     pictures: &pictures,
-                    used: &[],
                     holding: view.trim.is_some() || view.sound.is_some() || view.join_sound.is_some() || view.slide.is_some() || view.level_curves.iter().any(|curve| curve.taken),
                 },
             )

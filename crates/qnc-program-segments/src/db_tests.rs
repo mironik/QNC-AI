@@ -292,11 +292,11 @@ fn ctrl_o_on_the_segment_panel_lengthens_the_slot_under_the_playhead_and_moves_t
     }
     assert_eq!(marker_frames(&segments), vec![0, 40, 83, 150], "the draft is drawn");
     assert_eq!(segments.view().edit_cuts.len(), 2, "its new last picture and the next slot's first");
-    // The zoom of the clip (AGENTS 3a, user 2026-11-27): [IN] [SLOT] [OUT], at most three; its OUT plays, red.
+    // The zoom of the clip (AGENTS 3a): ([OUT before][IN]) [SLOT] ([OUT][IN after]); its OUT plays, red.
     let shown = &segments.view().edit_stills;
-    assert_eq!(shown.len(), 3);
-    assert!(shown[2].live && shown.iter().filter(|still| still.live).count() == 1, "the player in the OUT window");
-    assert!(shown[2].elements.as_ref().is_some_and(|elements| elements.picture && !elements.strip), "only OUT chosen");
+    assert_eq!(shown.len(), 5);
+    assert!(shown[3].live && shown.iter().filter(|still| still.live).count() == 1, "the player in the OUT window");
+    assert!(shown[3].elements.as_ref().is_some_and(|elements| elements.picture && !elements.strip), "only OUT chosen");
     let cut: Vec<&str> = segments.view().edit_cuts.iter().filter(|still| still.cut).map(|still| still.label.as_str()).collect();
     assert_eq!(cut, vec![qnc_ui_text::text("story.still.slot_new_last")], "the picture at the cut is marked");
     segments.apply_action("activate_focused_item");

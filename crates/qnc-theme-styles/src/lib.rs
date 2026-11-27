@@ -28,7 +28,6 @@ pub fn timeline(theme: &Theme) -> qnc_timeline::TimelineTheme {
         focus: c(media.timeline_focus),
         shot_range: rgb(96, 165, 250),
         in_out_dim: Color32::from_black_alpha(133),
-        used: Color32::from_rgba_unmultiplied(170, 170, 170, 46),
         wave_a1: c(media.wave),
         wave_a2: c(media.wave),
         wave_a3: c(media.wave),
