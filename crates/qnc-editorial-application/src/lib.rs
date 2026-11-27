@@ -405,7 +405,7 @@ impl EditorialApplication {
         self.reload_shorts();
         if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // the keyboard stays on the panel last clicked (user 2026-11-15); from the transcript more follow (2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);
-        self.view.chosen_shot_id = Some(saved.shot_id);
+        if !saved.part { self.view.chosen_shot_id = None } // a new statement is shown only when its card is clicked (user 2026-11-27)
     }
 
     /// The stills of a saved short (`Some`) or the posters of the covers just saved.
