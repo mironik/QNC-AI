@@ -19,6 +19,7 @@ const STATUS: u32 = 1;
 const QUIT: u32 = 3;
 const ADMIN: u32 = 4;
 const SETTINGS: u32 = 11;
+const PROJECTS: u32 = 12;
 const INGEST_FOLDER: u32 = 8;
 const STOP_ALL: u32 = 9;
 /// Opens again the form the mode opens after a copy (user 2026-11-19: "nemam šortkat za povratak
@@ -57,6 +58,7 @@ fn menu(running: usize, active: usize, mode: Option<qnc_tray_mode::Mode>, items:
             }
             Item::IngestFolder => MenuItem { id: INGEST_FOLDER, text: text("tray.ingest_folder"), enabled: true, check: None },
             Item::Settings => MenuItem { id: SETTINGS, text: text("tray.settings"), enabled: true, check: None },
+            Item::Projects => MenuItem { id: PROJECTS, text: text("tray.projects"), enabled: true, check: None },
             Item::Admin => MenuItem { id: ADMIN, text: text("tray.admin"), enabled: true, check: None },
             Item::OpenForm => MenuItem { id: OPEN_FORM, text: text("tray.open_form"), enabled: opens, check: None },
             Item::Quit => MenuItem { id: QUIT, text: text("tray.quit"), enabled: true, check: None },
@@ -244,6 +246,7 @@ fn main() {
                     stop_asked = Some((ask_stop(&tray, "tray.stop_ask"), false));
                 }
                 TrayEvent::Menu(ADMIN) => open_admin(&tray, &root, &mut ingest),
+                TrayEvent::Menu(PROJECTS) => open_projects(&tray, &root),
                 TrayEvent::Menu(SETTINGS) => open_settings(&tray, &root),
                 TrayEvent::Menu(OPEN_FORM) => open_form(&tray, &root, mode),
                 // A folder goes where the tray's orchestrator says, with its own window; the user is
@@ -581,6 +584,17 @@ fn open_settings(tray: &Tray, root: &std::path::Path) {
         Err(error) => {
             log(format!("settings failed: {error}"));
             tray.alert("settings", &text("tray.title"), &fill("tray.settings_failed", &[("error", &error)]), &text("tray.ok"));
+        }
+    }
+}
+
+/// The Projects form (user 2026-11-27): the user's stories to open or delete; one copy runs.
+fn open_projects(tray: &Tray, root: &std::path::Path) {
+    match qnc_ai_open::open(root, "qnc-ai-projects") {
+        Ok(program) => log(format!("projects opened {}", program.display())),
+        Err(error) => {
+            log(format!("projects failed: {error}"));
+            tray.alert("projects", &text("tray.title"), &fill("tray.projects_failed", &[("error", &error)]), &text("tray.ok"));
         }
     }
 }
