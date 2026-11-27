@@ -401,7 +401,7 @@ impl EditorialApplication {
             Err(error) => { qnc_virtual_short_cards::drop_saving(&mut self.view.shorts); return self.view.message = qnc_notice::raised(error) }
         };
         if !saved.part { self.store_short_stills(Some((&saved.shot_id, &saved.clip_id, saved.marks))) } // a part keeps the statement's own stills
-        self.reload_shorts();
+        self.reload_shorts(); self.view.preview.timeline.clear_source_marks(); self.pending_marks.clear(); // IN/OUT and the transcript's text let go for the next one (user 2026-11-27)
         if self.statements_tab && self.view.library_tab != LibraryTab::Transcript { self.view.library_tab = LibraryTab::Virtual } // the keyboard stays on the panel last clicked (user 2026-11-15); from the transcript more follow (2026-11-01)
         self.view.message = qnc_ui_text::fill("story.msg.subclip_saved", &[("shot", &saved.shot_id)]);
         if !saved.part { self.view.shown_shot_id = None } self.view.chosen_shot_id = Some(saved.shot_id); // a new statement is chosen, not shown (user 2026-11-27)
