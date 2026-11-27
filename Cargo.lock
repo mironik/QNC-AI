@@ -4948,6 +4948,7 @@ dependencies = [
  "qnc-db-broker",
  "qnc-dev-diagnostics",
  "qnc-image-assets",
+ "qnc-linked-sources",
  "qnc-media-thumbnail",
  "qnc-notice",
  "qnc-panel-focus",
@@ -6010,6 +6011,15 @@ dependencies = [
  "qnc-media-metadata",
  "qnc-media-readahead",
  "qnc-media-stream",
+]
+
+[[package]]
+name = "qnc-linked-sources"
+version = "0.1.0"
+dependencies = [
+ "qnc-project-store",
+ "qnc-source-bindings",
+ "rusqlite",
 ]
 
 [[package]]

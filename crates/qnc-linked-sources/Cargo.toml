@@ -1,0 +1,10 @@
+[package]
+name = "qnc-linked-sources"
+version.workspace = true
+edition.workspace = true
+description = "QNC-AI block: the Ingest bases a story's project links, as sources of this computer (their media address and folder), read from the registry and the project's own database; nothing is written, no medium is opened"
+
+[dependencies]
+qnc-project-store = { workspace = true }
+qnc-source-bindings = { workspace = true }
+rusqlite = { workspace = true }

@@ -499,7 +499,12 @@ fn read_catalog(
     let story = qnc_db_broker::ProjectDbTarget::for_project(settings, work);
     let targets = qnc_content_store::ContentTarget::for_project(settings, work).and_then(|target| Ok((target, story?)));
     let artifacts = qnc_content_artifacts::timeline_artifact_reader(settings, work).ok();
-    let preview = bindings.map(|bindings| PreviewContext::new(settings.clone(), work.clone(), content, bindings));
+    // The bases the project links are sources as a card's (their media stay where the import put them).
+    let linked = qnc_dev_diagnostics::resolve_qnc_root().and_then(|root| qnc_linked_sources::of(&root, &work.project_id).ok()).unwrap_or_default();
+    let preview = bindings.map(|mut bindings| {
+        bindings.sources.extend(linked);
+        PreviewContext::new(settings.clone(), work.clone(), content, bindings)
+    });
     Ok(Loaded { settings: snapshot.settings, signature, clips, project_dir, targets, artifacts, preview })
 }
 
