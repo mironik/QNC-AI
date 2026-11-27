@@ -1,6 +1,6 @@
 //! The header of the story over the writing form (user 2026-11-24: before writing, "overlay
 //! obrazac za naziv, novinar, snimatelj... u jednom stupcu"): the fields of the story sheet one
-//! under the other, a field of names with a row per name and an empty row to add one; Enter
+//! under the other, each in one row, several names in the same row (user 2026-11-27: "sve samo po jedan red"); Enter
 //! goes to the next field, at the last one it opens the writing; Esc closes it, nothing kept.
 //! Over the writing form the header kept is shown in several columns. It paints only and gives
 //! the actions of `qnc-story-header`.
@@ -9,7 +9,7 @@ use eframe::egui::{self, Id, RichText, Ui};
 use qnc_action_event::ActionEvent;
 use qnc_field_spec::FieldKind;
 use qnc_script::PANEL;
-use qnc_story_header::{HeaderView, CANCEL, CONFIRM, NAME, REMOVE_NAME, TEXT};
+use qnc_story_header::{HeaderView, CANCEL, CONFIRM, TEXT};
 
 const WIDTH: f32 = 560.0;
 const LABEL: f32 = 170.0;
@@ -56,32 +56,6 @@ pub fn overlay(ctx: &egui::Context, view: &HeaderView, theme: &qnc_desktop_theme
                                     }
                                 }
                             });
-                        }
-                        Some(FieldKind::Names) => {
-                            // A row per name and an empty row to add one.
-                            for index in 0..=field.names.len() {
-                                let mut text = field.names.get(index).cloned().unwrap_or_default();
-                                ui.horizontal(|ui| {
-                                    let id = field_id(&field.path, index);
-                                    let hint = if index == field.names.len() { qnc_ui_text::text("header.add_name") } else { "" };
-                                    let edit = ui.add(qnc_ui_kit::text_field(&mut text).id(id).hint_text(hint).desired_width(ui.available_width() - 34.0));
-                                    // Enter goes over the empty row to add a name when the field has names (user 2026-11-27:
-                                    // "dodaje redove umjesto da ide na drugi postojeći red"); a click reaches it.
-                                    let in_order = index < field.names.len() || field.names.is_empty();
-                                    if in_order {
-                                        order.push(id);
-                                    }
-                                    if edit.changed() {
-                                        asked = Some(ActionEvent::key(NAME).with_target(format!("{}\u{1f}{index}\u{1f}{text}", field.path)).at(PANEL));
-                                    }
-                                    if edit.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                                        next = Some(order.len());
-                                    }
-                                    if index < field.names.len() && qnc_ui_kit::chrome_button(ui, "×", true, false, style).clicked() {
-                                        asked = Some(ActionEvent::key(REMOVE_NAME).with_target(format!("{}\u{1f}{index}", field.path)).at(PANEL));
-                                    }
-                                });
-                            }
                         }
                         _ => {
                             let mut text = field.value.clone();
